@@ -392,12 +392,185 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An asynchronous version of the "Read" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IReadAsyncNodeManager
+    {
+        /// <summary>
+        /// Reads the attribute values for a set of nodes.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The MasterNodeManager pre-processes the nodesToRead and ensures that:
+        ///    - the AttributeId is a known attribute.
+        ///    - the IndexRange, if specified, is valid.
+        ///    - the DataEncoding and the IndexRange are not specified if the AttributeId is not Value.
+        /// </para>
+        /// <para>
+        /// The MasterNodeManager post-processes the values by:
+        ///    - sets values[ii].StatusCode to the value of errors[ii].Code
+        ///    - creates a instance of DataValue if one does not exist and an errors[ii] is bad.
+        ///    - removes timestamps from the DataValue if the client does not want them.
+        /// </para>
+        /// <para>
+        /// The node manager must ignore ReadValueId with the Processed flag set to true.
+        /// The node manager must set the Processed flag for any ReadValueId that it processes.
+        /// </para>
+        /// </remarks>
+        ValueTask ReadAsync(
+            OperationContext context,
+            double maxAge,
+            IList<ReadValueId> nodesToRead,
+            IList<DataValue> values,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "Write" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IWriteAsyncNodeManager
+    {
+        /// <summary>
+        /// Writes a set of values.
+        /// </summary>
+        /// <remarks>
+        /// Each node manager should only process node ids that it recognizes. If it processes a value it
+        /// must set the Processed flag in the WriteValue structure.
+        /// </remarks>
+        ValueTask WriteAsync(
+            OperationContext context,
+            IList<WriteValue> nodesToWrite,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "HistoryRead" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IHistoryReadAsyncNodeManager
+    {
+        /// <summary>
+        /// Reads the history of a set of items.
+        /// </summary>
+        ValueTask HistoryReadAsync(
+            OperationContext context,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "HistoryUpdate" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IHistoryUpdateAsyncNodeManager
+    {
+        /// <summary>
+        /// Updates the history for a set of nodes.
+        /// </summary>
+        ValueTask HistoryUpdateAsync(
+            OperationContext context,
+            Type detailsType,
+            IList<HistoryUpdateDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "ConditionRefresh" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IConditionRefreshAsyncNodeManager
+    {
+        /// <summary>
+        /// Tells the NodeManager to refresh any conditions.
+        /// </summary>
+        ValueTask ConditionRefreshAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "TranslateBrowsePath" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ITranslateBrowsePathAsyncNodeManager
+    {
+        /// <summary>
+        /// Finds the targets of the relative path from the source node.
+        /// </summary>
+        /// <param name="context">The context to used when processing the request.</param>
+        /// <param name="sourceHandle">The handle for the source node.</param>
+        /// <param name="relativePath">The relative path to follow.</param>
+        /// <param name="targetIds">The NodeIds for any target at the end of the relative path.</param>
+        /// <param name="unresolvedTargetIds">The NodeIds for any local target that is in another NodeManager.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <remarks>
+        /// A null context indicates that the server's internal logic is making the call.
+        /// The first target in the list must be the target that matches the instance declaration (if applicable).
+        /// Any local targets that belong to other NodeManagers are returned as unresolvedTargetIds.
+        /// The caller must check the BrowseName to determine if it matches the relativePath.
+        /// The implementor must not throw an exception if the source or target nodes do not exist.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">Thrown if the sourceHandle, relativePath or targetIds parameters are null.</exception>
+        ValueTask TranslateBrowsePathAsync(
+            OperationContext context,
+            object sourceHandle,
+            RelativePathElement relativePath,
+            IList<ExpandedNodeId> targetIds,
+            IList<NodeId> unresolvedTargetIds,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "Browse" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IBrowseAsyncNodeManager
+    {
+        /// <summary>
+        /// Returns the set of references that meet the filter criteria.
+        /// </summary>
+        /// <param name="context">The context to used when processing the request.</param>
+        /// <param name="continuationPoint">The continuation point that stores the state of the Browse operation.</param>
+        /// <param name="references">The list of references that meet the filter criteria.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <remarks>
+        /// NodeManagers will likely have references to other NodeManagers which means they will not be able
+        /// to apply the NodeClassMask or fill in the attributes for the target Node. In these cases the
+        /// NodeManager must return a ReferenceDescription with the NodeId and ReferenceTypeId set. The caller will
+        /// be responsible for filling in the target attributes.
+        /// The references parameter may already contain references when the method is called. The implementer must
+        /// include these references when calculating whether a continuation point must be returned.
+        /// </remarks>
+        /// <returns>The continuation point that stores the state of the Browse operation or null if there are no more references to return.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the context, continuationPoint or references parameters are null.</exception>
+        /// <exception cref="ServiceResultException">Thrown if an error occurs during processing.</exception>
+        ValueTask<ContinuationPoint> BrowseAsync(
+            OperationContext context,
+            ContinuationPoint continuationPoint,
+            IList<ReferenceDescription> references,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// This interface is in active development and will be extended in future releases.
     /// Please use the sub interfaces to implement async support for specific service calls.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
-    public interface IAsyncNodeManager : ICallAsyncNodeManager;
+    public interface IAsyncNodeManager :
+        ICallAsyncNodeManager,
+        IReadAsyncNodeManager,
+        IWriteAsyncNodeManager,
+        IHistoryReadAsyncNodeManager,
+        IHistoryUpdateAsyncNodeManager,
+        IConditionRefreshAsyncNodeManager,
+        ITranslateBrowsePathAsyncNodeManager,
+        IBrowseAsyncNodeManager;
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.
