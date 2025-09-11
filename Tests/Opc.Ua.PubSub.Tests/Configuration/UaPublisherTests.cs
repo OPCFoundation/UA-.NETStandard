@@ -85,15 +85,91 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Thread.Sleep(publishTimeInSeconds * 1000);
             publisher.Stop();
 
-            int faultIndex = -1;
-            double faultDeviation = 0;
+            s_publishTicks = [.. from t in s_publishTicks orderby t select t];
+
+            //Assert
+            AssertPublishTicks(s_publishTicks, publishingInterval, maxDeviation, publishTimeInSeconds);
+        }
+
+        [Test(Description = "Test that PublishMessage method is called after a running UAPublisher is stopped and aftwerwords started.")]
+        [Combinatorial]
+#if !CUSTOM_TESTS
+        [Ignore("This test should be executed locally")]
+#endif
+        public void ValidateRunningUaPublisherRestart(
+            [Values(100, 1000, 2000)] double publishingInterval,
+            [Values(30, 40)] double maxDeviation,
+            [Values(10)] int publishTimeInSeconds)
+        {
+            //Arrange
+            s_publishTicks.Clear();
+            var mockConnection = new Mock<IUaPubSubConnection>();
+            mockConnection.Setup(x => x.CanPublish(It.IsAny<WriterGroupDataType>())).Returns(true);
+
+            mockConnection
+                .Setup(x =>
+                    x.CreateNetworkMessages(
+                        It.IsAny<WriterGroupDataType>(),
+                        It.IsAny<WriterGroupPublishState>()))
+                .Callback(() =>
+                {
+                    lock (s_lock)
+                    {
+                        s_publishTicks.Add(HiResClock.Ticks);
+                    }
+                });
+
+            var writerGroupDataType = new WriterGroupDataType
+            {
+                PublishingInterval = publishingInterval
+            };
+
+            //Act
+            var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
+            publisher.Start();
+
+            //wait so many seconds
+            Thread.Sleep(publishTimeInSeconds * 1000);
+            publisher.Stop();
 
             s_publishTicks = [.. from t in s_publishTicks orderby t select t];
 
             //Assert
-            for (int i = 1; i < s_publishTicks.Count; i++)
+            AssertPublishTicks(s_publishTicks, publishingInterval, maxDeviation, publishTimeInSeconds);
+
+            s_publishTicks.Clear();
+            publisher.Start();
+
+            //wait so many seconds
+            Thread.Sleep(publishTimeInSeconds * 1000);
+            publisher.Stop();
+
+            s_publishTicks = [.. from t in s_publishTicks orderby t select t];
+
+            //Assert
+            AssertPublishTicks(s_publishTicks, publishingInterval, maxDeviation, publishTimeInSeconds);
+        }
+
+        /// <summary>
+        /// Assert that the publish time between two consecutive intervals is within
+        /// the limit of the accepted maxDeviation
+        /// </summary>
+        /// <param name="publishTicks"></param>
+        /// <param name="publishingInterval"></param>
+        /// <param name="maxDeviation"></param>
+        /// <param name="publishTimeInSeconds"></param>
+        private void AssertPublishTicks(IList<long> publishTicks,
+            double publishingInterval,
+            double maxDeviation,
+            int publishTimeInSeconds)
+        {
+            Assert.Greater(publishTicks.Count, 0);
+
+            int faultIndex = -1;
+            double faultDeviation = 0;
+            for (int i = 1; i < publishTicks.Count; i++)
             {
-                double interval = (s_publishTicks[i] - s_publishTicks[i - 1]) /
+                double interval = (publishTicks[i] - publishTicks[i - 1]) /
                     HiResClock.TicksPerMillisecond;
                 if (interval != 0)
                 {
