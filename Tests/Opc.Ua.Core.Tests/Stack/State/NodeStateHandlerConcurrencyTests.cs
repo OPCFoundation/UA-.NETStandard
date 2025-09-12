@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
@@ -401,10 +402,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Variant variant,
             Action<BaseVariableState> concurrentTaskAction)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testNodeState = new AnalogUnitRangeState(null);
             var serviceMessageContext = new ServiceMessageContext();
 
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
@@ -431,10 +434,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Variant variant,
             Action<BaseDataVariableTypeState> concurrentTaskAction)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testNodeState = new BaseDataVariableTypeState();
             var serviceMessageContext = new ServiceMessageContext();
 
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
@@ -461,10 +466,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Variant variant,
             Action<BaseObjectState> concurrentTaskAction)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testNodeState = new BaseObjectState(null);
             var serviceMessageContext = new ServiceMessageContext();
 
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
@@ -491,10 +498,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Variant variant,
             Action<MethodState> concurrentTaskAction)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testNodeState = new MethodState(null);
             var serviceMessageContext = new ServiceMessageContext();
 
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
@@ -521,10 +530,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Variant variant,
             Action<ReferenceTypeState> concurrentTaskAction)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testNodeState = new ReferenceTypeState();
             var serviceMessageContext = new ServiceMessageContext();
 
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
@@ -551,10 +562,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Variant variant,
             Action<ViewState> concurrentTaskAction)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testNodeState = new ViewState();
             var serviceMessageContext = new ServiceMessageContext();
 
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };

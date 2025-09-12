@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -66,11 +67,13 @@ namespace Opc.Ua.Server
         /// Report Audit event
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="operationContext">Client operation info</param>
         /// <param name="methodName">Audit method name</param>
         /// <param name="serviceResultException">The service exception that includes also a status code</param>
         public static void ReportAuditEvent(
             this IAuditEventServer server,
+            ILogger logger,
             OperationContext operationContext,
             string methodName,
             ServiceResultException serviceResultException)
@@ -128,7 +131,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditEvent event.");
+                logger.LogError(ex, "Error while reporting AuditEvent event.");
             }
         }
 
@@ -136,12 +139,14 @@ namespace Opc.Ua.Server
         /// Reports an AuditWriteUpdate event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="writeValue">The value to write.</param>
         /// <param name="oldValue">The old value of the node.</param>
         /// <param name="statusCode">The resulted status code.</param>
         public static void ReportAuditWriteUpdateEvent(
             this IAuditEventServer server,
+            ILogger logger,
             SystemContext systemContext,
             WriteValue writeValue,
             object oldValue,
@@ -219,7 +224,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditWriteUpdateEvent event.");
+                logger.LogError(ex, "Error while reporting AuditWriteUpdateEvent event.");
             }
         }
 
@@ -227,12 +232,14 @@ namespace Opc.Ua.Server
         /// Reports an AuditHistoryValueUpdate event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="updateDataDetails">Update data details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         public static void ReportAuditHistoryValueUpdateEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             UpdateDataDetails updateDataDetails,
             DataValue[] oldValues,
@@ -277,7 +284,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditHistoryValueUpdateEvent event.");
+                logger.LogError(ex, "Error while reporting AuditHistoryValueUpdateEvent event.");
             }
         }
 
@@ -285,12 +292,14 @@ namespace Opc.Ua.Server
         /// Reports an AuditHistoryValueUpdate event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="updateStructureDataDetails">Update structure data details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         public static void ReportAuditHistoryAnnotationUpdateEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             UpdateStructureDataDetails updateStructureDataDetails,
             DataValue[] oldValues,
@@ -330,7 +339,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditHistoryValueUpdateEvent event.");
+                logger.LogError(ex, "Error while reporting AuditHistoryValueUpdateEvent event.");
             }
         }
 
@@ -338,12 +347,14 @@ namespace Opc.Ua.Server
         /// Reports an AuditHistoryEventUpdate event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="updateEventDetails">Update event details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         public static void ReportAuditHistoryEventUpdateEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             UpdateEventDetails updateEventDetails,
             HistoryEventFieldList[] oldValues,
@@ -393,7 +404,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditHistoryEventUpdateEvent event.");
+                logger.LogError(ex, "Error while reporting AuditHistoryEventUpdateEvent event.");
             }
         }
 
@@ -401,12 +412,14 @@ namespace Opc.Ua.Server
         /// Reports an AuditHistoryRawModifyDelete event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="deleteRawModifiedDetails">History raw modified details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         public static void ReportAuditHistoryRawModifyDeleteEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             DeleteRawModifiedDetails deleteRawModifiedDetails,
             DataValue[] oldValues,
@@ -456,7 +469,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditHistoryRawModifyDeleteEvent event.");
+                logger.LogError(ex, "Error while reporting AuditHistoryRawModifyDeleteEvent event.");
             }
         }
 
@@ -464,12 +477,14 @@ namespace Opc.Ua.Server
         /// Reports an AuditHistoryAtTimeDelete event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="deleteAtTimeDetails">History delete at time details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         public static void ReportAuditHistoryAtTimeDeleteEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             DeleteAtTimeDetails deleteAtTimeDetails,
             DataValue[] oldValues,
@@ -509,7 +524,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditHistoryAtTimeDeleteEvent event.");
+                logger.LogError(ex, "Error while reporting AuditHistoryAtTimeDeleteEvent event.");
             }
         }
 
@@ -517,12 +532,14 @@ namespace Opc.Ua.Server
         /// Reports an AuditHistoryEventDelete event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="deleteEventDetails">History delete event details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         public static void ReportAuditHistoryEventDeleteEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             DeleteEventDetails deleteEventDetails,
             DataValue[] oldValues,
@@ -562,18 +579,21 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditHistoryEventDeleteEvent event.");
+                logger.LogError(ex, "Error while reporting AuditHistoryEventDeleteEvent event.");
             }
         }
 
         /// <summary>
-        ///  Reports all audit events for client certificate ServiceResultException. It goes recursively for all service results stored in the exception
+        /// Reports all audit events for client certificate ServiceResultException.
+        /// It goes recursively for all service results stored in the exception
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>
         public static void ReportAuditCertificateEvent(
             this IAuditEventServer server,
+            ILogger logger,
             X509Certificate2 clientCertificate,
             Exception exception)
         {
@@ -596,15 +616,16 @@ namespace Opc.Ua.Server
                 {
                     if (exception is ServiceResultException sre && sre.InnerResult != null)
                     {
-                        // Each validation step has a unique error status and audit event type that shall be reported if the check fails.
-                        server.ReportAuditCertificateEvent(systemContext, clientCertificate, sre);
+                        // Each validation step has a unique error status and audit event type
+                        // that shall be reported if the check fails.
+                        server.ReportAuditCertificateEvent(logger, systemContext, clientCertificate, sre);
                     }
                     exception = exception.InnerException;
                 }
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting ReportAuditCertificateDataMismatch event.");
             }
@@ -615,6 +636,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static void ReportAuditCertificateEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             X509Certificate2 clientCertificate,
             ServiceResultException sre)
@@ -696,7 +718,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting ReportAuditCertificateDataMismatch event.");
             }
@@ -706,12 +728,16 @@ namespace Opc.Ua.Server
         /// Reports the AuditCertificateDataMismatchEventType for Invalid Uri
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="clientCertificate">The client certificate</param>
-        /// <param name="invalidHostName">The string that represents the host name passed in as part of the URL that is found to be invalid. If the host name was not invalid it can be null.</param>
-        /// <param name="invalidUri">The URI that was passed in and found to not match what is contained in the certificate. If the URI was not invalid it can be null.</param>
+        /// <param name="invalidHostName">The string that represents the host name passed in as
+        /// part of the URL that is found to be invalid. If the host name was not invalid it can be null.</param>
+        /// <param name="invalidUri">The URI that was passed in and found to not match what is
+        /// contained in the certificate. If the URI was not invalid it can be null.</param>
         /// <param name="statusCode">The status code.</param>
         public static void ReportAuditCertificateDataMismatchEvent(
             this IAuditEventServer server,
+            ILogger logger,
             X509Certificate2 clientCertificate,
             string invalidHostName,
             string invalidUri,
@@ -767,7 +793,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting ReportAuditCertificateDataMismatchEvent event.");
             }
@@ -777,11 +803,13 @@ namespace Opc.Ua.Server
         /// Report the AuditCancelEventState
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="sessionId">Session id of the current session</param>
         /// <param name="requestHandle">The handle of the canceled request</param>
         /// <param name="statusCode">The resulted status code of cancel request.</param>
         public static void ReportAuditCancelEvent(
             this IAuditEventServer server,
+            ILogger logger,
             NodeId sessionId,
             uint requestHandle,
             StatusCode statusCode)
@@ -827,7 +855,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting ReportAuditCancelEvent event.");
+                logger.LogError(ex, "Error while reporting ReportAuditCancelEvent event.");
             }
         }
 
@@ -835,6 +863,7 @@ namespace Opc.Ua.Server
         /// Reports a RoleMappingRuleChangedAuditEvent when a method is called on a RoleType instance
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="roleStateObjectId">Role</param>
         /// <param name="method">The method</param>
@@ -842,6 +871,7 @@ namespace Opc.Ua.Server
         /// <param name="status">Status of call</param>
         public static void ReportAuditRoleMappingRuleChangedEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             NodeId roleStateObjectId,
             MethodState method,
@@ -884,7 +914,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting ReportRoleMappingRuleChangedAuditEvent event.");
             }
@@ -894,12 +924,14 @@ namespace Opc.Ua.Server
         /// Reports an audit create session event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session object that was created.</param>
         /// <param name="revisedSessionTimeout">The revised session timeout</param>
         /// <param name="exception">The exception received during create session request</param>
         public static void ReportAuditCreateSessionEvent(
             this IAuditEventServer server,
+            ILogger logger,
             string auditEntryId,
             ISession session,
             double revisedSessionTimeout,
@@ -974,9 +1006,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
-                    "Error while reporting AuditCreateSessionEvent event for SessionId {0}.",
+                    "Error while reporting AuditCreateSessionEvent event for SessionId {SessionId}.",
                     session?.Id);
             }
         }
@@ -985,12 +1017,14 @@ namespace Opc.Ua.Server
         /// Reports an audit activate session event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session that is activated.</param>
         /// <param name="softwareCertificates">The software certificates</param>
         /// <param name="exception">The exception received during activate session request</param>
         public static void ReportAuditActivateSessionEvent(
             this IAuditEventServer server,
+            ILogger logger,
             string auditEntryId,
             ISession session,
             IList<SoftwareCertificate> softwareCertificates,
@@ -1066,9 +1100,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                logger.LogError(
                     e,
-                    "Error while reporting AuditActivateSessionEvent event for SessionId {0}.",
+                    "Error while reporting AuditActivateSessionEvent event for SessionId {SessionId}.",
                     session?.Id);
             }
         }
@@ -1077,12 +1111,14 @@ namespace Opc.Ua.Server
         /// Reports an audit Url Mismatch event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session object that was created.</param>
         /// <param name="revisedSessionTimeout">The revised session timeout</param>
         /// <param name="endpointUrl">The invalid endpoint url</param>
         public static void ReportAuditUrlMismatchEvent(
             this IAuditEventServer server,
+            ILogger logger,
             string auditEntryId,
             ISession session,
             double revisedSessionTimeout,
@@ -1148,9 +1184,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                logger.LogError(
                     e,
-                    "Error while reporting AuditUrlMismatchEvent event for SessionId {0}.",
+                    "Error while reporting AuditUrlMismatchEvent event for SessionId {SessionId}.",
                     session?.Id);
             }
         }
@@ -1159,6 +1195,7 @@ namespace Opc.Ua.Server
         /// Reports an audit close session event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session object that was created.</param>
         /// <param name="sourceName">Session/CloseSession when the session is closed by request
@@ -1166,6 +1203,7 @@ namespace Opc.Ua.Server
         /// “Session/Terminated” for all other cases.</param>
         public static void ReportAuditCloseSessionEvent(
             this IAuditEventServer server,
+            ILogger logger,
             string auditEntryId,
             ISession session,
             string sourceName = "Session/Terminated")
@@ -1196,9 +1234,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
-                    "Error while reporting AuditSessionEventState close event for SessionId {0}.",
+                    "Error while reporting AuditSessionEventState close event for SessionId {SessionId}.",
                     session?.Id);
             }
         }
@@ -1207,11 +1245,13 @@ namespace Opc.Ua.Server
         /// Reports an audit session event for the transfer subscription.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session object that was created.</param>
         /// <param name="statusCode">The status code resulting .</param>
         public static void ReportAuditTransferSubscriptionEvent(
             this IAuditEventServer server,
+            ILogger logger,
             string auditEntryId,
             ISession session,
             StatusCode statusCode)
@@ -1253,9 +1293,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
-                    "Error while reporting AuditSessionEventState close event for SessionId {0}.",
+                    "Error while reporting AuditSessionEventState close event for SessionId {SessionId}.",
                     session?.Id);
             }
         }
@@ -1264,6 +1304,7 @@ namespace Opc.Ua.Server
         /// Raise CertificateUpdatedAudit event
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="objectId">The id of the object used for update certificate method</param>
         /// <param name="method">The method that triggered the audit event.</param>
@@ -1273,6 +1314,7 @@ namespace Opc.Ua.Server
         /// <param name="exception">The exception resulted after executing the UpdateCertificate method. If null, the operation was successfull.</param>
         public static void ReportCertificateUpdatedAuditEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
@@ -1340,7 +1382,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting ReportCertificateUpdatedAuditEvent event.");
             }
@@ -1350,12 +1392,14 @@ namespace Opc.Ua.Server
         /// Raise CertificateUpdateRequestedAudit event
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="objectId">The id of the object used for update certificate method</param>
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         public static void ReportCertificateUpdateRequestedAuditEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
@@ -1391,7 +1435,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting CertificateUpdateRequestedAuditEvent event.");
             }
@@ -1401,12 +1445,14 @@ namespace Opc.Ua.Server
         /// Report the AuditAddNodesEvent
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="addNodesItems">The added nodes information.</param>
         /// <param name="customMessage">Custom message for add nodes audit event.</param>
         /// <param name="statusCode">The resulting status code.</param>
         public static void ReportAuditAddNodesEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             AddNodesItem[] addNodesItems,
             string customMessage,
@@ -1454,7 +1500,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditAddNodesEvent event.");
+                logger.LogError(ex, "Error while reporting AuditAddNodesEvent event.");
             }
         }
 
@@ -1462,12 +1508,14 @@ namespace Opc.Ua.Server
         /// Reports the AuditDeleteNodesEvent.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="nodesToDelete">The delete nodes information.</param>
         /// <param name="customMessage">Custom message for delete nodes.</param>
         /// <param name="statusCode">The resulting status code.</param>
         public static void ReportAuditDeleteNodesEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             DeleteNodesItem[] nodesToDelete,
             string customMessage,
@@ -1515,7 +1563,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
+                logger.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
             }
         }
 
@@ -1523,6 +1571,7 @@ namespace Opc.Ua.Server
         /// Report the open secure channel audit event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="globalChannelId">The global unique channel id.</param>
         /// <param name="endpointDescription">The endpoint description used for the request.</param>
         /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
@@ -1530,6 +1579,7 @@ namespace Opc.Ua.Server
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
         public static void ReportAuditOpenSecureChannelEvent(
             this IAuditEventServer server,
+            ILogger logger,
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
@@ -1656,7 +1706,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
+                logger.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
             }
         }
 
@@ -1664,10 +1714,12 @@ namespace Opc.Ua.Server
         /// Report the close secure channel audit event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="globalChannelId">The global unique channel id.</param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
         public static void ReportAuditCloseSecureChannelEvent(
             this IAuditEventServer server,
+            ILogger logger,
             string globalChannelId,
             Exception exception)
         {
@@ -1746,7 +1798,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
+                logger.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
             }
         }
 
@@ -1754,6 +1806,7 @@ namespace Opc.Ua.Server
         /// Reports the AuditUpdateMethodEventType
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">Server information.</param>
         /// <param name="objectId">The id of the object where the method is executed.</param>
         /// <param name="methodId">The NodeId of the object that the method resides in.</param>
@@ -1762,6 +1815,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code.</param>
         public static void ReportAuditUpdateMethodEvent(
             this IAuditEventServer server,
+            ILogger logger,
             ISystemContext systemContext,
             NodeId objectId,
             NodeId methodId,
@@ -1818,7 +1872,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
+                logger.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
             }
         }
 
@@ -1826,6 +1880,7 @@ namespace Opc.Ua.Server
         /// Reports an TrustListUpdatedAudit event.
         /// </summary>
         /// <param name="node">The trustlist node.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context</param>
         /// <param name="objectId">The object id where the truest list update methods was called</param>
         /// <param name="sourceName">The source name string</param>
@@ -1834,6 +1889,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The status code resulted when the TrustList was updated </param>
         public static void ReportTrustListUpdatedAuditEvent(
             this TrustListState node,
+            ILogger logger,
             ISystemContext systemContext,
             NodeId objectId,
             string sourceName,
@@ -1874,7 +1930,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting ReportTrustListUpdatedAuditEvent event.");
+                logger.LogError(ex, "Error while reporting ReportTrustListUpdatedAuditEvent event.");
             }
         }
 
@@ -1882,6 +1938,7 @@ namespace Opc.Ua.Server
         /// Reports an TrustListUpdatedAudit event.
         /// </summary>
         /// <param name="node">The trustlist node.</param>
+        /// <param name="logger"></param>
         /// <param name="systemContext">The current system context</param>
         /// <param name="objectId">The object id where the truest list update methods was called</param>
         /// <param name="sourceName">The source name string</param>
@@ -1889,6 +1946,7 @@ namespace Opc.Ua.Server
         /// <param name="inputParameters">The input parameters of the called method</param>
         public static void ReportTrustListUpdateRequestedAuditEvent(
             this TrustListState node,
+            ILogger logger,
             ISystemContext systemContext,
             NodeId objectId,
             string sourceName,
@@ -1921,7 +1979,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting TrustListUpdateRequestedAuditEvent event.");
             }

@@ -14,7 +14,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -27,7 +26,7 @@ namespace Opc.Ua
         /// Ctor of a certificate store.
         /// </summary>
         public CertificateStoreIdentifier()
-            : this (null, true)
+            : this(null, true)
         {
         }
 
@@ -193,7 +192,7 @@ namespace Opc.Ua
                     store = new X509CertificateStore(telemetry);
                     break;
                 case CertificateStoreType.Directory:
-                    store = new DirectoryCertificateStore();
+                    store = new DirectoryCertificateStore(telemetry);
                     break;
                 default:
                     ICertificateStoreType storeType = CertificateStoreType

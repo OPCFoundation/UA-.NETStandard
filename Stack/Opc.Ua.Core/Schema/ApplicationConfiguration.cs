@@ -14,6 +14,8 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security;
 
@@ -49,6 +51,8 @@ namespace Opc.Ua
         public ApplicationConfiguration(ApplicationConfiguration template)
         {
             m_telemetry = template.m_telemetry;
+            m_logger = template.m_logger;
+
             ApplicationName = template.ApplicationName;
             ApplicationType = template.ApplicationType;
             ApplicationUri = template.ApplicationUri;
@@ -218,6 +222,7 @@ namespace Opc.Ua
         public bool DisableHiResClock { get; set; }
 
         private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
         private XmlElementCollection m_extensions;
@@ -537,9 +542,9 @@ namespace Opc.Ua
         /// Invalid and none is discouraged
         /// Just signing is always weaker than any use of encryption
         /// </summary>
-        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
+        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri, ILogger logger)
         {
-            return SecuredApplication.CalculateSecurityLevel(mode, policyUri);
+            return SecuredApplication.CalculateSecurityLevel(mode, policyUri, logger);
         }
 
         /// <summary>
@@ -2364,7 +2369,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Certificate = CertificateFactory.Create(rawData, true);
+            Certificate = CertificateFactory.Create(rawData, true, null);
         }
 
         /// <summary>
@@ -2526,7 +2531,10 @@ namespace Opc.Ua
                     return;
                 }
 
-                m_certificate = CertificateFactory.Create(value, true);
+                // TODO: This bypasses any logging due to the NullLogger.Instance.
+                // We need a better way to deal with depersisting information and logging
+                // and also that does not require a logger to be passed around everywhere.
+                m_certificate = CertificateFactory.Create(value, true, NullLogger.Instance);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 CertificateType = GetCertificateType(m_certificate);

@@ -125,7 +125,7 @@ namespace Opc.Ua
                 if (ensurePrivateKeyAccessible &&
                     !X509Utils.VerifyKeyPair(certificate, certificate))
                 {
-                    logger.LogWarning(
+                    logger?.LogWarning(
                         "Trying to add certificate to cache with invalid private key.");
                     return null;
                 }
@@ -135,8 +135,8 @@ namespace Opc.Ua
 
                 if (s_certificates.Count > 100)
                 {
-                    logger.LogWarning(
-                        "Certificate cache has {0} certificates in it.",
+                    logger?.LogWarning(
+                        "Certificate cache has {Count} certificates in it.",
                         s_certificates.Count);
                 }
             }

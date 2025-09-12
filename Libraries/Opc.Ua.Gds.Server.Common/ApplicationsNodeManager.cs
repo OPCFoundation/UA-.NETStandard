@@ -111,11 +111,11 @@ namespace Opc.Ua.Gds.Server
                     null,
                     null,
                     out DateTime lastResetTime);
-                m_logger.LogInformation("QueryServers Returned: {0} records", results.Length);
+                m_logger.LogInformation("QueryServers Returned: {Count} records", results.Length);
 
                 foreach (ServerOnNetwork result in results)
                 {
-                    m_logger.LogInformation("Server Found at {0}", result.DiscoveryUrl);
+                    m_logger.LogInformation("Server Found at {DiscoveryUrl}", result.DiscoveryUrl);
                 }
             }
             catch (Exception e)
@@ -126,7 +126,7 @@ namespace Opc.Ua.Gds.Server
 
                 while (ie != null)
                 {
-                    m_logger.LogInformation(ie, string.Empty);
+                    m_logger.LogInformation(ie, "Exception");
                     ie = ie.InnerException;
                 }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.Gds.Server
                     {
                         m_logger.LogError(
                             e,
-                            "Unexpected error revoking certificate. {0} for Authority={1}",
+                            "Unexpected error revoking certificate. {Subject} for Authority={CertificateGroupId}",
                             x509.Subject,
                             certificateGroup.Id);
                     }
@@ -377,12 +377,9 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        var message = new StringBuilder();
-                        message.AppendLine("Unexpected error initializing certificateGroup: {0}")
-                            .AppendLine("{1}");
                         m_logger.LogError(
                             e,
-                            message.ToString(),
+                            "Unexpected error initializing certificateGroup: {CertificateGroupId}\n{StackTrace}",
                             certificateGroupConfiguration.Id,
                             ServiceResult.BuildExceptionTrace(e));
                         // make sure gds server doesn't start without cert groups!
@@ -577,7 +574,7 @@ namespace Opc.Ua.Gds.Server
             ref DateTime lastCounterResetTime,
             ref ServerOnNetwork[] servers)
         {
-            m_logger.LogInformation("QueryServers: {0} {1}", applicationUri, applicationName);
+            m_logger.LogInformation("QueryServers: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
 
             servers = m_database.QueryServers(
                 startingRecordId,
@@ -606,7 +603,7 @@ namespace Opc.Ua.Gds.Server
             ref uint nextRecordId,
             ref ApplicationDescription[] applications)
         {
-            m_logger.LogInformation("QueryApplications: {0} {1}", applicationUri, applicationName);
+            m_logger.LogInformation("QueryApplications: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
 
             applications = m_database.QueryApplications(
                 startingRecordId,
@@ -630,7 +627,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdmin);
 
-            m_logger.LogInformation("OnRegisterApplication: {0}", application.ApplicationUri);
+            m_logger.LogInformation("OnRegisterApplication: {ApplicationUri}", application.ApplicationUri);
 
             applicationId = m_database.RegisterApplication(application);
 
@@ -656,7 +653,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdmin);
 
-            m_logger.LogInformation("OnUpdateApplication: {0}", application.ApplicationUri);
+            m_logger.LogInformation("OnUpdateApplication: {ApplicationUri}", application.ApplicationUri);
 
             ApplicationRecordDataType record = m_database.GetApplication(application.ApplicationId);
 
@@ -692,7 +689,7 @@ namespace Opc.Ua.Gds.Server
                 context,
                 AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
 
-            m_logger.LogInformation("OnUnregisterApplication: {0}", applicationId.ToString());
+            m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
 
             foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
             {
@@ -709,7 +706,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 catch
                 {
-                    m_logger.LogError("Failed to revoke: {0}", certType.Value);
+                    m_logger.LogError("Failed to revoke: {CertificateType}", certType.Value);
                 }
             }
 
@@ -789,7 +786,7 @@ namespace Opc.Ua.Gds.Server
             ref ApplicationRecordDataType[] applications)
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
-            m_logger.LogInformation("OnFindApplications: {0}", applicationUri);
+            m_logger.LogInformation("OnFindApplications: {ApplicationUri}", applicationUri);
             applications = m_database.FindApplications(applicationUri);
             return ServiceResult.Good;
         }
@@ -805,7 +802,7 @@ namespace Opc.Ua.Gds.Server
                 context,
                 AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
                 applicationId);
-            m_logger.LogInformation("OnGetApplication: {0}", applicationId);
+            m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
             application = m_database.GetApplication(applicationId);
             return ServiceResult.Good;
         }
@@ -1330,7 +1327,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // verify the CSR integrity for the application
-            await certificateGroup.VerifySigningRequestAsync(application, certificateRequest).ConfigureAwait(false);
+            await certificateGroup.VerifySigningRequestAsync(application, certificateRequest, cancellationToken).ConfigureAwait(false);
 
             // store request in the queue for approval
             result.RequestId = m_request.StartSigningRequest(
@@ -1469,7 +1466,8 @@ namespace Opc.Ua.Gds.Server
                                 application,
                                 certificateTypeNodeId,
                                 defaultDomainNames,
-                                certificateRequest)
+                                certificateRequest,
+                                cancellationToken)
                             .Result;
                     }
                     catch (Exception e)
@@ -1501,7 +1499,8 @@ namespace Opc.Ua.Gds.Server
                                 subjectName,
                                 domainNames,
                                 privateKeyFormat,
-                                privateKeyPassword)
+                                privateKeyPassword,
+                                cancellationToken)
                             .Result;
                     }
                     catch (Exception e)

@@ -26,11 +26,24 @@ namespace Opc.Ua
     public abstract class EndpointBase : IEndpointBase, ITransportListenerCallback
     {
         /// <summary>
+        /// This must be set by the derived class to initialize the telemtry system
+        /// </summary>
+        public required ITelemetryContext Telemetry
+        {
+            protected get => m_telemetry;
+            init
+            {
+                m_telemetry = value;
+                m_logger = value.CreateLogger(this);
+            }
+        }
+
+        /// <summary>
         /// Initializes the object when it is created by the WCF framework.
         /// </summary>
-        protected EndpointBase(ITelemetryContext telemetry)
+        protected EndpointBase(ITelemetryContext telemetry = null)
         {
-            m_logger = telemetry.CreateLogger<EndpointBase>();
+            Telemetry = telemetry;
             SupportedServices = [];
 
             try
@@ -535,10 +548,10 @@ namespace Opc.Ua
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
-                logger.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
+                logger.LogWarning("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
                 if (sre.StatusCode == StatusCodes.BadUnexpectedError)
                 {
-                    logger.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
+                    logger.LogWarning(Utils.TraceMasks.StackTrace, sre, "{Exception}", sre.ToString());
                 }
             }
             else
@@ -546,7 +559,7 @@ namespace Opc.Ua
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
                 logger.LogError(
                     exception,
-                    "SERVER - Unexpected Service Fault: {0}",
+                    "SERVER - Unexpected Service Fault: {Message}",
                     exception.Message);
             }
 
@@ -1098,7 +1111,8 @@ namespace Opc.Ua
             private Exception m_error;
         }
 
-        private ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private IServiceHostBase m_host;
         private IServerBase m_server;
     }

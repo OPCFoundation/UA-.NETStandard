@@ -34,6 +34,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -51,17 +52,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a empty object.
         /// </summary>
-        public Subscription()
+        public Subscription(ITelemetryContext telemetry)
         {
-            Initialize();
-        }
+            Telemetry = telemetry;
 
-        /// <summary>
-        /// Initializes the subscription from a template.
-        /// </summary>
-        public Subscription(Subscription template)
-            : this(template, false)
-        {
+            Initialize();
         }
 
         /// <summary>
@@ -69,8 +64,14 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="template">The template.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public Subscription(Subscription template, bool copyEventHandlers)
+        public Subscription(Subscription template, bool copyEventHandlers = false)
         {
+            if (template != null)
+            {
+                m_logger = template.m_logger;
+                m_telemetry = template.Telemetry;
+            }
+
             Initialize();
 
             if (template != null)
@@ -167,7 +168,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "SubscriptionId {0} - Reset Publish Worker exception.", Id);
+                m_logger.LogError(e, "SubscriptionId {SubscriptionId} - Reset Publish Worker exception.", Id);
             }
             finally
             {
@@ -181,7 +182,7 @@ namespace Opc.Ua.Client
         [OnDeserializing]
         protected void Initialize(StreamingContext context)
         {
-            m_cache = new object();
+            m_cache = new Lock();
             Initialize();
         }
 
@@ -210,6 +211,9 @@ namespace Opc.Ua.Client
             m_messageWorkerEvent = new AsyncAutoResetEvent();
             m_messageWorkerCts = null;
             m_resyncLastSequenceNumberProcessed = false;
+
+            // Creates a default logger even if telemetry is null
+            m_logger ??= Telemetry.CreateLogger<Subscription>();
 
             DefaultItem = new MonitoredItem
             {
@@ -538,6 +542,19 @@ namespace Opc.Ua.Client
         public ISession Session { get; protected internal set; }
 
         /// <summary>
+        /// Enables owners to set the telemetry context
+        /// </summary>
+        protected internal ITelemetryContext Telemetry
+        {
+            get => m_telemetry; // Accessible from monitored item
+            internal set
+            {
+                m_telemetry = value;
+                m_logger = value.CreateLogger<MonitoredItem>();
+            }
+        }
+
+        /// <summary>
         /// A local handle assigned to the subscription
         /// </summary>
         public object Handle { get; set; }
@@ -710,9 +727,9 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     ex,
-                    "Subscription state change callback exception with change mask 0x{0:X2}",
+                    "Subscription state change callback exception with change mask 0x{ChangeMask:X2}",
                     m_changeMask);
             }
             m_changeMask = SubscriptionChangeMask.None;
@@ -1250,8 +1267,8 @@ namespace Opc.Ua.Client
                 // remove the subscription from disconnected session
                 if (Session?.RemoveTransferredSubscription(this) != true)
                 {
-                    Utils.LogError(
-                        "SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.",
+                    m_logger.LogError(
+                        "SubscriptionId {SubscriptionId}: Failed to remove transferred subscription from owner SessionId={SessionId}.",
                         Id,
                         Session?.SessionId);
                     return false;
@@ -1267,8 +1284,8 @@ namespace Opc.Ua.Client
                 // add transferred subscription to session
                 if (!session.AddSubscription(this))
                 {
-                    Utils.LogError(
-                        "SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.",
+                    m_logger.LogError(
+                        "SubscriptionId {SubscriptionId}: Failed to add transferred subscription to SessionId={SessionId}.",
                         Id,
                         session.SessionId);
                     return false;
@@ -1284,8 +1301,8 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
                 if (!success)
                 {
-                    Utils.LogError(
-                        "SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.",
+                    m_logger.LogError(
+                        "SubscriptionId {SubscriptionId}: The server failed to respond to GetMonitoredItems after transfer.",
                         Id);
                     return false;
                 }
@@ -1295,8 +1312,8 @@ namespace Opc.Ua.Client
                     clientHandles.Count != monitoredItemsCount)
                 {
                     // invalid state
-                    Utils.LogError(
-                        "SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
+                    m_logger.LogError(
+                        "SubscriptionId {SubscriptionId}: Number of Monitored Items on client and server do not match after transfer {Previous}!={New}",
                         Id,
                         serverHandles.Count,
                         monitoredItemsCount);
@@ -1419,8 +1436,8 @@ namespace Opc.Ua.Client
                         {
                             if (!entry.Processed)
                             {
-                                Utils.LogWarning(
-                                    "SubscriptionId {0} skipping PublishResponse Sequence Number {1}",
+                                m_logger.LogWarning(
+                                    "SubscriptionId {SubscriptionId} skipping PublishResponse Sequence Number {SequenceNumber}",
                                     Id,
                                     entry.SequenceNumber);
                             }
@@ -1609,7 +1626,7 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                Utils.LogError(sre, "SubscriptionId {0}: Failed to call ResendData on server", Id);
+                m_logger.LogError(sre, "SubscriptionId {SubscriptionId}: Failed to call ResendData on server", Id);
             }
             return false;
         }
@@ -1641,9 +1658,9 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     sre,
-                    "SubscriptionId {0}: Failed to call GetMonitoredItems on server",
+                    "SubscriptionId {SubscriptionId}: Failed to call GetMonitoredItems on server",
                     Id);
             }
             return (false, serverHandles, clientHandles);
@@ -1677,9 +1694,9 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     sre,
-                    "SubscriptionId {0}: Failed to call SetSubscriptionDurable on server",
+                    "SubscriptionId {SubscriptionId}: Failed to call SetSubscriptionDurable on server",
                     Id);
             }
 
@@ -1757,8 +1774,8 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    Utils.LogInformation(
-                        "SubscriptionId {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
+                    m_logger.LogInformation(
+                        "SubscriptionId {SubscriptionId}: Republishing {Count} messages, next sequencenumber {SequenceNumber} after transfer.",
                         Id,
                         republishMessages,
                         m_lastSequenceNumberProcessed);
@@ -1864,10 +1881,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task PublishResponseMessageWorkerAsync(CancellationToken ct)
         {
-            Utils.LogTrace(
-                "SubscriptionId {0} - Publish Thread {1:X8} Started.",
+            m_logger.LogTrace(
+                "SubscriptionId {SubscriptionId} - Publish Task {TaskId:X8} Started.",
                 Id,
-                Environment.CurrentManagedThreadId);
+                Task.CurrentId);
 
             try
             {
@@ -1887,18 +1904,18 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
-                    "SubscriptionId {0} - Publish Worker Thread {1:X8} Exited Unexpectedly.",
+                    "SubscriptionId {SubscriptionId} - Publish Worker Task {TaskId:X8} Exited Unexpectedly.",
                     Id,
-                    Environment.CurrentManagedThreadId);
+                    Task.CurrentId);
                 return;
             }
 
-            Utils.LogTrace(
-                "SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.",
+            m_logger.LogTrace(
+                "SubscriptionId {SubscriptionId} - Publish Task {TaskId:X8} Exited Normally.",
                 Id,
-                Environment.CurrentManagedThreadId);
+                Task.CurrentId);
         }
 
         /// <summary>
@@ -1991,8 +2008,8 @@ namespace Opc.Ua.Client
 
             if (KeepAliveCount != revisedKeepAliveCount)
             {
-                Utils.LogInformation(
-                    "For subscription {0}, Keep alive count was revised from {1} to {2}",
+                m_logger.LogInformation(
+                    "For subscription {SubscriptionId}, Keep alive count was revised from {Previous} to {New}",
                     Id,
                     KeepAliveCount,
                     revisedKeepAliveCount);
@@ -2000,8 +2017,8 @@ namespace Opc.Ua.Client
 
             if (LifetimeCount != revisedLifetimeCounter)
             {
-                Utils.LogInformation(
-                    "For subscription {0}, Lifetime count was revised from {1} to {2}",
+                m_logger.LogInformation(
+                    "For subscription {SubscriptionId}, Lifetime count was revised from {Previous} to {New}",
                     Id,
                     LifetimeCount,
                     revisedLifetimeCounter);
@@ -2009,8 +2026,8 @@ namespace Opc.Ua.Client
 
             if (PublishingInterval != revisedPublishingInterval)
             {
-                Utils.LogInformation(
-                    "For subscription {0}, Publishing interval was revised from {1} to {2}",
+                m_logger.LogInformation(
+                    "For subscription {SubscriptionId}, Publishing interval was revised from {Previous} to {New}",
                     Id,
                     PublishingInterval,
                     revisedPublishingInterval);
@@ -2018,8 +2035,8 @@ namespace Opc.Ua.Client
 
             if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
             {
-                Utils.LogInformation(
-                    "For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})",
+                m_logger.LogInformation(
+                    "For subscription {SubscriptionId}, Revised lifetime counter (value={LifetimeCounter}) is less than three times the keep alive count (value={KeepAliveCount})",
                     Id,
                     revisedLifetimeCounter,
                     revisedKeepAliveCount);
@@ -2027,7 +2044,7 @@ namespace Opc.Ua.Client
 
             if (CurrentPriority == 0)
             {
-                Utils.LogInformation("For subscription {0}, the priority was set to 0.", Id);
+                m_logger.LogInformation("For subscription {SubscriptionId}, the priority was set to 0.", Id);
             }
         }
 
@@ -2085,8 +2102,8 @@ namespace Opc.Ua.Client
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                Utils.LogInformation(
-                    "Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}.",
+                m_logger.LogInformation(
+                    "Adjusted KeepAliveCount from value={Previous} to value={New}, for subscription {SubscriptionId}.",
                     keepAliveCount,
                     kDefaultKeepAlive,
                     Id);
@@ -2098,8 +2115,8 @@ namespace Opc.Ua.Client
             {
                 if (MinLifetimeInterval > 0 && MinLifetimeInterval < Session.SessionTimeout)
                 {
-                    Utils.LogWarning(
-                        "A smaller minLifetimeInterval {0}ms than session timeout {1}ms configured for subscription {2}.",
+                    m_logger.LogWarning(
+                        "A smaller minLifetimeInterval {LifetimeInterval}ms than session timeout {SessionTimeout}ms configured for subscription {SubscriptionId}.",
                         MinLifetimeInterval,
                         Session.SessionTimeout,
                         Id);
@@ -2116,16 +2133,16 @@ namespace Opc.Ua.Client
                         lifetimeCount++;
                     }
 
-                    Utils.LogInformation(
-                        "Adjusted LifetimeCount to value={0}, for subscription {1}. ",
+                    m_logger.LogInformation(
+                        "Adjusted LifetimeCount to value={New}, for subscription {SubscriptionId}. ",
                         lifetimeCount,
                         Id);
                 }
 
                 if (lifetimeCount * PublishingInterval < Session.SessionTimeout)
                 {
-                    Utils.LogWarning(
-                        "Lifetime {0}ms configured for subscription {1} is less than session timeout {2}ms.",
+                    m_logger.LogWarning(
+                        "Lifetime {LifetimeCount}ms configured for subscription {SubscriptionId} is less than session timeout {SessionTimeout}ms.",
                         lifetimeCount * PublishingInterval,
                         Id,
                         Session.SessionTimeout);
@@ -2135,8 +2152,8 @@ namespace Opc.Ua.Client
             {
                 // don't know what the sampling interval will be - use something large enough
                 // to ensure the user does not experience unexpected drop outs.
-                Utils.LogInformation(
-                    "Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
+                m_logger.LogInformation(
+                    "Adjusted LifetimeCount from value={Previous}, to value={New}, for subscription {SubscriptionId}. ",
                     lifetimeCount,
                     kDefaultLifeTime,
                     Id);
@@ -2147,8 +2164,8 @@ namespace Opc.Ua.Client
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                Utils.LogInformation(
-                    "Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
+                m_logger.LogInformation(
+                    "Adjusted LifetimeCount from value={Previous}, to value={New}, for subscription {SubscriptionId}. ",
                     lifetimeCount,
                     minLifeTimeCount,
                     Id);
@@ -2215,8 +2232,8 @@ namespace Opc.Ua.Client
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
                                 if (m_resyncLastSequenceNumberProcessed)
                                 {
-                                    Utils.LogInformation(
-                                        "SubscriptionId {0}: Resynced last sequence number processed to {1}.",
+                                    m_logger.LogInformation(
+                                        "SubscriptionId {SubscriptionId}: Resynced last sequence number processed to {SequenceNumber}.",
                                         Id,
                                         m_lastSequenceNumberProcessed);
                                     m_resyncLastSequenceNumberProcessed = false;
@@ -2251,8 +2268,8 @@ namespace Opc.Ua.Client
                                 }
                                 else
                                 {
-                                    Utils.LogInformation(
-                                        "Skipped to receive RepublishAsync for {0}-{1}-BadMessageNotAvailable",
+                                    m_logger.LogInformation(
+                                        "Skipped to receive RepublishAsync for subscription {SubscriptionId}-{SequenceNumber}-BadMessageNotAvailable",
                                         subscriptionId,
                                         ii.Value.SequenceNumber);
                                     ii.Value.RepublishStatus = StatusCodes.BadMessageNotAvailable;
@@ -2263,8 +2280,8 @@ namespace Opc.Ua.Client
                         // a message that is deferred because of a missing sequence number
                         else if (ii.Value.Message != null && !ii.Value.Processed)
                         {
-                            Utils.LogDebug(
-                                "Subscription {0}: Delayed message with sequence number {1}, expected sequence number is {2}.",
+                            m_logger.LogDebug(
+                                "Subscription {SubscriptionId}: Delayed message with sequence number {SequenceNumber}, expected sequence number is {ExpectedSequenceNumber}.",
                                 Id,
                                 ii.Value.SequenceNumber,
                                 m_lastSequenceNumberProcessed + 1);
@@ -2347,8 +2364,8 @@ namespace Opc.Ua.Client
                                     statusChanged.SequenceNumber = message.SequenceNumber;
                                     statusChanged.MoreNotifications = message.MoreNotifications;
 
-                                    Utils.LogWarning(
-                                        "StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
+                                    m_logger.LogWarning(
+                                        "StatusChangeNotification received with Status = {Status} for SubscriptionId={SubscriptionId}:.",
                                         statusChanged.Status.ToString(),
                                         Id);
 
@@ -2369,17 +2386,17 @@ namespace Opc.Ua.Client
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError(
+                            m_logger.LogError(
                                 e,
-                                "Error while processing incoming message #{0}.",
+                                "Error while processing incoming message #{SequenceNumber}.",
                                 message.SequenceNumber);
                         }
 
                         if (MaxNotificationsPerPublish != 0 &&
                             noNotificationsReceived > MaxNotificationsPerPublish)
                         {
-                            Utils.LogWarning(
-                                "For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}",
+                            m_logger.LogWarning(
+                                "For subscription {SubscriptionId}, more notifications were received={Count} than the max notifications per publish value={MaxNotificationsPerPublish}",
                                 Id,
                                 noNotificationsReceived,
                                 MaxNotificationsPerPublish);
@@ -2425,7 +2442,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                Utils.LogError(e, "Error while processing incoming messages.");
+                m_logger.LogError(e, "Error while processing incoming messages.");
             }
             finally
             {
@@ -2696,8 +2713,8 @@ namespace Opc.Ua.Client
             // check for empty monitored items list.
             if (notifications.MonitoredItems == null || notifications.MonitoredItems.Count == 0)
             {
-                Utils.LogInformation(
-                    "Publish response contains empty MonitoredItems list for SubscriptionId = {0}.",
+                m_logger.LogInformation(
+                    "Publish response contains empty MonitoredItems list for SubscriptionId={SubscriptionId}:.",
                     Id);
                 return;
             }
@@ -2713,8 +2730,8 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out monitoredItem))
                     {
-                        Utils.LogWarning(
-                            "Publish response contains invalid MonitoredItem. SubscriptionId = {0}, ClientHandle = {1}",
+                        m_logger.LogWarning(
+                            "Publish response contains invalid MonitoredItem. SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
                             Id,
                             notification.ClientHandle);
                         continue;
@@ -2753,8 +2770,8 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(eventFields.ClientHandle, out monitoredItem))
                     {
-                        Utils.LogWarning(
-                            "Publish response contains invalid MonitoredItem.SubscriptionId = {0}, ClientHandle = {1}",
+                        m_logger.LogWarning(
+                            "Publish response contains invalid MonitoredItem.SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
                             Id,
                             eventFields.ClientHandle);
                         continue;
@@ -2783,7 +2800,7 @@ namespace Opc.Ua.Client
             IncomingMessage entry = null;
             LinkedListNode<IncomingMessage> node = m_incomingMessages.Last;
 
-            Debug.Assert(Monitor.IsEntered(m_cache));
+            Debug.Assert(m_cache.IsHeldByCurrentThread);
             while (node != null)
             {
                 entry = node.Value;
@@ -2839,9 +2856,9 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
-                    "Error while raising PublishStateChanged event for state {0}.",
+                    "Error while raising PublishStateChanged event for state {State}.",
                     newState.ToString());
             }
         }
@@ -2858,7 +2875,7 @@ namespace Opc.Ua.Client
         private event PublishStateChangedEventHandler m_PublishStatusChanged;
 
         private bool m_disposed;
-        private object m_cache = new();
+        private Lock m_cache = new();
         private LinkedList<NotificationMessage> m_messageCache;
         private IList<uint> m_availableSequenceNumbers;
         private int m_maxMessageCount;
@@ -2886,6 +2903,8 @@ namespace Opc.Ua.Client
         }
 
         private LinkedList<IncomingMessage> m_incomingMessages;
+        private ITelemetryContext m_telemetry;
+        private ILogger m_logger;
     }
 
     /// <summary>

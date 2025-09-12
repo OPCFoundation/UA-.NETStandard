@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -299,7 +300,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         SecurityPolicyUri = securityConfiguration.SecurityPolicyUri,
                         SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                             securityConfiguration.SecurityMode,
-                            securityConfiguration.SecurityPolicyUri)
+                            securityConfiguration.SecurityPolicyUri,
+                            NullLogger.Instance)
                     };
                     endpoint.UserIdentityTokens = GetUserTokenPolicies(configuration, endpoint);
                     m_endpoints.Add(endpoint);

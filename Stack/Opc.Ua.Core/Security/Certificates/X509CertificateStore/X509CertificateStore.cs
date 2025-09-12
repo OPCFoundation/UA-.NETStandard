@@ -376,7 +376,7 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadOnly);
 
-                foreach (byte[] rawCrl in store.EnumerateCrls())
+                foreach (byte[] rawCrl in store.EnumerateCrls(m_logger))
                 {
                     try
                     {
@@ -485,7 +485,7 @@ namespace Opc.Ua
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);
 
-            store.AddCrl(crl.RawData);
+            store.AddCrl(crl.RawData, m_logger);
         }
 
         /// <inheritdoc/>
@@ -511,7 +511,7 @@ namespace Opc.Ua
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);
 
-            return Task.FromResult(store.DeleteCrl(crl.RawData));
+            return Task.FromResult(store.DeleteCrl(crl.RawData, m_logger));
         }
 
         /// <inheritdoc/>

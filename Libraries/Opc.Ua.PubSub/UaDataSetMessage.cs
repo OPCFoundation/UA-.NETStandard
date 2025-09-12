@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
@@ -49,10 +50,16 @@ namespace Opc.Ua.PubSub
         protected const uint kDefaultConfigMinorVersion = 0;
 
         /// <summary>
+        /// A Logger to be used by this and derived classes
+        /// </summary>
+        protected ILogger Logger { get; }
+
+        /// <summary>
         /// Create new instance of <see cref="UaDataSetMessage"/>
         /// </summary>
-        protected UaDataSetMessage()
+        protected UaDataSetMessage(ILogger logger)
         {
+            Logger = logger;
             DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
             MetaDataVersion = new ConfigurationVersionDataType

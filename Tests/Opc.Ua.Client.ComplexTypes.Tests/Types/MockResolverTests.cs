@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
@@ -178,6 +179,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var mockResolver = new MockResolver();
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -270,7 +273,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add type
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = new ComplexTypeSystem(mockResolver);
+            var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.NotNull(carType);
@@ -337,6 +340,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             var mockResolver = new MockResolver();
@@ -463,7 +468,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add types needed
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = new ComplexTypeSystem(mockResolver);
+            var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.NotNull(arraysTypes);
@@ -577,6 +582,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             bool randomValues,
             TestRanks testRank)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             SetRepeatedRandomSeed();
@@ -650,7 +657,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add types needed
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = new ComplexTypeSystem(mockResolver);
+            var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.NotNull(arraysTypes);

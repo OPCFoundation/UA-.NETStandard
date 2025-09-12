@@ -127,7 +127,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                var logger = telemetry.CreateLogger<SecurityConfiguration>();
+                ILogger<SecurityConfiguration> logger = telemetry.CreateLogger<SecurityConfiguration>();
                 logger.LogError(ex, "Failed to open {storeName} store", storeName);
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,

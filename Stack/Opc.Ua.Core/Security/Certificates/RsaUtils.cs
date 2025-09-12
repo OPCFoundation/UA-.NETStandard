@@ -225,7 +225,7 @@ namespace Opc.Ua
             if (dataToEncrypt.Count % inputBlockSize != 0)
             {
                 logger.LogError(
-                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
                     dataToEncrypt.Count,
                     inputBlockSize);
             }
@@ -324,7 +324,7 @@ namespace Opc.Ua
             if (dataToDecrypt.Count % inputBlockSize != 0)
             {
                 logger.LogError(
-                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
                     dataToDecrypt.Count,
                     inputBlockSize);
             }

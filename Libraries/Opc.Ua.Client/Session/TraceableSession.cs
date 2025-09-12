@@ -44,24 +44,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes a new instance of the class.
         /// </summary>
-        public TraceableSession(ISession session)
+        public TraceableSession(ISession session, ITelemetryContext telemetry)
         {
             Session = session;
+            m_telemetry = telemetry;
+            SessionFactory = new TraceableSessionFactory(telemetry);
         }
-
-        /// <summary>
-        /// Activity Source Name.
-        /// </summary>
-        public static readonly string ActivitySourceName
-            = "Opc.Ua.Client-TraceableSession-ActivitySource";
 
         /// <summary>
         /// Activity Source static instance.
         /// </summary>
-        public static ActivitySource ActivitySource => s_activitySource.Value;
-
-        private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
-            new ActivitySource(ActivitySourceName, "1.0.0"));
+        public ActivitySource ActivitySource => m_telemetry.GetActivitySource();
 
         /// <inheritdoc/>
         public ISession Session { get; }
@@ -123,7 +116,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ISessionFactory SessionFactory => TraceableSessionFactory.Instance;
+        public ISessionFactory SessionFactory { get; }
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint => Session.ConfiguredEndpoint;
@@ -2924,5 +2917,7 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
         }
+
+        private readonly ITelemetryContext m_telemetry;
     }
 }

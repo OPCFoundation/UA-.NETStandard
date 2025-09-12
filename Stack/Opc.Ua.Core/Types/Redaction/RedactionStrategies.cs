@@ -37,8 +37,8 @@ namespace Opc.Ua.Redaction
     /// <br/>
     /// To use a strategy wrap the value with <see cref="RedactionWrapper{T}"/>, e.g.
     /// <code>
-    /// Utils.LogDebug("The password is {0}", RedactionWrapper.Create(password));
-    /// Utils.LogError("An exception occurred: {0}", RedactionWrapper.Create(exception));
+    /// Console.WriteLine("The password is {0}", RedactionWrapper.Create(password));
+    /// Console.WriteLine("An exception occurred: {0}", RedactionWrapper.Create(exception));
     /// </code>
     /// </summary>
     /// <remarks>

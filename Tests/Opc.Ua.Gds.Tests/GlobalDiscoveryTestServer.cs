@@ -31,18 +31,15 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
-using Opc.Ua.Server.Tests;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
 {
     public class GlobalDiscoveryTestServer
     {
-        private NUnitTestLogger<GlobalDiscoverySampleServer> m_traceLogger;
         public GlobalDiscoverySampleServer Server { get; private set; }
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
@@ -55,16 +52,10 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task StartServerAsync(
             bool clean,
+            ITelemetryContext telemetry,
             int basePort = -1,
-            string storeType = CertificateStoreType.Directory,
-            TextWriter writer = null)
+            string storeType = CertificateStoreType.Directory)
         {
-            if (writer != null)
-            {
-                m_traceLogger = NUnitTestLogger<GlobalDiscoverySampleServer>.Create(writer);
-                m_traceLogger.MinimumLogLevel = LogLevel.Debug;
-            }
-
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
 
             string configSectionName = "Opc.Ua.GlobalDiscoveryTestServer";
@@ -77,7 +68,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
             }
-            Application = new ApplicationInstance
+            Application = new ApplicationInstance(telemetry)
             {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
@@ -94,26 +85,26 @@ namespace Opc.Ua.Gds.Tests
                 {
                     using ICertificateStore store = Config.SecurityConfiguration
                         .ApplicationCertificate
-                        .OpenStore();
+                        .OpenStore(telemetry);
                     await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                 }
 
                 // always start with clean cert store
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                        Config.SecurityConfiguration.ApplicationCertificate.OpenStore(telemetry))
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
+                        Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore(telemetry))
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                        Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore(telemetry))
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.RejectedCertificateStore.OpenStore())
+                        Config.SecurityConfiguration.RejectedCertificateStore.OpenStore(telemetry))
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
@@ -171,8 +162,9 @@ namespace Opc.Ua.Gds.Tests
             Server = new GlobalDiscoverySampleServer(
                 applicationsDatabase,
                 applicationsDatabase,
-                new CertificateGroup(),
-                usersDatabase);
+                new CertificateGroup(telemetry),
+                usersDatabase,
+                telemetry);
             await Application.StartAsync(Server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;
@@ -193,50 +185,6 @@ namespace Opc.Ua.Gds.Tests
                 // Stop server and dispose
                 server.Stop();
             }
-        }
-
-        /// <summary>
-        /// Connect the nunit writer with the logger.
-        /// </summary>
-        public void SetTraceOutput(TextWriter writer)
-        {
-            m_traceLogger?.SetWriter(writer);
-        }
-
-        /// <summary>
-        /// Adjust the Log level for the tracer
-        /// </summary>
-        public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
-        {
-            if (m_traceLogger != null)
-            {
-                m_traceLogger.MinimumLogLevel = logLevel;
-            }
-        }
-
-        public string ReadLogFile()
-        {
-            return File.ReadAllText(
-                Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
-        }
-
-        public bool ResetLogFile()
-        {
-            try
-            {
-                File.Delete(
-                    Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
-                return true;
-            }
-            catch
-            {
-            }
-            return false;
-        }
-
-        public string GetLogFilePath()
-        {
-            return Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath);
         }
 
         private static void CertificateValidator_CertificateValidation(

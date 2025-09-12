@@ -949,13 +949,14 @@ namespace Opc.Ua.Bindings
             LastActiveTickCount = HiResClock.TickCount;
         }
 
-        private int m_activeWriteRequests;
-        private readonly string m_contextId;
-        private readonly ILogger m_logger;
         /// <summary>
         /// treat TcpChannelState as int to use Interlocked
         /// </summary>
         private int m_state;
+
+        private int m_activeWriteRequests;
+        private readonly string m_contextId;
+        private readonly ILogger m_logger;
         private long m_sequenceNumber;
         private long m_localSequenceNumber;
         private uint m_remoteSequenceNumber;

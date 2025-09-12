@@ -81,7 +81,7 @@ namespace Opc.Ua
                 }
                 catch (Exception)
                 {
-                    var logger = telemetry.CreateLogger<CertificateTrustList>();
+                    ILogger<CertificateTrustList> logger = telemetry.CreateLogger<CertificateTrustList>();
                     logger.LogError("Could not load certificates from store: {StorePath}.", StorePath);
                 }
                 finally

@@ -13,6 +13,7 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -28,6 +29,7 @@ namespace Opc.Ua
             X509Certificate2 receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
+            ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -42,6 +44,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
+            ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -52,7 +55,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature with the token (implemented by the subclass).
         /// </summary>
-        public virtual SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
+        public virtual SignatureData Sign(
+            byte[] dataToSign,
+            string securityPolicyUri,
+            ILogger logger)
         {
             return new SignatureData();
         }
@@ -63,7 +69,8 @@ namespace Opc.Ua
         public virtual bool Verify(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            ILogger logger)
         {
             return true;
         }
@@ -113,6 +120,7 @@ namespace Opc.Ua
             X509Certificate2 receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
+            ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -141,7 +149,8 @@ namespace Opc.Ua
                 EncryptedData encryptedData = SecurityPolicies.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
-                    dataToEncrypt);
+                    dataToEncrypt,
+                    logger);
 
                 m_password = encryptedData.Data;
                 m_encryptionAlgorithm = encryptedData.Algorithm;
@@ -195,6 +204,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
+            ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -226,7 +236,8 @@ namespace Opc.Ua
                 byte[] decryptedPassword = SecurityPolicies.Decrypt(
                     certificate,
                     securityPolicyUri,
-                    encryptedData);
+                    encryptedData,
+                    logger);
 
                 if (decryptedPassword == null)
                 {
@@ -275,7 +286,8 @@ namespace Opc.Ua
                     receiverNonce.Data,
                     m_password,
                     0,
-                    m_password.Length);
+                    m_password.Length,
+                    logger);
 #else
                 throw new NotSupportedException("Platform does not support ECC curves");
 #endif
@@ -293,26 +305,32 @@ namespace Opc.Ua
         /// <summary>
         /// The certificate associated with the token.
         /// </summary>
-        public X509Certificate2 Certificate
+        public X509Certificate2 Certificate { get; set; }
+
+        /// <summary>
+        /// Get certificate with validation
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <returns></returns>
+        public X509Certificate2 GetOrCreateCertificate(ILogger logger)
         {
-            get
+            if (Certificate == null && m_certificateData != null)
             {
-                if (m_certificate == null && m_certificateData != null)
-                {
-                    return CertificateFactory.Create(m_certificateData, true);
-                }
-                return m_certificate;
+                Certificate = CertificateFactory.Create(m_certificateData, true, logger);
             }
-            set => m_certificate = value;
+            return Certificate;
         }
 
         /// <summary>
         /// Creates a signature with the token.
         /// </summary>
-        public override SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
+        public override SignatureData Sign(
+            byte[] dataToSign,
+            string securityPolicyUri,
+            ILogger logger)
         {
-            X509Certificate2 certificate = m_certificate ??
-                CertificateFactory.Create(m_certificateData, true);
+            X509Certificate2 certificate = Certificate ??
+                CertificateFactory.Create(m_certificateData, true, logger);
 
             SignatureData signatureData = SecurityPolicies.Sign(
                 certificate,
@@ -331,12 +349,13 @@ namespace Opc.Ua
         public override bool Verify(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            ILogger logger)
         {
             try
             {
-                X509Certificate2 certificate = m_certificate ??
-                    CertificateFactory.Create(m_certificateData, true);
+                X509Certificate2 certificate = Certificate ??
+                    CertificateFactory.Create(m_certificateData, true, logger);
 
                 bool valid = SecurityPolicies.Verify(
                     certificate,
@@ -356,8 +375,6 @@ namespace Opc.Ua
                     "Could not verify user signature!");
             }
         }
-
-        private X509Certificate2 m_certificate;
     }
 
     /// <summary>
@@ -408,6 +425,7 @@ namespace Opc.Ua
             X509Certificate2 receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
+            ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -427,7 +445,8 @@ namespace Opc.Ua
             EncryptedData encryptedData = SecurityPolicies.Encrypt(
                 receiverCertificate,
                 securityPolicyUri,
-                dataToEncrypt);
+                dataToEncrypt,
+                logger);
 
             m_tokenData = encryptedData.Data;
             m_encryptionAlgorithm = encryptedData.Algorithm;
@@ -441,6 +460,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
+            ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -463,7 +483,8 @@ namespace Opc.Ua
             byte[] decryptedTokenData = SecurityPolicies.Decrypt(
                 certificate,
                 securityPolicyUri,
-                encryptedData);
+                encryptedData,
+                logger);
 
             // verify the sender's nonce.
             int startOfNonce = decryptedTokenData.Length;
@@ -489,7 +510,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature with the token.
         /// </summary>
-        public override SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
+        public override SignatureData Sign(
+            byte[] dataToSign,
+            string securityPolicyUri,
+            ILogger logger)
         {
             return null;
         }
@@ -500,7 +524,8 @@ namespace Opc.Ua
         public override bool Verify(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            ILogger logger)
         {
             return true;
         }

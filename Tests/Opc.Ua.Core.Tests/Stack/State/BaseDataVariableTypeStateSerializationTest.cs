@@ -1,5 +1,6 @@
 using System.IO;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
@@ -27,14 +28,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             )]
                 int valueRank)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var typeNode = new BaseDataVariableTypeState();
             var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
             typeNode.Create(
-                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
                 VariableTypeIds.DataItemType,
                 BrowseNames.DataItemType,
                 new LocalizedText("DataItemType"),
@@ -64,15 +67,17 @@ namespace Opc.Ua.Core.Tests.Stack.State
             )]
                 int valueRank)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Here this type node is used just as support for the instanceNode to refer to
             var typeNode = new BaseDataVariableTypeState();
             var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
             typeNode.Create(
-                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
                 VariableTypeIds.DataItemType,
                 BrowseNames.DataItemType,
                 new LocalizedText("DataItemType"),

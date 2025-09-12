@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(new MonitoredItemQueueFactory());
+                .Returns(new MonitoredItemQueueFactory(serverMock.Object.Telemetry));
             serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
 

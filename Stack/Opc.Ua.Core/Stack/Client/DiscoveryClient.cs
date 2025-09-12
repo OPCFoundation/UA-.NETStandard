@@ -14,6 +14,7 @@ using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -22,6 +23,15 @@ namespace Opc.Ua
     /// </summary>
     public partial class DiscoveryClient
     {
+        /// <summary>
+        /// Intializes the object with a channel and a message context.
+        /// </summary>
+        public DiscoveryClient(ITransportChannel channel, ITelemetryContext telemetry)
+            : this(channel)
+        {
+            m_logger = telemetry.CreateLogger<DiscoveryClient>();
+        }
+
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
@@ -37,7 +47,7 @@ namespace Opc.Ua
                 configuration,
                 new ServiceMessageContext(),
                 telemetry);
-            return new DiscoveryClient(channel);
+            return new DiscoveryClient(channel, telemetry);
         }
 
         /// <summary>
@@ -57,7 +67,7 @@ namespace Opc.Ua
                 configuration,
                 application.CreateMessageContext(),
                 telemetry);
-            return new DiscoveryClient(channel);
+            return new DiscoveryClient(channel, telemetry);
         }
 
         /// <summary>
@@ -77,7 +87,7 @@ namespace Opc.Ua
                 configuration,
                 application.CreateMessageContext(),
                 telemetry);
-            return new DiscoveryClient(channel);
+            return new DiscoveryClient(channel, telemetry);
         }
 
         /// <summary>
@@ -119,7 +129,7 @@ namespace Opc.Ua
                 configuration,
                 new ServiceMessageContext(),
                 telemetry);
-            return new DiscoveryClient(channel);
+            return new DiscoveryClient(channel, telemetry);
         }
 
         /// <summary>
@@ -127,7 +137,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
-        /// /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <param name="applicationConfiguration">The application configuration.</param>
         /// <param name="telemetry"></param>
         public static DiscoveryClient Create(
             Uri discoveryUrl,
@@ -162,7 +172,7 @@ namespace Opc.Ua
                 new ServiceMessageContext(),
                 telemetry,
                 clientCertificate);
-            return new DiscoveryClient(channel);
+            return new DiscoveryClient(channel, telemetry);
         }
 
         /// <summary>
@@ -300,7 +310,7 @@ namespace Opc.Ua
                     Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
                     if (discoveryEndPointUri == null)
                     {
-                        Utils.LogWarning(
+                        m_logger.LogWarning(
                             "Discovery endpoint contains invalid Url: {EndpointUrl}",
                             discoveryEndPoint.EndpointUrl);
                         continue;
@@ -326,6 +336,8 @@ namespace Opc.Ua
             }
             return endpoints;
         }
+
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

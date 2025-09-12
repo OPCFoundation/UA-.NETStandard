@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 true,
                 true,
                 false);
-            m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile);
+            m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile, null);
             Assert.IsNotNull(m_uaPublisherApplication, "m_publisherApplication should not be null");
 
             // Get the publisher configuration

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -73,6 +74,7 @@ namespace Alarms
             string[] namespaceUris)
             : base(server, configuration, namespaceUris)
         {
+            m_logger = server.Telemetry.CreateLogger<AlarmNodeManager>();
         }
 
         /// <summary>
@@ -260,7 +262,7 @@ namespace Alarms
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error creating the AlarmNodeManager address space.");
+                    m_logger.LogError(e, "Error creating the AlarmNodeManager address space.");
                 }
             }
         }
@@ -321,7 +323,7 @@ namespace Alarms
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogInformation(ex, "Alarm Loop Exception");
+                        m_logger.LogInformation(ex, "Alarm Loop Exception");
                     }
                 }
                 m_allowEntry = true;
@@ -329,7 +331,7 @@ namespace Alarms
             else if (m_success > 0)
             {
                 m_missed++;
-                Utils.LogInformation("Alarms: Missed Loop {0} Success {1}", m_missed, m_success);
+                m_logger.LogInformation("Alarms: Missed Loop {Missed} Success {Success}", m_missed, m_success);
             }
         }
 
@@ -365,7 +367,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInformation("Starting up alarm group {0}", GetUnitFromNodeId(node.NodeId));
+                m_logger.LogInformation("Starting up alarm group {NodeId}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -427,8 +429,8 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInformation(
-                    "Starting up Branch for alarm group {0}",
+                m_logger.LogInformation(
+                    "Starting up Branch for alarm group {Name}",
                     GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
@@ -475,7 +477,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInformation("Stopping alarm group {0}", GetUnitFromNodeId(node.NodeId));
+                m_logger.LogInformation("Stopping alarm group {Name}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -530,7 +532,7 @@ namespace Alarms
                     return StatusCodes.BadNodeIdUnknown;
                 }
 
-                Utils.LogInformation("Manual Write {0} to {1}", value, node.NodeId);
+                m_logger.LogInformation("Manual Write {Value} to {NodeId}", value, node.NodeId);
 
                 lock (m_alarms)
                 {
@@ -983,6 +985,7 @@ namespace Alarms
             m_simulationTimer = null;
         }
 
+        private readonly ILogger m_logger;
         private readonly Dictionary<string, AlarmHolder> m_alarms = [];
         private readonly Dictionary<string, SourceController> m_triggerMap = [];
         private bool m_allowEntry;

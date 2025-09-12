@@ -697,7 +697,6 @@ namespace Opc.Ua
                 storePath,
                 password)
                 .GetAwaiter().GetResult();
-
         }
 
         /// <summary>

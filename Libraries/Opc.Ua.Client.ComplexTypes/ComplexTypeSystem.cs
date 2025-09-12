@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -66,26 +67,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
         /// </summary>
-        public ComplexTypeSystem(ISession session)
+        public ComplexTypeSystem(ISession session, ITelemetryContext telemetry)
+            : this(session, new ComplexTypeBuilderFactory(), telemetry)
         {
-            Initialize(new NodeCacheResolver(session), new ComplexTypeBuilderFactory());
-        }
-
-        /// <summary>
-        /// Initializes the type system with a complex type resolver to load the custom types.
-        /// </summary>
-        public ComplexTypeSystem(IComplexTypeResolver complexTypeResolver)
-        {
-            Initialize(complexTypeResolver, new ComplexTypeBuilderFactory());
-        }
-
-        /// <summary>
-        /// Initializes the type system with a session to load the custom types
-        /// and a customized type builder factory
-        /// </summary>
-        public ComplexTypeSystem(ISession session, IComplexTypeFactory complexTypeBuilderFactory)
-        {
-            Initialize(new NodeCacheResolver(session), complexTypeBuilderFactory);
         }
 
         /// <summary>
@@ -93,17 +77,34 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public ComplexTypeSystem(
             IComplexTypeResolver complexTypeResolver,
-            IComplexTypeFactory complexTypeBuilderFactory)
+            ITelemetryContext telemetry)
+            : this(complexTypeResolver, new ComplexTypeBuilderFactory(), telemetry)
         {
-            Initialize(complexTypeResolver, complexTypeBuilderFactory);
         }
 
-        private void Initialize(
+        /// <summary>
+        /// Initializes the type system with a session to load the custom types
+        /// and a customized type builder factory
+        /// </summary>
+        public ComplexTypeSystem(
+            ISession session,
+            IComplexTypeFactory complexTypeBuilderFactory,
+            ITelemetryContext telemetry)
+            : this(new NodeCacheResolver(session, telemetry), complexTypeBuilderFactory, telemetry)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the type system with a complex type resolver to load the custom types.
+        /// </summary>
+        public ComplexTypeSystem(
             IComplexTypeResolver complexTypeResolver,
-            IComplexTypeFactory complexTypeBuilderFactory)
+            IComplexTypeFactory complexTypeBuilderFactory,
+            ITelemetryContext telemetry)
         {
             m_complexTypeResolver = complexTypeResolver;
             m_complexTypeBuilderFactory = complexTypeBuilderFactory;
+            m_logger = telemetry.CreateLogger<ComplexTypeSystem>();
         }
 
         /// <summary>
@@ -173,7 +174,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to load the custom type {0}.", nodeId);
+                m_logger.LogError(ex, "Failed to load the custom type {NodeId}.", nodeId);
                 if (throwOnError)
                 {
                     throw;
@@ -193,17 +194,17 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
         public async Task<bool> LoadNamespaceAsync(
-            string nameSpace,
+            string ns,
             bool throwOnError = false,
             CancellationToken ct = default)
         {
             try
             {
-                int index = m_complexTypeResolver.NamespaceUris.GetIndex(nameSpace);
+                int index = m_complexTypeResolver.NamespaceUris.GetIndex(ns);
                 if (index < 0)
                 {
                     throw new ServiceResultException(
-                        $"Bad argument {nameSpace}. Namespace not found.");
+                        $"Bad argument {ns}. Namespace not found.");
                 }
                 ushort nameSpaceIndex = (ushort)index;
                 _ = await m_complexTypeResolver
@@ -236,7 +237,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to load the custom type namespace {0}.", nameSpace);
+                m_logger.LogError(ex, "Failed to load the custom type namespace {Namespace}.", ns);
                 if (throwOnError)
                 {
                     throw;
@@ -308,7 +309,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to load the custom types.");
+                m_logger.LogError(ex, "Failed to load the custom types.");
                 if (throwOnError)
                 {
                     throw;
@@ -494,9 +495,9 @@ namespace Opc.Ua.Client.ComplexTypes
                                     .Key;
                                 if (nodeId == null)
                                 {
-                                    Utils.LogError(
+                                    m_logger.LogError(
                                         Utils.TraceMasks.Error,
-                                        "Skip the type definition of {0} because the data type node was not found.",
+                                        "Skip the type definition of {DataType} because the data type node was not found.",
                                         item.Name);
                                     continue;
                                 }
@@ -509,9 +510,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
                                 if (dataTypeNode == null)
                                 {
-                                    Utils.LogError(
+                                    m_logger.LogError(
                                         Utils.TraceMasks.Error,
-                                        "Skip the type definition of {0} because the data type node was not found.",
+                                        "Skip the type definition of {DataType} because the data type node was not found.",
                                         item.Name);
                                     continue;
                                 }
@@ -526,8 +527,8 @@ namespace Opc.Ua.Client.ComplexTypes
                                     typeDictionary[qName] = ExpandedNodeId.ToNodeId(
                                         typeId,
                                         m_complexTypeResolver.NamespaceUris);
-                                    Utils.LogInformation(
-                                        "Skip the type definition of {0} because the type already exists.",
+                                    m_logger.LogInformation(
+                                        "Skip the type definition of {DataType} because the type already exists.",
                                         item.Name);
                                     continue;
                                 }
@@ -552,16 +553,16 @@ namespace Opc.Ua.Client.ComplexTypes
                                     }
                                     catch (DataTypeNotSupportedException)
                                     {
-                                        Utils.LogError(
-                                            "Skipped the type definition of {0} because it is not supported.",
+                                        m_logger.LogError(
+                                            "Skipped the type definition of {DataType} because it is not supported.",
                                             item.Name);
                                         continue;
                                     }
                                     catch (ServiceResultException sre)
                                     {
-                                        Utils.LogError(
+                                        m_logger.LogError(
                                             sre,
-                                            "Skip the type definition of {0}.",
+                                            "Skip the type definition of {DataType}.",
                                             item.Name);
                                         continue;
                                     }
@@ -593,9 +594,9 @@ namespace Opc.Ua.Client.ComplexTypes
                                     }
                                     catch (DataTypeNotSupportedException typeNotSupportedException)
                                     {
-                                        Utils.LogInformation(
+                                        m_logger.LogInformation(
                                             typeNotSupportedException,
-                                            "Skipped the type definition of {0} because it is not supported.",
+                                            "Skipped the type definition of {DataType} because it is not supported.",
                                             item.Name);
                                         continue;
                                     }
@@ -623,8 +624,8 @@ namespace Opc.Ua.Client.ComplexTypes
                                 if (complexType == null)
                                 {
                                     retryStructureList.Add(item);
-                                    Utils.LogTrace(
-                                        "Skipped the type definition of {0}, missing {1}. Retry in next round.",
+                                    m_logger.LogTrace(
+                                        "Skipped the type definition of {DataType}, missing {MissingTypeIds}. Retry in next round.",
                                         item.Name,
                                         missingTypeIds?.ToString() ?? string.Empty);
                                 }
@@ -636,9 +637,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 catch (ServiceResultException sre)
                 {
-                    Utils.LogError(
+                    m_logger.LogError(
                         sre,
-                        "Unexpected error processing {0}.",
+                        "Unexpected error processing ditionary {DictionaryName}.",
                         dictionaryId.Value.Name);
                 }
             }
@@ -676,7 +677,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 catch (DataTypeNotFoundException dtnfex)
                 {
-                    Utils.LogWarning(dtnfex.Message);
+                    m_logger.LogWarning("Data type not found: {Message}", dtnfex.Message);
                     foreach (ExpandedNodeId nodeId in dtnfex.NodeIds)
                     {
                         // add missing types to list
@@ -694,7 +695,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         else
                         {
-                            Utils.LogWarning("Datatype {0} was not found.", nodeId);
+                            m_logger.LogWarning("Datatype {NodeId} was not found.", nodeId);
                         }
                     }
                 }
@@ -869,8 +870,8 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
                                 catch (DataTypeNotSupportedException)
                                 {
-                                    Utils.LogError(
-                                        "Skipped the type definition of {0} because it is not supported.",
+                                    m_logger.LogError(
+                                        "Skipped the type definition of {DataType} because it is not supported.",
                                         dataTypeNode.BrowseName.Name);
                                 }
                                 catch
@@ -1114,7 +1115,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return;
             }
             ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(nodeId);
-            Utils.LogDebug("Adding Type {0} as: {1}", type.FullName, internalNodeId);
+            m_logger.LogDebug("Adding Type {DataType} as: {NodeId}", type.FullName, internalNodeId);
             m_complexTypeResolver.Factory.AddEncodeableType(internalNodeId, type);
         }
 
@@ -1442,8 +1443,9 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
-        private IComplexTypeResolver m_complexTypeResolver;
-        private IComplexTypeFactory m_complexTypeBuilderFactory;
+        private readonly ILogger m_logger;
+        private readonly IComplexTypeResolver m_complexTypeResolver;
+        private readonly IComplexTypeFactory m_complexTypeBuilderFactory;
         private readonly NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = [];
 
         private static readonly string[] s_supportedEncodings =

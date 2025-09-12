@@ -31,6 +31,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -47,11 +48,13 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="address">The IPAddress which the socket should be bound to</param>
         /// <param name="port">The port used by the endpoint that should different than 0 on a Subscriber context</param>
         /// <param name="pubSubContext">The context in which the UDP client is to be used </param>
-        public UdpClientBroadcast(IPAddress address, int port, UsedInContext pubSubContext)
+        /// <param name="telemetry"></param>
+        public UdpClientBroadcast(IPAddress address, int port, UsedInContext pubSubContext, ITelemetryContext telemetry)
         {
             Address = address;
             Port = port;
             PubSubContext = pubSubContext;
+            m_logger = telemetry.CreateLogger<UdpClientBroadcast>();
 
             CustomizeSocketToBroadcastThroughIf();
 
@@ -72,8 +75,8 @@ namespace Opc.Ua.PubSub.Transport
             Client.Bind(boundEndpoint);
             EnableBroadcast = true;
 
-            Utils.LogInformation(
-                "UdpClientBroadcast was created for address: {0}:{1} - {2}.",
+            m_logger.LogInformation(
+                "UdpClientBroadcast was created for address: {Address}:{Port} - {Context}.",
                 address,
                 port,
                 pubSubContext);
@@ -112,11 +115,10 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogInformation(
-                        "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}",
-                        ex.Message,
-                        SocketOptionName.Broadcast,
-                        value);
+                    @this.m_logger.LogInformation(
+                        "UdpClientBroadcast set SetSocketOption.Broadcast to {Option} resulted in ex {Message}",
+                        value,
+                        ex.Message);
                 }
             }
             SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
@@ -131,11 +133,11 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogInformation(
-                        "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}",
-                        ex.Message);
+                    m_logger.LogInformation(ex, "Error UdpClientBroadcast set ExclusiveAddressUse to false");
                 }
             }
         }
+
+        private readonly ILogger m_logger;
     }
 }

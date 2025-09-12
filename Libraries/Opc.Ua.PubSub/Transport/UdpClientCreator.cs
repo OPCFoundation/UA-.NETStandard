@@ -29,12 +29,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -49,20 +48,20 @@ namespace Opc.Ua.PubSub.Transport
         /// Parse the url into an IPaddress and port number
         /// </summary>
         /// <returns>A new instance of <see cref="IPEndPoint"/> or null if invalid URL.</returns>
-        internal static IPEndPoint GetEndPoint(string url)
+        internal static IPEndPoint GetEndPoint(string url, ILogger logger)
         {
             if (url != null && Uri.TryCreate(url, UriKind.Absolute, out Uri connectionUri))
             {
                 if (connectionUri.Scheme != Utils.UriSchemeOpcUdp)
                 {
-                    Utils.LogError(
-                        "Invalid Scheme specified in URL: {0}",
+                    logger.LogError(
+                        "Invalid Scheme specified in URL: {Url}",
                         url);
                     return null;
                 }
                 if (connectionUri.Port <= 0)
                 {
-                    Utils.LogError("Invalid Port specified in URL: {0}", url);
+                    logger.LogError("Invalid Port specified in URL: {Url}", url);
                     return null;
                 }
                 string hostName = connectionUri.Host;
@@ -91,7 +90,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError(ex, "Could not resolve host name: {0}", hostName);
+                    logger.LogError(ex, "Could not resolve host name: {Name}", hostName);
                 }
             }
             return null;
@@ -103,22 +102,18 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
         /// <param name="networkInterface">The configured network interface name.</param>
         /// <param name="configuredEndpoint">The configured <see cref="IPEndPoint"/> that will be used for data exchange.</param>
+        /// <param name="telemetry"></param>
+        /// <param name="logger"></param>
         internal static List<UdpClient> GetUdpClients(
             UsedInContext pubSubContext,
             string networkInterface,
-            IPEndPoint configuredEndpoint)
+            IPEndPoint configuredEndpoint,
+            ITelemetryContext telemetry,
+            ILogger logger)
         {
-            var buffer = new StringBuilder();
-            buffer.AppendFormat(
-                CultureInfo.InvariantCulture,
-                "networkAddressUrl.NetworkInterface = {0} \n",
-                networkInterface ?? "null")
-                .AppendFormat(
-                CultureInfo.InvariantCulture,
-                "configuredEndpoint = {0}",
-                configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
-
-            Utils.LogInformation(buffer.ToString());
+            logger.LogInformation(
+                "networkAddressUrl.NetworkInterface = {NetworkInterface} \nconfiguredEndpoint = {ConfiguredEndpoint}",
+                networkInterface, configuredEndpoint);
 
             var udpClients = new List<UdpClient>();
             //validate input parameters
@@ -132,7 +127,7 @@ namespace Opc.Ua.PubSub.Transport
             NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
             if (string.IsNullOrEmpty(networkInterface))
             {
-                Utils.LogInformation(
+                logger.LogInformation(
                     "No NetworkInterface name was provided. Use all available NICs.");
                 usableNetworkInterfaces.AddRange(interfaces);
             }
@@ -148,8 +143,8 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 if (usableNetworkInterfaces.Count == 0)
                 {
-                    Utils.LogInformation(
-                        "The configured value for NetworkInterface name('{0}') could not be used.",
+                    logger.LogInformation(
+                        "The configured value for NetworkInterface name('{Name}') could not be used.",
                         networkInterface);
                     usableNetworkInterfaces.AddRange(interfaces);
                 }
@@ -157,8 +152,8 @@ namespace Opc.Ua.PubSub.Transport
 
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {
-                Utils.LogInformation(
-                    "NetworkInterface name('{0}') attempts to create instance of UdpClient.",
+                logger.LogInformation(
+                    "NetworkInterface name('{Name}') attempts to create instance of UdpClient.",
                     nic.Name);
 
                 if ((nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) ||
@@ -174,15 +169,17 @@ namespace Opc.Ua.PubSub.Transport
                 UdpClient udpClient = CreateUdpClientForNetworkInterface(
                     pubSubContext,
                     nic,
-                    configuredEndpoint);
+                    configuredEndpoint,
+                    telemetry,
+                    logger);
                 if (udpClient == null)
                 {
                     continue;
                 }
                 //store UdpClient
                 udpClients.Add(udpClient);
-                Utils.LogInformation(
-                    "NetworkInterface name('{0}') UdpClient successfully created.",
+                logger.LogInformation(
+                    "NetworkInterface name('{Name}') UdpClient successfully created.",
                     nic.Name);
             }
 
@@ -195,10 +192,14 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
         /// <param name="networkInterface">The network interface</param>
         /// <param name="configuredEndpoint">The configured IP endpoint to use</param>
+        /// <param name="telemetry"></param>
+        /// <param name="logger"></param>
         private static UdpClient CreateUdpClientForNetworkInterface(
             UsedInContext pubSubContext,
             NetworkInterface networkInterface,
-            IPEndPoint configuredEndpoint)
+            IPEndPoint configuredEndpoint,
+            ITelemetryContext telemetry,
+            ILogger logger)
         {
             UdpClient udpClient = null;
             IPInterfaceProperties ipProps = networkInterface.GetIPProperties();
@@ -226,17 +227,18 @@ namespace Opc.Ua.PubSub.Transport
                     udpClient = new UdpClientMulticast(
                         localAddress,
                         configuredEndpoint.Address,
-                        port);
+                        port,
+                        telemetry);
                 }
                 else if (IsIPv4BroadcastAddress(configuredEndpoint.Address, networkInterface))
                 {
                     //instantiate broadcast UdpClient depending on publisher/subscriber usage context
-                    udpClient = new UdpClientBroadcast(localAddress, port, pubSubContext);
+                    udpClient = new UdpClientBroadcast(localAddress, port, pubSubContext, telemetry);
                 }
                 else
                 {
                     //instantiate unicast UdpClient depending on publisher/subscriber usage context
-                    udpClient = new UdpClientUnicast(localAddress, port);
+                    udpClient = new UdpClientUnicast(localAddress, port, telemetry);
                 }
                 if (pubSubContext is UsedInContext.Publisher or UsedInContext.Discovery)
                 {
@@ -254,10 +256,9 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogInformation(
-                    "Cannot use Network interface '{0}'. Exception: {1}",
-                    networkInterface.Name,
-                    ex.Message);
+                logger.LogError(ex,
+                    "Cannot use Network interface '{Name}'.",
+                    networkInterface.Name);
                 if (udpClient != null)
                 {
                     //cleanup

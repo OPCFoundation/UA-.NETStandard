@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -40,9 +41,13 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the buffer from the configuration.
         /// </summary>
-        public MemoryBufferState(ISystemContext context, MemoryBufferInstance configuration)
+        public MemoryBufferState(
+            ISystemContext context,
+            MemoryBufferInstance configuration)
             : base(null)
         {
+            m_logger = context.Telemetry.CreateLogger<MemoryBufferState>();
+
             Initialize(context);
 
             string dataType = "UInt32";
@@ -547,7 +552,7 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogWarning("{0} SAMPLING DELAY ({1}ms)", nameof(MemoryBufferState), delta1);
+                m_logger.LogWarning("{StateName} SAMPLING DELAY ({Delta}ms)", nameof(MemoryBufferState), delta1);
             }
         }
 
@@ -664,8 +669,8 @@ namespace MemoryBuffer
             {
                 if (m_itemCount > 0 && m_updateCount < m_itemCount)
                 {
-                    Utils.LogInformation(
-                        "{0:HH:mm:ss.fff} MEMORYBUFFER Reported  {1}/{2} items ***.",
+                    m_logger.LogInformation(
+                        "{Now:HH:mm:ss.fff} MEMORYBUFFER Reported  {UpdateCount}/{ItemCount} items ***.",
                         DateTime.Now,
                         m_updateCount,
                         m_itemCount);
@@ -680,13 +685,14 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogInformation(
-                    "{0} ****** PUBLISH DELAY ({1}ms) ******",
+                m_logger.LogInformation(
+                    "{StateName} ****** PUBLISH DELAY ({Delta}ms) ******",
                     nameof(MemoryBufferState),
                     delta1);
             }
         }
 
+        private readonly ILogger m_logger;
         private readonly Lock m_dataLock = new();
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
         private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;

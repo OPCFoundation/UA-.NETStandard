@@ -279,7 +279,7 @@ namespace Opc.Ua
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
-            var logger = telemetry.CreateLogger<CertificateIdentifier>();
+            ILogger<CertificateIdentifier> logger = telemetry.CreateLogger<CertificateIdentifier>();
             X509Certificate2 certificate = null;
 
             // check if the entire certificate has been specified.
@@ -313,7 +313,7 @@ namespace Opc.Ua
                     if (needPrivateKey && store.SupportsLoadPrivateKey)
                     {
                         logger.LogWarning(
-                            "Loaded a certificate with private key from store {0}. " +
+                            "Loaded a certificate with private key from store {StoreType}. " +
                             "Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).",
                             StoreType);
                     }

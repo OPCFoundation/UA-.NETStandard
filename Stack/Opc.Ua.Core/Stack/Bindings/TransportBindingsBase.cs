@@ -131,7 +131,7 @@ namespace Opc.Ua.Bindings
         /// <param name="scheme">The uri scheme of the binding.</param>
         private bool TryAddDefaultTransportBindings(ITelemetryContext telemetry, string scheme)
         {
-            var logger = telemetry.CreateLogger<TransportBindingsBase<T>>();
+            ILogger<TransportBindingsBase<T>> logger = telemetry.CreateLogger<TransportBindingsBase<T>>();
             if (Utils.DefaultBindings.TryGetValue(scheme, out string assemblyName))
             {
                 Assembly assembly = null;

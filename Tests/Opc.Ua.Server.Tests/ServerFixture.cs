@@ -47,7 +47,6 @@ namespace Opc.Ua.Server.Tests
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public T Server { get; private set; }
-        public bool LogConsole { get; set; }
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
         public int MaxChannelCount { get; set; } = 10;
@@ -63,12 +62,16 @@ namespace Opc.Ua.Server.Tests
         public bool SecurityNone { get; set; }
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
-        public bool UseTracing { get; set; }
+        public bool UseTracing { get; }
         public bool DurableSubscriptionsEnabled { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
-        public ServerFixture(bool useTracing, bool disableActivityLogging)
+        public ServerFixture(
+            bool useTracing,
+            bool disableActivityLogging,
+            ITelemetryContext telemetry)
+            : this(telemetry)
         {
             UseTracing = useTracing;
             if (UseTracing)
@@ -77,13 +80,15 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        public ServerFixture()
+        public ServerFixture(ITelemetryContext telemetry)
         {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ServerFixture<T>>();
         }
 
         public async Task LoadConfigurationAsync(string pkiRoot = null)
         {
-            Application = new ApplicationInstance
+            Application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = typeof(T).Name,
                 ApplicationType = ApplicationType.Server
@@ -187,15 +192,15 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Start server fixture on random or fixed port.
         /// </summary>
-        public Task<T> StartAsync(TextWriter writer, int port = 0)
+        public Task<T> StartAsync(int port = 0)
         {
-            return StartAsync(writer, null, port);
+            return StartAsync(null, port);
         }
 
         /// <summary>
         /// Start server fixture on random or fixed port with dedicated PKI.
         /// </summary>
-        public async Task<T> StartAsync(TextWriter writer, string pkiRoot, int port = 0)
+        public async Task<T> StartAsync(string pkiRoot, int port = 0)
         {
             var random = new Random();
             bool retryStartServer = false;
@@ -217,7 +222,7 @@ namespace Opc.Ua.Server.Tests
             {
                 try
                 {
-                    await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
+                    await InternalStartServerAsync(testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                     when (serverStartRetries > 0 &&
@@ -238,15 +243,10 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Create the configuration and start the server.
         /// </summary>
-        private async Task InternalStartServerAsync(TextWriter writer, int port)
+        private async Task InternalStartServerAsync(int port)
         {
             Config.ServerConfiguration.BaseAddresses
                 = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
-
-            if (writer != null)
-            {
-                m_telemetry = NUnitTestLogger.Create(writer);
-            }
 
             // check the application certificate.
             bool haveAppCertificate = await Application
@@ -271,17 +271,6 @@ namespace Opc.Ua.Server.Tests
             await Application.StartAsync(server).ConfigureAwait(false);
             Server = server;
             Port = port;
-        }
-
-        /// <summary>
-        /// Connect the nunit writer with the logger.
-        /// </summary>
-        public void SetTraceOutput(TextWriter writer)
-        {
-            if (m_telemetry is NUnitTestLogger testLogger)
-            {
-                testLogger.SetWriter(writer);
-            }
         }
 
         /// <summary>
@@ -310,16 +299,16 @@ namespace Opc.Ua.Server.Tests
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
-                        Utils.LogInformation(
-                            "Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
+                        m_logger.LogInformation(
+                            "Server Started: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} ParentId: {ParentId,-32}",
                             activity.OperationName,
                             activity.TraceId,
                             activity.SpanId,
                             activity.ParentId
                         ),
                     ActivityStopped = activity =>
-                        Utils.LogInformation(
-                            "Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
+                        m_logger.LogInformation(
+                            "Server Stopped: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} ParentId: {ParentId,-32} Duration: {Duration}",
                             activity.OperationName,
                             activity.TraceId,
                             activity.SpanId,
@@ -343,6 +332,7 @@ namespace Opc.Ua.Server.Tests
             return Task.Delay(100);
         }
 
-        private ITelemetryContext m_telemetry;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 }

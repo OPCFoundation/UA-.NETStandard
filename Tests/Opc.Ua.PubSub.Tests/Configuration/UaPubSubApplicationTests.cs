@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
@@ -60,7 +61,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateUaPubSubApplicationCreateNullFilePath()
         {
             NUnit.Framework.Assert.Throws<ArgumentNullException>(
-                () => UaPubSubApplication.Create((string)null),
+                () => UaPubSubApplication.Create((string)null, null),
                 "Calling Create with null parameter shall throw error");
         }
 
@@ -68,15 +69,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateUaPubSubApplicationCreateNullPubSubConfigurationDataType()
         {
             NUnit.Framework.Assert.DoesNotThrow(
-                () => UaPubSubApplication.Create((PubSubConfigurationDataType)null),
+                () => UaPubSubApplication.Create((PubSubConfigurationDataType)null, null),
                 "Calling Create with null parameter shall not throw error");
         }
 
         [Test(Description = "Validate Create call")]
         public void ValidateUaPubSubApplicationCreate()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
-            var uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration, telemetry);
 
             // Assert
             Assert.IsTrue(

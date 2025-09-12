@@ -788,7 +788,6 @@ namespace Opc.Ua.Bindings
             senderCertificateChain = null;
 
             _ = decoder.ReadUInt32(null);
-
             _ = decoder.ReadUInt32(null);
 
             // decode security header.
@@ -817,7 +816,9 @@ namespace Opc.Ua.Bindings
             // verify sender certificate chain.
             if (certificateData != null && certificateData.Length > 0)
             {
-                senderCertificateChain = Utils.ParseCertificateChainBlob(certificateData);
+                senderCertificateChain = Utils.ParseCertificateChainBlob(
+                    certificateData,
+                    m_logger);
 
                 try
                 {

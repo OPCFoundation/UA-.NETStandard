@@ -461,6 +461,7 @@ namespace Opc.Ua.Server
             X509Certificate2 newCert = null;
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
+                m_logger,
                 context,
                 objectId,
                 method,
@@ -736,6 +737,7 @@ namespace Opc.Ua.Server
                         }
 
                         Server.ReportCertificateUpdatedAuditEvent(
+                            m_logger,
                             context,
                             objectId,
                             method,
@@ -747,6 +749,7 @@ namespace Opc.Ua.Server
                     {
                         m_logger.LogError(
                             Utils.TraceMasks.Security,
+                            "{StackTrace}",
                             ServiceResult.BuildExceptionTrace(ex));
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
@@ -759,6 +762,7 @@ namespace Opc.Ua.Server
             {
                 // report the failure of UpdateCertificate via an audit event
                 Server.ReportCertificateUpdatedAuditEvent(
+                    m_logger,
                     context,
                     objectId,
                     method,
@@ -767,7 +771,7 @@ namespace Opc.Ua.Server
                     certificateTypeId,
                     e);
                 // Raise audit certificate event
-                Server.ReportAuditCertificateEvent(newCert, e);
+                Server.ReportAuditCertificateEvent(m_logger, newCert, e);
                 throw;
             }
 

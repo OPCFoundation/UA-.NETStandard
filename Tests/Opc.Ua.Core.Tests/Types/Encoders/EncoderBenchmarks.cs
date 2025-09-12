@@ -127,7 +127,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_context = new ServiceMessageContext();
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
-            m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
+            m_bufferManager = new BufferManager(
+                nameof(BinaryEncoder),
+                StreamBufferSize,
+                null);
         }
 
         public virtual void OneTimeTearDown()
@@ -146,7 +149,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_context = new ServiceMessageContext();
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
-            m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
+            m_bufferManager = new BufferManager(
+                nameof(BinaryEncoder),
+                StreamBufferSize,
+                null);
         }
 
         /// <summary>

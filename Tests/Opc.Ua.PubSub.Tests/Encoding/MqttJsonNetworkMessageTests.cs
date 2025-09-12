@@ -34,12 +34,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
@@ -211,6 +213,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             [Values(1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             jsonNetworkMessageContentMask =
                 jsonNetworkMessageContentMask |
@@ -240,7 +244,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -311,7 +315,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -321,14 +325,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
             // Assert
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaDataNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders);
+                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders, logger);
             }
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecode(uaMetaDataNetworkMessage, dataSetReaders);
+                CompareEncodeDecode(uaMetaDataNetworkMessage, dataSetReaders, logger);
             }
         }
 
@@ -430,10 +435,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             /*The DataSetClassId associated with the DataSets in the NetworkMessage.
-            This value is optional. The presence of the value depends on the setting in the JsonNetworkMessageContentMask.
-            If specified, all DataSetMessages in the NetworkMessage shall have the same DataSetClassId.
-            The source is the DataSetClassId on the PublishedDataSet (see 6.2.2.2) associated with the DataSetWriters that produced the DataSetMessages.*/
+                  This value is optional. The presence of the value depends on the setting in the JsonNetworkMessageContentMask.
+                  If specified, all DataSetMessages in the NetworkMessage shall have the same DataSetClassId.
+                  The source is the DataSetClassId on the PublishedDataSet (see 6.2.2.2) associated with the DataSetWriters that produced the DataSetMessages.*/
 
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
@@ -463,7 +470,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -517,7 +524,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -536,10 +543,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uaDataNetworkMessages,
                 "Json ua-data entries are missing from configuration!");
 
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
             int index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaDataNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, [dataSetReaders[index++]]);
+                CompareEncodeDecode(uaDataNetworkMessage, [dataSetReaders[index++]], logger);
             }
         }
 
@@ -638,6 +646,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -665,7 +675,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -724,7 +734,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -734,14 +744,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
             // Assert
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders);
+                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders, logger);
             }
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, logger);
             }
         }
 
@@ -841,6 +852,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             [Values(1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -869,7 +882,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -928,7 +941,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -938,14 +951,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
             // Assert
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders);
+                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders, logger);
             }
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, logger);
             }
         }
 
@@ -1044,6 +1058,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
                 JsonNetworkMessageContentMask.DataSetMessageHeader;
@@ -1070,7 +1086,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1129,7 +1145,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -1139,14 +1155,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
             // Assert
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders);
+                CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders, logger);
             }
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, logger);
             }
         }
 
@@ -1264,6 +1281,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 JsonNetworkMessageContentMask jsonNetworkMessageContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             // mark SingleDataSetMessage message
             jsonNetworkMessageContentMask |= JsonNetworkMessageContentMask.SingleDataSetMessage;
@@ -1290,7 +1309,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1335,7 +1354,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -1353,10 +1372,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(
                 uaDataNetworkMessages,
                 "Json ua-data entries are missing from configuration!");
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
             int index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaDataNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, [dataSetReaders[index++]]);
+                CompareEncodeDecode(uaDataNetworkMessage, [dataSetReaders[index++]], logger);
             }
 
             List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages =
@@ -1367,13 +1387,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "Json ua-metadata entries are missing from configuration!");
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage); //(uaMetaDataNetworkMessage as PubSubEncoding.JsonNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, logger); //(uaMetaDataNetworkMessage as PubSubEncoding.JsonNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
             }
         }
 
         [Test(Description = "Validate that metadata is encoded/decoded correctly")]
         public void ValidateMetaDataIsEncodedCorrectly()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask
                 = JsonNetworkMessageContentMask.None;
@@ -1406,7 +1428,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1439,15 +1461,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uaMetaDataNetworkMessages,
                 "Json ua-metadata entries are missing from configuration!");
 
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, logger);
             }
         }
 
         [Test(Description = "Validate that metadata with update time 0 is sent at startup for a MQTT Json publisher")]
         public void ValidateMetaDataUpdateTimeZeroSentAtStartup()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask
                 = JsonNetworkMessageContentMask.None;
@@ -1481,7 +1506,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1564,6 +1589,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         )]
         public void ValidateMetaDataUpdateTimeZeroSentAtMetaDataChange()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask
                 = JsonNetworkMessageContentMask.None;
@@ -1597,7 +1624,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1733,6 +1760,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             s_publishTimes.Clear();
             // arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask
@@ -1783,7 +1812,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 mockConnection.Object,
                 writerGroupDataType,
                 writerGroupDataType.DataSetWriters[0],
-                metaDataUpdateTime);
+                metaDataUpdateTime,
+                telemetry);
             mqttMetaDataPublisher.Start();
 
             //wait so many seconds
@@ -1829,6 +1859,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values(false, true)] bool hasMetaDataConfigurationVersion,
             [Values(false, true)] bool hasMetaDataFields)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
             WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
@@ -1841,7 +1873,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             _ = hasMetaData ? metadata : null;
 
-            var jsonNetworkMessage = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata)
+            ILogger logger = telemetry.CreateLogger<MqttJsonNetworkMessageTests>();
+            var jsonNetworkMessage = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata, logger)
             {
                 MessageId = messageId,
                 PublisherId = publisherId,
@@ -1934,6 +1967,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values("1", null)] string publisherId,
             [Values("1", null)] string dataSetClassId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
                 JsonNetworkMessageContentMask.NetworkMessageHeader;
             const JsonDataSetMessageContentMask jsonDataSetMessageContentMask =
@@ -1959,7 +1994,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     kNamespaceIndexAllTypes);
             Assert.IsNotNull(pubSubConfiguration, "pubSubConfiguration should not be null");
 
-            var publisherApplication = UaPubSubApplication.Create(pubSubConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication should not be null");
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
@@ -2053,6 +2088,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
@@ -2073,7 +2110,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     kNamespaceIndexAllTypes);
             Assert.IsNotNull(pubSubConfiguration, "pubSubConfiguration should not be null");
 
-            var publisherApplication = UaPubSubApplication.Create(pubSubConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication should not be null");
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
@@ -2148,7 +2185,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="jsonNetworkMessage">the message to encode</param>
         private static void CompareEncodeDecodeMetaData(
-            PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
+            PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
+            ILogger logger)
         {
             Assert.IsTrue(
                 jsonNetworkMessage.IsMetaDataMessage,
@@ -2158,7 +2196,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             PrettifyAndValidateJson(bytes);
 
-            var uaNetworkMessageDecoded = new PubSubEncoding.JsonNetworkMessage();
+            var uaNetworkMessageDecoded = new PubSubEncoding.JsonNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
 
             Assert.IsTrue(
@@ -2187,13 +2225,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="dataSetReaders">The list of readers used to decode</param>
         private static void CompareEncodeDecode(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
-            IList<DataSetReaderDataType> dataSetReaders)
+            IList<DataSetReaderDataType> dataSetReaders,
+            ILogger logger)
         {
             byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             PrettifyAndValidateJson(bytes);
 
-            var uaNetworkMessageDecoded = new PubSubEncoding.JsonNetworkMessage();
+            var uaNetworkMessageDecoded = new PubSubEncoding.JsonNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
                 ServiceMessageContext.GlobalContext,
                 bytes,

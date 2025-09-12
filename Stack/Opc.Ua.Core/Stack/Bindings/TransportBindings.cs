@@ -11,7 +11,6 @@
 */
 
 using System;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -30,7 +29,7 @@ namespace Opc.Ua.Bindings
                 ]);
             Listeners = new TransportListenerBindings(
                 [
-                typeof(TcpTransportListenerFactory)
+                    typeof(TcpTransportListenerFactory)
                 ]);
         }
 

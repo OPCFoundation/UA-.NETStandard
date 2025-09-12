@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -54,7 +55,7 @@ namespace Opc.Ua.Server.Tests
         private const double kMaxAge = 10000;
         private const uint kTimeoutHint = 10000;
         private const uint kQueueSize = 5;
-
+        private ITelemetryContext m_telemetry;
         private ServerFixture<ReferenceServer> m_fixture;
         private ReferenceServer m_server;
         private RequestHeader m_requestHeader;
@@ -70,15 +71,16 @@ namespace Opc.Ua.Server.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
+            m_telemetry = NUnitTelemetryContext.Create();
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>
+            m_fixture = new ServerFixture<ReferenceServer>(m_telemetry)
             {
                 AllNodeManagers = true,
                 OperationLimits = true,
                 DurableSubscriptionsEnabled = false,
                 UseSamplingGroupsInReferenceNodeManager = false
             };
-            m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -97,7 +99,6 @@ namespace Opc.Ua.Server.Tests
         [SetUp]
         public void SetUp()
         {
-            m_fixture.SetTraceOutput(TestContext.Out);
             m_requestHeader = m_server.CreateAndActivateSession(
                 TestContext.CurrentContext.Test.Name);
             m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -127,7 +128,7 @@ namespace Opc.Ua.Server.Tests
         public void GlobalSetup()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer> { AllNodeManagers = true };
+            m_fixture = new ServerFixture<ReferenceServer>(null) { AllNodeManagers = true };
             m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }

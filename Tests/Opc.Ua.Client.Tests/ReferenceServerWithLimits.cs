@@ -30,6 +30,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 using Quickstarts.ReferenceServer;
 
@@ -53,6 +54,12 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ReferenceServerWithLimits : ReferenceServer
     {
+        public ReferenceServerWithLimits(ITelemetryContext telemetry)
+            : base(telemetry)
+        {
+            m_logger = telemetry.CreateLogger<ReferenceServerWithLimits>();
+        }
+
         public uint TestMaxBrowseReferencesPerNode { get; set; } = 10u;
         private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerWithLimits SessionManagerForTest { get; set; }
@@ -98,7 +105,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Utils.LogInformation(
+            m_logger.LogInformation(
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
@@ -129,6 +136,7 @@ namespace Opc.Ua.Client.Tests
             SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
             return SessionManagerForTest;
         }
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

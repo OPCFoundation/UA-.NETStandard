@@ -38,13 +38,25 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class TestableSessionInstantiator : ISessionInstantiator
     {
+        /// <summary>
+        /// Craete a new instance of the instantiator.
+        /// </summary>
+        /// <param name="telemetry"></param>
+        public TestableSessionInstantiator(ITelemetryContext telemetry)
+        {
+            Telemetry = telemetry;
+        }
+
+        /// <inheritdoc/>
+        public ITelemetryContext Telemetry { get; }
+
         /// <inheritdoc/>
         public Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new TestableSession(channel, configuration, endpoint);
+            return new TestableSession(channel, configuration, endpoint, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -61,6 +73,7 @@ namespace Opc.Ua.Client.Tests
                 configuration,
                 endpoint,
                 clientCertificate,
+                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

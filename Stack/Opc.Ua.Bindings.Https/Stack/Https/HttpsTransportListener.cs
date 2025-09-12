@@ -276,7 +276,7 @@ namespace Opc.Ua.Bindings
             }
             catch (CryptographicException ce)
             {
-                m_logger.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+                m_logger.LogTrace("Copy of the private key for https was denied: {Message}", ce.Message);
             }
 #endif
 
@@ -388,7 +388,7 @@ namespace Opc.Ua.Bindings
                     {
                         message =
                             "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
-                        m_logger.LogError(message);
+                        m_logger.LogError("{Message}", message);
                         await WriteResponseAsync(
                             context.Response,
                             message,
@@ -463,6 +463,7 @@ namespace Opc.Ua.Bindings
                     if (serviceResultException != null)
                     {
                         IServiceResponse serviceResponse = EndpointBase.CreateFault(
+                            m_logger,
                             null,
                             serviceResultException);
                         await WriteServiceResponseAsync(context, serviceResponse, ct)
@@ -491,7 +492,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 message = "HTTPSLISTENER - Unexpected error processing request.";
-                m_logger.LogError(e, message);
+                m_logger.LogError(e, "{Message}", message);
             }
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)

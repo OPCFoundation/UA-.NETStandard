@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Opc.Ua;
@@ -52,9 +53,11 @@ namespace Quickstarts.Servers
 
         private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
+        private readonly ILogger m_logger;
 
         public SubscriptionStore(IServerInternal server)
         {
+            m_logger = server.Telemetry.CreateLogger<SubscriptionStore>();
             m_durableMonitoredItemQueueFactory = server
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
@@ -82,7 +85,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to store subscriptions");
+                m_logger.LogWarning(ex, "Failed to store subscriptions");
             }
             return false;
         }
@@ -107,7 +110,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to restore subscriptions");
+                m_logger.LogWarning(ex, "Failed to restore subscriptions");
             }
 
             return new RestoreSubscriptionResult(false, null);
@@ -209,7 +212,7 @@ namespace Quickstarts.Servers
                 }
                 catch (Exception ex)
                 {
-                    Opc.Ua.Utils.LogWarning(ex, "Failed to cleanup files for stored subscsription");
+                    m_logger.LogWarning(ex, "Failed to cleanup files for stored subscsription");
                 }
             }
             //remove old batches & queues

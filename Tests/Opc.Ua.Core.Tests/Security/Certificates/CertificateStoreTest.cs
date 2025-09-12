@@ -223,6 +223,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
@@ -234,7 +236,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Directory.CreateDirectory(certPath);
             Directory.CreateDirectory(privatePath);
 
-            var store = new DirectoryCertificateStore(false);
+            var store = new DirectoryCertificateStore(false, telemetry);
 
             try
             {
@@ -306,6 +308,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
@@ -317,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Directory.CreateDirectory(certPath);
             Directory.CreateDirectory(privatePath);
 
-            var store = new DirectoryCertificateStore(false);
+            var store = new DirectoryCertificateStore(false, telemetry);
 
             try
             {
@@ -559,16 +563,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void X509StoreExtensionsThrowException(string storePath)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Microsoft.Extensions.Logging.ILogger logger = telemetry.CreateLogger<CertificateStoreTest>();
             using (var x509Store = new X509Store(storePath))
             {
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     NUnit.Framework.Assert
-                        .Throws<PlatformNotSupportedException>(() => x509Store.AddCrl([]));
+                        .Throws<PlatformNotSupportedException>(() => x509Store.AddCrl([], logger));
                     NUnit.Framework.Assert
-                        .Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls());
+                        .Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls(logger));
                     NUnit.Framework.Assert
-                        .Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl([]));
+                        .Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl([], logger));
                 }
                 else
                 {

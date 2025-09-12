@@ -461,7 +461,10 @@ namespace Opc.Ua.Bindings
             };
 
             // create the buffer manager.
-            m_bufferManager = new BufferManager("Client", settings.Configuration.MaxBufferSize);
+            m_bufferManager = new BufferManager(
+                "Client",
+                settings.Configuration.MaxBufferSize,
+                m_telemetry);
         }
 
         /// <summary>

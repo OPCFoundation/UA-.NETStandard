@@ -41,12 +41,15 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestClient
     {
         public GlobalDiscoveryServerClient GDSClient { get; private set; }
+
         public static bool AutoAccept { get; set; }
 
         public GlobalDiscoveryTestClient(
             bool autoAccept,
+            ITelemetryContext telemetry,
             string storeType = CertificateStoreType.Directory)
         {
+            m_telemetry = telemetry;
             AutoAccept = autoAccept;
             m_storeType = storeType;
         }
@@ -72,7 +75,7 @@ namespace Opc.Ua.Gds.Tests
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestClientX509Stores";
             }
 
-            m_application = new ApplicationInstance
+            m_application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Global Discovery Client",
                 ApplicationType = ApplicationType.Client,
@@ -128,26 +131,26 @@ namespace Opc.Ua.Gds.Tests
                 {
                     using ICertificateStore store = Configuration.SecurityConfiguration
                         .ApplicationCertificate
-                        .OpenStore();
+                        .OpenStore(m_telemetry);
                     await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                 }
 
                 // always start with clean cert store
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                        Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore(m_telemetry))
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
+                        Configuration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore(m_telemetry))
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                        Configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry))
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.RejectedCertificateStore.OpenStore())
+                        Configuration.SecurityConfiguration.RejectedCertificateStore.OpenStore(m_telemetry))
                     .ConfigureAwait(false);
             }
 
@@ -168,7 +171,8 @@ namespace Opc.Ua.Gds.Tests
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
             GDSClient = new GlobalDiscoveryServerClient(
                 Configuration,
-                gdsClientConfiguration.GlobalDiscoveryServerUrl)
+                gdsClientConfiguration.GlobalDiscoveryServerUrl,
+                m_telemetry)
             {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                     gdsClientConfiguration.GlobalDiscoveryServerUrl,
@@ -180,7 +184,7 @@ namespace Opc.Ua.Gds.Tests
 
             if (string.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
             {
-                AppUser = new UserIdentity(new AnonymousIdentityToken());
+                AppUser = new UserIdentity();
             }
             else
             {
@@ -275,7 +279,7 @@ namespace Opc.Ua.Gds.Tests
                 certWithPrivateKey);
             ICertificateStore store = GDSClient.Configuration.SecurityConfiguration
                 .ApplicationCertificate
-                .OpenStore();
+                .OpenStore(m_telemetry);
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
@@ -368,8 +372,12 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("GDSClient must be initialized before setting endpoint.");
             }
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
-            var discoveryClient = DiscoveryClient.Create(new Uri(GDSClient.EndpointUrl), endpointConfiguration);
-            EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
+            using var discoveryClient = DiscoveryClient.Create(
+                new Uri(GDSClient.EndpointUrl),
+                endpointConfiguration,
+                m_telemetry);
+            EndpointDescriptionCollection endpoints =
+                await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
             await discoveryClient.CloseAsync().ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
@@ -389,6 +397,7 @@ namespace Opc.Ua.Gds.Tests
 
         private ApplicationInstance m_application;
         private readonly string m_storeType;
+        private readonly ITelemetryContext m_telemetry;
     }
 
     /// <summary>

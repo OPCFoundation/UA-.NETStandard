@@ -457,7 +457,8 @@ namespace Opc.Ua.Server
                         SecureChannelId = SecureChannelContext.Current.SecureChannelId,
                         Deadline = deadline,
                         Subscription = null,
-                        Error = StatusCodes.Good
+                        Error = StatusCodes.Good,
+                        Logger = m_logger
                     };
 
                     if (operation == null)
@@ -551,7 +552,7 @@ namespace Opc.Ua.Server
             AsyncPublishOperation operation,
             object calldata)
         {
-            Utils.LogTrace("PUBLISH: #{0} Completing", operation.RequestHandle, requeue);
+            m_logger.LogTrace("PUBLISH: #{RequestHandle} Completing. Requeue={Requeue}", operation.RequestHandle, requeue);
 
             var request = (QueuedRequest)calldata;
 
@@ -570,8 +571,8 @@ namespace Opc.Ua.Server
             // must reassign subscription on error.
             if (ServiceResult.IsBad(request.Error))
             {
-                Utils.LogTrace(
-                    "PUBLISH: #{0} Reassigned ERROR({1})",
+                m_logger.LogTrace(
+                    "PUBLISH: #{RequestHandle} Reassigned ERROR({StatusCode})",
                     operation.RequestHandle,
                     request.Error);
 
@@ -584,7 +585,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // TraceState("REQUEST #{0} PUBLISH ERROR ({1})", clientHandle, error.StatusCode);
+                // TraceState("REQUEST #{0} PUBLISH ERROR ({StatusCode})", clientHandle, error.StatusCode);
                 throw new ServiceResultException(request.Error);
             }
 
@@ -689,7 +690,7 @@ namespace Opc.Ua.Server
                 m_queuedSubscriptions = liveSubscriptions;
 
                 // schedule cleanup on a background thread.
-                SubscriptionManager.CleanupSubscriptions(m_server, subscriptionsToDelete);
+                SubscriptionManager.CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
             }
         }
 
@@ -717,7 +718,7 @@ namespace Opc.Ua.Server
                 else if (!m_session.IsSecureChannelValid(request.SecureChannelId))
                 {
                     error = StatusCodes.BadSecureChannelIdInvalid;
-                    Utils.LogWarning("Publish abandoned because the secure channel changed.");
+                    m_logger.LogWarning("Publish abandoned because the secure channel changed.");
                 }
 
                 if (StatusCode.IsBad(error))
@@ -742,8 +743,8 @@ namespace Opc.Ua.Server
                 // remove request.
                 m_queuedRequests.Remove(node);
 
-                Utils.LogTrace(
-                    "PUBLISH: #000 Assigned To Subscription({0}).",
+                m_logger.LogTrace(
+                    "PUBLISH: #000 Assigned To Subscription({SubscriptionId}).",
                     subscription.Subscription.Id);
 
                 request.Error = StatusCodes.Good;
@@ -767,6 +768,7 @@ namespace Opc.Ua.Server
             public AsyncPublishOperation Operation;
             public DateTime Deadline;
             public StatusCode Error;
+            public ILogger Logger;
             public QueuedSubscription Subscription;
             public string SecureChannelId;
 
@@ -865,7 +867,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Publish request no longer available.");
+                    Logger.LogError(e, "Publish request no longer available.");
                 }
             }
         }
@@ -946,7 +948,7 @@ namespace Opc.Ua.Server
                     expiredRequests);
             }
 
-            Utils.LogTrace(buffer.ToString());
+            m_logger.LogTrace(buffer.ToString());
         }
 
         private readonly Lock m_lock = new();

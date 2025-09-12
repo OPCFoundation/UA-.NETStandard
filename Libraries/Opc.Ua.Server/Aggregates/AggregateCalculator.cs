@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -40,8 +41,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a default aggregator.
         /// </summary>
-        protected AggregateCalculator(NodeId aggregateId)
+        protected AggregateCalculator(NodeId aggregateId, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<AggregateCalculator>();
             var configuration = new AggregateConfiguration
             {
                 TreatUncertainAsBad = false,
@@ -61,14 +63,17 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
+        /// <param name="telemetry"></param>
         public AggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<AggregateCalculator>();
             Initialize(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
         }
 
@@ -211,7 +216,7 @@ namespace Opc.Ua.Server
                 CurrentSlice.OutOfDataRange = true;
             }
 
-            Utils.LogTrace("Computing Aggregate {0:HH:mm:ss.fff}", CurrentSlice.StartTime);
+            m_logger.LogTrace("Computing Aggregate {StartTime:HH:mm:ss.fff}", CurrentSlice.StartTime);
 
             // compute the value.
             DataValue value = ComputeValue(CurrentSlice);
@@ -1545,6 +1550,7 @@ namespace Opc.Ua.Server
             return statusCode;
         }
 
+        private readonly ILogger m_logger;
         private LinkedList<DataValue> m_values;
         private DateTime m_startOfData;
         private DateTime m_endOfData;

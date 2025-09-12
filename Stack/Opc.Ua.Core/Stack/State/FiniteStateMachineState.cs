@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -613,7 +614,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditProgramTransitionEvent event.");
+                Logger.LogError(ex, "Error while reporting AuditProgramTransitionEvent event.");
             }
         }
 

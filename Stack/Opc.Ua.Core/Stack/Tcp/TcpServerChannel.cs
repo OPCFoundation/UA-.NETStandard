@@ -83,8 +83,9 @@ namespace Opc.Ua.Bindings
             public ReverseConnectAsyncResult(
                 AsyncCallback callback,
                 object callbackData,
-                int timeout)
-                : base(callback, callbackData, timeout)
+                int timeout,
+                ILogger logger)
+                : base(callback, callbackData, timeout, logger)
             {
             }
 
@@ -105,7 +106,7 @@ namespace Opc.Ua.Bindings
             ReverseConnectionUrl = endpointUrl;
             SetEndpointUrl(Listener.EndpointUrl.ToString());
 
-            var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout);
+            var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger);
 
             var tcpMessageSocketFactory = new TcpMessageSocketFactory();
             ar.Socket = Socket = tcpMessageSocketFactory.Create(

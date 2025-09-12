@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -41,7 +43,6 @@ namespace Opc.Ua.PubSub
     /// </summary>
     internal abstract class UaPubSubConnection : IUaPubSubConnection
     {
-        protected readonly object Lock = new();
         private readonly List<IUaPublisher> m_publishers;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
 
@@ -50,8 +51,13 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal UaPubSubConnection(
             UaPubSubApplication parentUaPubSubApplication,
-            PubSubConnectionDataType pubSubConnectionDataType)
+            PubSubConnectionDataType pubSubConnectionDataType,
+            ITelemetryContext telemetry,
+            ILogger logger)
         {
+            Logger = logger;
+            Telemetry = telemetry;
+
             // set the default message context that uses the GlobalContext
             MessageContext = new ServiceMessageContext
             {
@@ -71,7 +77,7 @@ namespace Opc.Ua.PubSub
             if (string.IsNullOrEmpty(pubSubConnectionDataType.Name))
             {
                 pubSubConnectionDataType.Name = "<connection>";
-                Utils.LogInformation(
+                Logger.LogInformation(
                     "UaPubSubConnection() received a PubSubConnectionDataType object without name. '<connection>' will be used");
             }
         }
@@ -106,6 +112,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal IReadOnlyCollection<IUaPublisher> Publishers => m_publishers.AsReadOnly();
 
+        protected Lock Lock { get; } = new();
+        protected ITelemetryContext Telemetry { get; }
+        protected ILogger Logger { get; }
+
         /// <summary>
         /// Releases all resources used by the current instance of the <see cref="UaPubSubConnection"/> class.
         /// </summary>
@@ -133,7 +143,7 @@ namespace Opc.Ua.PubSub
                     publisher.Dispose();
                 }
 
-                Utils.LogInformation("Connection '{0}' was disposed.", PubSubConnectionConfiguration.Name);
+                Logger.LogInformation("Connection '{Name}' was disposed.", PubSubConnectionConfiguration.Name);
             }
         }
 
@@ -143,7 +153,7 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             InternalStart().Wait();
-            Utils.LogInformation("Connection '{0}' was started.", PubSubConnectionConfiguration.Name);
+            Logger.LogInformation("Connection '{Name}' was started.", PubSubConnectionConfiguration.Name);
 
             lock (Lock)
             {
@@ -169,7 +179,7 @@ namespace Opc.Ua.PubSub
                     publisher.Stop();
                 }
             }
-            Utils.LogInformation("Connection '{0}' was stopped.", PubSubConnectionConfiguration.Name);
+            Logger.LogInformation("Connection '{Name}' was stopped.", PubSubConnectionConfiguration.Name);
         }
 
         /// <summary>
@@ -316,8 +326,8 @@ namespace Opc.Ua.PubSub
                         // check to see if the event handler canceled the save of new MetaData
                         if (!metaDataUpdatedEventArgs.Cancel)
                         {
-                            Utils.LogInformation(
-                                "Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
+                            Logger.LogInformation(
+                                "Connection '{Name}' - The MetaData is updated for DataSetReader '{ReaderName}' with DataSetWriterId={DataSetWriterId}",
                                 source,
                                 reader.Name,
                                 networkMessage.DataSetWriterId);
@@ -339,8 +349,8 @@ namespace Opc.Ua.PubSub
                 // trigger notification for received DataSet MetaData
                 Application.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
 
-                Utils.LogInformation(
-                    "Connection '{0}' - RaiseMetaDataReceivedEvent() from source={0}",
+                Logger.LogInformation(
+                    "Connection '{Name}' - RaiseMetaDataReceivedEvent() with {Count} data set messages.",
                     source,
                     subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
             }
@@ -356,10 +366,9 @@ namespace Opc.Ua.PubSub
                 //trigger notification for received subscribed DataSet
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
 
-                Utils.LogInformation(
-                    "Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
-                    source,
-                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+                Logger.LogInformation(
+                    "Connection '{Source}' - RaiseNetworkMessageDataReceivedEvent() from source={Source}, with {Count} DataSets",
+                    source, source, subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
             }
             else if (networkMessage is Encoding.UadpNetworkMessage)
             {
@@ -383,10 +392,9 @@ namespace Opc.Ua.PubSub
                         //trigger notification for received configuration
                         Application.RaiseDatasetWriterConfigurationReceivedEvent(eventArgs);
 
-                        Utils.LogInformation(
-                            "Connection '{0}' - RaiseDataSetWriterConfigurationReceivedEvent() from source={0}, with {1} DataSetWriterConfiguration",
-                            source,
-                            eventArgs.DataSetWriterIds.Length);
+                        Logger.LogInformation(
+                            "Connection '{Source}' - RaiseDataSetWriterConfigurationReceivedEvent() from source={Source}, with {Count} DataSetWriterConfiguration",
+                            source, source, eventArgs.DataSetWriterIds.Length);
                     }
                     else if (uadpNetworkMessage.UADPDiscoveryType ==
                         UADPNetworkMessageDiscoveryType.PublisherEndpoint &&
@@ -405,10 +413,9 @@ namespace Opc.Ua.PubSub
                         Application.RaisePublisherEndpointsReceivedEvent(
                             publisherEndpointsEventArgs);
 
-                        Utils.LogInformation(
-                            "Connection '{0}' - RaisePublisherEndpointsReceivedEvent() from source={0}, with {1} PublisherEndpoints",
-                            source,
-                            publisherEndpointsEventArgs.PublisherEndpoints.Length);
+                        Logger.LogInformation(
+                            "Connection '{Source}' - RaisePublisherEndpointsReceivedEvent() from source={Source}, with {Count} PublisherEndpoints",
+                            source, source, publisherEndpointsEventArgs.PublisherEndpoints.Length);
                     }
                 }
             }
@@ -538,7 +545,7 @@ namespace Opc.Ua.PubSub
                     .FindObjectById(e.ConnectionId) as PubSubConnectionDataType;
             if (PubSubConnectionConfiguration == pubSubConnectionDataType)
             {
-                var publisher = new UaPublisher(this, e.WriterGroupDataType);
+                var publisher = new UaPublisher(this, e.WriterGroupDataType, Telemetry);
                 m_publishers.Add(publisher);
             }
         }

@@ -31,6 +31,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -46,9 +47,15 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
         /// <param name="multicastAddress">The multicast <see cref="IPAddress"/> of the group you want to join.</param>
         /// <param name="port">The port.</param>
+        /// <param name="telemetry"></param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
-        public UdpClientMulticast(IPAddress localAddress, IPAddress multicastAddress, int port)
+        public UdpClientMulticast(
+            IPAddress localAddress,
+            IPAddress multicastAddress,
+            int port,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<UdpClientMulticast>();
             Address = localAddress;
             MulticastAddress = multicastAddress;
             Port = port;
@@ -63,9 +70,8 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogError(
-                    "UdpClientMulticast set SetSocketOption resulted in ex {0}",
-                    ex.Message);
+                m_logger.LogError(ex,
+                    "UdpClientMulticast set SetSocketOption resulted in exception");
             }
             try
             {
@@ -74,9 +80,8 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogError(
-                    "UdpClientMulticast set ExclusiveAddressUse = false resulted in ex {0}",
-                    ex.Message);
+                m_logger.LogError(ex,
+                    "UdpClientMulticast set ExclusiveAddressUse = false resulted in exeception");
             }
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -90,8 +95,8 @@ namespace Opc.Ua.PubSub.Transport
                 JoinMulticastGroup(multicastAddress, localAddress);
             }
 
-            Utils.LogInformation(
-                "UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
+            m_logger.LogInformation(
+                "UdpClientMulticast was created for local Address: {Address}:{Port} and multicast address: {Address}.",
                 localAddress,
                 port,
                 multicastAddress);
@@ -111,5 +116,7 @@ namespace Opc.Ua.PubSub.Transport
         /// The local port
         /// </summary>
         internal int Port { get; }
+
+        private readonly ILogger m_logger;
     }
 }

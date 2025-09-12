@@ -87,7 +87,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         else if (error != 0)
                         {
                             logger.LogError(
-                                "Error while enumerating Crls from X509Store, Win32Error-Code: {0}",
+                                "Error while enumerating Crls from X509Store, Win32Error-Code: {ErrorCode}",
                                 error);
                         }
                         break;
@@ -161,25 +161,25 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 if (error == -2147024809)
                 {
                     logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ",
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ",
                         error);
                 }
                 if (error == -2146881269)
                 {
                     logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ",
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ",
                         error);
                 }
                 if (error == -2147024891)
                 {
                     logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_ACCESS_DENIED, Access is denied. ",
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ERROR_ACCESS_DENIED, Access is denied. ",
                         error);
                 }
                 if (error != 0)
                 {
                     logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: ",
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ",
                         error);
                 }
             }
@@ -232,7 +232,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                                 if (error != 0)
                                 {
                                     logger.LogError(
-                                        "Error while deleting Crl from X509Store, Win32Error-Code: {0}",
+                                        "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}",
                                         error);
                                 }
                             }
@@ -255,7 +255,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         else if (error != 0)
                         {
                             logger.LogError(
-                                "Error while deleting Crl from X509Store, Win32Error-Code: {0}",
+                                "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}",
                                 error);
                         }
                         break;

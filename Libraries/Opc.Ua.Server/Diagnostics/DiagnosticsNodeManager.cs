@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -49,6 +50,8 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration)
             : base(server, configuration)
         {
+            m_logger = server.Telemetry.CreateLogger<DiagnosticsNodeManager>();
+
             AliasRoot = "Core";
 
             string[] namespaceUris = [Namespaces.OpcUa, Namespaces.OpcUa + "Diagnostics"];
@@ -1738,7 +1741,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
@@ -2127,10 +2130,11 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
+        private readonly ILogger m_logger;
         private readonly ushort m_namespaceIndex;
         private long m_lastUsedId;
         private Timer m_diagnosticsScanTimer;

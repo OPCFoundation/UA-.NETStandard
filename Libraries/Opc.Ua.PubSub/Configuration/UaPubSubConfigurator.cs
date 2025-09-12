@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -51,10 +52,11 @@ namespace Opc.Ua.PubSub.Configuration
         internal static uint InvalidId;
 
         private readonly Lock m_lock = new();
-        private readonly Dictionary<uint, object> m_idsToObjects;
-        private readonly Dictionary<object, uint> m_objectsToIds;
-        private readonly Dictionary<uint, PubSubState> m_idsToPubSubState;
-        private readonly Dictionary<uint, uint> m_idsToParentId;
+        private readonly ILogger m_logger;
+        private readonly Dictionary<uint, object> m_idsToObjects = [];
+        private readonly Dictionary<object, uint> m_objectsToIds = [];
+        private readonly Dictionary<uint, PubSubState> m_idsToPubSubState = [];
+        private readonly Dictionary<uint, uint> m_idsToParentId = [];
         private uint m_nextId = 1;
 
         /// <summary>
@@ -135,12 +137,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Create new instance of <see cref="UaPubSubConfigurator"/>.
         /// </summary>
-        public UaPubSubConfigurator()
+        public UaPubSubConfigurator(ITelemetryContext telemetry)
         {
-            m_idsToObjects = [];
-            m_objectsToIds = [];
-            m_idsToPubSubState = [];
-            m_idsToParentId = [];
+            m_logger = telemetry.CreateLogger<UaPubSubConfigurator>();
 
             PubSubConfiguration = new PubSubConfigurationDataType
             {
@@ -385,8 +384,8 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.LogError(
-                            "Attempted to add PublishedDataSetDataType with duplicate name = {0}",
+                        m_logger.LogError(
+                            "Attempted to add PublishedDataSetDataType with duplicate name = {Name}",
                             publishedDataSetDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
                     }
@@ -420,7 +419,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.AddPublishedDataSet: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.AddPublishedDataSet: Exception");
             }
 
             //todo implement state validation
@@ -443,8 +442,8 @@ namespace Opc.Ua.PubSub.Configuration
                     publishedDataSetId) is not PublishedDataSetDataType publishedDataSetDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInformation(
-                        "Current configuration does not contain PublishedDataSetDataType with ConfigId = {0}",
+                    m_logger.LogInformation(
+                        "Current configuration does not contain PublishedDataSetDataType with ConfigId = {PublishedDataSetId}",
                         publishedDataSetId);
                     return StatusCodes.Good;
                 }
@@ -512,7 +511,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.RemovePublishedDataSet: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.RemovePublishedDataSet: Exception");
             }
 
             return StatusCodes.BadNodeIdUnknown;
@@ -550,8 +549,8 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.LogError(
-                            "AddExtensionField -  A field with the name already exists. Duplicate name = {0}",
+                        m_logger.LogError(
+                            "AddExtensionField -  A field with the name already exists. Duplicate name = {Name}",
                             extensionField.Key);
                         return StatusCodes.BadNodeIdExists;
                     }
@@ -654,8 +653,8 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.LogError(
-                            "Attempted to add PubSubConnectionDataType with duplicate name = {0}",
+                        m_logger.LogError(
+                            "Attempted to add PubSubConnectionDataType with duplicate name = {Name}",
                             pubSubConnectionDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
                     }
@@ -717,7 +716,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.AddConnection: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.AddConnection: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -739,8 +738,8 @@ namespace Opc.Ua.PubSub.Configuration
                     connectionId) is not PubSubConnectionDataType pubSubConnectionDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInformation(
-                        "Current configuration does not contain PubSubConnectionDataType with ConfigId = {0}",
+                    m_logger.LogInformation(
+                        "Current configuration does not contain PubSubConnectionDataType with ConfigId = {ConnectionId}",
                         connectionId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
@@ -802,7 +801,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.RemoveConnection: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.RemoveConnection: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -855,8 +854,8 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.LogError(
-                                "Attempted to add WriterGroupDataType with duplicate name = {0}",
+                            m_logger.LogError(
+                                "Attempted to add WriterGroupDataType with duplicate name = {Name}",
                                 writerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
@@ -903,7 +902,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.AddWriterGroup: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.AddWriterGroup: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -923,8 +922,8 @@ namespace Opc.Ua.PubSub.Configuration
                 if (FindObjectById(writerGroupId) is not WriterGroupDataType writerGroupDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInformation(
-                        "Current configuration does not contain WriterGroupDataType with ConfigId = {0}",
+                    m_logger.LogInformation(
+                        "Current configuration does not contain WriterGroupDataType with ConfigId = {WriterGroupId}",
                         writerGroupId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
@@ -989,7 +988,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.RemoveWriterGroup: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.RemoveWriterGroup: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1038,8 +1037,8 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.LogError(
-                                "Attempted to add DataSetWriterDataType with duplicate name = {0}",
+                            m_logger.LogError(
+                                "Attempted to add DataSetWriterDataType with duplicate name = {Name}",
                                 dataSetWriterDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
@@ -1075,7 +1074,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.AddDataSetWriter: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.AddDataSetWriter: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -1096,8 +1095,8 @@ namespace Opc.Ua.PubSub.Configuration
                     dataSetWriterId) is not DataSetWriterDataType dataSetWriterDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInformation(
-                        "Current configuration does not contain DataSetWriterDataType with ConfigId = {0}",
+                    m_logger.LogInformation(
+                        "Current configuration does not contain DataSetWriterDataType with ConfigId = {DataSetWriterId}",
                         dataSetWriterId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
@@ -1154,7 +1153,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.RemoveDataSetWriter: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.RemoveDataSetWriter: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1182,7 +1181,7 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentException(
                     Utils.Format(
-                        "There is no connection with configurationId = {0} in current configuration.",
+                        "There is no connection with configurationId = {ParentConnectionId} in current configuration.",
                         parentConnectionId));
             }
             try
@@ -1207,8 +1206,8 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.LogError(
-                                "Attempted to add ReaderGroupDataType with duplicate name = {0}",
+                            m_logger.LogError(
+                                "Attempted to add ReaderGroupDataType with duplicate name = {Name}",
                                 readerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
@@ -1256,7 +1255,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.AddReaderGroup: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.AddReaderGroup: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -1275,8 +1274,8 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 if (FindObjectById(readerGroupId) is not ReaderGroupDataType readerGroupDataType)
                 {
-                    Utils.LogInformation(
-                        "Current configuration does not contain ReaderGroupDataType with ConfigId = {0}",
+                    m_logger.LogInformation(
+                        "Current configuration does not contain ReaderGroupDataType with ConfigId = {ReaderGroupId}",
                         readerGroupId);
                     return StatusCodes.BadInvalidArgument;
                 }
@@ -1341,7 +1340,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.RemoveReaderGroup: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.RemoveReaderGroup: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1390,8 +1389,8 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.LogError(
-                                "Attempted to add DataSetReaderDataType with duplicate name = {0}",
+                            m_logger.LogError(
+                                "Attempted to add DataSetReaderDataType with duplicate name = {Name}",
                                 dataSetReaderDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
@@ -1427,7 +1426,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.AddDataSetReader: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.AddDataSetReader: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -1448,8 +1447,8 @@ namespace Opc.Ua.PubSub.Configuration
                     dataSetReaderId) is not DataSetReaderDataType dataSetReaderDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInformation(
-                        "Current configuration does not contain DataSetReaderDataType with ConfigId = {0}",
+                    m_logger.LogInformation(
+                        "Current configuration does not contain DataSetReaderDataType with ConfigId = {DataSetReaderId}",
                         dataSetReaderId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
@@ -1506,7 +1505,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.LogError(ex, "UaPubSubConfigurator.RemoveDataSetReader: Exception");
+                m_logger.LogError(ex, "UaPubSubConfigurator.RemoveDataSetReader: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1541,7 +1540,7 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState != PubSubState.Disabled)
             {
-                Utils.LogInformation(
+                m_logger.LogInformation(
                     "Attempted to call Enable() on an object that is not in Disabled state");
                 return StatusCodes.BadInvalidState;
             }
@@ -1594,7 +1593,7 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState == PubSubState.Disabled)
             {
-                Utils.LogInformation(
+                m_logger.LogInformation(
                     Utils.TraceMasks.Information,
                     "Attempted to call Disable() on an object that is already in Disabled state");
                 return StatusCodes.BadInvalidState;

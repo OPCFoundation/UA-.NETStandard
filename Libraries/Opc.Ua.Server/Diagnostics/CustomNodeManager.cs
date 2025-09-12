@@ -35,6 +35,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -90,6 +91,7 @@ namespace Opc.Ua.Server
 
             // save a reference to the UA server instance that owns the node manager.
             Server = server;
+            Logger = server.Telemetry.CreateLogger<CustomNodeManager2>();
 
             // all operations require information about the system
             SystemContext = Server.DefaultSystemContext.Copy();
@@ -234,6 +236,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
+
+        /// <summary>
+        /// A logger to use
+        /// </summary>
+        protected ILogger Logger { get; }
 
         /// <summary>
         /// Sets the namespaces supported by the NodeManager.
@@ -1923,6 +1930,7 @@ namespace Opc.Ua.Server
 
                     // report the write value audit event
                     Server.ReportAuditWriteUpdateEvent(
+                        Logger,
                         systemContext,
                         nodeToWrite,
                         oldValue?.Value,

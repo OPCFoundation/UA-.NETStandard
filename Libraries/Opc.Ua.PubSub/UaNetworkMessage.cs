@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub
 {
@@ -56,17 +57,25 @@ namespace Opc.Ua.PubSub
         protected List<UaDataSetMessage> m_uaDataSetMessages;
 
         /// <summary>
+        /// A logger
+        /// </summary>
+        protected ILogger m_logger;
+
+        /// <summary>
         /// Create instance of <see cref="UaNetworkMessage"/>.
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="uaDataSetMessages">The containing data set messages.</param>
+        /// <param name="logger"></param>
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
-            List<UaDataSetMessage> uaDataSetMessages)
+            List<UaDataSetMessage> uaDataSetMessages,
+            ILogger logger)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
             m_metadata = null;
+            m_logger = logger;
         }
 
         /// <summary>
@@ -74,11 +83,13 @@ namespace Opc.Ua.PubSub
         /// </summary>
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
-            DataSetMetaDataType metadata)
+            DataSetMetaDataType metadata,
+            ILogger logger)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = [];
             m_metadata = metadata;
+            m_logger = logger;
         }
 
         /// <summary>

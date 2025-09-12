@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -56,6 +57,8 @@ namespace Opc.Ua.Server
             }
 
             Server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<MasterNodeManager>();
+
             m_nodeManagers = [];
             m_asyncNodeManagers = [];
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration
@@ -295,9 +298,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.LogInformation(
+                m_logger.LogInformation(
                     Utils.TraceMasks.StartStop,
-                    "MasterNodeManager.Startup - NodeManagers={0}",
+                    "MasterNodeManager.Startup - NodeManagers={Count}",
                     m_nodeManagers.Count);
 
                 // create the address spaces.
@@ -313,9 +316,9 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            "Unexpected error creating address space for NodeManager #{0}.",
+                            "Unexpected error creating address space for NodeManager #{Index}.",
                             ii);
                         throw;
                     }
@@ -332,9 +335,9 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            "Unexpected error adding references for NodeManager #{0}.",
+                            "Unexpected error adding references for NodeManager #{Index}.",
                             ii);
                         throw;
                     }
@@ -362,9 +365,9 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError(
+                            m_logger.LogError(
                                 e,
-                                "Unexpected error closing session for NodeManager #{0}.",
+                                "Unexpected error closing session for NodeManager #{Index}.",
                                 ii);
                         }
                     }
@@ -379,9 +382,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.LogInformation(
+                m_logger.LogInformation(
                     Utils.TraceMasks.StartStop,
-                    "MasterNodeManager.Shutdown - NodeManagers={0}",
+                    "MasterNodeManager.Shutdown - NodeManagers={Count}",
                     m_nodeManagers.Count);
 
                 foreach (INodeManager nodeManager in m_nodeManagers)
@@ -712,9 +715,9 @@ namespace Opc.Ua.Server
                 registeredNodeIds.Add(nodesToRegister[ii]);
             }
 
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.RegisterNodes - Count={0}",
+                "MasterNodeManager.RegisterNodes - Count={Count}",
                 nodesToRegister.Count);
 
             // it is up to the node managers to assign the handles.
@@ -745,9 +748,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodesToUnregister));
             }
 
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.UnregisterNodes - Count={0}",
+                "MasterNodeManager.UnregisterNodes - Count={Count}",
                 nodesToUnregister.Count);
 
             // it is up to the node managers to assign the handles.
@@ -1007,7 +1010,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error translating browse path.");
+                m_logger.LogError(e, "Unexpected error translating browse path.");
                 return;
             }
 
@@ -1722,9 +1725,9 @@ namespace Opc.Ua.Server
             // add placeholder for each result.
             bool validItems = false;
 
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.Read - Count={0}",
+                "MasterNodeManager.Read - Count={Count}",
                 nodesToRead.Count);
 
             PrepareValidationCache(
@@ -1763,7 +1766,7 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
 #if VERBOSE
-                    Utils.LogTrace(
+                    m_logger.LogTrace(
                         (int)Utils.TraceMasks.ServiceDetail,
                         "MasterNodeManager.Read - Calling NodeManager {0} of {1}",
                         ii,
@@ -2202,12 +2205,10 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-#pragma warning disable CA2012 // Use ValueTasks correctly
             (results, diagnosticInfos) = CallInternalAsync(
                 context,
                 methodsToCall,
                 sync: true).Result;
-#pragma warning restore CA2012 // Use ValueTasks correctly
         }
 
         /// <summary>
@@ -2286,8 +2287,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.CallAsync(
@@ -2361,7 +2362,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error calling ConditionRefresh on NodeManager.");
+                    m_logger.LogError(e, "Error calling ConditionRefresh on NodeManager.");
                 }
             }
         }
@@ -2604,9 +2605,9 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.LogError(
+                                m_logger.LogError(
                                     e,
-                                    "NodeManager threw an exception subscribing to all events. NodeManager={0}",
+                                    "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}",
                                     manager);
                             }
                         }
@@ -2725,9 +2726,9 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.LogError(
+                                m_logger.LogError(
                                     e,
-                                    "NodeManager threw an exception subscribing to all events. NodeManager={0}",
+                                    "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}",
                                     manager);
                             }
                         }
@@ -3795,6 +3796,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly List<INodeManager> m_nodeManagers;
         private readonly List<IAsyncNodeManager> m_asyncNodeManagers;
         private long m_lastMonitoredItemId;

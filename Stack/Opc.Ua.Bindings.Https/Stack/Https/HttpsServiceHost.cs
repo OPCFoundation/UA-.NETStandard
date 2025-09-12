@@ -65,6 +65,12 @@ namespace Opc.Ua.Bindings
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
             string computerName = Utils.GetHostName();
 
+            // create intermediate logger for just this call.
+            // This is needed because the binding always requires a default
+            // constructor construction. So the telemetry context is not available
+            // until we are here.
+            ILogger logger = serverBase.Telemetry.CreateLogger<HttpsServiceHost>();
+
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
                 if (!Utils.IsUriHttpsScheme(baseAddresses[ii]))
@@ -149,7 +155,8 @@ namespace Opc.Ua.Bindings
                 description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
                 description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                     bestPolicy.SecurityMode,
-                    bestPolicy.SecurityPolicyUri);
+                    bestPolicy.SecurityPolicyUri,
+                    logger);
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                     configuration,
                     description);
@@ -178,14 +185,12 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    var logger = serverBase.Telemetry.CreateLogger<HttpsServiceHost>();
                     logger.LogError("Failed to create endpoint {Uri} because the transport profile is unsupported.", uri);
                 }
             }
 
             // create the host.
             hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
-
             return endpoints;
         }
     }

@@ -12,10 +12,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Text;
-using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -25,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class Utils
     {
-
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>

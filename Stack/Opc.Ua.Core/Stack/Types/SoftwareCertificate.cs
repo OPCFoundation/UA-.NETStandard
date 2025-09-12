@@ -14,6 +14,7 @@ using System;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -33,6 +34,7 @@ namespace Opc.Ua
         public static ServiceResult Validate(
             CertificateValidator validator,
             byte[] signedCertificate,
+            ILogger logger,
             out SoftwareCertificate softwareCertificate)
         {
             softwareCertificate = null;
@@ -41,7 +43,7 @@ namespace Opc.Ua
             X509Certificate2 certificate;
             try
             {
-                certificate = CertificateFactory.Create(signedCertificate, true);
+                certificate = CertificateFactory.Create(signedCertificate, true, logger);
                 validator.Validate(certificate);
             }
             catch (Exception e)

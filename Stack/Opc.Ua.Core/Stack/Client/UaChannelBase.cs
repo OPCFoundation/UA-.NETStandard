@@ -15,6 +15,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -25,11 +26,24 @@ namespace Opc.Ua
     public abstract class UaChannelBase : IChannelBase, ITransportChannel
     {
         /// <summary>
+        /// This must be set by the derived class to initialize the telemtry system
+        /// </summary>
+        public required ITelemetryContext Telemetry
+        {
+            get => m_telemetry;
+            init
+            {
+                m_telemetry = value;
+                Logger = value.CreateLogger(this);
+            }
+        }
+
+        /// <summary>
         /// Initializes the object with the specified binding and endpoint address.
         /// </summary>
-        protected UaChannelBase(ITelemetryContext telemetry)
+        protected UaChannelBase(ITelemetryContext telemetry = null)
         {
-            m_logger = telemetry.CreateLogger<UaChannelBase>();
+            Telemetry = telemetry;
             m_messageContext = null;
             m_settings = null;
             UaBypassChannel = null;
@@ -396,7 +410,7 @@ namespace Opc.Ua
                 return UaBypassChannel.BeginClose(callback, callbackData);
             }
 
-            var result = new AsyncResultBase(callback, callbackData, 0);
+            var result = new AsyncResultBase(callback, callbackData, 0, Logger);
             result.OperationCompleted();
             return result;
         }
@@ -761,7 +775,8 @@ namespace Opc.Ua
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
-                    description.ServerCertificate);
+                    description.ServerCertificate,
+                    telemetry.CreateLogger<UaChannelBase>());
             }
 
             if (configuration != null)
@@ -861,7 +876,8 @@ namespace Opc.Ua
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
-                    description.ServerCertificate);
+                    description.ServerCertificate,
+                    telemetry.CreateLogger<UaChannelBase>());
             }
 
             if (configuration != null)
@@ -889,7 +905,14 @@ namespace Opc.Ua
         /// </summary>
         protected internal ITransportChannel UaBypassChannel { get; set; }
 
-        private readonly ILogger m_logger;
+        /// <summary>
+        /// Logger to be used by the concrete channel implementation. Shall
+        /// not be used outside of the channel inheritance hierarchy. Create
+        /// new logger from telemetry context.
+        /// </summary>
+        protected ILogger Logger { get; private set; } = NullLogger.Instance;
+
+        private readonly ITelemetryContext m_telemetry;
         private readonly IServiceMessageContext m_messageContext;
         private int m_operationTimeout;
     }
@@ -905,9 +928,9 @@ namespace Opc.Ua
         /// Create channel
         /// </summary>
         /// <param name="telemetry"></param>
-        protected UaChannelBase(ITelemetryContext telemetry) : base(telemetry)
+        protected UaChannelBase(ITelemetryContext telemetry = null)
+            : base(telemetry)
         {
-            m_logger = telemetry.CreateLogger<UaChannelBase<TChannel>>();
         }
 
         /// <summary>
@@ -947,7 +970,7 @@ namespace Opc.Ua
             AsyncCallback callback,
             object asyncState)
         {
-            var asyncResult = new UaChannelAsyncResult(this, callback, asyncState);
+            var asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState, Logger);
 
             lock (asyncResult.Lock)
             {
@@ -980,7 +1003,7 @@ namespace Opc.Ua
                 return;
             }
 
-            m_logger.LogInformation("RECONNECT: Reconnecting to {0}.", m_settings.Description.EndpointUrl);
+            Logger.LogInformation("RECONNECT: Reconnecting to {Url}.", m_settings.Description.EndpointUrl);
         }
 
         /// <inheritdoc/>
@@ -1001,11 +1024,13 @@ namespace Opc.Ua
             /// <param name="channel">The channel.</param>
             /// <param name="callback">The callback.</param>
             /// <param name="callbackData">The callback data.</param>
+            /// <param name="logger"></param>
             public UaChannelAsyncResult(
-                UaChannelBase<TChannel> channel,
+                TChannel channel,
                 AsyncCallback callback,
-                object callbackData)
-                : base(callback, callbackData, 0)
+                object callbackData,
+                ILogger logger = null)
+                : base(callback, callbackData, 0, logger)
             {
                 Channel = channel;
             }
@@ -1014,7 +1039,7 @@ namespace Opc.Ua
             /// Gets the wrapped channel.
             /// </summary>
             /// <value>The wrapped channel.</value>
-            public UaChannelBase<TChannel> Channel { get; }
+            public TChannel Channel { get; }
 
             /// <summary>
             /// Called when asynchronous operation completes.
@@ -1035,7 +1060,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Channel.m_logger.LogError(
+                    Logger.LogError(
                         e,
                         "Unexpected exception invoking UaChannelAsyncResult callback function.");
                 }
@@ -1071,7 +1096,5 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The channel.</value>
         protected TChannel Channel { get; private set; }
-
-        private readonly ILogger m_logger;
     }
 }

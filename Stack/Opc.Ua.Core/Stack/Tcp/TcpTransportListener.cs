@@ -364,7 +364,7 @@ namespace Opc.Ua.Bindings
             // save the server certificate.
             m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
 
-            m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
+            m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize, m_telemetry);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
             MaxChannelCount = settings.MaxChannelCount;

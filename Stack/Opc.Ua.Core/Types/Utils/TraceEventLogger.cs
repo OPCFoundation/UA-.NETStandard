@@ -19,7 +19,7 @@ namespace Opc.Ua
     /// The TraceEvent logger calls the legacy Utils.Trace API to
     /// support applications which use TraceEvent or file/debug logging.
     /// </summary>
-    public partial class TraceEventLogger : ILogger
+    public class TraceEventLogger : ILogger
     {
         /// <summary>
         /// Set the log level

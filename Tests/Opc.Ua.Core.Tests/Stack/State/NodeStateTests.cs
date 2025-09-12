@@ -31,6 +31,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
@@ -75,10 +76,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Theory]
         public void ActivateNodeStateType(Type systemType)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
             Assert.False(testObject.Initialized);
-            var context = new SystemContext { NamespaceUris = Context.NamespaceUris };
+            var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
             Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
             testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
             testObject.Dispose();

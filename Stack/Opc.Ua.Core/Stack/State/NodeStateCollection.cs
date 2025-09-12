@@ -17,6 +17,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -485,6 +486,15 @@ namespace Opc.Ua
     public class NodeStateFactory
     {
         /// <summary>
+        /// Create node state factory
+        /// </summary>
+        /// <param name="telemetry"></param>
+        public NodeStateFactory(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+        }
+
+        /// <summary>
         /// Creates a new instance.
         /// </summary>
         /// <param name="context">The current context.</param>
@@ -502,52 +512,58 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             NodeId typeDefinitionId)
         {
+            NodeState child;
             if (m_types != null &&
                 !NodeId.IsNull(typeDefinitionId) &&
                 m_types.TryGetValue(typeDefinitionId, out Type type))
             {
-                return Activator.CreateInstance(type, parent) as NodeState;
+                child = Activator.CreateInstance(type, parent) as NodeState;
             }
-
-            NodeState child;
-            switch (nodeClass)
+            else
             {
-                case NodeClass.Variable:
-                    if (context.TypeTable != null &&
-                        context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
-                    {
-                        child = new PropertyState(parent);
+                switch (nodeClass)
+                {
+                    case NodeClass.Variable:
+                        if (context.TypeTable != null &&
+                            context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
+                        {
+                            child = new PropertyState(parent);
+                            break;
+                        }
+
+                        child = new BaseDataVariableState(parent);
                         break;
-                    }
-
-                    child = new BaseDataVariableState(parent);
-                    break;
-                case NodeClass.Object:
-                    child = new BaseObjectState(parent);
-                    break;
-                case NodeClass.Method:
-                    child = new MethodState(parent);
-                    break;
-                case NodeClass.ReferenceType:
-                    child = new ReferenceTypeState();
-                    break;
-                case NodeClass.ObjectType:
-                    child = new BaseObjectTypeState();
-                    break;
-                case NodeClass.VariableType:
-                    child = new BaseDataVariableTypeState();
-                    break;
-                case NodeClass.DataType:
-                    child = new DataTypeState();
-                    break;
-                case NodeClass.View:
-                    child = new ViewState();
-                    break;
-                default:
-                    child = null;
-                    break;
+                    case NodeClass.Object:
+                        child = new BaseObjectState(parent);
+                        break;
+                    case NodeClass.Method:
+                        child = new MethodState(parent);
+                        break;
+                    case NodeClass.ReferenceType:
+                        child = new ReferenceTypeState();
+                        break;
+                    case NodeClass.ObjectType:
+                        child = new BaseObjectTypeState();
+                        break;
+                    case NodeClass.VariableType:
+                        child = new BaseDataVariableTypeState();
+                        break;
+                    case NodeClass.DataType:
+                        child = new DataTypeState();
+                        break;
+                    case NodeClass.View:
+                        child = new ViewState();
+                        break;
+                    default:
+                        child = null;
+                        break;
+                }
             }
-
+            if (child == null)
+            {
+                return null;
+            }
+            child.Telemetry = m_telemetry;
             return child;
         }
 
@@ -585,5 +601,6 @@ namespace Opc.Ua
         }
 
         private NodeIdDictionary<Type> m_types;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

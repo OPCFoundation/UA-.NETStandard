@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -39,6 +40,7 @@ namespace Opc.Ua.PubSub.Transport
         private readonly IMqttPubSubConnection m_parentConnection;
         private readonly WriterGroupDataType m_writerGroup;
         private readonly DataSetWriterDataType m_dataSetWriter;
+        private readonly ILogger m_logger;
 
         /// <summary>
         /// the component that triggers the publish messages
@@ -52,8 +54,10 @@ namespace Opc.Ua.PubSub.Transport
             IMqttPubSubConnection parentConnection,
             WriterGroupDataType writerGroup,
             DataSetWriterDataType dataSetWriter,
-            double metaDataUpdateTime)
+            double metaDataUpdateTime,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<MqttMetadataPublisher>();
             m_parentConnection = parentConnection;
             m_writerGroup = writerGroup;
             m_dataSetWriter = dataSetWriter;
@@ -61,7 +65,8 @@ namespace Opc.Ua.PubSub.Transport
                 dataSetWriter.DataSetWriterId,
                 metaDataUpdateTime,
                 CanPublish,
-                PublishMessage);
+                PublishMessage,
+                telemetry);
         }
 
         /// <summary>
@@ -70,8 +75,8 @@ namespace Opc.Ua.PubSub.Transport
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.LogInformation(
-                "The MqttMetadataPublisher for DataSetWriterId '{0}' was started.",
+            m_logger.LogInformation(
+                "The MqttMetadataPublisher for DataSetWriterId '{DataSetWriterId}' was started.",
                 m_dataSetWriter.DataSetWriterId);
         }
 
@@ -82,8 +87,8 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_intervalRunner.Stop();
 
-            Utils.LogInformation(
-                "The MqttMetadataPublisher for DataSetWriterId '{0}' was stopped.",
+            m_logger.LogInformation(
+                "The MqttMetadataPublisher for DataSetWriterId '{DataSetWriterId}' was stopped.",
                 m_dataSetWriter.DataSetWriterId);
         }
 
@@ -109,8 +114,8 @@ namespace Opc.Ua.PubSub.Transport
                 if (metaDataNetworkMessage != null)
                 {
                     bool success = m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage);
-                    Utils.LogInformation(
-                        "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{0}; success = {1}",
+                    m_logger.LogInformation(
+                        "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{DataSetWriterId}; success = {Success}",
                         m_dataSetWriter.DataSetWriterId,
                         success);
                 }
@@ -118,7 +123,7 @@ namespace Opc.Ua.PubSub.Transport
             catch (Exception e)
             {
                 // Unexpected exception in PublishMessages
-                Utils.LogError(e, "MqttMetadataPublisher.PublishMessages");
+                m_logger.LogError(e, "MqttMetadataPublisher.PublishMessages");
             }
         }
 

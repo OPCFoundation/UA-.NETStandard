@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 
@@ -56,6 +57,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         private readonly FieldMetaDataCollection m_simpleFields = [];
         private readonly FieldMetaDataCollection m_allTypesFields = [];
 
+        private readonly ILogger m_logger;
         private readonly PublishedDataSetDataTypeCollection m_publishedDataSets;
         private readonly IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
@@ -97,8 +99,9 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Constructor
         /// </summary>
         /// <param name="uaPubSubApplication"></param>
-        public PublishedValuesWrites(UaPubSubApplication uaPubSubApplication)
+        public PublishedValuesWrites(UaPubSubApplication uaPubSubApplication, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<PublishedValuesWrites>();
             m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                 .PublishedDataSets;
             m_dataStore = uaPubSubApplication.DataStore;
@@ -137,10 +140,8 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.LogError(
-                    "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field: {0}",
-                    e.StackTrace
-                );
+                m_logger.LogError(e,
+                    "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field");
             }
 
             m_updateValuesTimer = new Timer(UpdateValues, null, 1000, 1000);
@@ -318,7 +319,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error doing simulation.");
+                m_logger.LogError(e, "Unexpected error doing simulation.");
             }
         }
 

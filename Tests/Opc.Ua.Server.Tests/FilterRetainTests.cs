@@ -8,6 +8,7 @@ using System.Reflection;
 using BenchmarkDotNet.Attributes;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -36,8 +37,13 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestNotFilterTarget(bool pass)
         {
-            SystemContext systemContext = GetSystemContext();
-            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(addFilterRetain: false);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: false,
+                filterRetainValue: false,
+                telemetry: telemetry);
             LimitAlarmStates desiredState = LimitAlarmStates.Inactive;
             if (pass)
             {
@@ -45,9 +51,9 @@ namespace Opc.Ua.Server.Tests
             }
             alarm.SetLimitState(systemContext, desiredState);
 
-            EventFilter filter = GetHighOnlyEventFilter(addClauses: true);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
-            CanSendFilteredAlarm(monitoredItem, GetFilterContext(), filter, alarm, pass);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, pass, telemetry);
         }
 
         [Test]
@@ -55,7 +61,9 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestNonConditionState(bool pass)
         {
-            SystemContext systemContext = GetSystemContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            SystemContext systemContext = GetSystemContext(telemetry);
             var alarm = new DeviceFailureEventState(null);
             alarm.Create(
                 systemContext,
@@ -66,12 +74,12 @@ namespace Opc.Ua.Server.Tests
 
             alarm.EventType.Value = ObjectTypeIds.DeviceFailureEventType;
 
-            FilterContext context = GetFilterContext();
+            FilterContext context = GetFilterContext(telemetry);
 
-            EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
 
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
-            CanSendFilteredAlarm(monitoredItem, context, filter, alarm, pass);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            CanSendFilteredAlarm(monitoredItem, context, filter, alarm, pass, telemetry);
         }
 
         [Test]
@@ -79,13 +87,15 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestNonEvent(bool pass)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var certificateType = new ApplicationCertificateState(null);
 
-            FilterContext context = GetFilterContext();
+            FilterContext context = GetFilterContext(telemetry);
 
-            EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
-            CanSendFilteredAlarm(monitoredItem, context, filter, certificateType, pass);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            CanSendFilteredAlarm(monitoredItem, context, filter, certificateType, pass, telemetry);
         }
 
         [Test]
@@ -93,16 +103,19 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Set SupportsFilteredRetain True")]
         public void TestFilteredRetainExists(bool supportsFilteredRetain)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
-                supportsFilteredRetain);
+                filterRetainValue: supportsFilteredRetain,
+                telemetry: telemetry);
 
-            alarm.SetLimitState(GetSystemContext(), LimitAlarmStates.Inactive);
+            alarm.SetLimitState(GetSystemContext(telemetry), LimitAlarmStates.Inactive);
 
-            EventFilter filter = GetHighOnlyEventFilter(addClauses: true);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
-            CanSendFilteredAlarm(monitoredItem, GetFilterContext(), filter, alarm, expected: false);
+            CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, expected: false, telemetry);
         }
 
         [Test]
@@ -110,23 +123,26 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestCanSendMultiple(bool supportsFilteredRetain)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
-                supportsFilteredRetain);
+                filterRetainValue: supportsFilteredRetain,
+                telemetry: telemetry);
 
-            FilterContext filterContext = GetFilterContext();
+            FilterContext filterContext = GetFilterContext(telemetry);
 
-            EventFilter filter = GetHighOnlyEventFilter(addClauses: true);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
-            SystemContext systemContext = GetSystemContext();
+            SystemContext systemContext = GetSystemContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false, telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true, telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.HighHigh);
             alarm.Retain.Value = true;
@@ -135,11 +151,12 @@ namespace Opc.Ua.Server.Tests
                 filterContext,
                 filter,
                 alarm,
-                expected: supportsFilteredRetain);
+                expected: supportsFilteredRetain,
+                telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false, telemetry);
         }
 
         [Test]
@@ -147,22 +164,25 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestCanSendOnceSimple(bool supportsFilteredRetain)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
-                supportsFilteredRetain);
+                filterRetainValue: supportsFilteredRetain,
+                telemetry: telemetry);
 
-            EventFilter filter = GetHighOnlyEventFilter(addClauses: true);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
-            SystemContext systemContext = GetSystemContext();
-            FilterContext filterContext = GetFilterContext();
+            SystemContext systemContext = GetSystemContext(telemetry);
+            FilterContext filterContext = GetFilterContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false, telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true, telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
@@ -171,7 +191,8 @@ namespace Opc.Ua.Server.Tests
                 filterContext,
                 filter,
                 alarm,
-                expected: supportsFilteredRetain);
+                expected: supportsFilteredRetain,
+                telemetry);
         }
 
         [Test]
@@ -179,22 +200,25 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestSendMultiple(bool supportsFilteredRetain)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
-                supportsFilteredRetain);
+                filterRetainValue: supportsFilteredRetain,
+                telemetry: telemetry);
 
-            EventFilter filter = GetHighOnlyEventFilter(addClauses: true);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
-            SystemContext systemContext = GetSystemContext();
-            FilterContext filterContext = GetFilterContext();
+            SystemContext systemContext = GetSystemContext(telemetry);
+            FilterContext filterContext = GetFilterContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false, telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true, telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.HighHigh);
             alarm.Retain.Value = true;
@@ -203,11 +227,12 @@ namespace Opc.Ua.Server.Tests
                 filterContext,
                 filter,
                 alarm,
-                expected: supportsFilteredRetain);
+                expected: supportsFilteredRetain,
+                telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true, telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
@@ -216,11 +241,12 @@ namespace Opc.Ua.Server.Tests
                 filterContext,
                 filter,
                 alarm,
-                expected: supportsFilteredRetain);
+                expected: supportsFilteredRetain,
+                telemetry);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Low);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false, telemetry);
         }
 
         [Test]
@@ -228,18 +254,21 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void SpecB14(bool supportsFilteredRetain)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // https://reference.opcfoundation.org/Core/Part9/v105/docs/B.1.4
 
             ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
-                supportsFilteredRetain);
+                filterRetainValue: supportsFilteredRetain,
+                telemetry: telemetry);
 
-            SystemContext systemContext = GetSystemContext();
+            SystemContext systemContext = GetSystemContext(telemetry);
 
             alarm.SetSuppressedState(systemContext, suppressed: false);
             alarm.OutOfServiceState.Value = InService;
 
-            FilterContext filterContext = GetFilterContext();
+            FilterContext filterContext = GetFilterContext(telemetry);
             var filter = new EventFilter
             {
                 SelectClauses = GetSelectFields(),
@@ -247,7 +276,7 @@ namespace Opc.Ua.Server.Tests
             };
             filter.Validate(filterContext);
 
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter);
+            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             // 16 States in Table B.3
 
@@ -256,7 +285,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
             bool expected = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 2 Placed Out of Service
             Debug.WriteLine("// 2 Placed Out of Service");
@@ -265,36 +294,36 @@ namespace Opc.Ua.Server.Tests
             {
                 expected = false;
             }
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 3 Alarm Suppressed; No event since OutOfService
             Debug.WriteLine("// 3 Alarm Suppressed; No event since OutOfService");
             alarm.SetSuppressedState(systemContext, suppressed: true);
             expected = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 4 Alarm goes inactive; No event since OutOfService
             Debug.WriteLine("// 4 Alarm goes inactive; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 5 Alarm not Suppressed; No event since not active
             Debug.WriteLine("// 5 Alarm not Suppressed; No event since not active");
             alarm.SetSuppressedState(systemContext, suppressed: false);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 6 Alarm goes active; No event since OutOfService
             Debug.WriteLine("// 6 Alarm goes active; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 7 Alarm no longer OutOfService; Event generated
             Debug.WriteLine("// 7 Alarm no longer OutOfService; Event generated");
             alarm.OutOfServiceState.Value = InService;
             expected = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 8 Alarm goes inactive
             Debug.WriteLine("// 8 Alarm goes inactive");
@@ -304,52 +333,52 @@ namespace Opc.Ua.Server.Tests
             {
                 expected = false;
             }
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 9 Alarm Suppressed; No event since not active
             Debug.WriteLine("// 9 Alarm Suppressed; No event since not active");
             alarm.SetSuppressedState(systemContext, suppressed: true);
             expected = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 10 Alarm goes active; No event since Suppressed
             Debug.WriteLine("// 10 Alarm goes active; No event since Suppressed");
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 11 Alarm goes inactive; No event since Suppressed
             Debug.WriteLine("// 11 Alarm goes inactive; No event since Suppressed");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 12 Alarm no longer Suppressed
             Debug.WriteLine("// 12 Alarm no longer Suppressed");
             alarm.SetSuppressedState(systemContext, suppressed: false);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 13 Placed OutOfService
             Debug.WriteLine("// 13 Placed OutOfService");
             alarm.OutOfServiceState.Value = OutOfService;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 14 Alarm goes active; No event since OutOfService
             Debug.WriteLine("// 14 Alarm goes active; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 15 Alarm goes inactive; No event since OutOfService
             Debug.WriteLine("// 15 Alarm goes inactive; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
             // 16 Alarm no longer OutOfService
             Debug.WriteLine("// 16 Alarm no longer OutOfService");
             alarm.OutOfServiceState.Value = InService;
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
         }
 
         private void CanSendFilteredAlarm(
@@ -357,9 +386,10 @@ namespace Opc.Ua.Server.Tests
             FilterContext context,
             EventFilter filter,
             BaseObjectState alarm,
-            bool expected)
+            bool expected,
+            ITelemetryContext telemetry)
         {
-            SystemContext systemContext = GetSystemContext();
+            SystemContext systemContext = GetSystemContext(telemetry);
 
             var eventSnapshot = new InstanceStateSnapshot();
             eventSnapshot.Initialize(systemContext, alarm);
@@ -376,11 +406,12 @@ namespace Opc.Ua.Server.Tests
 
         private ExclusiveLevelAlarmState GetExclusiveLevelAlarm(
             bool addFilterRetain,
-            bool filterRetainValue = false)
+            bool filterRetainValue,
+            ITelemetryContext telemetry)
         {
             var alarm = new ExclusiveLevelAlarmState(null);
             alarm.Create(
-                GetSystemContext(),
+                GetSystemContext(telemetry),
                 new NodeId(12345, 1),
                 new QualifiedName("AnyAlarm", 1),
                 new LocalizedText(string.Empty, "AnyAlarm"),
@@ -449,7 +480,7 @@ namespace Opc.Ua.Server.Tests
             return simpleAttributeOperands;
         }
 
-        private EventFilter GetHighOnlyEventFilter(bool addClauses)
+        private EventFilter GetHighOnlyEventFilter(bool addClauses, ITelemetryContext telemetry)
         {
             var filter = new EventFilter();
             if (addClauses)
@@ -457,7 +488,7 @@ namespace Opc.Ua.Server.Tests
                 filter.SelectClauses = GetSelectFields();
                 filter.WhereClause = GetHighOnlyFilter();
             }
-            filter.Validate(GetFilterContext());
+            filter.Validate(GetFilterContext(telemetry));
             return filter;
         }
 
@@ -538,11 +569,11 @@ namespace Opc.Ua.Server.Tests
             return whereClause;
         }
 
-        private SystemContext GetSystemContext()
+        private SystemContext GetSystemContext(ITelemetryContext telemetry)
         {
             if (m_systemContext == null)
             {
-                m_systemContext = new SystemContext { NamespaceUris = new NamespaceTable() };
+                m_systemContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
                 m_systemContext.NamespaceUris.Append(Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
                 typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
@@ -570,11 +601,11 @@ namespace Opc.Ua.Server.Tests
             return m_systemContext;
         }
 
-        private FilterContext GetFilterContext()
+        private FilterContext GetFilterContext(ITelemetryContext telemetry)
         {
             if (m_filterContext == null)
             {
-                SystemContext systemContext = GetSystemContext();
+                SystemContext systemContext = GetSystemContext(telemetry);
                 m_filterContext = new FilterContext(
                     systemContext.NamespaceUris,
                     systemContext.TypeTable);
@@ -583,15 +614,15 @@ namespace Opc.Ua.Server.Tests
             return m_filterContext;
         }
 
-        private MonitoredItem CreateMonitoredItem(MonitoringFilter filter)
+        private MonitoredItem CreateMonitoredItem(MonitoringFilter filter, ITelemetryContext telemetry)
         {
             var serverMock = new Mock<IServerInternal>();
 
-            SystemContext systemContext = GetSystemContext();
+            SystemContext systemContext = GetSystemContext(telemetry);
             serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
             serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
             serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(new MonitoredItemQueueFactory());
+                .Returns(new MonitoredItemQueueFactory(serverMock.Object.Telemetry));
 
             var nodeMangerMock = new Mock<INodeManager>();
 

@@ -1800,7 +1800,8 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory(context.Telemetry);
 
             // create the appropriate node.
 
@@ -1872,7 +1873,8 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory(context.Telemetry);
 
             // create the appropriate node.
             NodeState child =
@@ -1932,7 +1934,8 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory(context.Telemetry);
 
             // create the appropriate node.
             NodeState child =
@@ -2014,7 +2017,8 @@ namespace Opc.Ua
             decoder.PopNamespace();
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory(parent.Telemetry);
 
             // create the appropriate node.
 

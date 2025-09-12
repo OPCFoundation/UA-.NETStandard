@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
+using Opc.Ua.Tests;
 using Quickstarts;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -58,6 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         private ClientFixture m_clientFixture;
         private ReferenceServer m_server;
         private readonly string m_uriScheme;
+        private ITelemetryContext m_telemetry;
         private string m_pkiRoot;
         private Uri m_url;
 
@@ -86,20 +88,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_fetchedNodesCount = -1;
             m_browsedNodesCount = -1;
 
-            return OneTimeSetUpAsync(null);
+            return OneTimeSetUpAsync(NUnitTelemetryContext.Create());
         }
 
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
-        /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null)
+        /// <param name="telemetry"></param>
+        public async Task OneTimeSetUpAsync(ITelemetryContext telemetry)
         {
             // pki directory root for test runs.
+            m_telemetry = telemetry;
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>
+            m_serverFixture = new ServerFixture<ReferenceServer>(telemetry)
             {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,
@@ -107,18 +110,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 AllNodeManagers = true,
                 OperationLimits = true
             };
-            if (writer != null)
-            {
-                m_serverFixture.TraceMasks =
-                    Utils.TraceMasks.Error |
-                    Utils.TraceMasks.StackTrace |
-                    Utils.TraceMasks.Security |
-                    Utils.TraceMasks.Information;
-            }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot)
+
+            m_server = await m_serverFixture.StartAsync(m_pkiRoot)
                 .ConfigureAwait(false);
 
-            m_clientFixture = new ClientFixture();
+            m_clientFixture = new ClientFixture(telemetry);
 
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
@@ -156,15 +152,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Utils.SilentDispose(m_server);
         }
 
-        /// <summary>
-        /// Test setup.
-        /// </summary>
-        [SetUp]
-        public void SetUp()
-        {
-            m_serverFixture.SetTraceOutput(TestContext.Out);
-        }
-
         [Test]
         [Order(100)]
         [TestCase(false, false, false)]
@@ -176,7 +163,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool disableDataTypeDefinition,
             bool disableDataTypeDictionary)
         {
-            var typeSystem = new ComplexTypeSystem(Session);
+            var typeSystem = new ComplexTypeSystem(Session, m_telemetry);
             Assert.NotNull(typeSystem);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
@@ -218,7 +205,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [Order(200)]
         public async Task BrowseComplexTypesServerAsync()
         {
-            var samples = new ClientSamples(TestContext.Out, null, null, true);
+            var samples = new ClientSamples(m_telemetry, null, null, true);
 
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
@@ -254,7 +241,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [Order(300)]
         public async Task FetchComplexTypesServerAsync()
         {
-            var samples = new ClientSamples(TestContext.Out, null, null, true);
+            var samples = new ClientSamples(m_telemetry, null, null, true);
 
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
@@ -399,7 +386,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [Order(400)]
         public async Task ReadWriteScalarVariableTypeAsync()
         {
-            var samples = new ClientSamples(TestContext.Out, null, null, true);
+            var samples = new ClientSamples(m_telemetry, null, null, true);
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             // test the static version of the structure

@@ -181,7 +181,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
@@ -195,7 +196,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
@@ -208,7 +210,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
@@ -224,7 +227,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>

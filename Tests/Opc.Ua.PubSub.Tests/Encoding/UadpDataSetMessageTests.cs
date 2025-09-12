@@ -30,9 +30,11 @@
 using System;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
@@ -76,7 +78,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 true,
                 true,
                 false);
-            m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile, null);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
 
             // Get the publisher configuration
@@ -118,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 true,
                 true,
                 false);
-            m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
+            m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile, null);
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 
             // Get the subscriber configuration
@@ -178,11 +180,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act
             // change network message mask
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
             for (uint dataSetMessageContentMask = 0;
                 dataSetMessageContentMask < kMessageContentMask;
                 dataSetMessageContentMask++)
@@ -191,7 +195,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     (UadpDataSetMessageContentMask)dataSetMessageContentMask);
 
                 // Assert
-                CompareEncodeDecode(uadpDataSetMessage);
+                CompareEncodeDecode(uadpDataSetMessage, logger);
             }
         }
 
@@ -235,6 +239,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
@@ -243,7 +248,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.Timestamp = DateTime.UtcNow;
 
             // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            CompareEncodeDecode(uadpDataSetMessage, logger);
         }
 
         [Test(Description = "Validate PicoSeconds")]
@@ -286,6 +292,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
@@ -294,7 +301,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.PicoSeconds = 10;
 
             // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            CompareEncodeDecode(uadpDataSetMessage, logger);
         }
 
         [Test(Description = "Validate Status")]
@@ -324,6 +332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 uint statusCode)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(
                 DataSetFieldContentMask.None);
@@ -334,7 +343,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.Status = statusCode;
 
             // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            CompareEncodeDecode(uadpDataSetMessage, logger);
         }
 
         [Test(Description = "Validate MajorVersion and MinorVersion with Equal values")]
@@ -377,6 +387,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const int versionValue = 2;
 
             // Arrange
@@ -399,7 +411,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 bytes = ReadBytes(memoryStream);
             }
 
-            var uaDataSetMessageDecoded = new UadpDataSetMessage();
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            var uaDataSetMessageDecoded = new UadpDataSetMessage(logger);
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
@@ -462,6 +475,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const int versionValue = 2;
 
             // Arrange
@@ -482,7 +497,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             _ = encoder.Close();
             bytes = ReadBytes(memoryStream);
 
-            var uaDataSetMessageDecoded = new UadpDataSetMessage();
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            var uaDataSetMessageDecoded = new UadpDataSetMessage(logger);
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion is same with the ones on the dataset message
@@ -549,6 +565,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const int versionValue = 2;
 
             // Arrange
@@ -571,7 +589,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 bytes = ReadBytes(memoryStream);
             }
 
-            var uaDataSetMessageDecoded = new UadpDataSetMessage();
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            var uaDataSetMessageDecoded = new UadpDataSetMessage(logger);
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion differ and MinorVersion are equal
@@ -635,6 +654,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const int versionValue = 2;
 
             // Arrange
@@ -657,7 +678,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 bytes = ReadBytes(memoryStream);
             }
 
-            var uaDataSetMessageDecoded = new UadpDataSetMessage();
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            var uaDataSetMessageDecoded = new UadpDataSetMessage(logger);
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion differ and MinorVersion differ
@@ -720,6 +742,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
@@ -728,7 +752,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.SequenceNumber = 1000;
 
             // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
+            ILogger logger = telemetry.CreateLogger<UadpDataSetMessageTests>();
+            CompareEncodeDecode(uadpDataSetMessage, logger);
         }
 
         /// <summary>
@@ -833,7 +858,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Compare encoded/decoded dataset messages
         /// </summary>
-        private void CompareEncodeDecode(UadpDataSetMessage uadpDataSetMessage)
+        private void CompareEncodeDecode(UadpDataSetMessage uadpDataSetMessage, ILogger logger)
         {
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
@@ -845,7 +870,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 bytes = ReadBytes(memoryStream);
             }
 
-            var uaDataSetMessageDecoded = new UadpDataSetMessage();
+            var uaDataSetMessageDecoded = new UadpDataSetMessage(logger);
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // workaround

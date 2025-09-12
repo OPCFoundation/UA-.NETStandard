@@ -47,61 +47,85 @@ namespace Opc.Ua
         /// Get a logger factory from a context with or without logger factory
         /// Returns the default logger factory if none is provided.
         /// </summary>
-        /// <param name="context"></param>
+        /// <param name="telemetry"></param>
         /// <returns></returns>
-        public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? context)
+        public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? telemetry)
         {
-            return context?.LoggerFactory ?? s_loggerFactory.Value;
+            return telemetry?.LoggerFactory ?? s_loggerFactory.Value;
         }
 
         /// <summary>
         /// Create a logger from a logger factory
         /// </summary>
         /// <typeparam name="TContext"></typeparam>
+        /// <param name="telemetry"></param>
+        /// <returns></returns>
+        public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? telemetry)
+        {
+            return telemetry.GetLoggerFactory().CreateLogger<TContext>();
+        }
+
+        /// <summary>
+        /// Create a logger from a logger factory
+        /// </summary>
+        /// <param name="telemetry"></param>
         /// <param name="context"></param>
         /// <returns></returns>
-        public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? context)
+        public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? telemetry, TContext context)
         {
-            return context.GetLoggerFactory().CreateLogger<TContext>();
+            return telemetry.GetLoggerFactory().CreateLogger<TContext>();
+        }
+
+        /// <summary>
+        /// Create a logger from a logger factory
+        /// </summary>
+        /// <param name="telemetry"></param>
+        /// <param name="categoryName"></param>
+        /// <returns></returns>
+        public static ILogger CreateLogger(this ITelemetryContext? telemetry, string categoryName)
+        {
+            return telemetry.GetLoggerFactory().CreateLogger(categoryName);
         }
 
         /// <summary>
         /// Get meter instance or a default one.
         /// </summary>
-        /// <param name="context"></param>
+        /// <param name="telemetry"></param>
         /// <returns></returns>
-        public static Meter GetMeter(this ITelemetryContext? context)
+        public static Meter GetMeter(this ITelemetryContext? telemetry)
         {
-            return context?.Meter ?? s_meter.Value;
+            return telemetry?.Meter ?? s_meter.Value;
         }
 
         /// <summary>
         /// Get activity source
         /// </summary>
-        /// <param name="context"></param>
+        /// <param name="telemetry"></param>
         /// <returns></returns>
-        public static ActivitySource GetActivitySource(this ITelemetryContext? context)
+        public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
         {
-            return context?.ActivitySource ?? s_activitySource.Value;
+            return telemetry?.ActivitySource ?? s_activitySource.Value;
         }
 
         /// <summary>
         /// Start activity
         /// </summary>
-        /// <param name="context"></param>
+        /// <param name="telemetry"></param>
         /// <param name="name"></param>
         /// <param name="kind"></param>
         /// <returns></returns>
-        public static Activity? StartActivity(this ITelemetryContext? context,
+        public static Activity? StartActivity(this ITelemetryContext? telemetry,
             [CallerMemberName] string name = "", ActivityKind kind = ActivityKind.Internal)
         {
-            return context.GetActivitySource().StartActivity(name, kind);
+            return telemetry.GetActivitySource().StartActivity(name, kind);
         }
 
         private static readonly Lazy<Meter> s_meter =
             new(() => new Meter("Opc.Ua", "1.0.0"));
+
         private static readonly Lazy<ActivitySource> s_activitySource =
             new(() => new ActivitySource("Opc.Ua", "1.0.0"));
+
         private static readonly Lazy<ILoggerFactory> s_loggerFactory =
             new(() => new NullLoggerFactory());
     }

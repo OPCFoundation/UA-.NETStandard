@@ -373,7 +373,7 @@ namespace Opc.Ua.Bindings
             if (bufferArrayPoolSize != maxDataRentSize)
             {
                 logger.LogWarning(
-                    "BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!",
+                    "BufferManager: Max buffer size {MaxBufferSize} + cookie length {Cookie} may waste memory because it allocates buffers in the next bucket!",
                     maxBufferSize,
                     kCookieLength);
                 return bufferArrayPoolSize - kCookieLength;

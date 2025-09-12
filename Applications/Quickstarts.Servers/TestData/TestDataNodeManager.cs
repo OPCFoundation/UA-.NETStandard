@@ -84,7 +84,7 @@ namespace TestData
             m_lastUsedId = m_configuration.NextUnusedId - 1;
 
             // create the object used to access the test system.
-            m_system = new TestDataSystem(this, server.NamespaceUris, server.ServerUris);
+            m_system = new TestDataSystem(this, server.NamespaceUris, server.ServerUris, server.Telemetry);
 
             // update the default context.
             SystemContext.SystemHandle = m_system;
@@ -841,7 +841,7 @@ namespace TestData
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Unexpected error monitoring system status.");
+                    m_logger.LogError(e, "Unexpected error monitoring system status.");
                 }
             }
         }
@@ -863,7 +863,6 @@ namespace TestData
             return ServiceResult.Good;
         }
 #endif
-
         private readonly TestDataNodeManagerConfiguration m_configuration;
         private ushort m_namespaceIndex;
         private ushort m_typeNamespaceIndex;

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Transport
@@ -54,8 +55,8 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoveryPublisher"/>
         /// </summary>
-        public UdpDiscoveryPublisher(UdpPubSubConnection udpConnection)
-            : base(udpConnection)
+        public UdpDiscoveryPublisher(UdpPubSubConnection udpConnection, ITelemetryContext telemetry)
+            : base(udpConnection, telemetry, telemetry.CreateLogger<UdpDiscoveryPublisher>())
         {
             m_metadataWriterIdsToSend = [];
         }
@@ -79,8 +80,8 @@ namespace Opc.Ua.PubSub.Transport
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogInformation(
-                            "UdpDiscoveryPublisher: UdpClient '{0}' Cannot receive data. Exception: {1}",
+                        Logger.LogInformation(
+                            "UdpDiscoveryPublisher: UdpClient '{Endpoint}' Cannot receive data. Exception: {Message}",
                             discoveryUdpClient.Client.LocalEndPoint,
                             ex.Message);
                     }
@@ -108,8 +109,8 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    Utils.LogInformation(
-                        "OnUadpDiscoveryReceive received message with length {0} from {1}",
+                    Logger.LogInformation(
+                        "OnUadpDiscoveryReceive received message with length {Length} from {Address}",
                         message.Length,
                         source.Address);
 
@@ -122,7 +123,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "OnUadpDiscoveryReceive from {0}", source.Address);
+                Logger.LogError(ex, "OnUadpDiscoveryReceive from {Address}", source.Address);
             }
 
             try
@@ -132,8 +133,8 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogInformation(
-                    "OnUadpDiscoveryReceive BeginReceive threw Exception {0}",
+                Logger.LogInformation(
+                    "OnUadpDiscoveryReceive BeginReceive threw Exception {Message}",
                     ex.Message);
 
                 lock (Lock)
@@ -148,11 +149,11 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void ProcessReceivedMessageDiscovery(byte[] messageBytes, IPEndPoint source)
         {
-            Utils.LogInformation(
-                "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery from source={0}",
+            Logger.LogInformation(
+                "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery from source={Source}",
                 source);
 
-            var networkMessage = new UadpNetworkMessage();
+            var networkMessage = new UadpNetworkMessage(Logger);
             // decode the received message
             networkMessage.Decode(MessageContext, messageBytes, null);
 
@@ -161,10 +162,10 @@ namespace Opc.Ua.PubSub.Transport
                     .UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData &&
                 networkMessage.DataSetWriterIds != null)
             {
-                Utils.LogInformation(
-                    "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
-                    string.Join(", ", networkMessage.DataSetWriterIds),
-                    source.Address);
+                Logger.LogInformation(
+                    "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {Address} for {DataSetWriterIds}",
+                    source.Address,
+                    string.Join(", ", networkMessage.DataSetWriterIds));
 
                 foreach (ushort dataSetWriterId in networkMessage.DataSetWriterIds)
                 {
@@ -212,8 +213,8 @@ namespace Opc.Ua.PubSub.Transport
                             .CreateDataSetMetaDataNetworkMessages(
                                 [.. m_metadataWriterIdsToSend]))
                     {
-                        Utils.LogInformation(
-                            "UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{0}",
+                        Logger.LogInformation(
+                            "UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{DataSetWriterId}",
                             message.DataSetWriterId);
 
                         m_udpConnection.PublishNetworkMessage(message);
@@ -246,8 +247,8 @@ namespace Opc.Ua.PubSub.Transport
 
                     foreach (UaNetworkMessage responsesMessage in responsesMessages)
                     {
-                        Utils.LogInformation(
-                            "UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{0}",
+                        Logger.LogInformation(
+                            "UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{DataSetWriterId}",
                             responsesMessage.DataSetWriterId);
 
                         m_udpConnection.PublishNetworkMessage(responsesMessage);
@@ -276,7 +277,7 @@ namespace Opc.Ua.PubSub.Transport
                     publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
                     m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value);
 
-                Utils.LogInformation(
+                Logger.LogInformation(
                     "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");
 
                 m_udpConnection.PublishNetworkMessage(message);
@@ -296,18 +297,23 @@ namespace Opc.Ua.PubSub.Transport
                 newsocket = new UdpClientMulticast(
                     mcastSocket.Address,
                     mcastSocket.MulticastAddress,
-                    mcastSocket.Port);
+                    mcastSocket.Port,
+                    Telemetry);
             }
             else if (socket is UdpClientBroadcast bcastSocket)
             {
                 newsocket = new UdpClientBroadcast(
                     bcastSocket.Address,
                     bcastSocket.Port,
-                    bcastSocket.PubSubContext);
+                    bcastSocket.PubSubContext,
+                    Telemetry);
             }
             else if (socket is UdpClientUnicast ucastSocket)
             {
-                newsocket = new UdpClientUnicast(ucastSocket.Address, ucastSocket.Port);
+                newsocket = new UdpClientUnicast(
+                    ucastSocket.Address,
+                    ucastSocket.Port,
+                    Telemetry);
             }
             m_discoveryUdpClients.Remove(socket);
             m_discoveryUdpClients.Add(newsocket);

@@ -55,9 +55,9 @@ namespace Opc.Ua.Client.Tests
         [DatapointSource]
         public static readonly ISessionFactory[] SessionFactories =
         [
-            TraceableSessionFactory.Instance,
-            TestableSessionFactory.Instance,
-            DefaultSessionFactory.Instance
+            new TraceableSessionFactory(null),
+            new TestableSessionFactory(null),
+            new DefaultSessionFactory(null)
         ];
 
         /// <summary>
@@ -76,18 +76,18 @@ namespace Opc.Ua.Client.Tests
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer>
+            ServerFixture = new ServerFixture<ReferenceServer>(Telemetry)
             {
                 AutoAccept = true,
                 SecurityNone = true,
                 ReverseConnectTimeout = MaxTimeout,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
-            ReferenceServer = await ServerFixture.StartAsync(TestContext.Out, PkiRoot)
+            ReferenceServer = await ServerFixture.StartAsync(PkiRoot)
                 .ConfigureAwait(false);
 
             // create client
-            ClientFixture = new ClientFixture();
+            ClientFixture = new ClientFixture(telemetry: Telemetry);
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
             await ClientFixture.StartReverseConnectHostAsync().ConfigureAwait(false);
@@ -164,7 +164,8 @@ namespace Opc.Ua.Client.Tests
                 using var client = DiscoveryClient.Create(
                     config,
                     connection,
-                    endpointConfiguration);
+                    endpointConfiguration,
+                    Telemetry);
                 Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
@@ -191,7 +192,8 @@ namespace Opc.Ua.Client.Tests
                 config,
                 connection,
                 true,
-                MaxTimeout).ConfigureAwait(false);
+                MaxTimeout,
+                Telemetry).ConfigureAwait(false);
             Assert.NotNull(selectedEndpoint);
         }
 
@@ -237,7 +239,7 @@ namespace Opc.Ua.Client.Tests
                     false,
                     "Reverse Connect Client",
                     MaxTimeout,
-                    new UserIdentity(new AnonymousIdentityToken()),
+                    new UserIdentity(),
                     null)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
@@ -299,7 +301,7 @@ namespace Opc.Ua.Client.Tests
                     checkDomain,
                     "Reverse Connect Client",
                     MaxTimeout,
-                    new UserIdentity(new AnonymousIdentityToken()),
+                    new UserIdentity(),
                     null)
                 .ConfigureAwait(false);
 

@@ -33,6 +33,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Gds.Client
@@ -46,13 +47,17 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
+        /// <param name="telemetry"></param>
         /// <param name="sessionFactory">Used to create session to the server.</param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,
+            ITelemetryContext telemetry,
             ISessionFactory sessionFactory = null)
         {
             Configuration = configuration;
-            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
+            m_logger = telemetry.CreateLogger<ServerPushConfigurationClient>();
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(telemetry);
+            m_telemetry = telemetry;
         }
 
         public NodeId DefaultApplicationGroup { get; private set; }
@@ -224,6 +229,7 @@ namespace Opc.Ua.Gds.Client
                 Configuration,
                 endpointUrl,
                 true,
+                m_telemetry,
                 ct).ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
@@ -346,7 +352,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.LogError(
+                    m_logger.LogError(
                         exception,
                         "Unexpected error raising ConnectionStatusChanged event.");
                 }
@@ -1094,7 +1100,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error reverting to normal permissions.");
+                m_logger.LogError(e, "Error reverting to normal permissions.");
             }
         }
 
@@ -1115,12 +1121,14 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
+                    m_logger.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }
 
+        private readonly ITelemetryContext m_telemetry;
         private readonly ISessionFactory m_sessionFactory;
+        private readonly ILogger m_logger;
         private ConfiguredEndpoint m_endpoint;
     }
 }

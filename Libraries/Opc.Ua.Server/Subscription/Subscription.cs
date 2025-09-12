@@ -157,7 +157,7 @@ namespace Opc.Ua.Server
             m_sentMessages = storedSubscription.SentMessages;
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
-            m_savedOwnerIdentity = new UserIdentity(storedSubscription.UserIdentityToken);
+            m_savedOwnerIdentity = new UserIdentity(storedSubscription.UserIdentityToken, m_logger);
             m_sequenceNumber = storedSubscription.SequenceNumber;
             m_lastSentMessage = storedSubscription.LastSentMessage;
 
@@ -406,7 +406,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Delete items for subscription failed.");
+                    m_logger.LogError(e, "Delete items for subscription failed.");
                 }
             }
         }
@@ -585,7 +585,7 @@ namespace Opc.Ua.Server
 
             if (badTransfers > 0)
             {
-                Utils.LogTrace("Failed to transfer {0} Monitored Items", badTransfers);
+                m_logger.LogTrace("Failed to transfer {Count} Monitored Items", badTransfers);
             }
 
             lock (DiagnosticsWriteLock)
@@ -985,7 +985,7 @@ namespace Opc.Ua.Server
                 // check for missing notifications.
                 if (!keepAliveIfNoData && messages.Count == 0)
                 {
-                    Utils.LogError("Oops! MonitoredItems queued but no notifications available.");
+                    m_logger.LogError("Oops! MonitoredItems queued but no notifications available.");
 
                     m_waitingForPublish = false;
 
@@ -1030,8 +1030,8 @@ namespace Opc.Ua.Server
             int overflowCount = messages.Count - (int)m_maxMessageCount;
             if (overflowCount > 0)
             {
-                Utils.LogWarning(
-                    "WARNING: QUEUE OVERFLOW. Dropping {0} Messages. Increase MaxMessageQueueSize. SubId={1}, MaxMessageQueueSize={2}",
+                m_logger.LogWarning(
+                    "WARNING: QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}",
                     overflowCount,
                     Id,
                     m_maxMessageCount);
@@ -2441,8 +2441,8 @@ namespace Opc.Ua.Server
             {
                 if (!m_supportsDurable)
                 {
-                    Utils.LogError(
-                        "SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered",
+                    m_logger.LogError(
+                        "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no IMonitoredItemQueueFactory that supports durable queues was registered",
                         Id);
                     TraceState(
                         LogLevel.Information,
@@ -2620,15 +2620,6 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TraceState(LogLevel logLevel, TraceStateId id, string context)
         {
-            const string deletedMessage
-                = "Subscription {0}, SessionId={1}, Id={2}, SeqNo={3}, MessageCount={4}";
-            const string configMessage =
-                "Subscription {0}, SessionId={1}, Id={2}, Priority={3}, Publishing={4}, KeepAlive={5}, LifeTime={6}, MaxNotifications={7}, Enabled={8}";
-            const string monitorMessage =
-                "Subscription {0}, Id={1}, KeepAliveCount={2}, LifeTimeCount={3}, WaitingForPublish={4}, SeqNo={5}, ItemCount={6}, ItemsToCheck={7}, ItemsToPublish={8}, MessageCount={9}";
-            const string itemsMessage
-                = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
-
             if (!m_logger.IsEnabled(logLevel))
             {
                 return;
@@ -2650,9 +2641,9 @@ namespace Opc.Ua.Server
             switch (id)
             {
                 case TraceStateId.Deleted:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        deletedMessage,
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, SeqNo={SequenceNumber}, MessageCount={MessageCount}",
                         context,
                         Session?.Id,
                         Id,
@@ -2660,9 +2651,9 @@ namespace Opc.Ua.Server
                         sentMessages);
                     break;
                 case TraceStateId.Config:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        configMessage,
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, Priority={Priority}, Publishing={Publishing}, KeepAlive={KeepAlive}, LifeTime={LifeTime}, MaxNotifications={MaxNotifications}, Enabled={Enabled}",
                         context,
                         Session?.Id,
                         Id,
@@ -2674,9 +2665,9 @@ namespace Opc.Ua.Server
                         publishingEnabled);
                     break;
                 case TraceStateId.Items:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        itemsMessage,
+                        "Subscription {Subscription}, Id={SubscriptionId}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}",
                         context,
                         Id,
                         monitoredItems,
@@ -2685,9 +2676,9 @@ namespace Opc.Ua.Server
                     break;
                 case TraceStateId.Publish:
                 case TraceStateId.Monitor:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        monitorMessage,
+                        "Subscription {Subscription}, Id={SubscriptionId}, KeepAliveCounter={keepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
                         context,
                         Id,
                         m_keepAliveCounter,

@@ -63,9 +63,10 @@ namespace Opc.Ua.Gds.Server
             IUserDatabase userDatabase,
             ITelemetryContext telemetry,
             bool autoApprove = true,
-            bool createStandardUsers = true) : base (telemetry)
+            bool createStandardUsers = true)
+            : base(telemetry)
         {
-            m_logger = telemetry.CreateLogger<GlobalDiscoverySampleServer>();
+            Telemetry = telemetry;
             m_database = database;
             m_request = request;
             m_certificateGroup = certificateGroup;
@@ -102,7 +103,7 @@ namespace Opc.Ua.Gds.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation("Creating the Node Managers.");
+            Logger.LogInformation("Creating the Node Managers.");
 
             var nodeManagers = new List<INodeManager>
             {
@@ -213,24 +214,24 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), roles);
+                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken, Logger), roles);
                 return;
             }
 
             // check for x509 user token.
             if (args.NewIdentity is X509IdentityToken x509Token)
             {
-                VerifyUserTokenCertificate(x509Token.Certificate);
+                VerifyX509IdentityToken(x509Token);
 
                 // todo: is cert listed in admin list? then
                 // role = GdsRole.ApplicationAdmin;
 
-                m_logger.LogInformation(
-                    "X509 Token Accepted: {0} as {1}",
+                Logger.LogInformation(
+                    "X509 Token Accepted: {Identity} as {Role}",
                     args.Identity.DisplayName,
                     Role.AuthenticatedUser);
                 args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(x509Token),
+                    new UserIdentity(x509Token, Logger),
                     [Role.AuthenticatedUser]);
                 return;
             }
@@ -298,8 +299,9 @@ namespace Opc.Ua.Gds.Server
         /// Verifies that a certificate user token is trusted.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void VerifyUserTokenCertificate(X509Certificate2 certificate)
+        private void VerifyX509IdentityToken(X509IdentityToken token)
         {
+            X509Certificate2 certificate = token.GetOrCreateCertificate(Logger);
             try
             {
                 CertificateValidator.Validate(certificate);
@@ -385,14 +387,14 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
             if (application == null || application.Length != 1)
             {
-                m_logger.LogInformation(
-                    "Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {0}",
+                Logger.LogInformation(
+                    "Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {ApplicationUri}",
                     applicationUri);
                 return;
             }
             NodeId applicationId = application.FirstOrDefault().ApplicationId;
-            m_logger.LogInformation(
-                "Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
+            Logger.LogInformation(
+                "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
             args.Identity = new GdsRoleBasedIdentity(
                 new UserIdentity(),
@@ -400,7 +402,6 @@ namespace Opc.Ua.Gds.Server
                 applicationId);
         }
 
-        private readonly ILogger m_logger;
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];
         private readonly IApplicationsDatabase m_database;
         private readonly ICertificateRequest m_request;

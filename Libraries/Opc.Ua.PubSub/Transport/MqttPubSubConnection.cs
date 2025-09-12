@@ -37,6 +37,8 @@ using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
+using Microsoft.Extensions.Logging;
+
 #if !NET8_0_OR_GREATER
 using MQTTnet.Client;
 #else
@@ -48,7 +50,7 @@ namespace Opc.Ua.PubSub.Transport
     /// <summary>
     /// MQTT implementation of <see cref="UaPubSubConnection"/> class.
     /// </summary>
-    internal class MqttPubSubConnection : UaPubSubConnection, IMqttPubSubConnection
+    internal sealed class MqttPubSubConnection : UaPubSubConnection, IMqttPubSubConnection
     {
         private readonly int m_reconnectIntervalSeconds = 5;
 
@@ -144,13 +146,19 @@ namespace Opc.Ua.PubSub.Transport
         private readonly int m_maxKeepAliveIncrement = 5;
 
         /// <summary>
-        ///  Create new instance of <see cref="MqttPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
+        ///  Create new instance of <see cref="MqttPubSubConnection"/> from
+        ///  <see cref="PubSubConnectionDataType"/> configuration data
         /// </summary>
         public MqttPubSubConnection(
             UaPubSubApplication uaPubSubApplication,
             PubSubConnectionDataType pubSubConnectionDataType,
-            MessageMapping messageMapping)
-            : base(uaPubSubApplication, pubSubConnectionDataType)
+            MessageMapping messageMapping,
+            ITelemetryContext telemetry)
+            : base(
+                uaPubSubApplication,
+                pubSubConnectionDataType,
+                telemetry,
+                telemetry.CreateLogger<MqttPubSubConnection>())
         {
             m_transportProtocol = TransportProtocol.MQTT;
             m_messageMapping = messageMapping;
@@ -158,25 +166,25 @@ namespace Opc.Ua.PubSub.Transport
             // initialize the message creators for current message
             if (m_messageMapping == MessageMapping.Json)
             {
-                m_messageCreator = new JsonMessageCreator(this);
+                m_messageCreator = new JsonMessageCreator(this, telemetry);
             }
             else if (m_messageMapping == MessageMapping.Uadp)
             {
-                m_messageCreator = new UadpMessageCreator(this);
+                m_messageCreator = new UadpMessageCreator(this, telemetry);
             }
             else
             {
-                Utils.LogError(
+                Logger.LogError(
                     Utils.TraceMasks.Error,
-                    "The current MessageMapping {0} does not have a valid message creator",
+                    "The current MessageMapping {MessageMapping} does not have a valid message creator",
                     m_messageMapping);
             }
 
             m_publisherMqttClientOptions = GetMqttClientOptions();
             m_subscriberMqttClientOptions = GetMqttClientOptions();
 
-            Utils.LogInformation(
-                "MqttPubSubConnection with name '{0}' was created.",
+            Logger.LogInformation(
+                "MqttPubSubConnection with name '{Name}' was created.",
                 pubSubConnectionDataType.Name);
         }
 
@@ -313,7 +321,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
+                            Logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
                             return false;
                         }
 
@@ -323,7 +331,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
+                Logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
                 return false;
             }
 
@@ -353,8 +361,8 @@ namespace Opc.Ua.PubSub.Transport
                 if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                     is not NetworkAddressUrlDataType networkAddressUrlState)
                 {
-                    Utils.LogError(
-                        "The configuration for mqttConnection {0} has invalid Address configuration.",
+                    Logger.LogError(
+                        "The configuration for mqttConnection {Name} has invalid Address configuration.",
                         PubSubConnectionConfiguration.Name);
 
                     return;
@@ -380,8 +388,8 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (UrlScheme == null)
                 {
-                    Utils.LogError(
-                        "The configuration for mqttConnection {0} has invalid MQTT URL '{1}'.",
+                    Logger.LogError(
+                        "The configuration for mqttConnection {Name} has invalid MQTT URL '{Url}'.",
                         PubSubConnectionConfiguration.Name,
                         networkAddressUrlState.Url);
 
@@ -411,7 +419,8 @@ namespace Opc.Ua.PubSub.Transport
                                 this,
                                 writerGroup,
                                 dataSetWriter,
-                                transport.MetaDataUpdateTime));
+                                transport.MetaDataUpdateTime,
+                                Telemetry));
                     }
                 }
 
@@ -438,7 +447,8 @@ namespace Opc.Ua.PubSub.Transport
                         .GetMqttClientAsync(
                             m_reconnectIntervalSeconds,
                             m_publisherMqttClientOptions,
-                            null)
+                            null,
+                            Logger)
                         .ConfigureAwait(false);
             }
 
@@ -484,6 +494,7 @@ namespace Opc.Ua.PubSub.Transport
                             m_reconnectIntervalSeconds,
                             m_subscriberMqttClientOptions,
                             ProcessMqttMessage,
+                            Logger,
                             topics)
                         .ConfigureAwait(false);
             }
@@ -494,8 +505,8 @@ namespace Opc.Ua.PubSub.Transport
                 m_subscriberMqttClient = subscriberClient;
             }
 
-            Utils.LogInformation(
-                "Connection '{0}' started {1} publishers and {2} subscribers.",
+            Logger.LogInformation(
+                "Connection '{Name}' started {Publishers} publishers and {Subscribers} subscribers.",
                 PubSubConnectionConfiguration.Name,
                 nrOfPublishers,
                 nrOfSubscribers);
@@ -598,7 +609,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             string topic = eventArgs.ApplicationMessage.Topic;
 
-            Utils.LogInformation("MQTTConnection - ProcessMqttMessage() received from topic={0}", topic);
+            Logger.LogInformation("MQTTConnection - ProcessMqttMessage() received from topic={Topic}", topic);
 
             // get the datasetreaders for received message topic
             var dataSetReaders = new List<DataSetReaderDataType>();
@@ -656,8 +667,8 @@ namespace Opc.Ua.PubSub.Transport
                 // check if the RawData message is marked as handled
                 if (rawDataReceivedEventArgs.Handled)
                 {
-                    Utils.LogInformation(
-                        "MqttConnection message from topic={0} is marked as handled and will not be decoded.",
+                    Logger.LogInformation(
+                        "MqttConnection message from topic={Topic} is marked as handled and will not be decoded.",
                         topic);
                     return Task.CompletedTask;
                 }
@@ -686,8 +697,8 @@ namespace Opc.Ua.PubSub.Transport
             }
             else
             {
-                Utils.LogInformation(
-                    "MqttConnection - ProcessMqttMessage() No DataSetReader is registered for topic={0}.",
+                Logger.LogInformation(
+                    "MqttConnection - ProcessMqttMessage() No DataSetReader is registered for topic={Topic}.",
                     topic);
             }
 
@@ -725,8 +736,8 @@ namespace Opc.Ua.PubSub.Transport
             if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                 is not NetworkAddressUrlDataType networkAddressUrlState)
             {
-                Utils.LogError(
-                    "The configuration for mqttConnection {0} has invalid Address configuration.",
+                Logger.LogError(
+                    "The configuration for mqttConnection {Name} has invalid Address configuration.",
                     PubSubConnectionConfiguration.Name);
                 return null;
             }
@@ -738,8 +749,8 @@ namespace Opc.Ua.PubSub.Transport
                 (connectionUri.Scheme != Utils.UriSchemeMqtt) &&
                 (connectionUri.Scheme != Utils.UriSchemeMqtts))
             {
-                Utils.LogError(
-                    "The configuration for mqttConnection '{0}' has an invalid Url value {1}. The Uri scheme should be either {2}:// or {3}://",
+                Logger.LogError(
+                    "The configuration for mqttConnection '{Name}' has an invalid Url value {Url}. The Uri scheme should be either {Mqtt}:// or {Mqtts}://",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url,
                     Utils.UriSchemeMqtt,
@@ -749,8 +760,8 @@ namespace Opc.Ua.PubSub.Transport
 
             if (connectionUri == null)
             {
-                Utils.LogError(
-                    "The configuration for mqttConnection '{0}' has an invalid Url value {1}.",
+                Logger.LogError(
+                    "The configuration for mqttConnection '{Name}' has an invalid Url value {Url}.",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url);
                 return null;
@@ -770,7 +781,7 @@ namespace Opc.Ua.PubSub.Transport
 
             ITransportProtocolConfiguration transportProtocolConfiguration
                 = new MqttClientProtocolConfiguration(
-                PubSubConnectionConfiguration.ConnectionProperties);
+                PubSubConnectionConfiguration.ConnectionProperties, Logger);
 
             if (transportProtocolConfiguration is MqttClientProtocolConfiguration mqttProtocolConfiguration)
             {
@@ -843,7 +854,7 @@ namespace Opc.Ua.PubSub.Transport
                     mqttOptions = mqttClientOptionsBuilder.Build();
 
                     // Create the certificate validator for broker certificates.
-                    m_certificateValidator = CreateCertificateValidator(mqttTlsOptions);
+                    m_certificateValidator = CreateCertificateValidator(mqttTlsOptions, Telemetry);
                     m_certificateValidator.CertificateValidation
                         += CertificateValidator_CertificateValidation;
                     m_mqttClientTlsOptions = mqttOptions?.ChannelOptions?.TlsOptions;
@@ -883,11 +894,13 @@ namespace Opc.Ua.PubSub.Transport
         /// Set up a new instance of a certificate validator based on passed in tls options
         /// </summary>
         /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"/></param>
+        /// <param name="telemetry"></param>
         /// <returns>A new instance of stack validator <see cref="CertificateValidator"/></returns>
         private static CertificateValidator CreateCertificateValidator(
-            MqttTlsOptions mqttTlsOptions)
+            MqttTlsOptions mqttTlsOptions,
+            ITelemetryContext telemetry)
         {
-            var certificateValidator = new CertificateValidator();
+            var certificateValidator = new CertificateValidator(telemetry);
 
             var securityConfiguration = new SecurityConfiguration
             {
@@ -928,17 +941,17 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                Logger.LogError(
                     ex,
-                    "Connection '{0}' - Broker certificate '{1}' rejected.",
+                    "Connection '{Name}' - Broker certificate '{Subject}' rejected.",
                     PubSubConnectionConfiguration.Name,
                     brokerCertificate.Subject);
                 return false;
             }
 
-            Utils.Log(
+            Logger.LogInformation(
                 Utils.TraceMasks.Security,
-                "Connection '{0}' - Broker certificate '{1}'  accepted.",
+                "Connection '{Name}' - Broker certificate '{Subject}'  accepted.",
                 PubSubConnectionConfiguration.Name,
                 brokerCertificate.Subject);
             return true;
@@ -979,7 +992,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "MqttPubSubConnection.CertificateValidation error.");
+                Logger.LogError(ex, "MqttPubSubConnection.CertificateValidation error.");
             }
         }
 
@@ -989,13 +1002,15 @@ namespace Opc.Ua.PubSub.Transport
         private abstract class MessageCreator
         {
             protected MqttPubSubConnection MqttConnection { get; }
+            protected ILogger Logger { get; }
 
             /// <summary>
             /// Create new instance of <see cref="MessageCreator"/>
             /// </summary>
-            protected MessageCreator(MqttPubSubConnection mqttConnection)
+            protected MessageCreator(MqttPubSubConnection mqttConnection, ILogger logger)
             {
                 MqttConnection = mqttConnection;
+                Logger = logger;
             }
 
             /// <summary>
@@ -1027,8 +1042,8 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary>
             /// Create new instance of <see cref="JsonMessageCreator"/>
             /// </summary>
-            public JsonMessageCreator(MqttPubSubConnection mqttConnection)
-                : base(mqttConnection)
+            public JsonMessageCreator(MqttPubSubConnection mqttConnection, ITelemetryContext telemetry)
+                : base(mqttConnection, telemetry.CreateLogger<JsonMessageCreator>())
             {
             }
 
@@ -1037,7 +1052,7 @@ namespace Opc.Ua.PubSub.Transport
             /// </summary>
             public override UaNetworkMessage CreateNewNetworkMessage()
             {
-                return new Encoding.JsonNetworkMessage();
+                return new Encoding.JsonNetworkMessage(Logger);
             }
 
             /// <summary>
@@ -1085,7 +1100,7 @@ namespace Opc.Ua.PubSub.Transport
                             if (ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings)
                                 is JsonDataSetWriterMessageDataType jsonDataSetMessageSettings)
                             {
-                                var jsonDataSetMessage = new Encoding.JsonDataSetMessage(dataSet)
+                                var jsonDataSetMessage = new Encoding.JsonDataSetMessage(dataSet, Logger)
                                 {
                                     DataSetMessageContentMask = (JsonDataSetMessageContentMask)
                                         jsonDataSetMessageSettings.DataSetMessageContentMask
@@ -1136,7 +1151,8 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     var jsonNetworkMessage = new Encoding.JsonNetworkMessage(
                         writerGroupConfiguration,
-                        dataSetMessagesToUse);
+                        dataSetMessagesToUse,
+                        Logger);
                     jsonNetworkMessage.SetNetworkMessageContentMask(
                         (JsonNetworkMessageContentMask)jsonMessageSettings?
                             .NetworkMessageContentMask);
@@ -1168,7 +1184,7 @@ namespace Opc.Ua.PubSub.Transport
                 DataSetMetaDataType dataSetMetaData)
             {
                 // return UADP metadata network message
-                return new Encoding.JsonNetworkMessage(writerGroup, dataSetMetaData)
+                return new Encoding.JsonNetworkMessage(writerGroup, dataSetMetaData, Logger)
                 {
                     PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value
                         .ToString(),
@@ -1185,8 +1201,8 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary>
             /// Create new instance of <see cref="UadpMessageCreator"/>
             /// </summary>
-            public UadpMessageCreator(MqttPubSubConnection mqttConnection)
-                : base(mqttConnection)
+            public UadpMessageCreator(MqttPubSubConnection mqttConnection, ITelemetryContext telemetry)
+                : base(mqttConnection, telemetry.CreateLogger<UadpMessageCreator>())
             {
             }
 
@@ -1195,7 +1211,7 @@ namespace Opc.Ua.PubSub.Transport
             /// </summary>
             public override UaNetworkMessage CreateNewNetworkMessage()
             {
-                return new UadpNetworkMessage();
+                return new UadpNetworkMessage(Logger);
             }
 
             /// <summary>
@@ -1245,7 +1261,7 @@ namespace Opc.Ua.PubSub.Transport
                             if (ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings)
                                 is UadpDataSetWriterMessageDataType uadpDataSetMessageSettings)
                             {
-                                var uadpDataSetMessage = new UadpDataSetMessage(dataSet);
+                                var uadpDataSetMessage = new UadpDataSetMessage(dataSet, Logger);
                                 uadpDataSetMessage.SetMessageContentMask(
                                     (UadpDataSetMessageContentMask)uadpDataSetMessageSettings
                                         .DataSetMessageContentMask);
@@ -1282,7 +1298,8 @@ namespace Opc.Ua.PubSub.Transport
 
                 var uadpNetworkMessage = new UadpNetworkMessage(
                     writerGroupConfiguration,
-                    uadpDataSetMessages);
+                    uadpDataSetMessages,
+                    Logger);
                 uadpNetworkMessage.SetNetworkMessageContentMask(
                     (UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
 
@@ -1310,7 +1327,7 @@ namespace Opc.Ua.PubSub.Transport
                 DataSetMetaDataType dataSetMetaData)
             {
                 // return UADP metadata network message
-                return new UadpNetworkMessage(writerGroup, dataSetMetaData)
+                return new UadpNetworkMessage(writerGroup, dataSetMetaData, Logger)
                 {
                     PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value,
                     DataSetWriterId = dataSetWriterId

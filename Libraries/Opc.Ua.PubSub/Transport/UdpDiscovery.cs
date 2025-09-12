@@ -30,7 +30,9 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -41,16 +43,17 @@ namespace Opc.Ua.PubSub.Transport
     {
         private const string kDefaultDiscoveryUrl = "opc.udp://224.0.2.14:4840";
 
-        protected object Lock { get; } = new();
         protected UdpPubSubConnection m_udpConnection;
         protected List<UdpClient> m_discoveryUdpClients;
 
         /// <summary>
         /// Create new instance of <see cref="UdpDiscovery"/>
         /// </summary>
-        protected UdpDiscovery(UdpPubSubConnection udpConnection)
+        protected UdpDiscovery(UdpPubSubConnection udpConnection, ITelemetryContext telemetry, ILogger logger)
         {
             m_udpConnection = udpConnection;
+            Telemetry = telemetry;
+            Logger = logger;
 
             Initialize();
         }
@@ -70,6 +73,10 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public IServiceMessageContext MessageContext { get; private set; }
 
+        protected ILogger Logger { get; }
+        protected Lock Lock { get; } = new();
+        protected ITelemetryContext Telemetry { get; }
+
         /// <summary>
         /// Start the UdpDiscovery process
         /// </summary>
@@ -86,7 +93,9 @@ namespace Opc.Ua.PubSub.Transport
                         m_discoveryUdpClients = UdpClientCreator.GetUdpClients(
                             UsedInContext.Discovery,
                             DiscoveryNetworkInterfaceName,
-                            DiscoveryNetworkAddressEndPoint);
+                            DiscoveryNetworkAddressEndPoint,
+                            Telemetry,
+                            Logger);
                     }
                 })
                 .ConfigureAwait(false);
@@ -127,24 +136,26 @@ namespace Opc.Ua.PubSub.Transport
                 ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
                     is NetworkAddressUrlDataType discoveryNetworkAddressUrlState)
             {
-                Utils.LogInformation(
-                    "The configuration for connection {0} has custom DiscoveryAddress configuration.",
+                Logger.LogInformation(
+                    "The configuration for connection {Name} has custom DiscoveryAddress configuration.",
                     pubSubConnectionConfiguration.Name);
 
                 DiscoveryNetworkInterfaceName = discoveryNetworkAddressUrlState.NetworkInterface;
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
-                    discoveryNetworkAddressUrlState.Url);
+                    discoveryNetworkAddressUrlState.Url,
+                    Logger);
             }
 
             if (DiscoveryNetworkAddressEndPoint == null)
             {
-                Utils.LogInformation(
-                    "The configuration for connection {0} will use the default DiscoveryAddress: {1}.",
+                Logger.LogInformation(
+                    "The configuration for connection {Name} will use the default DiscoveryAddress: {DiscoveryUrl}.",
                     pubSubConnectionConfiguration.Name,
                     kDefaultDiscoveryUrl);
 
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
-                    kDefaultDiscoveryUrl);
+                    kDefaultDiscoveryUrl,
+                    Logger);
             }
         }
     }

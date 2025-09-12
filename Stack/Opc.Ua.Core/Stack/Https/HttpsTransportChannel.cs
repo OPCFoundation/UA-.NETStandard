@@ -162,7 +162,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                m_logger.LogInformation("{0} Open {1}.", nameof(HttpsTransportChannel), m_url);
+                m_logger.LogInformation("{ChannelType} Open {Url}.", nameof(HttpsTransportChannel), m_url);
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
@@ -197,7 +197,7 @@ namespace Opc.Ua.Bindings
                     catch (CryptographicException ce)
                     {
                         m_logger.LogTrace(
-                            "Copy of the private key for https was denied: {0}",
+                            "Copy of the private key for https was denied: {Message}",
                             ce.Message);
                     }
 #endif
@@ -234,13 +234,13 @@ namespace Opc.Ua.Bindings
                                     int i = 0;
                                     m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
-                                        "{0} Validate server chain:",
+                                        "{ChannelType} Validate server chain:",
                                         nameof(HttpsTransportChannel));
                                     foreach (X509ChainElement element in chain.ChainElements)
                                     {
                                         m_logger.LogCertificate(
                                             Utils.TraceMasks.Security,
-                                            "{0}: ",
+                                            "{ChannelType}: ",
                                             element.Certificate,
                                             i);
                                         validationChain.Add(element.Certificate);
@@ -251,7 +251,7 @@ namespace Opc.Ua.Bindings
                                 {
                                     m_logger.LogCertificate(
                                         Utils.TraceMasks.Security,
-                                        "{0} Validate Server Certificate: ",
+                                        "{ChannelType} Validate Server Certificate: ",
                                         cert,
                                         nameof(HttpsTransportChannel));
                                     validationChain.Add(cert);
@@ -265,7 +265,7 @@ namespace Opc.Ua.Bindings
                             {
                                 m_logger.LogError(
                                     ex,
-                                    "{0} Failed to validate certificate.",
+                                    "{ChannelType} Failed to validate certificate.",
                                     nameof(HttpsTransportChannel));
                             }
                             return false;
@@ -273,7 +273,7 @@ namespace Opc.Ua.Bindings
                         propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
 
                         m_logger.LogInformation(
-                            "{0} ServerCertificate callback enabled.",
+                            "{ChannelType} ServerCertificate callback enabled.",
                             nameof(HttpsTransportChannel));
                     }
                     catch (PlatformNotSupportedException)
@@ -295,7 +295,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Close()
         {
-            m_logger.LogInformation("{0} Close {1}.", nameof(HttpsTransportChannel), m_url);
+            m_logger.LogInformation("{ChannelType} Close {Url}.", nameof(HttpsTransportChannel), m_url);
             m_client?.Dispose();
         }
 
@@ -455,7 +455,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>Not implemented here.</remarks>
         public void Reconnect()
         {
-            m_logger.LogInformation("HttpsTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            m_logger.LogInformation("HttpsTransportChannel RECONNECT: Reconnecting to {Url}.", m_url);
         }
 
         /// <inheritdoc/>

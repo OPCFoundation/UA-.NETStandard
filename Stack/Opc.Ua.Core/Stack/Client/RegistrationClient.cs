@@ -93,7 +93,7 @@ namespace Opc.Ua
             if (channel == null)
             {
                 var endpointUrl = new Uri(description.EndpointUrl);
-                channel = new RegistrationChannel();
+                channel = new RegistrationChannel { Telemetry = telemetry };
 
                 var settings = new TransportChannelSettings
                 {

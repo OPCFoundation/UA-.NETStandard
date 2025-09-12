@@ -34,6 +34,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -203,13 +204,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Validate the diagnostic response of a service call.
         /// </summary>
-        /// <param name="response">The diagnostic info response.</param>
-        /// <param name="request">The request items of the service call.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos(
             DiagnosticInfoCollection response,
             IList request,
-            StringCollection stringTable)
+            StringCollection stringTable,
+            ILogger logger)
         {
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0)
@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests
                                 ii,
                                 response,
                                 stringTable);
-                            Utils.LogInformation("DiagnosticInfo: {0}", serviceResult.ToString());
+                            logger.LogInformation("DiagnosticInfo: {0}", serviceResult.ToString());
                         }
                     }
                 }

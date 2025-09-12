@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -52,6 +53,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<SubscriptionManager>();
 
             m_minPublishingInterval = configuration.ServerConfiguration.MinPublishingInterval;
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
@@ -213,7 +215,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Subscription event handler raised an exception.");
+                    m_logger.LogError(e, "Subscription event handler raised an exception.");
                 }
             }
         }
@@ -307,12 +309,12 @@ namespace Opc.Ua.Server
             {
                 if (m_subscriptionStore.StoreSubscriptions(subscriptionsToStore))
                 {
-                    Utils.LogInformation("{0} Subscriptions stored", subscriptionsToStore.Count);
+                    m_logger.LogInformation("{Count} Subscriptions stored", subscriptionsToStore.Count);
                 }
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to store {0} subscriptions", subscriptionsToStore.Count);
+                m_logger.LogError(ex, "Failed to store {Count} subscriptions", subscriptionsToStore.Count);
             }
         }
 
@@ -342,7 +344,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to restore subscriptions");
+                m_logger.LogError(ex, "Failed to restore subscriptions");
                 return;
             }
 
@@ -365,9 +367,9 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError(
+                    m_logger.LogError(
                         ex,
-                        "Failed to restore subscritption with id {0}",
+                        "Failed to restore subscritption with id {SubscriptionId}",
                         storedSubscription.Id);
                     continue;
                 }
@@ -510,9 +512,8 @@ namespace Opc.Ua.Server
                         lock (m_lock)
                         {
                             (m_abandonedSubscriptions ??= []).Add(subscription);
-                            Utils.LogWarning(
-                                "Subscription {0}, Id={1}.",
-                                "ABANDONED",
+                            m_logger.LogWarning(
+                                "Subscription ABANDONED, Id={SubscriptionId}.",
                                 subscription.Id);
                         }
                     }
@@ -611,35 +612,35 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private static void DoConditionRefresh(ISubscription subscription)
+        private void DoConditionRefresh(ISubscription subscription)
         {
             try
             {
-                Utils.LogTrace("Subscription ConditionRefresh started, Id={0}.", subscription.Id);
+                m_logger.LogTrace("Subscription ConditionRefresh started, Id={SubscriptionId}.", subscription.Id);
                 subscription.ConditionRefresh();
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Subscription - DoConditionRefresh Exited Unexpectedly");
+                m_logger.LogError(e, "Subscription - DoConditionRefresh Exited Unexpectedly");
             }
         }
 
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private static void DoConditionRefresh2(ISubscription subscription, uint monitoredItemId)
+        private void DoConditionRefresh2(ISubscription subscription, uint monitoredItemId)
         {
             try
             {
-                Utils.LogTrace(
-                    "Subscription ConditionRefresh2 started, Id={0}, MonitoredItemId={1}.",
+                m_logger.LogTrace(
+                    "Subscription ConditionRefresh2 started, Id={SubscriptionId}, MonitoredItemId={MonitoredItemId}.",
                     subscription.Id,
                     monitoredItemId);
                 subscription.ConditionRefresh2(monitoredItemId);
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Subscription - DoConditionRefresh2 Exited Unexpectedly");
+                m_logger.LogError(e, "Subscription - DoConditionRefresh2 Exited Unexpectedly");
             }
         }
 
@@ -682,9 +683,8 @@ namespace Opc.Ua.Server
                         if (m_abandonedSubscriptions[ii].Id == subscriptionId)
                         {
                             m_abandonedSubscriptions.RemoveAt(ii);
-                            Utils.LogWarning(
-                                "Subscription {0}, Id={1}.",
-                                "DELETED(ABANDONED)",
+                            m_logger.LogWarning(
+                                "Subscription DELETED(ABANDONED), Id={SubscriptionId}.",
                                 subscriptionId);
                             break;
                         }
@@ -1067,7 +1067,7 @@ namespace Opc.Ua.Server
 
             NotificationMessage message = null;
 
-            Utils.LogTrace("Publish #{0} ReceivedFromClient", context.ClientHandle);
+            m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
             bool requeue = false;
 
             uint subscriptionId;
@@ -1105,8 +1105,8 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    Utils.LogTrace(
-                        "Publish False Alarm - Request #{0} Requeued.",
+                    m_logger.LogTrace(
+                        "Publish False Alarm - Request #{ClientHandle} Requeued.",
                         context.ClientHandle);
                     requeue = true;
                 }
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                Utils.LogTrace("Publish #{0} ReceivedFromClient", context.ClientHandle);
+                m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
 
                 if (ReturnPendingStatusMessage(context, out message, out subscriptionId))
                 {
@@ -1183,7 +1183,7 @@ namespace Opc.Ua.Server
                             return message;
                         }
 
-                        Utils.LogTrace("Publish #{0} Timeout", context.ClientHandle);
+                        m_logger.LogTrace("Publish #{ClientHandle} Timeout", context.ClientHandle);
                         return null;
                     }
 
@@ -1207,8 +1207,8 @@ namespace Opc.Ua.Server
                             break;
                         }
 
-                        Utils.LogTrace(
-                            "Publish False Alarm - Request #{0} Requeued.",
+                        m_logger.LogTrace(
+                            "Publish False Alarm - Request #{ClientHandle} Requeued.",
                             context.ClientHandle);
                         requeue = true;
                     }
@@ -1438,8 +1438,8 @@ namespace Opc.Ua.Server
             results = [];
             diagnosticInfos = [];
 
-            Utils.LogInformation(
-                "TransferSubscriptions to SessionId={0}, Count={1}, sendInitialValues={2}",
+            m_logger.LogInformation(
+                "TransferSubscriptions to SessionId={SessionId}, Count={Count}, sendInitialValues={SendInitialValues}",
                 context.Session.Id,
                 subscriptionIds.Count,
                 sendInitialValues);
@@ -1634,8 +1634,8 @@ namespace Opc.Ua.Server
                                         StatusCodes.GoodSubscriptionTransferred);
                                     if (!success)
                                     {
-                                        Utils.LogWarning(
-                                            "Failed to queue Good_SubscriptionTransferred for SessionId {0}, SubscriptionId {1} due to an empty request queue.",
+                                        m_logger.LogWarning(
+                                            "Failed to queue Good_SubscriptionTransferred for SessionId {SessionId}, SubscriptionId {SubscriptionId} due to an empty request queue.",
                                             ownerSession.Id,
                                             subscription.Id);
                                     }
@@ -1664,8 +1664,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Add(null);
                     }
 
-                    Utils.LogInformation(
-                        "Transferred subscription Id {0} to SessionId {1}",
+                    m_logger.LogInformation(
+                        "Transferred subscription Id {SubscriptionId} to SessionId {SessionId}",
                         subscription.Id,
                         context.Session.Id);
                 }
@@ -1682,6 +1682,7 @@ namespace Opc.Ua.Server
                 for (int i = 0; i < results.Count; i++)
                 {
                     m_server.ReportAuditTransferSubscriptionEvent(
+                        m_logger,
                         context.AuditEntryId,
                         context.Session,
                         results[i].StatusCode);
@@ -2153,9 +2154,9 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInformation(
-                    "Subscription - Publish Thread {0:X8} Started.",
-                    Environment.CurrentManagedThreadId);
+                m_logger.LogInformation(
+                    "Subscription - Publish Task {TaskId:X8} Started.",
+                    Task.CurrentId);
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
                 int timeToWait = sleepCycle;
@@ -2208,8 +2209,8 @@ namespace Opc.Ua.Server
 
                             (subscriptionsToDelete ??= []).Add(subscription);
                             SubscriptionExpired(subscription);
-                            Utils.LogInformation(
-                                "Subscription - Abandoned Subscription Id={0} Delete Scheduled.",
+                            m_logger.LogInformation(
+                                "Subscription - Abandoned Subscription Id={SubscriptionId} Delete Scheduled.",
                                 subscription.Id);
                         }
 
@@ -2224,15 +2225,15 @@ namespace Opc.Ua.Server
                                 }
                             }
 
-                            CleanupSubscriptions(m_server, subscriptionsToDelete);
+                            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
                         }
                     }
 
                     if (m_shutdownEvent.WaitOne(timeToWait))
                     {
-                        Utils.LogInformation(
-                            "Subscription - Publish Thread {0:X8} Exited Normally.",
-                            Environment.CurrentManagedThreadId);
+                        m_logger.LogInformation(
+                            "Subscription - Publish Task {TaskId:X8} Exited Normally.",
+                            Task.CurrentId);
                         break;
                     }
 
@@ -2242,10 +2243,10 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
-                    "Subscription - Publish Thread {0:X8} Exited Unexpectedly.",
-                    Environment.CurrentManagedThreadId);
+                    "Subscription - Publish Task {TaskId:X8} Exited Unexpectedly.",
+                    Task.CurrentId);
             }
         }
 
@@ -2256,9 +2257,9 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInformation(
-                    "Subscription - ConditionRefresh Thread {0:X8} Started.",
-                    Environment.CurrentManagedThreadId);
+                m_logger.LogInformation(
+                    "Subscription - ConditionRefresh Task {TaskId:X8} Started.",
+                    Task.CurrentId);
 
                 while (true)
                 {
@@ -2294,19 +2295,19 @@ namespace Opc.Ua.Server
                     // use shutdown event to end loop
                     if (m_shutdownEvent.WaitOne(0))
                     {
-                        Utils.LogInformation(
-                            "Subscription - ConditionRefresh Thread {0:X8} Exited Normally.",
-                            Environment.CurrentManagedThreadId);
+                        m_logger.LogInformation(
+                            "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally.",
+                            Task.CurrentId);
                         break;
                     }
                 }
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
-                    "Subscription - ConditionRefresh Thread {0:X8} Exited Unexpectedly.",
-                    Environment.CurrentManagedThreadId);
+                    "Subscription - ConditionRefresh Task {TaskId:X8} Exited Unexpectedly.",
+                    Task.CurrentId);
             }
         }
 
@@ -2315,43 +2316,45 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="subscriptionsToDelete">The subscriptions to delete.</param>
+        /// <param name="logger"></param>
         internal static void CleanupSubscriptions(
             IServerInternal server,
-            IList<ISubscription> subscriptionsToDelete)
+            IList<ISubscription> subscriptionsToDelete,
+            ILogger logger)
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
-                Utils.LogInformation(
-                    "Server - {0} Subscriptions scheduled for delete.",
+                logger.LogInformation(
+                    "Server - {Count} Subscriptions scheduled for delete.",
                     subscriptionsToDelete.Count);
 
                 Task.Run(
-                    () => CleanupSubscriptions(new object[] { server, subscriptionsToDelete }));
+                    () => CleanupSubscriptionsCore(server, subscriptionsToDelete, logger));
             }
         }
 
         /// <summary>
         /// Deletes any expired subscriptions.
         /// </summary>
-        internal static void CleanupSubscriptions(object data)
+        private static void CleanupSubscriptionsCore(
+            IServerInternal server,
+            IList<ISubscription> subscriptionsToDelete,
+            ILogger logger)
         {
             try
             {
-                Utils.LogInformation("Server - CleanupSubscriptions Task Started");
+                logger.LogInformation("Server - CleanupSubscriptions Task Started");
 
-                object[] args = (object[])data;
-
-                var server = (IServerInternal)args[0];
-                foreach (ISubscription subscription in (List<ISubscription>)args[1])
+                foreach (ISubscription subscription in subscriptionsToDelete)
                 {
                     server.DeleteSubscription(subscription.Id);
                 }
 
-                Utils.LogInformation("Server - CleanupSubscriptions Task Completed");
+                logger.LogInformation("Server - CleanupSubscriptions Task Completed");
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Server - CleanupSubscriptions Task Halted Unexpectedly");
+                logger.LogError(e, "Server - CleanupSubscriptions Task Halted Unexpectedly");
             }
         }
 
@@ -2388,6 +2391,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private long m_lastSubscriptionId;
+        private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly double m_minPublishingInterval;
         private readonly double m_maxPublishingInterval;

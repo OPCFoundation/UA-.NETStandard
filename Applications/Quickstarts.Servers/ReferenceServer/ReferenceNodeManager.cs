@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Threading;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Test;
@@ -55,11 +56,11 @@ namespace Quickstarts.ReferenceServer
             bool useSamplingGroups = false)
             : base(server, configuration, useSamplingGroups, Namespaces.ReferenceServer)
         {
+            m_logger = server.Telemetry.CreateLogger<ReferenceNodeManager>();
+
             SystemContext.NodeIdFactory = this;
 
             // use suitable defaults if no configuration exists.
-
-            m_dynamicNodes = [];
         }
 
         /// <summary>
@@ -3881,7 +3882,7 @@ namespace Quickstarts.ReferenceServer
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error creating the ReferenceNodeManager address space.");
+                    m_logger.LogError(e, "Error creating the ReferenceNodeManager address space.");
                 }
 
                 AddPredefinedNode(SystemContext, root);
@@ -3910,7 +3911,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error writing Interval variable.");
+                m_logger.LogError(e, "Error writing Interval variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
             }
         }
@@ -3937,7 +3938,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error writing Enabled variable.");
+                m_logger.LogError(e, "Error writing Enabled variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
             }
         }
@@ -5008,7 +5009,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error doing simulation.");
+                m_logger.LogError(e, "Unexpected error doing simulation.");
             }
         }
 
@@ -5083,7 +5084,8 @@ namespace Quickstarts.ReferenceServer
         private Timer m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
-        private readonly List<BaseDataVariableState> m_dynamicNodes;
+        private readonly List<BaseDataVariableState> m_dynamicNodes = [];
+        private readonly ILogger m_logger;
 
         private static readonly bool[] s_booleanArray
             = [true, false, true, false, true, false, true, false, true];

@@ -52,8 +52,10 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
-        public ApplicationInstance()
+        public ApplicationInstance(ITelemetryContext telemetry)
         {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ApplicationInstance>();
             DisableCertificateAutoCreation = false;
         }
 
@@ -61,8 +63,11 @@ namespace Opc.Ua.Configuration
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
         /// <param name="applicationConfiguration">The application configuration.</param>
-        public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
-            : this()
+        /// <param name="telemetry"></param>
+        public ApplicationInstance(
+            ApplicationConfiguration applicationConfiguration,
+            ITelemetryContext telemetry)
+            : this(telemetry)
         {
             ApplicationConfiguration = applicationConfiguration;
         }
@@ -80,7 +85,8 @@ namespace Opc.Ua.Configuration
         public ApplicationType ApplicationType { get; set; }
 
         /// <summary>
-        /// Gets or sets the name of the config section containing the path to the application configuration file.
+        /// Gets or sets the name of the config section containing the path
+        /// to the application configuration file.
         /// </summary>
         /// <value>The name of the config section.</value>
         public string ConfigSectionName { get; set; }
@@ -1328,8 +1334,7 @@ namespace Opc.Ua.Configuration
                 MessageDlg.Message(message, true);
                 return await MessageDlg.ShowAsync().ConfigureAwait(false);
             }
-            m_logger.LogError(message);
-
+            m_logger.LogError("Approve Message prompt: {Message} -> Rejected", message);
             return false;
         }
 

@@ -35,15 +35,18 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using NUnit.Framework;
 
-namespace Opc.Ua.Server.Tests
+namespace Opc.Ua.Tests
 {
-    public sealed class NUnitTestLogger : ITelemetryContext, ILoggerFactory
+    public sealed class NUnitTelemetryContext : ITelemetryContext, ILoggerFactory
     {
         /// <inheritdoc/>
         public Meter Meter { get; }
+
         /// <inheritdoc/>
         public ILoggerFactory LoggerFactory { get; }
+
         /// <inheritdoc/>
         public ActivitySource ActivitySource { get; }
 
@@ -51,7 +54,7 @@ namespace Opc.Ua.Server.Tests
         /// Create telemetry context over a writer
         /// </summary>
         /// <param name="outputWriter"></param>
-        private NUnitTestLogger(TextWriter outputWriter)
+        private NUnitTelemetryContext(TextWriter outputWriter)
         {
             m_writer = outputWriter;
         }
@@ -59,7 +62,7 @@ namespace Opc.Ua.Server.Tests
         /// <inheritdoc/>
         public ILogger CreateLogger(string categoryName)
         {
-            return new Logger(this);
+            return new Logger(m_writer);
         }
 
         /// <summary>
@@ -69,7 +72,26 @@ namespace Opc.Ua.Server.Tests
         /// <returns></returns>
         public static ITelemetryContext Create(TextWriter writer)
         {
-            return new NUnitTestLogger(writer);
+            return new NUnitTelemetryContext(writer);
+        }
+
+        /// <summary>
+        /// Use the test context output
+        /// </summary>
+        /// <returns></returns>
+        public static ITelemetryContext Create()
+        {
+            return Create(TestContext.Out);
+        }
+
+        /// <summary>
+        /// Create a logger over the writer
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static ILogger<T> Create<T>()
+        {
+            return Create<T>(TestContext.Out);
         }
 
         /// <summary>
@@ -80,18 +102,13 @@ namespace Opc.Ua.Server.Tests
         /// <returns></returns>
         public static ILogger<T> Create<T>(TextWriter writer)
         {
-            var traceLogger = new NUnitTestLogger(writer);
+            var traceLogger = new NUnitTelemetryContext(writer);
 
             // disable the built in tracing, use nunit trace output
             Utils.SetTraceMask(Utils.TraceMask & Utils.TraceMasks.StackTrace);
             Utils.SetTraceOutput(Utils.TraceOutput.Off);
 
             return traceLogger.CreateLogger<T>();
-        }
-
-        public void SetWriter(TextWriter outputWriter)
-        {
-            Interlocked.Exchange(ref m_writer, outputWriter);
         }
 
         public void AddProvider(ILoggerProvider provider)
@@ -104,9 +121,9 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class Logger : ILogger
         {
-            public Logger(NUnitTestLogger outer)
+            public Logger(TextWriter outputWriter)
             {
-                m_outer = outer;
+                m_outputWriter = outputWriter;
             }
 
             public LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
@@ -119,6 +136,11 @@ namespace Opc.Ua.Server.Tests
             public bool IsEnabled(LogLevel logLevel)
             {
                 return logLevel >= MinimumLogLevel;
+            }
+
+            public void SetWriter(TextWriter outputWriter)
+            {
+                Interlocked.Exchange(ref m_outputWriter, outputWriter);
             }
 
             public void Log<TState>(
@@ -144,7 +166,7 @@ namespace Opc.Ua.Server.Tests
 
                     string logEntry = sb.ToString();
 
-                    m_outer.m_writer.WriteLine(logEntry);
+                    m_outputWriter.WriteLine(logEntry);
                 }
                 catch
                 {
@@ -152,9 +174,9 @@ namespace Opc.Ua.Server.Tests
                 }
             }
 
-            private readonly NUnitTestLogger m_outer;
+            private TextWriter m_outputWriter;
         }
 
-        private TextWriter m_writer;
+        private readonly TextWriter m_writer;
     }
 }

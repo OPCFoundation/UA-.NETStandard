@@ -427,7 +427,7 @@ namespace Opc.Ua
                     catch (IOException)
                     {
                         // file to delete may still be in use, retry
-                        m_logger.LogWarning("Failed to delete cert [{0}], retry.", thumbprint);
+                        m_logger.LogWarning("Failed to delete cert [{Thumbprint}], retry.", thumbprint);
                         retry--;
                     }
 
@@ -688,7 +688,7 @@ namespace Opc.Ua
                                         {
                                             m_logger.LogInformation(
                                                 Utils.TraceMasks.Security,
-                                                "Imported the PFX private key for [{0}].",
+                                                "Imported the PFX private key for [{Thumbprint}].",
                                                 certificate.Thumbprint);
                                             return certificate;
                                         }
@@ -717,7 +717,7 @@ namespace Opc.Ua
                                     {
                                         m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
-                                            "Imported the PEM private key for [{0}].",
+                                            "Imported the PEM private key for [{Thumbprint}].",
                                             certificate.Thumbprint);
                                         return certificate;
                                     }
@@ -745,7 +745,7 @@ namespace Opc.Ua
                                     {
                                         m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
-                                            "Imported the PEM private key for [{0}].",
+                                            "Imported the PEM private key for [{Thumbprint}].",
                                             certificate.Thumbprint);
                                         return certificate;
                                     }
@@ -760,7 +760,7 @@ namespace Opc.Ua
                             {
                                 m_logger.LogError(
                                     Utils.TraceMasks.Security,
-                                    "A private key for the certificate with thumbprint [{0}] does not exist.",
+                                    "A private key for the certificate with thumbprint [{Thumbprint}] does not exist.",
                                     certificate.Thumbprint);
                             }
                         }
@@ -769,7 +769,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             e,
-                            "Could not load private key for certificate {0}",
+                            "Could not load private key for certificate {Subject}",
                             subjectName);
                     }
                 }
@@ -779,7 +779,7 @@ namespace Opc.Ua
                 {
                     m_logger.LogError(
                         Utils.TraceMasks.Security,
-                        "The private key for the certificate with subject {0} failed to import.",
+                        "The private key for the certificate with subject {Subject} failed to import.",
                         Redact.Create(subjectName));
                     if (importException != null)
                     {
@@ -792,7 +792,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             Utils.TraceMasks.Security,
-                            "A Private key for the certificate with thumbpint {0} was not found.",
+                            "A Private key for the certificate with thumbpint {Thumbprint} was not found.",
                             thumbprint);
                     }
                     // if no private key was found, no need to retry
@@ -804,7 +804,7 @@ namespace Opc.Ua
                 {
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Retry to import private key after {0} ms.",
+                        "Retry to import private key after {Duration} ms.",
                         retryDelay);
                     await Task.Delay(retryDelay, ct).ConfigureAwait(false);
                 }
@@ -853,7 +853,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             e,
-                            "Failed to parse CRL {0} in store {1}.",
+                            "Failed to parse CRL {Crl} in store {StorePath}.",
                             file.FullName,
                             StorePath);
                         continue;
@@ -922,7 +922,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             e,
-                            "Failed to parse CRL {0} in store {1}.",
+                            "Failed to parse CRL {Crl} in store {StorePath}.",
                             file.FullName,
                             StorePath);
                     }
@@ -1179,7 +1179,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             e,
-                            "Could not load certificate from file: {0}",
+                            "Could not load certificate from file: {FilePath}",
                             file.FullName);
                     }
                 }

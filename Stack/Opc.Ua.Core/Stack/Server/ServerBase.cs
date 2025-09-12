@@ -14,19 +14,19 @@
 //#define THREAD_SCHEDULER
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -36,12 +36,37 @@ namespace Opc.Ua
     public class ServerBase : IServerBase
     {
         /// <summary>
+        /// This must be set by the derived class to initialize the telemtry
+        /// system. This is a workaround for the limtation that all servers
+        /// must be constructable via the default constructor. Fixtures will
+        /// set this property immediately after construction. But users should
+        /// do the same or use a constructor with the telemetry context
+        /// parameter.
+        /// TODO: Make required, which will require the introduction of a
+        /// server factory for fixtures (where T : new())
+        /// </summary>
+        public /* required */ ITelemetryContext Telemetry
+        {
+            get => m_telemetry;
+            init
+            {
+                m_telemetry = value;
+                Logger = value.CreateLogger(this);
+            }
+        }
+
+        /// <summary>
+        /// Logger instance for the server which is set when setting the
+        /// Telemetry member. Shall only be used by concrete implementations
+        /// deriving from this class.
+        /// </summary>
+        protected ILogger Logger { get; private set; } = NullLogger.Instance;
+
+        /// <summary>
         /// Initializes object with default values.
         /// </summary>
-        public ServerBase(ITelemetryContext telemetry = null)
+        public ServerBase()
         {
-            Telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<ServerBase>();
             m_messageContext = new ServiceMessageContext();
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
             ServiceHosts = [];
@@ -49,6 +74,15 @@ namespace Opc.Ua
             Endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_userTokenPolicyId = 0;
+        }
+
+        /// <summary>
+        /// Initializes object with default values.
+        /// </summary>
+        public ServerBase(ITelemetryContext telemetry)
+            : this()
+        {
+            Telemetry = telemetry;
         }
 
         /// <summary>
@@ -92,11 +126,6 @@ namespace Opc.Ua
                 Utils.SilentDispose(m_requestQueue);
             }
         }
-
-        /// <summary>
-        /// This must be set by the derived class to initialize the telemtry system
-        /// </summary>
-        public ITelemetryContext Telemetry { get; init; }
 
         /// <summary>
         /// The message context to use with the service.
@@ -209,7 +238,7 @@ namespace Opc.Ua
         {
             ITransportListener listener = null;
 
-            m_logger.LogInformation("Create Reverse Connection to Client at {0}.", url);
+            Logger.LogInformation("Create Reverse Connection to Client at {Url}.", url);
 
             if (TransportListeners != null)
             {
@@ -543,9 +572,9 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
+                        Logger.LogError(
                             e,
-                            "Unexpected error closing a listener. {0}",
+                            "Unexpected error closing a listener {Name}.",
                             listeners[ii].GetType().FullName);
                     }
                 }
@@ -829,14 +858,11 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                var message = new StringBuilder();
-                message.Append("Could not load ").Append(endpointUri.Scheme)
-                    .Append(" Stack Listener.");
-                if (e.InnerException != null)
-                {
-                    message.Append(' ').Append(e.InnerException.Message);
-                }
-                m_logger.LogError(e, message.ToString());
+                Logger.LogError(
+                    e,
+                    "Could not load {Scheme} Stack Listener. {Message}",
+                    endpointUri.Scheme,
+                    e.InnerException.Message);
                 throw;
             }
         }
@@ -921,7 +947,7 @@ namespace Opc.Ua
                 }
                 catch (SocketException e)
                 {
-                    m_logger.LogWarning(e, "Unable to get host addresses for hostname {0}.", hostname);
+                    Logger.LogWarning(e, "Unable to get host addresses for hostname {Name}.", hostname);
                 }
 
                 if (addresses.Length == 0)
@@ -933,9 +959,9 @@ namespace Opc.Ua
                     }
                     catch (SocketException e)
                     {
-                        m_logger.LogError(
+                        Logger.LogError(
                             e,
-                            "Unable to get host addresses for DNS hostname {0}.",
+                            "Unable to get host addresses for DNS hostname {Name}.",
                             fullName);
                     }
                 }
@@ -961,7 +987,7 @@ namespace Opc.Ua
             }
             catch (SocketException e)
             {
-                m_logger.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
+                Logger.LogError(e, "Unable to check aliases for hostname {Name}.", computerName);
             }
 
             if (entry != null)
@@ -1795,7 +1821,7 @@ namespace Opc.Ua
                 if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    m_server.m_logger.LogTrace("Server halted.");
+                    m_server.Logger.LogTrace("Server halted.");
                     return;
                 }
 
@@ -1803,7 +1829,7 @@ namespace Opc.Ua
                 if (m_queuedRequestsCount >= m_maxRequestCount)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    m_server.m_logger.LogTrace("Too many operations. Active: {0}", m_activeThreadCount);
+                    m_server.Logger.LogTrace("Too many operations. Active threads: {Count}", m_activeThreadCount);
                     return;
                 }
                 // Optionally scale up workers if needed
@@ -1852,7 +1878,7 @@ namespace Opc.Ua
                             }
                             catch (Exception ex)
                             {
-                                m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
+                                m_server.Logger.LogError(ex, "Unexpected error processing incoming request.");
                                 request.OperationCompleted(null, StatusCodes.BadInternalError);
                             }
                             finally
@@ -1894,7 +1920,7 @@ namespace Opc.Ua
         private object m_configuration;
         private object m_serverDescription;
         private RequestQueue m_requestQueue;
-        private ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
 
         /// <summary>
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server

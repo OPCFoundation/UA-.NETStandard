@@ -33,6 +33,7 @@ using System.Reflection;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Schema.Xml;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Schemas
@@ -85,6 +86,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         [TestCase("Opc.Ua.NodeSet2.xml")]
         public void LoadZipNodeSet2Resources(string resource)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string schemaPrefix = "Opc.Ua.Schema.";
             const string zipExtension = ".zip";
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
@@ -103,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             settings.CloseInput = true;
 
-            var localContext = new SystemContext { NamespaceUris = new NamespaceTable() };
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
 
             var exportedNodeSet = Export.UANodeSet.Read(zipStream);
             Assert.IsNotNull(exportedNodeSet);

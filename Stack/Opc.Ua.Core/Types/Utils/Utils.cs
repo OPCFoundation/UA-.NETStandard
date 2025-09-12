@@ -27,6 +27,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 #if !NETFRAMEWORK
 using Opc.Ua.Security.Certificates;
 #endif
@@ -2494,6 +2495,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2 ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
+            ILogger logger,
             bool useAsnParser = false)
         {
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
@@ -2507,12 +2509,12 @@ namespace Opc.Ua
                 if (useAsnParser)
                 {
                     ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
-                    return CertificateFactory.Create(certBlob, true);
+                    return CertificateFactory.Create(certBlob, true, logger);
                 }
                 else
 #endif
                 {
-                    return CertificateFactory.Create(certificateData, true);
+                    return CertificateFactory.Create(certificateData, true, logger);
                 }
             }
             catch (Exception e)
@@ -2528,10 +2530,12 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
+        /// <param name="logger"></param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2Collection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
+            ILogger logger,
             bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
@@ -2553,12 +2557,12 @@ namespace Opc.Ua
                     {
                         ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(
                             certificateData[offset..]);
-                        certificate = CertificateFactory.Create(certBlob, true);
+                        certificate = CertificateFactory.Create(certBlob, true, logger);
                     }
                     else
 #endif
                     {
-                        certificate = CertificateFactory.Create(certificateData[offset..], true);
+                        certificate = CertificateFactory.Create(certificateData[offset..], true, logger);
                     }
                 }
                 catch (Exception e)

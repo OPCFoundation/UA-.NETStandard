@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Encoding
@@ -46,7 +47,16 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
-        public JsonDataSetMessage(DataSet dataSet = null)
+        public JsonDataSetMessage(ILogger logger)
+            : this(null, logger)
+        {
+        }
+
+        /// <summary>
+        /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
+        /// </summary>
+        public JsonDataSetMessage(DataSet dataSet, ILogger logger)
+            : base(logger)
         {
             DataSet = dataSet;
         }
@@ -562,7 +572,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode RawData type
         /// </summary>
-        private static object DecodeRawData(
+        private object DecodeRawData(
             IJsonDecoder jsonDecoder,
             FieldMetaData fieldMetaData,
             string fieldName)
@@ -583,13 +593,13 @@ namespace Opc.Ua.PubSub.Encoding
                             (BuiltInType)fieldMetaData.BuiltInType);
                     }
 
-                    Utils.LogInformation(
-                        "JsonDataSetMessage - Decoding ValueRank = {0} not supported yet !!!",
+                    Logger.LogInformation(
+                        "JsonDataSetMessage - Decoding ValueRank = {ValueRank} not supported yet !!!",
                         fieldMetaData.ValueRank);
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError(ex, "JsonDataSetMessage - Error reading element for RawData.");
+                    Logger.LogError(ex, "JsonDataSetMessage - Error reading element for RawData.");
                     return StatusCodes.BadDecodingError;
                 }
             }
@@ -639,7 +649,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode a scalar type
         /// </summary>
-        private static object DecodeRawScalar(
+        private object DecodeRawScalar(
             IJsonDecoder jsonDecoder,
             byte builtInType,
             string fieldName)
@@ -704,7 +714,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "JsonDataSetMessage - Error decoding field {0}", fieldName);
+                Logger.LogError(ex, "JsonDataSetMessage - Error decoding field {Name}", fieldName);
             }
 
             return null;

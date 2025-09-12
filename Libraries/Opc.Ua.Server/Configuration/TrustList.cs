@@ -342,6 +342,7 @@ namespace Opc.Ua.Server
         {
             object[] inputParameters = [fileHandle];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
+                m_logger,
                 context,
                 objectId,
                 "Method/CloseAndUpdate",
@@ -456,6 +457,7 @@ namespace Opc.Ua.Server
 
             // report the TrustListUpdatedAuditEvent
             m_node.ReportTrustListUpdatedAuditEvent(
+                m_logger,
                 context,
                 objectId,
                 "Method/CloseAndUpdate",
@@ -475,6 +477,7 @@ namespace Opc.Ua.Server
         {
             object[] inputParameters = [certificate, isTrustedCertificate];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
+                m_logger,
                 context,
                 objectId,
                 "Method/AddCertificate",
@@ -530,6 +533,7 @@ namespace Opc.Ua.Server
 
             // report the TrustListUpdatedAuditEvent
             m_node.ReportTrustListUpdatedAuditEvent(
+                m_logger,
                 context,
                 objectId,
                 "Method/AddCertificate",
@@ -549,6 +553,7 @@ namespace Opc.Ua.Server
         {
             object[] inputParameters = [thumbprint];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
+                m_logger,
                 context,
                 objectId,
                 "Method/RemoveCertificate",
@@ -636,6 +641,7 @@ namespace Opc.Ua.Server
 
             // report the TrustListUpdatedAuditEvent
             m_node.ReportTrustListUpdatedAuditEvent(
+                m_logger,
                 context,
                 objectId,
                 "Method/RemoveCertificate",

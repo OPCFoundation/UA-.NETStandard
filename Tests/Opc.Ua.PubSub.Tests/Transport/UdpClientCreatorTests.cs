@@ -33,8 +33,10 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Transport;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
@@ -73,7 +75,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Test(Description = "Validate url value")]
         public void ValidateUdpClientCreatorGetEndPoint()
         {
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(m_defaultUrl);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger<UdpClientCreatorTests> logger = telemetry.CreateLogger<UdpClientCreatorTests>();
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(m_defaultUrl, logger);
             Assert.IsNotNull(ipEndPoint, "GetEndPoint failed: ipEndPoint is null");
 
             Assert.AreEqual(
@@ -93,14 +97,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Test(Description = "Invalidate url Scheme value")]
         public void InvalidateUdpClientCreatorUrlScheme()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger<UdpClientCreatorTests> logger = telemetry.CreateLogger<UdpClientCreatorTests>();
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
-                $"{Utils.UriSchemeOpcUdp}:{m_urlHostName}:{kDiscoveryPortNo}");
+                $"{Utils.UriSchemeOpcUdp}:{m_urlHostName}:{kDiscoveryPortNo}",
+                logger);
             Assert.IsNull(ipEndPoint, "Url scheme is not corect!");
         }
 
         [Test(Description = "Invalidate url Hostname value")]
         public void InvalidateUdpClientCreatorUrlHostName()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger<UdpClientCreatorTests> logger = telemetry.CreateLogger<UdpClientCreatorTests>();
             string urlHostNameChanged = "192.168.0.280";
             string localhostIP = ReplaceLastIpByte(m_urlHostName, "280");
             if (localhostIP != null)
@@ -108,21 +117,27 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 urlHostNameChanged = localhostIP;
             }
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
-                $"{m_urlScheme}{urlHostNameChanged}:{kDiscoveryPortNo}");
+                $"{m_urlScheme}{urlHostNameChanged}:{kDiscoveryPortNo}",
+                logger);
             Assert.IsNull(ipEndPoint, "Url hostname is not corect!");
         }
 
         [Test(Description = "Invalidate url Port number value")]
         public void InvalidateUdpClientCreatorUrlPort()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger<UdpClientCreatorTests> logger = telemetry.CreateLogger<UdpClientCreatorTests>();
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
-                $"{m_urlScheme}{m_urlHostName}: 0");
+                $"{m_urlScheme}{m_urlHostName}: 0",
+                logger);
             Assert.IsNull(ipEndPoint, "Url port number is wrong");
         }
 
         [Test(Description = "Validate url hostname as ip address value")]
         public void ValidateUdpClientCreatorUrlIPAddress()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger<UdpClientCreatorTests> logger = telemetry.CreateLogger<UdpClientCreatorTests>();
             string urlHostNameChanged = "192.168.0.200";
             string localhostIP = ReplaceLastIpByte(m_urlHostName, "200");
             if (localhostIP != null)
@@ -130,7 +145,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 urlHostNameChanged = localhostIP;
             }
             string address = $"{m_urlScheme}{urlHostNameChanged}:{kDiscoveryPortNo}";
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(address);
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(address, logger);
             Assert.IsNotNull(ipEndPoint, $"Url hostname({address}) is not correct!");
         }
 
@@ -138,6 +153,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Description = "Validate url hostname as computer bane value (DNS might be necessary)")]
         public void ValidateUdpClientCreatorUrlHostname()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger<UdpClientCreatorTests> logger = telemetry.CreateLogger<UdpClientCreatorTests>();
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -145,7 +162,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
 
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
-                $"{m_urlScheme}{Environment.MachineName}:{kDiscoveryPortNo}");
+                $"{m_urlScheme}{Environment.MachineName}:{kDiscoveryPortNo}",
+                logger);
             Assert.IsNotNull(ipEndPoint, "Url hostname is not corect!");
         }
 
@@ -155,13 +173,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpClientCreatorGetUdpClients()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger<UdpClientCreatorTests> logger = telemetry.CreateLogger<UdpClientCreatorTests>();
+
             // Create a publisher application
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
                 true,
                 true,
                 false);
-            var publisherApplication = UaPubSubApplication.Create(configurationFile);
+            var publisherApplication = UaPubSubApplication.Create(configurationFile, telemetry);
             Assert.IsNotNull(publisherApplication, "m_publisherApplication should not be null");
 
             // Get the publisher configuration
@@ -187,13 +208,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(networkAddressUrlState1, "networkAddressUrlState1 is null");
 
             IPEndPoint configuredEndPoint1 = UdpClientCreator.GetEndPoint(
-                networkAddressUrlState1.Url);
+                networkAddressUrlState1.Url,
+                logger);
             Assert.IsNotNull(configuredEndPoint1, "configuredEndPoint1 is null");
 
             List<UdpClient> udpClients1 = UdpClientCreator.GetUdpClients(
                 UsedInContext.Publisher,
                 networkAddressUrlState1.NetworkInterface,
-                configuredEndPoint1);
+                configuredEndPoint1,
+                telemetry,
+                logger);
             Assert.IsNotNull(udpClients1, "udpClients1 is null");
             Assert.IsNotEmpty(udpClients1, "udpClients1 is empty");
 
@@ -213,13 +237,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(networkAddressUrlState2, "networkAddressUrlState2 is null");
 
             IPEndPoint configuredEndPoint2 = UdpClientCreator.GetEndPoint(
-                networkAddressUrlState2.Url);
+                networkAddressUrlState2.Url,
+                logger);
             Assert.IsNotNull(configuredEndPoint2, "configuredEndPoint2 is null");
 
             List<UdpClient> udpClients2 = UdpClientCreator.GetUdpClients(
                 UsedInContext.Publisher,
                 networkAddressUrlState2.NetworkInterface,
-                configuredEndPoint2);
+                configuredEndPoint2,
+                telemetry,
+                logger);
             Assert.IsNotNull(udpClients2, "udpClients2 is null");
             Assert.IsNotEmpty(udpClients2, "udpClients2 is empty");
 

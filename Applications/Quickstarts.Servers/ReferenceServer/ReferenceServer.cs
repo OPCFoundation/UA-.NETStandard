@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -52,6 +53,22 @@ namespace Quickstarts.ReferenceServer
     /// </remarks>
     public class ReferenceServer : ReverseConnectServer
     {
+        /// <summary>
+        /// Create a reference server
+        /// </summary>
+        public ReferenceServer()
+        {
+        }
+
+        /// <summary>
+        /// Create a reference server with the specified telemetry context.
+        /// </summary>
+        /// <param name="telemetry"></param>
+        public ReferenceServer(ITelemetryContext telemetry)
+            : base(telemetry)
+        {
+        }
+
         public ITokenValidator TokenValidator { get; set; }
 
         /// <summary>
@@ -72,7 +89,7 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Utils.LogInformation(
+            Logger.LogInformation(
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
@@ -100,9 +117,9 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.DurableMonitoredItemQueueFactory();
+                return new Servers.DurableMonitoredItemQueueFactory(Telemetry);
             }
-            return new MonitoredItemQueueFactory();
+            return new MonitoredItemQueueFactory(Telemetry);
         }
 
         /// <summary>
@@ -174,7 +191,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            Utils.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
+            Logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
 
             base.OnServerStarting(configuration);
 
@@ -255,7 +272,7 @@ namespace Quickstarts.ReferenceServer
                     if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
                         configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
-                        var certificateValidator = new CertificateValidator();
+                        var certificateValidator = new CertificateValidator(Telemetry);
                         certificateValidator.UpdateAsync(configuration.SecurityConfiguration)
                             .Wait();
                         certificateValidator.Update(
@@ -282,9 +299,9 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = VerifyPassword(userNameToken);
 
-                Utils.LogInformation(
+                Logger.LogInformation(
                     Utils.TraceMasks.Security,
-                    "Username Token Accepted: {0}",
+                    "Username Token Accepted: {Identity}",
                     args.Identity?.DisplayName);
 
                 return;
@@ -294,14 +311,14 @@ namespace Quickstarts.ReferenceServer
 
             if (args.NewIdentity is X509IdentityToken x509Token)
             {
-                VerifyUserTokenCertificate(x509Token.Certificate);
+                VerifyX509IdentityToken(x509Token);
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(x509Token),
+                    new UserIdentity(x509Token, Logger),
                     [Role.AuthenticatedUser]);
-                Utils.LogInformation(
+                Logger.LogInformation(
                     Utils.TraceMasks.Security,
-                    "X509 Token Accepted: {0}",
+                    "X509 Token Accepted: {Identity}",
                     args.Identity?.DisplayName);
 
                 return;
@@ -360,7 +377,7 @@ namespace Quickstarts.ReferenceServer
             // User with permission to configure server
             if (userName == "sysadmin" && password == "demo")
             {
-                return new SystemConfigurationIdentity(new UserIdentity(userNameToken));
+                return new SystemConfigurationIdentity(new UserIdentity(userNameToken, Logger));
             }
 
             // standard users for CTT verification
@@ -382,15 +399,16 @@ namespace Quickstarts.ReferenceServer
                         LoadServerProperties().ProductUri,
                         new LocalizedText(info)));
             }
-            return new RoleBasedIdentity(new UserIdentity(userNameToken), [Role.AuthenticatedUser]);
+            return new RoleBasedIdentity(new UserIdentity(userNameToken, Logger), [Role.AuthenticatedUser]);
         }
 
         /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void VerifyUserTokenCertificate(X509Certificate2 certificate)
+        private void VerifyX509IdentityToken(X509IdentityToken token)
         {
+            X509Certificate2 certificate = token.GetOrCreateCertificate(Logger);
             try
             {
                 if (m_userCertificateValidator != null)
@@ -441,14 +459,14 @@ namespace Quickstarts.ReferenceServer
         {
             if (TokenValidator == null)
             {
-                Utils.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
+                Logger.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
                 return null;
             }
             try
             {
                 if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
                 {
-                    Utils.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
+                    Logger.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
                     return TokenValidator.ValidateToken(issuedToken);
                 }
 
@@ -476,9 +494,10 @@ namespace Quickstarts.ReferenceServer
                         "token is rejected.");
                 }
 
-                Utils.LogWarning(
+                Logger.LogWarning(
                     Utils.TraceMasks.Security,
-                    "VerifyIssuedToken: Throw ServiceResultException 0x{result:x}");
+                    "VerifyIssuedToken: Throw ServiceResultException 0x{Result:x}", result);
+
                 throw new ServiceResultException(
                     new ServiceResult(
                         result,

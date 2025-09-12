@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub
 {
@@ -39,6 +40,7 @@ namespace Opc.Ua.PubSub
     internal class UaPublisher : IUaPublisher
     {
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly WriterGroupPublishState m_writerGroupPublishState;
 
         /// <summary>
@@ -51,8 +53,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal UaPublisher(
             IUaPubSubConnection pubSubConnection,
-            WriterGroupDataType writerGroupConfiguration)
+            WriterGroupDataType writerGroupConfiguration,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<UaPublisher>();
             PubSubConnection = pubSubConnection ??
                 throw new ArgumentNullException(nameof(pubSubConnection));
             WriterGroupConfiguration =
@@ -64,7 +68,8 @@ namespace Opc.Ua.PubSub
                 WriterGroupConfiguration.Name,
                 WriterGroupConfiguration.PublishingInterval,
                 CanPublish,
-                PublishMessages);
+                PublishMessages,
+                telemetry);
         }
 
         /// <summary>
@@ -107,8 +112,8 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.LogInformation(
-                "The UaPublisher for WriterGroup '{0}' was started.",
+            m_logger.LogInformation(
+                "The UaPublisher for WriterGroup '{Name}' was started.",
                 WriterGroupConfiguration.Name);
         }
 
@@ -119,8 +124,8 @@ namespace Opc.Ua.PubSub
         {
             m_intervalRunner.Stop();
 
-            Utils.LogInformation(
-                "The UaPublisher for WriterGroup '{0}' was stopped.",
+            m_logger.LogInformation(
+                "The UaPublisher for WriterGroup '{Name}' was stopped.",
                 WriterGroupConfiguration.Name);
         }
 
@@ -152,10 +157,10 @@ namespace Opc.Ua.PubSub
                         if (uaNetworkMessage != null)
                         {
                             bool success = PubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                            Utils.LogInformation(
-                                "UaPublisher - PublishNetworkMessage, WriterGroupId:{0}; success = {1}",
+                            m_logger.LogInformation(
+                                "UaPublisher - PublishNetworkMessage, WriterGroupId:{WriterGroupId}; success = {Success}",
                                 WriterGroupConfiguration.WriterGroupId,
-                                success.ToString());
+                                success);
                         }
                     }
                 }
@@ -163,7 +168,7 @@ namespace Opc.Ua.PubSub
             catch (Exception e)
             {
                 // Unexpected exception in PublishMessages
-                Utils.LogError(e, "UaPublisher.PublishMessages");
+                m_logger.LogError(e, "UaPublisher.PublishMessages");
             }
         }
     }

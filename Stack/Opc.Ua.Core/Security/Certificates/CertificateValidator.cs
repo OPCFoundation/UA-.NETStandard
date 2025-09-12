@@ -1846,14 +1846,14 @@ namespace Opc.Ua
                 {
                     if (serverValidation)
                     {
-                        m_logger.LogError(message, Redact.Create(endpointUrl));
+                        m_logger.LogError("The domain '{Url}' is not listed in the server certificate.", Redact.Create(endpointUrl));
                     }
                     else
                     {
                         // write the invalid certificate to rejected store if specified.
                         m_logger.LogCertificate(
                             LogLevel.Error,
-                            "Certificate rejected. Reason={0}.",
+                            "Certificate rejected. Reason={Reason}.",
                             serverCertificate,
                             Redact.Create(serviceResult));
                         Task.Run(async () => await SaveCertificateAsync(serverCertificate)
@@ -1881,7 +1881,7 @@ namespace Opc.Ua
                         isIssuer
                             ? StatusCodes.BadCertificateUseNotAllowed
                             : StatusCodes.BadCertificateIssuerUseNotAllowed,
-                        "Certificate may not be used as an application instance certificate. {0}: {1}",
+                        "Certificate may not be used as an application instance certificate. {Status}: {Information}",
                         status.Status,
                         status.StatusInformation);
                 case X509ChainStatusFlags.NoError:

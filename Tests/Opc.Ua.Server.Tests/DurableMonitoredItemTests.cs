@@ -27,8 +27,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static readonly object[] FixtureArgs =
         [
-            new object[] { new MonitoredItemQueueFactory() },
-            new object[] { new DurableMonitoredItemQueueFactory() }
+            new object[] { new MonitoredItemQueueFactory(null) },
+            new object[] { new DurableMonitoredItemQueueFactory(null) }
         ];
 
         public DurableMonitoredItemTests(IMonitoredItemQueueFactory factory)
