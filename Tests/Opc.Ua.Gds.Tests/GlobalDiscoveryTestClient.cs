@@ -117,7 +117,7 @@ namespace Opc.Ua.Gds.Tests
                 .AddExtension<GlobalDiscoveryTestClientConfiguration>(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
 #endif
 

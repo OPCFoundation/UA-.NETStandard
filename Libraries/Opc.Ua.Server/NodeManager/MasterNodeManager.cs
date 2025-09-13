@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -110,17 +111,12 @@ namespace Opc.Ua.Server
                 {
                     RegisterNodeManager(nodeManager, registeredManagers, namespaceManagers);
                 }
+            }
 
-                // build table from dictionary.
-                NamespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
-
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
-                {
-                    if (namespaceManagers.TryGetValue(ii, out registeredManagers))
-                    {
-                        NamespaceManagers[ii] = [.. registeredManagers];
-                    }
-                }
+            // build NamespaceManagersDictionary from local dictionary.
+            foreach (KeyValuePair<int, List<INodeManager>> namespaceManager in namespaceManagers)
+            {
+                NamespaceManagers.TryAdd(namespaceManager.Key, namespaceManager.Value.AsReadOnly());
             }
         }
 
@@ -176,6 +172,8 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 List<INodeManager> nodeManagers = null;
+
+                Utils.SilentDispose(m_namespaceManagersSemaphoreSlim);
 
                 lock (m_lock)
                 {
@@ -432,44 +430,24 @@ namespace Opc.Ua.Server
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
             var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
-            m_readWriterLockSlim.EnterWriteLock();
+            m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
-                // copy existing values.
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
-                {
-                    if (NamespaceManagers.Length >= ii)
-                    {
-                        namespaceManagers[ii] = NamespaceManagers[ii];
-                    }
-                }
+                NamespaceManagers.AddOrUpdate(
+                    index,
+                    [nodeManager],
+                    (key, existingNodeManagers) =>
+                        {
+                            var nodeManagers = existingNodeManagers.ToList();
 
-                // allocate a new array for the index being updated.
-                INodeManager[] registeredManagers = namespaceManagers[index];
+                            nodeManagers.Add(nodeManager);
 
-                if (registeredManagers == null)
-                {
-                    registeredManagers = new INodeManager[1];
-                }
-                else
-                {
-                    registeredManagers = new INodeManager[registeredManagers.Length + 1];
-                    Array.Copy(
-                        namespaceManagers[index],
-                        registeredManagers,
-                        namespaceManagers[index].Length);
-                }
-
-                // add new node manager to the end of the list.
-                registeredManagers[^1] = nodeManager;
-                namespaceManagers[index] = registeredManagers;
-
-                // replace the table.
-                NamespaceManagers = namespaceManagers;
+                            return nodeManagers.AsReadOnly();
+                        });
             }
             finally
             {
-                m_readWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersSemaphoreSlim.Release();
             }
         }
 
@@ -499,65 +477,31 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // look up the node manager in the registered node managers for the namespace.
-            int nodeManagerIndex = Array.IndexOf(NamespaceManagers[namespaceIndex], nodeManager);
-            if (nodeManagerIndex < 0)
-            {
-                return false;
-            }
-
-            // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
-            var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
-
-            m_readWriterLockSlim.EnterWriteLock();
+            m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
-                // copy existing values.
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
+                if (!NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<INodeManager> readOnlyNodeManagers))
                 {
-                    if (NamespaceManagers.Length >= ii)
-                    {
-                        namespaceManagers[ii] = NamespaceManagers[ii];
-                    }
+                    return false;
+                }
+                var nodeManagers = readOnlyNodeManagers.ToList();
+
+                bool nodeManagerFound = nodeManagers.Remove(nodeManager);
+
+                if (nodeManagers.Count == 0)
+                {
+                    NamespaceManagers.TryRemove(namespaceIndex, out _);
+                }
+                else
+                {
+                    NamespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
                 }
 
-                // allocate a new smaller array to support element removal for the index being updated.
-                var registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length -
-                    1];
-
-                // begin by populating the new array with existing elements up to the target index.
-                if (nodeManagerIndex > 0)
-                {
-                    Array.Copy(
-                        namespaceManagers[namespaceIndex],
-                        0,
-                        registeredManagers,
-                        0,
-                        nodeManagerIndex);
-                }
-
-                // finish by populating the new array with existing elements after the target index.
-                if (nodeManagerIndex < namespaceManagers[namespaceIndex].Length - 1)
-                {
-                    Array.Copy(
-                        namespaceManagers[namespaceIndex],
-                        nodeManagerIndex + 1,
-                        registeredManagers,
-                        nodeManagerIndex,
-                        namespaceManagers[namespaceIndex].Length - nodeManagerIndex - 1);
-                }
-
-                // update the array for the target index.
-                namespaceManagers[namespaceIndex] = registeredManagers;
-
-                // replace the table.
-                NamespaceManagers = namespaceManagers;
-
-                return true;
+                return nodeManagerFound;
             }
             finally
             {
-                m_readWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersSemaphoreSlim.Release();
             }
         }
 
@@ -578,40 +522,27 @@ namespace Opc.Ua.Server
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
 
-            m_readWriterLockSlim.EnterReadLock();
-            try
+            // check if node managers are registered - use the core node manager if unknown.
+            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<INodeManager> nodeManagers))
             {
-                // check if node managers are registered - use the core node manager if unknown.
-                if (index >= NamespaceManagers.Length || NamespaceManagers[index] == null)
+                handle = m_nodeManagers[1].GetManagerHandle(nodeId);
+                if (handle != null)
                 {
-                    handle = m_nodeManagers[1].GetManagerHandle(nodeId);
-
-                    if (handle != null)
-                    {
-                        nodeManager = m_nodeManagers[1];
-                        return handle;
-                    }
-
-                    return null;
+                    nodeManager = m_nodeManagers[1];
+                    return handle;
                 }
-
-                // check each of the registered node managers.
-                INodeManager[] nodeManagers = NamespaceManagers[index];
-
-                for (int ii = 0; ii < nodeManagers.Length; ii++)
-                {
-                    handle = nodeManagers[ii].GetManagerHandle(nodeId);
-
-                    if (handle != null)
-                    {
-                        nodeManager = nodeManagers[ii];
-                        return handle;
-                    }
-                }
+                return null;
             }
-            finally
+
+            foreach (INodeManager nodeManagerToCheck in nodeManagers)
             {
-                m_readWriterLockSlim.ExitReadLock();
+                handle = nodeManagerToCheck.GetManagerHandle(nodeId);
+
+                if (handle != null)
+                {
+                    nodeManager = nodeManagerToCheck;
+                    return handle;
+                }
             }
 
             // node not recognized.
@@ -769,11 +700,48 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)> TranslateBrowsePathsToNodeIdsAsync(
+            OperationContext context,
+            BrowsePathCollection browsePaths,
+            CancellationToken cancellationToken = default)
+        {
+            return TranslateBrowsePathsToNodeIdsInternalAsync(
+                context,
+                browsePaths,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Translates a start node id plus a relative paths into a node id.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void TranslateBrowsePathsToNodeIds(
             OperationContext context,
             BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = TranslateBrowsePathsToNodeIdsInternalAsync(
+                context,
+                browsePaths,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Translates a start node id plus a relative paths into a node id.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            TranslateBrowsePathsToNodeIdsInternalAsync(
+                OperationContext context,
+                BrowsePathCollection browsePaths,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             if (browsePaths == null)
             {
@@ -781,8 +749,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowsePathResultCollection(browsePaths.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
+            var results = new BrowsePathResultCollection(browsePaths.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
@@ -802,7 +770,8 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = TranslateBrowsePath(context, browsePath, result);
+                    error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -845,6 +814,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -891,10 +862,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates a browse path.
         /// </summary>
-        protected ServiceResult TranslateBrowsePath(
+        protected async ValueTask<ServiceResult> TranslateBrowsePathAsync(
             OperationContext context,
             BrowsePath browsePath,
-            BrowsePathResult result)
+            BrowsePathResult result,
+            CancellationToken cancellationToken)
         {
             Debug.Assert(browsePath != null);
             Debug.Assert(result != null);
@@ -943,13 +915,15 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(serviceResult))
             {
                 // translate path only if validation is passing
-                TranslateBrowsePath(
+                await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     result.Targets,
-                    0);
+                    0,
+                    cancellationToken)
+                .ConfigureAwait(false);
             }
 
             return serviceResult;
@@ -959,13 +933,14 @@ namespace Opc.Ua.Server
         /// Recursively processes the elements in the RelativePath starting at the specified index.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void TranslateBrowsePath(
+        private async ValueTask TranslateBrowsePathAsync(
             OperationContext context,
             INodeManager nodeManager,
             object sourceHandle,
             RelativePath relativePath,
             BrowsePathTargetCollection targets,
-            int index)
+            int index,
+            CancellationToken cancellationToken)
         {
             Debug.Assert(nodeManager != null);
             Debug.Assert(sourceHandle != null);
@@ -998,12 +973,26 @@ namespace Opc.Ua.Server
 
             try
             {
-                nodeManager.TranslateBrowsePath(
+                if (nodeManager is ITranslateBrowsePathAsyncNodeManager asyncNodeManager)
+                {
+                    await asyncNodeManager.TranslateBrowsePathAsync(
+                        context,
+                        sourceHandle,
+                        element,
+                        targetIds,
+                        externalTargetIds,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                }
+                else
+                {
+                    nodeManager.TranslateBrowsePath(
                     context,
                     sourceHandle,
                     element,
                     targetIds,
                     externalTargetIds);
+                }
             }
             catch (Exception e)
             {
@@ -1112,13 +1101,15 @@ namespace Opc.Ua.Server
                 }
 
                 // recursively follow hops.
-                TranslateBrowsePath(
+                await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     targets,
-                    index + 1);
+                    index + 1,
+                    cancellationToken)
+                .ConfigureAwait(false);
             }
         }
 
@@ -1134,6 +1125,51 @@ namespace Opc.Ua.Server
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = BrowseInternalAsync(
+                context,
+                view,
+                maxReferencesPerNode,
+                nodesToBrowse,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Returns the set of references that meet the filter criteria.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
+            OperationContext context,
+            ViewDescription view,
+            uint maxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken cancellationToken = default)
+        {
+            return BrowseInternalAsync(
+                context,
+                view,
+                maxReferencesPerNode,
+                nodesToBrowse,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Returns the set of references that meet the filter criteria.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> 
+            BrowseInternalAsync(
+            OperationContext context,
+            ViewDescription view,
+            uint maxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -1177,8 +1213,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowseResultCollection(nodesToBrowse.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
+            var results = new BrowseResultCollection(nodesToBrowse.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
 
             uint continuationPointsAssigned = 0;
 
@@ -1214,13 +1250,32 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = Browse(
-                        context,
-                        view,
-                        maxReferencesPerNode,
-                        continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
-                        nodeToBrowse,
-                        result);
+                    if (sync)
+                    {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+                        error = BrowseAsync(
+                            context,
+                            view,
+                            maxReferencesPerNode,
+                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                            nodeToBrowse,
+                            result,
+                            sync,
+                            cancellationToken).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+                    }
+                    else
+                    {
+                        error = await BrowseAsync(
+                            context,
+                            view,
+                            maxReferencesPerNode,
+                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                            nodeToBrowse,
+                            result,
+                            sync,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -1255,6 +1310,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -1311,6 +1368,48 @@ namespace Opc.Ua.Server
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = BrowseNextInternalAsync(
+                context,
+                releaseContinuationPoints,
+                continuationPoints,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Continues a browse operation that was previously halted.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            BrowseNextAsync(
+                OperationContext context,
+                bool releaseContinuationPoints,
+                ByteStringCollection continuationPoints,
+                CancellationToken cancellationToken = default)
+        {
+            return BrowseNextInternalAsync(
+                context,
+                releaseContinuationPoints,
+                continuationPoints,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Continues a browse operation that was previously halted.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            BrowseNextInternalAsync(
+            OperationContext context,
+            bool releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1322,14 +1421,14 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowseResultCollection(continuationPoints.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(continuationPoints.Count);
+            var results = new BrowseResultCollection(continuationPoints.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
 
             for (int ii = 0; ii < continuationPoints.Count; ii++)
             {
-                ContinuationPoint cp = null;
+                ContinuationPoint cp;
 
                 // check if request has timed out or been canceled.
                 if (StatusCode.IsBad(context.OperationStatus))
@@ -1401,11 +1500,29 @@ namespace Opc.Ua.Server
                     {
                         ReferenceDescriptionCollection references = result.References;
 
-                        error = FetchReferences(
-                            context,
-                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
-                            ref cp,
-                            ref references);
+                        if (sync)
+                        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+                            (error, cp, references) = FetchReferencesAsync(
+                                context,
+                                continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                                cp,
+                                references,
+                                sync,
+                                cancellationToken).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+                        }
+                        else
+                        {
+                            (error, cp, references) = await FetchReferencesAsync(
+                                    context,
+                                    continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                                    cp,
+                                    references,
+                                    sync,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                        }
 
                         result.References = references;
                     }
@@ -1450,18 +1567,22 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
-        protected ServiceResult Browse(
+        protected async ValueTask<ServiceResult> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
             bool assignContinuationPoint,
             BrowseDescription nodeToBrowse,
-            BrowseResult result)
+            BrowseResult result,
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             Debug.Assert(context != null);
             Debug.Assert(nodeToBrowse != null);
@@ -1524,11 +1645,32 @@ namespace Opc.Ua.Server
 
             // loop until browse is complete or max results.
             ReferenceDescriptionCollection references = result.References;
-            ServiceResult error = FetchReferences(
-                context,
-                assignContinuationPoint,
-                ref cp,
-                ref references);
+
+            ServiceResult error;
+            if (sync)
+            {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+                (error, cp, references) = FetchReferencesAsync(
+                   context,
+                   assignContinuationPoint,
+                   cp,
+                   references,
+                   sync,
+                   cancellationToken).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+            }
+            else
+            {
+                (error, cp, references) = await FetchReferencesAsync(
+                   context,
+                   assignContinuationPoint,
+                   cp,
+                   references,
+                   sync,
+                   cancellationToken)
+                   .ConfigureAwait(false);
+            }
+
             result.References = references;
 
             // save continuation point.
@@ -1545,11 +1687,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loops until browse is complete for max results reached.
         /// </summary>
-        protected ServiceResult FetchReferences(
-            OperationContext context,
-            bool assignContinuationPoint,
-            ref ContinuationPoint cp,
-            ref ReferenceDescriptionCollection references)
+        protected async ValueTask<(
+            ServiceResult serviceResult,
+            ContinuationPoint cp,
+            ReferenceDescriptionCollection references
+            )> FetchReferencesAsync(
+                OperationContext context,
+                bool assignContinuationPoint,
+                ContinuationPoint cp,
+                ReferenceDescriptionCollection references,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             Debug.Assert(context != null);
             Debug.Assert(cp != null);
@@ -1563,7 +1711,24 @@ namespace Opc.Ua.Server
             while (cp != null)
             {
                 // fetch next batch.
-                nodeManager.Browse(context, ref cp, references);
+                if (nodeManager is IBrowseAsyncNodeManager asyncNodeManager)
+                {
+                    if (sync)
+                    {
+                        Utils.LogWarning("Async Browse called synchronously. Prefer using BrowseAsync for best performance. NodeManager={0}", nodeManager);
+                        cp = asyncNodeManager.BrowseAsync(context, cp, references, cancellationToken)
+                            .AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        cp = await asyncNodeManager.BrowseAsync(context, cp, references, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    nodeManager.Browse(context, ref cp, references);
+                }
 
                 var referencesToKeep = new ReferenceDescriptionCollection(references.Count);
 
@@ -1607,7 +1772,7 @@ namespace Opc.Ua.Server
                 {
                     if (!assignContinuationPoint)
                     {
-                        return StatusCodes.BadNoContinuationPoints;
+                        return (StatusCodes.BadNoContinuationPoints, cp, references);
                     }
 
                     cp.Id = Guid.NewGuid();
@@ -1617,7 +1782,7 @@ namespace Opc.Ua.Server
             }
 
             // all is good.
-            return ServiceResult.Good;
+            return (ServiceResult.Good, cp, references);
         }
 
         /// <summary>
@@ -1693,6 +1858,44 @@ namespace Opc.Ua.Server
             out DataValueCollection values,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (values, diagnosticInfos) = ReadInternalAsync(
+                context,
+                maxAge,
+                timestampsToReturn,
+                nodesToRead,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Reads a set of nodes.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken cancellationToken = default)
+        {
+            return ReadInternalAsync(context, maxAge, timestampsToReturn, nodesToRead, sync: false, cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads a set of nodes.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadInternalAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             if (nodesToRead == null)
             {
                 throw new ArgumentNullException(nameof(nodesToRead));
@@ -1709,8 +1912,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            values = new DataValueCollection(nodesToRead.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var values = new DataValueCollection(nodesToRead.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
 
             // create empty list of errors.
             var errors = new List<ServiceResult>(values.Count);
@@ -1760,16 +1963,34 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                for (int ii = 0; ii < m_nodeManagers.Count; ii++)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-#if VERBOSE
-                    Utils.LogTrace(
-                        (int)Utils.TraceMasks.ServiceDetail,
-                        "MasterNodeManager.Read - Calling NodeManager {0} of {1}",
-                        ii,
-                        m_nodeManagers.Count);
-#endif
-                    m_nodeManagers[ii].Read(context, maxAge, nodesToRead, values, errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async Read called synchronously. Prefer using ReadAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.ReadAsync(
+                            context,
+                            maxAge,
+                            nodesToRead,
+                            values,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.ReadAsync(
+                            context,
+                            maxAge,
+                            nodesToRead,
+                            values,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
 
@@ -1818,6 +2039,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (values, diagnosticInfos);
         }
 
         /// <summary>
@@ -1833,6 +2056,51 @@ namespace Opc.Ua.Server
             out HistoryReadResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = HistoryReadInternalAsync(
+                context,
+                historyReadDetails,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodesToRead,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Reads the history of a set of items.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
+            OperationContext context,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            CancellationToken cancellationToken = default)
+        {
+            return HistoryReadInternalAsync(context,
+                                            historyReadDetails,
+                                            timestampsToReturn,
+                                            releaseContinuationPoints,
+                                            nodesToRead,
+                                            sync: false,
+                                            cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads the history of a set of items.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadInternalAsync(
+            OperationContext context,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             // validate history details parameter.
             if (ExtensionObject.IsNull(historyReadDetails))
             {
@@ -1846,8 +2114,8 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            results = new HistoryReadResultCollection(nodesToRead.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var results = new HistoryReadResultCollection(nodesToRead.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -1897,16 +2165,38 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-                    nodeManager.HistoryRead(
-                        context,
-                        details,
-                        timestampsToReturn,
-                        releaseContinuationPoints,
-                        nodesToRead,
-                        results,
-                        errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async HistoryRead called synchronously. Prefer using HistoryReadAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.HistoryReadAsync(
+                            context,
+                            details,
+                            timestampsToReturn,
+                            releaseContinuationPoints,
+                            nodesToRead,
+                            results,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.HistoryReadAsync(
+                             context,
+                            details,
+                            timestampsToReturn,
+                            releaseContinuationPoints,
+                            nodesToRead,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1944,6 +2234,24 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
+        }
+
+        /// <summary>
+        /// Writes a set of values.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
+            OperationContext context,
+            WriteValueCollection nodesToWrite,
+            CancellationToken cancellationToken = default)
+        {
+            return WriteInternalAsync(
+                context,
+                nodesToWrite,
+                sync: false,
+                cancellationToken);
         }
 
         /// <summary>
@@ -1955,6 +2263,28 @@ namespace Opc.Ua.Server
             WriteValueCollection nodesToWrite,
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = WriteInternalAsync(
+                context,
+                nodesToWrite,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Calls a method defined on an object.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> is <c>null</c>.</exception>
+        protected virtual async ValueTask<(
+            StatusCodeCollection results,
+            DiagnosticInfoCollection diagnosticInfos
+            )> WriteInternalAsync(
+                OperationContext context,
+                WriteValueCollection nodesToWrite,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -1969,8 +2299,8 @@ namespace Opc.Ua.Server
             int count = nodesToWrite.Count;
 
             bool diagnosticsExist = false;
-            results = new StatusCodeCollection(count);
-            diagnosticInfos = new DiagnosticInfoCollection(count);
+            var results = new StatusCodeCollection(count);
+            var diagnosticInfos = new DiagnosticInfoCollection(count);
 
             // add placeholder for each result.
             bool validItems = false;
@@ -2013,9 +2343,30 @@ namespace Opc.Ua.Server
                 var errors = new List<ServiceResult>(count);
                 errors.AddRange(new ServiceResult[count]);
 
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-                    nodeManager.Write(context, nodesToWrite, errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async Write called synchronously. Prefer using WriteAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.WriteAsync(
+                            context,
+                            nodesToWrite,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.WriteAsync(
+                            context,
+                            nodesToWrite,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToWrite.Count; ii++)
@@ -2049,6 +2400,23 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
+        }
+
+        /// <summary>
+        /// Updates the history for a set of nodes.
+        /// </summary>
+        public virtual ValueTask<(HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos)> HistoryUpdateAsync(
+            OperationContext context,
+            ExtensionObjectCollection historyUpdateDetails,
+            CancellationToken cancellationToken = default)
+        {
+            return HistoryUpdateAsync(
+                context,
+                historyUpdateDetails,
+                sync: false,
+                cancellationToken);
         }
 
         /// <summary>
@@ -2059,6 +2427,26 @@ namespace Opc.Ua.Server
             ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = HistoryUpdateAsync(
+                context,
+                historyUpdateDetails,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Updates the history for a set of nodes.
+        /// </summary>
+        protected virtual async ValueTask<(
+            HistoryUpdateResultCollection results,
+            DiagnosticInfoCollection diagnosticInfos
+            )> HistoryUpdateAsync(
+                OperationContext context,
+                ExtensionObjectCollection historyUpdateDetails,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             Type detailsType = null;
             var nodesToUpdate = new List<HistoryUpdateDetails>();
@@ -2079,8 +2467,8 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToUpdate.Count);
+            var results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToUpdate.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -2136,9 +2524,34 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-                    nodeManager.HistoryUpdate(context, detailsType, nodesToUpdate, results, errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async HistoryUpdate called synchronously. Prefer using HistoryUpdateAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.HistoryUpdateAsync(
+                            context,
+                            detailsType,
+                            nodesToUpdate,
+                            results,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.HistoryUpdateAsync(
+                            context,
+                            detailsType,
+                            nodesToUpdate,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToUpdate.Count; ii++)
@@ -2176,6 +2589,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -2215,7 +2630,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
-        public virtual async ValueTask<(
+        protected virtual async ValueTask<(
             CallMethodResultCollection results,
             DiagnosticInfoCollection diagnosticInfos
             )> CallInternalAsync(
@@ -2287,7 +2702,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async Call called synchronously. Prefer using CallAsync for best performance. NodeManager={0}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.CallAsync(
@@ -2347,21 +2762,68 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Handles condition refresh request.
+        /// Calls a method defined on an object.
+        /// </summary>
+        public virtual ValueTask ConditionRefreshAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            return ConditionRefreshInternalAsync(
+                context,
+                monitoredItems,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Calls a method defined on an object.
         /// </summary>
         public virtual void ConditionRefresh(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems)
         {
-            foreach (INodeManager nodeManager in m_nodeManagers)
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            _ = ConditionRefreshInternalAsync(
+                context,
+                monitoredItems,
+                sync: true);
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Handles condition refresh request.
+        /// </summary>
+        protected virtual async ValueTask ConditionRefreshInternalAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
             {
                 try
                 {
-                    nodeManager.ConditionRefresh(context, monitoredItems);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async ConditionRefresh called synchronously. Prefer using ConditionRefreshAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
+                            .AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error calling ConditionRefresh on NodeManager.");
+                    Utils.LogError(e, "Error calling ConditionRefreshAsync on AsyncNodeManager.");
                 }
             }
         }
@@ -3196,7 +3658,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace managers being managed
         /// </summary>
-        internal INodeManager[][] NamespaceManagers { get; private set; }
+        internal ConcurrentDictionary<int, IReadOnlyList<INodeManager>> NamespaceManagers { get; } = [];
 
         /// <summary>
         /// Validates a monitoring attributes parameter.
@@ -3799,7 +4261,7 @@ namespace Opc.Ua.Server
         private readonly List<IAsyncNodeManager> m_asyncNodeManagers;
         private long m_lastMonitoredItemId;
         private readonly uint m_maxContinuationPointsPerBrowse;
-        private readonly ReaderWriterLockSlim m_readWriterLockSlim = new();
+        private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1);
     }
 
     /// <summary>
