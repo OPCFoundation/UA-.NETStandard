@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var mockResolver = new MockResolver();
+            var mockResolver = new MockResolver(telemetry);
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
 
@@ -289,7 +289,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(car.ToString());
 
-            var encoderContext = new ServiceMessageContext
+            var encoderContext = new ServiceMessageContext(telemetry)
             {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
@@ -344,7 +344,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
-            var mockResolver = new MockResolver();
+            var mockResolver = new MockResolver(telemetry);
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
@@ -528,7 +528,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            var encoderContext = new ServiceMessageContext
+            var encoderContext = new ServiceMessageContext(telemetry)
             {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
@@ -588,7 +588,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             SetRepeatedRandomSeed();
 
-            var mockResolver = new MockResolver();
+            var mockResolver = new MockResolver(telemetry);
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
@@ -745,7 +745,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            var encoderContext = new ServiceMessageContext
+            var encoderContext = new ServiceMessageContext(telemetry)
             {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris

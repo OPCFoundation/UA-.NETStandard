@@ -32,6 +32,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Xml;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -76,8 +77,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(float.NaN, "NaN")]
         public void EncodeDecodeFloat(float binaryValue, string expectedXmlValue)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Encode
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             string actualXmlValue;
             using (
                 var xmlEncoder = new XmlEncoder(
@@ -125,8 +127,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(double.NaN, "NaN")]
         public void EncodeDecodeDouble(double binaryValue, string expectedXmlValue)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Encode
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             string actualXmlValue;
             using (
                 var xmlEncoder = new XmlEncoder(
@@ -171,6 +174,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeDecodeVariantMatrix()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var value = new Matrix(s_elements, BuiltInType.Int32, s_dimensions);
             var variant = new Variant(value);
 
@@ -178,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value>\r\n      <uax:Matrix>\r\n        <uax:Dimensions>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n        </uax:Dimensions>\r\n        <uax:Elements>\r\n          <uax:Int32>1</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>3</uax:Int32>\r\n          <uax:Int32>4</uax:Int32>\r\n        </uax:Elements>\r\n      </uax:Matrix>\r\n    </uax:Value>\r\n  </uax:Test>\r\n</uax:VariantTest>";
 
             // Encode
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             string actualXmlValue;
             using (
                 var xmlEncoder = new XmlEncoder(
@@ -217,13 +221,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeDecodeVariantNil()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Variant variant = Variant.Null;
 
             const string expected =
                 "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value xsi:nil=\"true\" />\r\n  </uax:Test>\r\n</uax:VariantTest>";
 
             // Encode
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             string actualXmlValue;
             using (
                 var xmlEncoder = new XmlEncoder(

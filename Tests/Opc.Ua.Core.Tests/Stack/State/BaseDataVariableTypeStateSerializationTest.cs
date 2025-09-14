@@ -31,7 +31,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var typeNode = new BaseDataVariableTypeState();
-            var serviceMessageContext = new ServiceMessageContext();
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -71,7 +71,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Here this type node is used just as support for the instanceNode to refer to
             var typeNode = new BaseDataVariableTypeState();
-            var serviceMessageContext = new ServiceMessageContext();
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris

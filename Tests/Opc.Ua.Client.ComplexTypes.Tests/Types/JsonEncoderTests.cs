@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     public class ComplexTypesJsonEncoderTests : ComplexTypesCommon
     {
         public ServiceMessageContext EncoderContext;
-        public ITelemetryContext Telemetry;
+        public new ITelemetryContext Telemetry;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
         [OneTimeSetUp]

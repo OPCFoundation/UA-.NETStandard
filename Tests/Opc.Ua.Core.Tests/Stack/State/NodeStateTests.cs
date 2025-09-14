@@ -49,6 +49,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         public const string OpcUa = "http://opcfoundation.org/UA/";
         public IServiceMessageContext Context;
+        public ITelemetryContext Telemetry;
 
         [DatapointSource]
         public Type[] TypeArray = [.. typeof(BaseObjectState).Assembly.GetExportedTypes()
@@ -57,7 +58,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            Context = new ServiceMessageContext();
+            Telemetry = NUnitTelemetryContext.Create();
+            Context = new ServiceMessageContext(Telemetry);
             NamespaceTable nameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             nameSpaceUris.GetIndexOrAppend(ApplicationUri);

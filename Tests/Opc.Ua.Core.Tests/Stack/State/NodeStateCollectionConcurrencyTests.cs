@@ -27,7 +27,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var testNodeState = new AnalogUnitRangeState(null);
-            var serviceMessageContext = new ServiceMessageContext();
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
 
             var systemContext = new SystemContext(telemetry)
             {
@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serviceMessageContext = new ServiceMessageContext();
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -165,7 +165,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serviceMessageContext = new ServiceMessageContext();
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
