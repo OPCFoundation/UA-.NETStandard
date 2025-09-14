@@ -1293,7 +1293,7 @@ namespace Opc.Ua.Client.Tests
             bool resendData = await subscription.ResendDataAsync().ConfigureAwait(false);
             Assert.True(resendData);
 
-            Thread.Sleep(delay);
+            await Task.Delay(delay).ConfigureAwait(false);
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             Assert.AreEqual(2, numOfDataChangeNotifications);
