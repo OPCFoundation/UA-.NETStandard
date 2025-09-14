@@ -214,7 +214,7 @@ namespace Opc.Ua.Server
                                                                   bool permissionsOnly,
                                                                   CancellationToken cancellationToken = default)
         {
-            if(NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.GetPermissionMetadataAsync(
                     context,
