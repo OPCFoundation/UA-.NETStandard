@@ -1079,7 +1079,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
 
-                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) = 
+                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
                     await m_serverInternal.NodeManager.BrowseAsync(
                         context,
                         view,
@@ -3612,7 +3612,8 @@ namespace Opc.Ua.Server
                     m_serverInternal.SetNodeManager(masterNodeManager);
 
                     // put the node manager into a state that allows it to be used by other objects.
-                    masterNodeManager.Startup();
+                    masterNodeManager.StartupAsync()
+                        .AsTask().GetAwaiter().GetResult();
 
                     // create the manager responsible for handling events.
                     LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
@@ -3819,7 +3820,8 @@ namespace Opc.Ua.Server
                             -= SessionChannelKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
-                        m_serverInternal.NodeManager.Shutdown();
+                        m_serverInternal.NodeManager.ShutdownAsync()
+                            .AsTask().GetAwaiter().GetResult();
                     }
                 }
             }
