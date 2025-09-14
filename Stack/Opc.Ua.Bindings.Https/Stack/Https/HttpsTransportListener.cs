@@ -473,15 +473,12 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                // note: do not use Task.Factory.FromAsync here
-                IAsyncResult result = m_callback.BeginProcessRequest(
-                    ListenerId,
-                    endpoint,
-                    input,
-                    null,
-                    null);
-
-                IServiceResponse output = m_callback.EndProcessRequest(result);
+                IServiceResponse output =
+                    await m_callback.ProcessRequestAsync(
+                        ListenerId,
+                        endpoint,
+                        input,
+                        ct).ConfigureAwait(false);
 
                 if (!ct.IsCancellationRequested)
                 {

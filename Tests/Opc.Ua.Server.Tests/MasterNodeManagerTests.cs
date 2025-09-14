@@ -76,9 +76,9 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                INodeManager[] registeredManagers = sut.NamespaceManagers[
+                INodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
-                ];
+                ]];
                 Assert.AreEqual(1, registeredManagers.Length);
                 Assert.Contains(nodeManager.Object, registeredManagers);
             }
@@ -122,9 +122,9 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                INodeManager[] registeredManagers = sut.NamespaceManagers[
+                INodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
-                ];
+                ]];
                 Assert.AreEqual(2, registeredManagers.Length);
                 Assert.Contains(originalNodeManager.Object, registeredManagers);
                 Assert.Contains(newNodeManager.Object, registeredManagers);
@@ -180,9 +180,9 @@ namespace Opc.Ua.Server.Tests
                 //-- Assert
                 Assert.IsTrue(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                INodeManager[] registeredManagers = sut.NamespaceManagers[
+                INodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
-                ];
+                ]];
                 Assert.AreEqual(totalManagers - 1, registeredManagers.Length);
                 NUnit.Framework.Assert.That(registeredManagers, Has.No.Member(nodeManagerToRemove));
             }
@@ -232,9 +232,9 @@ namespace Opc.Ua.Server.Tests
                 //-- Assert
                 Assert.IsFalse(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                INodeManager[] registeredManagers = sut.NamespaceManagers[
+                INodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
-                ];
+                ]];
                 Assert.AreEqual(2, registeredManagers.Length);
                 Assert.Contains(firstNodeManager.Object, registeredManagers);
                 Assert.Contains(thirdNodeManager.Object, registeredManagers);
@@ -284,9 +284,9 @@ namespace Opc.Ua.Server.Tests
                     .That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 
                 Assert.Contains(originalNs, server.CurrentInstance.NamespaceUris.ToArray());
-                INodeManager[] registeredManagers = sut.NamespaceManagers[
+                INodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(originalNs)
-                ];
+                ]];
                 Assert.AreEqual(1, registeredManagers.Length);
                 Assert.Contains(originalNodeManager.Object, registeredManagers);
             }

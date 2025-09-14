@@ -379,7 +379,7 @@ namespace Opc.Ua.Client.Tests
                 .Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
         }
 

@@ -130,7 +130,7 @@ namespace Opc.Ua.Configuration.Tests
                 .Build(ApplicationUri, ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance
@@ -159,7 +159,7 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false));
             // discoveryserver can not be combined with client/server
             applicationInstance = new ApplicationInstance(telemetry)
@@ -172,14 +172,14 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false));
             NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false));
             // server overrides client settings
             applicationInstance = new ApplicationInstance(telemetry)
@@ -192,7 +192,7 @@ namespace Opc.Ua.Configuration.Tests
                 .Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
 
@@ -207,7 +207,7 @@ namespace Opc.Ua.Configuration.Tests
                 .Build(ApplicationUri, ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
 
@@ -220,7 +220,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None)
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false));
             // invalid mix sign / none
             NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -229,7 +229,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None)
                     .AddSecurityConfiguration(applicationCerts)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false));
             // invalid policy
             NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -238,7 +238,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddPolicy(MessageSecurityMode.Sign, "123")
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false));
             // invalid user token policy
             NUnit.Framework.Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -247,7 +247,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddUserTokenPolicy(null)
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false));
         }
 
@@ -270,7 +270,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetOperationTimeout(10000)
                 .AsServer([EndpointUrl])
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance
@@ -321,7 +321,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetSendCertificateChain(true)
                 .SetSuppressNonceValidationErrors(true)
                 .SetRejectUnknownRevocationStatus(true)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance
@@ -358,7 +358,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCerts,
                     CertificateStoreType.Directory,
                     CertificateStoreType.X509Store)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance
@@ -402,7 +402,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsClient()
                 .SetDefaultSessionTimeout(10000)
                 .AddSecurityConfiguration(applicationCerts, CertificateStoreType.X509Store)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
             CertificateIdentifier applicationCertificate = applicationInstance
@@ -425,7 +425,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 byte[] rawData = applicationCertificate.Certificate.RawData;
-                await store.Add(X509CertificateLoader.LoadCertificate(rawData))
+                await store.AddAsync(X509CertificateLoader.LoadCertificate(rawData))
                     .ConfigureAwait(false);
             }
 
@@ -468,7 +468,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl, "opc.https://localhost:51001"], s_alternateBaseAddresses)
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .SetAddAppCertToTrustedStore(true)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance
@@ -528,7 +528,7 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsServer(s_baseAddresses)
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false);
             }
             else
@@ -537,7 +537,7 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false);
             }
 
@@ -625,7 +625,7 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsServer(s_baseAddresses)
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false);
             }
             else
@@ -634,7 +634,7 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false);
             }
             Assert.NotNull(config);
@@ -713,7 +713,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetOperationTimeout(10000)
                 .AsServer([EndpointUrl])
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
 
             //Arrange cert
@@ -775,7 +775,7 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsServer(s_baseAddressesArray)
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false);
             }
             else
@@ -784,7 +784,7 @@ namespace Opc.Ua.Configuration.Tests
                     .Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
-                    .Create()
+                    .CreateAsync()
                     .ConfigureAwait(false);
             }
             Assert.NotNull(config);

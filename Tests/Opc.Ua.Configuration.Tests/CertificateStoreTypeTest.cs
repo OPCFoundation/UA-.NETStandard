@@ -96,7 +96,7 @@ namespace Opc.Ua.Configuration.Tests
                     issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath);
 
             // patch custom stores before creating the config
-            ApplicationConfiguration appConfig = await appConfigBuilder.Create()
+            ApplicationConfiguration appConfig = await appConfigBuilder.CreateAsync()
                 .ConfigureAwait(false);
 
             bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true)
@@ -106,10 +106,14 @@ namespace Opc.Ua.Configuration.Tests
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
 
-            OpenCertStore(appConfig.SecurityConfiguration.TrustedIssuerCertificates);
-            OpenCertStore(appConfig.SecurityConfiguration.TrustedPeerCertificates);
-            OpenCertStore(appConfig.SecurityConfiguration.UserIssuerCertificates);
-            OpenCertStore(appConfig.SecurityConfiguration.TrustedUserCertificates);
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
+                .ConfigureAwait(false);
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates, telemetry)
+                .ConfigureAwait(false);
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates, telemetry)
+                .ConfigureAwait(false);
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates, telemetry)
+                .ConfigureAwait(false);
 
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(
@@ -121,13 +125,13 @@ namespace Opc.Ua.Configuration.Tests
                 instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
 
-        private static void OpenCertStore(CertificateTrustList trustList)
+        private static async Task OpenCertStoreAsync(CertificateTrustList trustList, ITelemetryContext telemetry)
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
             using ICertificateStore trustListStore = trustList.OpenStore(telemetry);
-            Task<X509Certificate2Collection> certs = trustListStore.EnumerateAsync();
-            Task<X509CRLCollection> crls = trustListStore.EnumerateCRLsAsync();
+            X509Certificate2Collection certs = await trustListStore.EnumerateAsync()
+                .ConfigureAwait(false);
+            X509CRLCollection crls = await trustListStore.EnumerateCRLsAsync()
+                .ConfigureAwait(false);
             trustListStore.Close();
         }
 
@@ -210,13 +214,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use DeleteAsync instead.")]
-        public Task<bool> Delete(string thumbprint)
-        {
-            return DeleteAsync(thumbprint);
-        }
-
-        /// <inheritdoc/>
         public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
             return m_innerStore.DeleteAsync(thumbprint, ct);
@@ -232,13 +229,6 @@ namespace Opc.Ua.Configuration.Tests
         public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
         {
             return m_innerStore.EnumerateAsync(ct);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use FindByThumbprintAsync instead.")]
-        public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
-        {
-            return FindByThumbprintAsync(thumbprint);
         }
 
         /// <inheritdoc/>
@@ -265,23 +255,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use DeleteCRLAsync instead.")]
-        public Task<bool> DeleteCRL(X509CRL crl)
-        {
-            return DeleteCRLAsync(crl);
-        }
-
-        /// <inheritdoc/>
         public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             return m_innerStore.DeleteCRLAsync(crl, ct);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs()
-        {
-            return EnumerateCRLsAsync();
         }
 
         /// <inheritdoc/>
@@ -291,28 +267,12 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs(
-            X509Certificate2 issuer,
-            bool validateUpdateTime = true)
-        {
-            return EnumerateCRLsAsync(issuer, validateUpdateTime);
-        }
-
-        /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync(
             X509Certificate2 issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
             return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime, ct);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use IsRevokedAsync instead.")]
-        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
-        {
-            return IsRevokedAsync(issuer, certificate);
         }
 
         /// <inheritdoc/>
@@ -326,23 +286,6 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
-
-        /// <inheritdoc/>
-        [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(
-            string thumbprint,
-            string subjectName,
-            string applicationUri,
-            NodeId certificateType,
-            string password)
-        {
-            return LoadPrivateKeyAsync(
-                thumbprint,
-                subjectName,
-                applicationUri,
-                certificateType,
-                password);
-        }
 
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKeyAsync(
@@ -360,13 +303,6 @@ namespace Opc.Ua.Configuration.Tests
                 certificateType,
                 password,
                 ct);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use AddRejectedAsync instead.")]
-        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
-        {
-            return AddRejectedAsync(certificates, maxCertificates);
         }
 
         /// <inheritdoc/>

@@ -88,30 +88,16 @@ namespace Opc.Ua
             SupportedServices = [];
         }
 
-        /// <summary>
-        /// Begins processing a request received via a binary encoded channel.
-        /// </summary>
-        /// <param name="channeId">A unique identifier for the secure channel which is the source of the request.</param>
-        /// <param name="endpointDescription">The description of the endpoint which the secure channel is using.</param>
-        /// <param name="request">The incoming request.</param>
-        /// <param name="callback">The callback.</param>
-        /// <param name="callbackData">The callback data.</param>
-        /// <returns>
-        /// The result which must be passed to the EndProcessRequest method.
-        /// </returns>
-        /// <seealso cref="EndProcessRequest"/>
-        /// <seealso cref="ITransportListener"/>
-        /// <exception cref="ArgumentNullException"><paramref name="channeId"/> is <c>null</c>.</exception>
-        public IAsyncResult BeginProcessRequest(
-            string channeId,
+        /// <inheritdoc/>
+        public Task<IServiceResponse> ProcessRequestAsync(
+            string channelId,
             EndpointDescription endpointDescription,
             IServiceRequest request,
-            AsyncCallback callback,
-            object callbackData)
+            CancellationToken cancellationToken = default)
         {
-            if (channeId == null)
+            if (channelId == null)
             {
-                throw new ArgumentNullException(nameof(channeId));
+                throw new ArgumentNullException(nameof(channelId));
             }
 
             if (request == null)
@@ -119,29 +105,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(request));
             }
 
-            // create operation.
-            var result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
-
             var context = new SecureChannelContext(
-                channeId,
+                channelId,
                 endpointDescription,
                 RequestEncoding.Binary);
 
-            // begin invoke service.
-            return result.BeginProcessRequest(context, request);
-        }
-
-        /// <summary>
-        /// Ends processing a request received via a binary encoded channel.
-        /// </summary>
-        /// <param name="result">The result returned by the BeginProcessRequest method.</param>
-        /// <returns>
-        /// The response to return over the secure channel.
-        /// </returns>
-        /// <seealso cref="BeginProcessRequest"/>
-        public IServiceResponse EndProcessRequest(IAsyncResult result)
-        {
-            return ProcessRequestAsyncResult.WaitForComplete(result, false);
+            var incomingRequest = new EndpointIncomingRequest(this, context, request);
+            return incomingRequest.ProcessAsync(cancellationToken);
         }
 
         /// <summary>
@@ -376,10 +346,9 @@ namespace Opc.Ua
         /// Dispatches an incoming binary encoded request.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual IAsyncResult BeginInvokeService(
+        public virtual async Task<InvokeServiceResponseMessage> InvokeServiceAsync(
             InvokeServiceMessage request,
-            AsyncCallback callback,
-            object asyncState)
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -392,30 +361,21 @@ namespace Opc.Ua
                 // set the request context.
                 SetRequestContext(RequestEncoding.Binary);
 
-                // create handler.
-                var result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
-                return result.BeginProcessRequest(
-                    SecureChannelContext.Current,
-                    request.InvokeServiceRequest);
-            }
-            catch (Exception e)
-            {
-                throw CreateSoapFault(null, e);
-            }
-        }
+                SecureChannelContext context = SecureChannelContext.Current;
 
-        /// <summary>
-        /// Dispatches an incoming binary encoded request.
-        /// </summary>
-        /// <param name="result">The async result.</param>
-        public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult result)
-        {
-            try
-            {
-                // wait for the response.
-                IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(
-                    result,
-                    false);
+                // decoding incoming message.
+                var serviceRequest =
+                    BinaryDecoder.DecodeMessage(
+                        request.InvokeServiceRequest,
+                        null,
+                        MessageContext) as IServiceRequest;
+
+                // process the request.
+                IServiceResponse response = await ProcessRequestAsync(
+                    context.SecureChannelId,
+                    context.EndpointDescription,
+                    serviceRequest,
+                    cancellationToken).ConfigureAwait(false);
 
                 // encode the response.
                 return new InvokeServiceResponseMessage
@@ -426,7 +386,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 // create fault.
-                ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(result), e);
+                ServiceFault fault = CreateFault(null, e);
 
                 // encode the fault as a response.
                 return new InvokeServiceResponseMessage
@@ -1109,6 +1069,124 @@ namespace Opc.Ua
             private IServiceResponse m_response;
             private ServiceDefinition m_service;
             private Exception m_error;
+        }
+
+        /// <summary>
+        /// An object that handles an incoming request for an endpoint.
+        /// </summary>
+        protected class EndpointIncomingRequest : IEndpointIncomingRequest
+        {
+            /// <summary>
+            /// Initialize the Object with a Request
+            /// </summary>
+            public EndpointIncomingRequest(
+                EndpointBase endpoint,
+                SecureChannelContext context,
+                IServiceRequest request)
+            {
+                m_endpoint = endpoint;
+                SecureChannelContext = context;
+                Request = request;
+                m_tcs = new TaskCompletionSource<IServiceResponse>();
+            }
+
+            /// <inheritdoc/>
+            public object Calldata { get; set; }
+
+            /// <inheritdoc/>
+            public SecureChannelContext SecureChannelContext { get; }
+
+            /// <inheritdoc/>
+            public IServiceRequest Request { get; }
+
+            /// <summary>
+            /// Process an incoming request
+            /// </summary>
+            /// <returns></returns>
+            public Task<IServiceResponse> ProcessAsync(CancellationToken cancellationToken = default)
+            {
+                try
+                {
+                    m_cancellationToken = cancellationToken;
+                    m_cancellationToken.Register(() => m_tcs.TrySetCanceled());
+                    m_service = m_endpoint.FindService(Request.TypeId);
+                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this, m_cancellationToken);
+                }
+                catch (Exception e)
+                {
+                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, e));
+                }
+
+                return m_tcs.Task;
+            }
+
+            /// <inheritdoc/>
+            public async Task CallAsync(CancellationToken cancellationToken = default)
+            {
+                using CancellationTokenSource timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
+                    new CancellationTokenSource((int)Request.RequestHeader.TimeoutHint) : null;
+
+                CancellationToken[] tokens = timeoutHintCts != null ?
+                    [m_cancellationToken, cancellationToken, timeoutHintCts.Token] :
+                    [m_cancellationToken, cancellationToken];
+
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(tokens);
+
+                try
+                {
+                    SecureChannelContext.Current = SecureChannelContext;
+
+                    Activity activity = null;
+                    if (ActivitySource.HasListeners())
+                    {
+                        // extract trace information from the request header if available
+                        if (Request.RequestHeader?.AdditionalHeader?
+                            .Body is AdditionalParametersType parameters &&
+                            TryExtractActivityContextFromParameters(
+                                parameters,
+                                out ActivityContext activityContext))
+                        {
+                            activity = ActivitySource.StartActivity(
+                                Request.GetType().Name,
+                                ActivityKind.Server,
+                                activityContext);
+                        }
+                    }
+
+                    using (activity)
+                    {
+                        IServiceResponse response = await m_service.InvokeAsync(Request, linkedCts.Token).ConfigureAwait(false);
+                        m_tcs.TrySetResult(response);
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (e is OperationCanceledException)
+                    {
+                        e = new ServiceResultException(StatusCodes.BadTimeout);
+                    }
+
+                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, e));
+                }
+            }
+
+            /// <inheritdoc/>
+            public void OperationCompleted(IServiceResponse response, ServiceResult error)
+            {
+                if (ServiceResult.IsBad(error))
+                {
+                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
+                }
+                else
+                {
+                    m_tcs.TrySetResult(response);
+                }
+            }
+
+            private readonly EndpointBase m_endpoint;
+            private CancellationToken m_cancellationToken;
+            private ServiceDefinition m_service;
+            private readonly TaskCompletionSource<IServiceResponse> m_tcs;
         }
 
         private readonly ITelemetryContext m_telemetry;

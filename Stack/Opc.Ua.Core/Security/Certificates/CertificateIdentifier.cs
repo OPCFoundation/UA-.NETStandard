@@ -144,32 +144,12 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
-        [Obsolete("Use FindAsync instead")]
-        public Task<X509Certificate2> Find(string applicationUri = null)
-        {
-            return FindAsync(applicationUri);
-        }
-
-        /// <summary>
-        /// Finds a certificate in a store.
-        /// </summary>
         public Task<X509Certificate2> FindAsync(
             string applicationUri = null,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
             return FindAsync(false, applicationUri, telemetry, ct);
-        }
-
-        /// <summary>
-        /// Loads the private key for the certificate with an optional password.
-        /// </summary>
-        [Obsolete("Use LoadPrivateKeyAsync instead")]
-        public Task<X509Certificate2> LoadPrivateKey(string password, string applicationUri = null)
-        {
-            return LoadPrivateKeyExAsync(
-                password != null ? new CertificatePasswordProvider(password) : null,
-                applicationUri);
         }
 
         /// <summary>
@@ -186,17 +166,6 @@ namespace Opc.Ua
                 applicationUri,
                 telemetry,
                 ct);
-        }
-
-        /// <summary>
-        /// Loads the private key for the certificate with an optional password provider.
-        /// </summary>
-        [Obsolete("Use LoadPrivateKeyExAsync instead")]
-        public Task<X509Certificate2> LoadPrivateKeyEx(
-            ICertificatePasswordProvider passwordProvider,
-            string applicationUri = null)
-        {
-            return LoadPrivateKeyExAsync(passwordProvider, applicationUri);
         }
 
         /// <summary>
@@ -843,13 +812,6 @@ namespace Opc.Ua
         public bool NoPrivateKeys => true;
 
         /// <inheritdoc/>
-        [Obsolete("Use EnumerateAsync instead")]
-        public Task<X509Certificate2Collection> Enumerate()
-        {
-            return EnumerateAsync();
-        }
-
-        /// <inheritdoc/>
         public async Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
         {
             var collection = new X509Certificate2Collection();
@@ -904,13 +866,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use DeleteAsync instead.")]
-        public Task<bool> Delete(string thumbprint)
-        {
-            return DeleteAsync(thumbprint);
-        }
-
-        /// <inheritdoc/>
         public async Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(thumbprint))
@@ -931,13 +886,6 @@ namespace Opc.Ua
             }
 
             return false;
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use FindByThumbprintAsync instead.")]
-        public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
-        {
-            return FindByThumbprintAsync(thumbprint);
         }
 
         /// <inheritdoc/>
@@ -968,34 +916,6 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => false;
 
         /// <inheritdoc/>
-        [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(
-            string thumbprint,
-            string subjectName,
-            string password)
-        {
-            return Task.FromResult<X509Certificate2>(null);
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(
-            string thumbprint,
-            string subjectName,
-            string applicationUri,
-            NodeId certificateType,
-            string password)
-        {
-            return LoadPrivateKeyAsync(
-                thumbprint,
-                subjectName,
-                applicationUri,
-                certificateType,
-                password);
-        }
-
-        /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
@@ -1011,13 +931,6 @@ namespace Opc.Ua
         public bool SupportsCRLs => false;
 
         /// <inheritdoc/>
-        [Obsolete("Use IsRevokedAsync instead.")]
-        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
-        {
-            return IsRevokedAsync(issuer, certificate);
-        }
-
-        /// <inheritdoc/>
         public Task<StatusCode> IsRevokedAsync(
             X509Certificate2 issuer,
             X509Certificate2 certificate,
@@ -1027,25 +940,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs()
-        {
-            return EnumerateCRLsAsync();
-        }
-
-        /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync(CancellationToken ct = default)
         {
             return Task.FromResult(new X509CRLCollection());
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs(
-            X509Certificate2 issuer,
-            bool validateUpdateTime = true)
-        {
-            return EnumerateCRLsAsync(issuer, validateUpdateTime);
         }
 
         /// <inheritdoc/>
@@ -1058,36 +955,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use AddCRLAsync instead")]
-        public Task AddCRL(X509CRL crl)
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-
-        /// <inheritdoc/>
         public Task AddCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use DeleteCRLAsync instead.")]
-        public Task<bool> DeleteCRL(X509CRL crl)
-        {
-            return DeleteCRLAsync(crl);
-        }
-
-        /// <inheritdoc/>
         public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use AddRejectedAsync instead.")]
-        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
-        {
-            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>

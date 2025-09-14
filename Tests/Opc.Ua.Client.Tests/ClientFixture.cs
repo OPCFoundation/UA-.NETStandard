@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Tests
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
 
             // check the application certificate.

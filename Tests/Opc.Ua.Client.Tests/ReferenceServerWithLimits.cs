@@ -363,14 +363,17 @@ namespace Opc.Ua.Client.Tests
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = Browse(
+#pragma warning disable CA2012 // Use ValueTasks correctly
+                    error = BrowseAsync(
                         context,
                         view,
                         maxReferencesPerNode,
                         MaxContinuationPointsPerBrowseForUnitTest <= 0 ||
                         continuationPointsAssigned < MaxContinuationPointsPerBrowseForUnitTest,
                         nodeToBrowse,
-                        result);
+                        result,
+                        sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
                 }
                 catch (Exception e)
                 {

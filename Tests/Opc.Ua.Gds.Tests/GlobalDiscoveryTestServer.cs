@@ -280,7 +280,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetDeleteOnLoad(true)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
 #endif
             TestUtils.PatchBaseAddressesPorts(config, basePort);
