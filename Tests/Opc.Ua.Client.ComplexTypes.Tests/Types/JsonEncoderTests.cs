@@ -35,6 +35,7 @@ using System.Text;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
@@ -50,14 +51,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     public class ComplexTypesJsonEncoderTests : ComplexTypesCommon
     {
         public ServiceMessageContext EncoderContext;
+        public ITelemetryContext Telemetry;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
-            EncoderContext = new ServiceMessageContext();
+            Telemetry = NUnitTelemetryContext.Create();
+            EncoderContext = new ServiceMessageContext(Telemetry);
             // create private copy of factory
-            EncoderContext.Factory = new EncodeableFactory(EncoderContext.Factory);
+            EncoderContext.Factory = new EncodeableFactory(EncoderContext.Factory, Telemetry);
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);

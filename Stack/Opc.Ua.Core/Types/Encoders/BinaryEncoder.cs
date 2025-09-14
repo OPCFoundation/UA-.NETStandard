@@ -18,6 +18,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 #if NET5_0_OR_GREATER
 using Opc.Ua.Buffers;
 #endif
@@ -32,8 +33,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to a memory buffer.
         /// </summary>
-        public BinaryEncoder(IServiceMessageContext context)
+        public BinaryEncoder(
+            IServiceMessageContext context)
         {
+            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream();
             m_writer = new BinaryWriter(m_ostrm);
             Context = context;
@@ -44,13 +47,18 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to a fixed size memory buffer.
         /// </summary>
-        public BinaryEncoder(byte[] buffer, int start, int count, IServiceMessageContext context)
+        public BinaryEncoder(
+            byte[] buffer,
+            int start,
+            int count,
+            IServiceMessageContext context)
         {
             if (buffer == null)
             {
                 throw new ArgumentNullException(nameof(buffer));
             }
 
+            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
             Context = context;
@@ -64,8 +72,12 @@ namespace Opc.Ua
         /// <param name="stream">The stream to which the encoder writes.</param>
         /// <param name="context">The message context to use for the encoding.</param>
         /// <param name="leaveOpen">If the stream should be left open on dispose.</param>
-        public BinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen)
+        public BinaryEncoder(
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen)
         {
+            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = stream ?? throw new ArgumentNullException(nameof(stream));
             m_writer = new BinaryWriter(m_ostrm, Encoding.UTF8, leaveOpen);
             Context = context;
@@ -2149,7 +2161,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning(
+                        m_logger.LogWarning(
                             "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
@@ -2625,6 +2637,7 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
+        private readonly ILogger m_logger;
         private Stream m_ostrm;
         private BinaryWriter m_writer;
         private readonly bool m_leaveOpen;

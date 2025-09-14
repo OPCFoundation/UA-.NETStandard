@@ -204,7 +204,7 @@ namespace Opc.Ua
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
 
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -232,7 +232,7 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -259,7 +259,7 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromBinary(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -329,7 +329,7 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromXml(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,

@@ -419,7 +419,7 @@ namespace Opc.Ua.Client
                     // monitor the configuration file.
                     if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                     {
-                        m_configurationWatcher = new ConfigurationWatcher(configuration);
+                        m_configurationWatcher = new ConfigurationWatcher(configuration, m_telemetry);
                         m_configurationWatcher.Changed += OnConfigurationChangedAsync;
                     }
                 }

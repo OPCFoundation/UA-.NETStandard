@@ -443,7 +443,7 @@ namespace Opc.Ua.Bindings
                     configuration.MaxMessageSize),
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-                MessageContext = new ServiceMessageContext
+                MessageContext = new ServiceMessageContext(m_telemetry)
                 {
                     MaxArrayLength = configuration.MaxArrayLength,
                     MaxByteStringLength = configuration.MaxByteStringLength,

@@ -68,6 +68,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a logger from a logger factory
         /// </summary>
+        /// <typeparam name="TContext"></typeparam>
         /// <param name="telemetry"></param>
         /// <param name="context"></param>
         /// <returns></returns>

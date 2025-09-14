@@ -873,8 +873,8 @@ namespace Opc.Ua.Bindings
             /// <summary>
             /// Initializes the object with a callback
             /// </summary>
-            public WriteOperation(int timeout, AsyncCallback callback, object asyncState)
-                : base(timeout, callback, asyncState)
+            public WriteOperation(int timeout, AsyncCallback callback, object asyncState, ILogger logger)
+                : base(timeout, callback, asyncState, logger)
             {
             }
 

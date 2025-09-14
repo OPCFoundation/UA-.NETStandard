@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -26,12 +27,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Initializes the object with a callback
         /// </summary>
-        public ChannelAsyncOperation(int timeout, AsyncCallback callback, object asyncState)
+        public ChannelAsyncOperation(int timeout, AsyncCallback callback, object asyncState, ILogger logger)
         {
             m_callback = callback;
             m_asyncState = asyncState;
             m_synchronous = false;
             m_completed = false;
+            m_logger = logger;
 
             if (timeout is > 0 and not int.MaxValue)
             {
@@ -434,7 +436,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
                             "ClientChannel: Unexpected error invoking AsyncCallback.");
                     }
@@ -448,6 +450,7 @@ namespace Opc.Ua.Bindings
         private readonly AsyncCallback m_callback;
         private readonly object m_asyncState;
         private readonly bool m_synchronous;
+        private readonly ILogger m_logger;
         private bool m_completed;
         private ManualResetEvent m_event;
         private TaskCompletionSource<bool> m_tcs;

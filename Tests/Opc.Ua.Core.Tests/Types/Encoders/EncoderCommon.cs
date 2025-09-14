@@ -43,6 +43,7 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -78,11 +79,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected StringTable ServerUris { get; private set; }
         protected BufferManager BufferManager { get; private set; }
         protected RecyclableMemoryStreamManager RecyclableMemoryManager { get; private set; }
+        protected ITelemetryContext Telemetry { get; private set; }
 
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            Context = new ServiceMessageContext { MaxArrayLength = kMaxArrayLength };
+            Telemetry = NUnitTelemetryContext.Create();
+            Context = new ServiceMessageContext(Telemetry) { MaxArrayLength = kMaxArrayLength };
             NameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
@@ -1340,8 +1343,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             private readonly Dictionary<ExpandedNodeId, DynamicEncodeable> m_dynamicEncodeables
                 = [];
 
-            public DynamicEncodeableFactory(IEncodeableFactory factory)
-                : base(factory)
+            public DynamicEncodeableFactory(IEncodeableFactory factory, ITelemetryContext telemetry)
+                : base(factory, telemetry)
             {
             }
 

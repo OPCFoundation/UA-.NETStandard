@@ -85,6 +85,7 @@ namespace Opc.Ua.Bindings
         public HttpsTransportChannel(string uriScheme, ITelemetryContext telemetry)
         {
             UriScheme = uriScheme;
+            m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<HttpsTransportChannel>();
         }
 
@@ -603,7 +604,7 @@ namespace Opc.Ua.Bindings
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext
+                MessageContext = new ServiceMessageContext(m_telemetry)
                 {
                     MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
@@ -624,6 +625,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
+        private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
 
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new(

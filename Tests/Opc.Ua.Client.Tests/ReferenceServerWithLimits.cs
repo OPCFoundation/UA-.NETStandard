@@ -54,10 +54,16 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ReferenceServerWithLimits : ReferenceServer
     {
+        /// <summary>
+        /// Create a reference server
+        /// </summary>
+        public ReferenceServerWithLimits()
+        {
+        }
+
         public ReferenceServerWithLimits(ITelemetryContext telemetry)
             : base(telemetry)
         {
-            m_logger = telemetry.CreateLogger<ReferenceServerWithLimits>();
         }
 
         public uint TestMaxBrowseReferencesPerNode { get; set; } = 10u;
@@ -105,7 +111,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation(
+            Logger.LogInformation(
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
@@ -136,7 +142,6 @@ namespace Opc.Ua.Client.Tests
             SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
             return SessionManagerForTest;
         }
-        private readonly ILogger m_logger;
     }
 
     /// <summary>

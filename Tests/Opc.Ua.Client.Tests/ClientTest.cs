@@ -1237,6 +1237,8 @@ namespace Opc.Ua.Client.Tests
             string securityPolicy,
             bool operationLimits = false)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             if (OperationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -1265,7 +1267,7 @@ namespace Opc.Ua.Client.Tests
                 session = Session;
             }
 
-            var clientTestServices = new ClientTestServices(session);
+            var clientTestServices = new ClientTestServices(session, telemetry);
             ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
                 clientTestServices,
                 requestHeader,
@@ -1340,13 +1342,15 @@ namespace Opc.Ua.Client.Tests
         [Order(480)]
         public void Subscription()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var requestHeader = new RequestHeader
             {
                 Timestamp = DateTime.UtcNow,
                 TimeoutHint = MaxTimeout
             };
 
-            var clientTestServices = new ClientTestServices(Session);
+            var clientTestServices = new ClientTestServices(Session, telemetry);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
         }
 
@@ -1589,6 +1593,7 @@ namespace Opc.Ua.Client.Tests
         [NonParallelizable]
         public async Task TransferSubscriptionNativeAsync(bool sendInitialData)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ISession transferSession = null;
             try
             {
@@ -1606,7 +1611,7 @@ namespace Opc.Ua.Client.Tests
                     .. CommonTestWorkers.NodeIdTestSetStatic
                         .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
                 ];
-                var clientTestServices = new ClientTestServices(Session);
+                var clientTestServices = new ClientTestServices(Session, telemetry);
                 UInt32Collection subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(
                     clientTestServices,
                     requestHeader,
@@ -1626,7 +1631,7 @@ namespace Opc.Ua.Client.Tests
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
-                var transferTestServices = new ClientTestServices(transferSession);
+                var transferTestServices = new ClientTestServices(transferSession, telemetry);
                 CommonTestWorkers.TransferSubscriptionTest(
                     transferTestServices,
                     requestHeader,

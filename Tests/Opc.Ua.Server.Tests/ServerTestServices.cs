@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Logging;
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
@@ -34,6 +36,10 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public interface IServerTestServices
     {
+        ITelemetryContext Telemetry { get; }
+
+        ILogger Logger { get; }
+
         ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -148,8 +154,14 @@ namespace Opc.Ua.Server.Tests
     {
         private readonly ISessionServer m_server;
 
-        public ServerTestServices(ISessionServer server)
+        public ITelemetryContext Telemetry { get; }
+
+        public  ILogger Logger { get; }
+
+        public ServerTestServices(ISessionServer server, ITelemetryContext telemetry)
         {
+            Telemetry = telemetry;
+            Logger = telemetry.LoggerFactory.CreateLogger<ServerTestServices>();
             m_server = server;
         }
 

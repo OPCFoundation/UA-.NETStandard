@@ -19,6 +19,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -157,7 +158,7 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
         public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
-            var messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext(m_telemetry);
 
             if (TransportQuotas != null)
             {
@@ -173,7 +174,7 @@ namespace Opc.Ua
             messageContext.ServerUris = new StringTable();
             if (clonedFactory)
             {
-                messageContext.Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
+                messageContext.Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory, m_telemetry);
             }
             return messageContext;
         }
@@ -697,7 +698,7 @@ namespace Opc.Ua
 
             if (!createAlways)
             {
-                return ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration);
+                return ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration, m_logger);
             }
 
             var endpoints = new ConfiguredEndpointCollection(this);
@@ -706,11 +707,12 @@ namespace Opc.Ua
                 endpoints = ConfiguredEndpointCollection.Load(
                     this,
                     filePath,
-                    overrideConfiguration);
+                    overrideConfiguration,
+                    m_logger);
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Could not load configuration from file: {0}", filePath);
+                m_logger.LogError(e, "Could not load configuration from file: {FilePath}", filePath);
             }
             finally
             {

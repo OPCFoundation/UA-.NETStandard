@@ -188,7 +188,7 @@ namespace Opc.Ua.Bindings
             {
                 operation.End(int.MaxValue);
                 m_logger.LogInformation(
-                    "CLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}",
+                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId}",
                     Socket.Handle,
                     ChannelId);
             }
@@ -221,7 +221,7 @@ namespace Opc.Ua.Bindings
             {
                 await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
                 m_logger.LogInformation(
-                    "CLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}",
+                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId}",
                     Socket.Handle,
                     ChannelId);
             }
@@ -258,7 +258,7 @@ namespace Opc.Ua.Bindings
                 {
                     m_logger.LogError(
                         e,
-                        "ChannelId {0}: Could not gracefully close the channel.",
+                        "ChannelId {ChannelId}: Could not gracefully close the channel.",
                         ChannelId);
                 }
             }
@@ -286,7 +286,7 @@ namespace Opc.Ua.Bindings
                 {
                     m_logger.LogError(
                         e,
-                        "ChannelId {0}: Could not gracefully close the channel.",
+                        "ChannelId {ChannelId}: Could not gracefully close the channel.",
                         ChannelId);
                 }
             }
@@ -349,7 +349,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadConnectionClosed);
                 }
 
-                m_logger.LogTrace("ChannelId {0}: BeginSendRequest()", ChannelId);
+                m_logger.LogTrace("ChannelId {ChannelId}: BeginSendRequest()", ChannelId);
 
                 if (m_reconnecting)
                 {
@@ -418,7 +418,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void SendHelloMessage(WriteOperation operation)
         {
-            m_logger.LogTrace("ChannelId {0}: SendHelloMessage()", ChannelId);
+            m_logger.LogTrace("ChannelId {ChannelId}: SendHelloMessage()", ChannelId);
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendHelloMessage");
 
@@ -465,7 +465,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessAcknowledgeMessage(ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {0}: ProcessAcknowledgeMessage()", ChannelId);
+            m_logger.LogTrace("ChannelId {ChannelId}: ProcessAcknowledgeMessage()", ChannelId);
 
             // check state.
             if (State != TcpChannelState.Connecting)
@@ -647,7 +647,7 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {0}: ProcessOpenSecureChannelResponse()", ChannelId);
+            m_logger.LogTrace("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse()", ChannelId);
 
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
@@ -844,7 +844,7 @@ namespace Opc.Ua.Bindings
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
             {
-                //m_logger.LogTrace("ChannelId {0}: ProcessResponseMessage", ChannelId);
+                //m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage", ChannelId);
                 return ProcessResponseMessage(messageType, messageChunk);
             }
 
@@ -853,25 +853,25 @@ namespace Opc.Ua.Bindings
                 // check for acknowledge.
                 if (messageType == TcpMessageType.Acknowledge)
                 {
-                    //m_logger.LogTrace("ChannelId {0}: ProcessAcknowledgeMessage", ChannelId);
+                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessAcknowledgeMessage", ChannelId);
                     return ProcessAcknowledgeMessage(messageChunk);
                 }
                 // check for error.
                 else if (messageType == TcpMessageType.Error)
                 {
-                    //m_logger.LogTrace("ChannelId {0}: ProcessErrorMessage", ChannelId);
+                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessErrorMessage", ChannelId);
                     return ProcessErrorMessage(messageType, messageChunk);
                 }
                 // process open secure channel repsonse.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                 {
-                    //m_logger.LogTrace("ChannelId {0}: ProcessOpenSecureChannelResponse", ChannelId);
+                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse", ChannelId);
                     return ProcessOpenSecureChannelResponse(messageType, messageChunk);
                 }
                 // process a response to a close request.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                 {
-                    //m_logger.LogTrace("ChannelId {0}: ProcessResponseMessage (close)", ChannelId);
+                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage (close)", ChannelId);
                     return ProcessResponseMessage(messageType, messageChunk);
                 }
 
@@ -900,7 +900,7 @@ namespace Opc.Ua.Bindings
                         break;
                     default:
                         m_logger.LogWarning(
-                            "ChannelId {0}: Could not gracefully close the channel. Reason={1}",
+                            "ChannelId {ChannelId}: Could not gracefully close the channel. Reason={ServiceResult}",
                             ChannelId,
                             error);
                         break;
@@ -1002,7 +1002,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 m_logger.LogInformation(
-                    "ChannelId {0}: Scheduled Handshake Starting: TokenId={1}",
+                    "ChannelId {ChannelId}: Scheduled Handshake Starting: TokenId={TokenId}",
                     ChannelId,
                     CurrentToken?.TokenId);
 
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Bindings
                     if (token == CurrentToken)
                     {
                         m_logger.LogInformation(
-                            "ChannelId {0}: Attempting Renew Token Now: TokenId={1}",
+                            "ChannelId {ChannelId}: Attempting Renew Token Now: TokenId={TokenId}",
                             ChannelId,
                             token?.TokenId);
 
@@ -1041,7 +1041,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    m_logger.LogInformation("ChannelId {0}: Attempting Reconnect Now.", ChannelId);
+                    m_logger.LogInformation("ChannelId {ChannelId}: Attempting Reconnect Now.", ChannelId);
 
                     // cancel any previous attempt.
                     if (m_handshakeOperation != null)
@@ -1063,7 +1063,7 @@ namespace Opc.Ua.Bindings
                     {
                         Socket = null;
                         m_logger.LogInformation(
-                            "ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED ON SCHEDULED HANDSHAKE: {1:X8}",
+                            "ChannelId {ChannelId}: CLIENTCHANNEL SOCKET CLOSED ON SCHEDULED HANDSHAKE: {Handle:X8}",
                             channelId,
                             socket.Handle);
                         socket.Close();
@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError("ChannelId {0}: Reconnect Failed {1}.", ChannelId, e.Message);
+                m_logger.LogError("ChannelId {ChannelId}: Reconnect Failed {Message}.", ChannelId, e.Message);
                 ForceReconnect(
                     ServiceResult.Create(
                         e,
@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    m_logger.LogTrace("ChannelId {0}: OnHandshakeComplete", ChannelId);
+                    m_logger.LogTrace("ChannelId {ChannelId}: OnHandshakeComplete", ChannelId);
 
                     m_handshakeOperation.End(int.MaxValue);
 
@@ -1124,7 +1124,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "ChannelId {0}: Handshake Failed {1}", ChannelId, e.Message);
+                    m_logger.LogError(e, "ChannelId {ChannelId}: Handshake Failed {Message}", ChannelId, e.Message);
 
                     error = ServiceResult.Create(
                         e,
@@ -1135,7 +1135,7 @@ namespace Opc.Ua.Bindings
                     if (error.Code is StatusCodes.BadTcpSecureChannelUnknown or StatusCodes
                         .BadSecurityChecksFailed)
                     {
-                        m_logger.LogError("ChannelId {0}: Cannot Recover Channel", ChannelId);
+                        m_logger.LogError("ChannelId {ChannelId}: Cannot Recover Channel", ChannelId);
                         Shutdown(error);
                         return;
                     }
@@ -1284,7 +1284,7 @@ namespace Opc.Ua.Bindings
                 {
                     Socket = null;
                     m_logger.LogInformation(
-                        "ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED SHUTDOWN: {1:X8}",
+                        "ChannelId {ChannelId}: CLIENTCHANNEL SOCKET CLOSED SHUTDOWN: {Handle:X8}",
                         channelId,
                         socket.Handle);
                     socket.Close();
@@ -1315,7 +1315,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                m_logger.LogWarning("ChannelId {0}: Force reconnect reason={1}", Id, reason);
+                m_logger.LogWarning("ChannelId {ChannelId}: Force reconnect reason={ServiceResult}", Id, reason);
 
                 // cancel all requests.
                 foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
@@ -1353,7 +1353,7 @@ namespace Opc.Ua.Bindings
 
                 // schedule a reconnect.
                 m_logger.LogInformation(
-                    "ChannelId {0}: Attempting Reconnect in {1} ms. Reason: {2}",
+                    "ChannelId {ChannelId}: Attempting Reconnect in {Delay} ms. Reason: {ServiceResult}",
                     ChannelId,
                     m_waitBetweenReconnects,
                     reason.ToLongString());
@@ -1412,7 +1412,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_logger.LogInformation(
-                "ChannelId {0}: Token Expiry {1:HH:mm:ss.fff}, renewal scheduled at {2:HH:mm:ss.fff} in {3} ms.",
+                "ChannelId {ChannelId}: Token Expiry {Expiration:HH:mm:ss.fff}, renewal scheduled at {Renewal:HH:mm:ss.fff} in {Duration} ms.",
                 ChannelId,
                 token.CreatedAt.AddMilliseconds(token.Lifetime),
                 HiResClock.UtcTickCount(token.CreatedAtTickCount + timeToRenewal),
@@ -1427,7 +1427,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
         {
-            var operation = new WriteOperation(timeout, callback, state)
+            var operation = new WriteOperation(timeout, callback, state, m_logger)
             {
                 RequestId = Utils.IncrementIdentifier(ref m_lastRequestId)
             };
@@ -1459,7 +1459,7 @@ namespace Opc.Ua.Bindings
             if (!m_requests.TryRemove(operation.RequestId, out _))
             {
                 m_logger.LogWarning(
-                    "Could not remove requestId {0} from list of pending operations.",
+                    "Could not remove requestId {RequestId} from list of pending operations.",
                     operation.RequestId);
             }
         }
@@ -1559,7 +1559,7 @@ namespace Opc.Ua.Bindings
                     OperationCompleted(m_handshakeOperation);
                 }
 
-                m_logger.LogTrace("ChannelId {0}: Close", ChannelId);
+                m_logger.LogTrace("ChannelId {ChannelId}: Close", ChannelId);
 
                 // attempt a graceful shutdown.
                 if (State == TcpChannelState.Open)
@@ -1591,7 +1591,7 @@ namespace Opc.Ua.Bindings
                 error = ReadErrorMessageBody(decoder);
             }
 
-            m_logger.LogTrace("ChannelId {0}: ProcessErrorMessage({1})", ChannelId, error);
+            m_logger.LogTrace("ChannelId {ChannelId}: ProcessErrorMessage({ServiceResult})", ChannelId, error);
 
             // check if a handshake is in progress
             if (m_handshakeOperation != null)
@@ -1612,7 +1612,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private void SendCloseSecureChannelRequest(WriteOperation operation)
         {
-            m_logger.LogTrace("ChannelId {0}: SendCloseSecureChannelRequest()", ChannelId);
+            m_logger.LogTrace("ChannelId {ChannelId}: SendCloseSecureChannelRequest()", ChannelId);
 
             // suppress reconnects if an error occurs.
             m_waitBetweenReconnects = Timeout.Infinite;
@@ -1654,7 +1654,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private bool ProcessResponseMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {0}: ProcessResponseMessage()", ChannelId);
+            m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage()", ChannelId);
 
             ArraySegment<byte> messageBody;
 

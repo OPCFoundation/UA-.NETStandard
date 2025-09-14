@@ -893,7 +893,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(),
+                new ServiceMessageContext(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 
@@ -910,7 +910,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(),
+                new ServiceMessageContext(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 

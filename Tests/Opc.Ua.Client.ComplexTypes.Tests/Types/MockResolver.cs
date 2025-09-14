@@ -43,16 +43,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// The mock resolver emulates data type definitions
         /// which are stored in the server address space.
         /// </summary>
-        public MockResolver()
-        {
-            Initialize();
-        }
-
-        private void Initialize()
+        public MockResolver(ITelemetryContext telemetry)
         {
             DataTypeSystem = [];
             DataTypeNodes = [];
-            m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
+            m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory, telemetry);
             NamespaceUris = new NamespaceTable();
 
             NamespaceUris.Append("urn:This:is:my:test:encoder");

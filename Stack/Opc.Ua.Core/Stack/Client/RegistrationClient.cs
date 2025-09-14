@@ -51,7 +51,7 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 instanceCertificate,
-                new ServiceMessageContext(),
+                new ServiceMessageContext(telemetry),
                 telemetry);
 
             return new RegistrationClient(channel);

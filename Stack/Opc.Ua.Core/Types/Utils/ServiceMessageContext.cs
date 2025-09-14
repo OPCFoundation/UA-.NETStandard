@@ -20,19 +20,14 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public ServiceMessageContext()
+        public ServiceMessageContext(ITelemetryContext telemetry)
+            : this(telemetry, false)
         {
-            Initialize(false);
         }
 
-        private ServiceMessageContext(bool shared)
-            : this()
+        private ServiceMessageContext(ITelemetryContext telemetry, bool shared)
         {
-            Initialize(shared);
-        }
-
-        private void Initialize(bool shared)
-        {
+            Telemetry = telemetry;
             MaxStringLength = DefaultEncodingLimits.MaxStringLength;
             MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
             MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
@@ -48,7 +43,7 @@ namespace Opc.Ua
         /// The default context for the process (used only during XML serialization).
         /// </summary>
         public static ServiceMessageContext GlobalContext { get; }
-            = new ServiceMessageContext(true);
+            = new ServiceMessageContext(null, true);
 
         /// <summary>
         /// The default context for the thread (used only during XML serialization).
@@ -60,6 +55,9 @@ namespace Opc.Ua
             {
             }
         }
+
+        /// <inheritdoc/>
+        public ITelemetryContext Telemetry { get; }
 
         /// <inheritdoc/>
         public int MaxStringLength { get; set; }

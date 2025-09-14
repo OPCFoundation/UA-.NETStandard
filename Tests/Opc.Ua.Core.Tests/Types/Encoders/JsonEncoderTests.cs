@@ -38,6 +38,7 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -911,7 +912,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 $"Server Index: {demoServerIndex} != {kDemoServerIndex}");
 
             // for validating benchmark tests
-            m_context = new ServiceMessageContext();
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -937,7 +939,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_context = new ServiceMessageContext();
+            m_telemetry = null;
+            m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -976,7 +979,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void ConstructorDefault(bool useReversible, bool topLevelIsArray)
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using var jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray);
             TestEncoding(jsonEncoder, topLevelIsArray);
             string result = jsonEncoder.CloseAndReturnText();
@@ -1031,7 +1034,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         public void ConstructorStream(MemoryStream memoryStream)
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
@@ -1079,7 +1082,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorArraySegmentStreamSequence()
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using var memoryStream = new ArraySegmentStream(BufferManager);
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
@@ -1141,7 +1144,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorRecyclableMemoryStreamSequence()
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
@@ -1331,9 +1334,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     { "Foo2", (2, "bar_2") } });
 
             // Register in the context's Factory, make it a custom factory so the dynamic type can look up its type information when instantiated during encoding/decoding
-            var dynamicContext = new ServiceMessageContext
+            var dynamicContext = new ServiceMessageContext(m_telemetry)
             {
-                Factory = new DynamicEncodeableFactory(Context.Factory),
+                Factory = new DynamicEncodeableFactory(Context.Factory, m_telemetry),
                 NamespaceUris = Context.NamespaceUris
             };
             (dynamicContext.Factory as DynamicEncodeableFactory)?.AddDynamicEncodeable(encodeable);
@@ -1823,7 +1826,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ServiceMessageContext()
         {
-            _ = new ServiceMessageContext();
+            _ = new ServiceMessageContext(null);
         }
 
         /// <summary>
@@ -1906,5 +1909,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private IServiceMessageContext m_context;
         private MemoryStream m_memoryStream;
+        private ITelemetryContext m_telemetry;
     }
 }

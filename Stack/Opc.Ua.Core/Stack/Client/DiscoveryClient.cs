@@ -45,7 +45,7 @@ namespace Opc.Ua
                 application,
                 discoveryUrl,
                 configuration,
-                new ServiceMessageContext(),
+                new ServiceMessageContext(telemetry),
                 telemetry);
             return new DiscoveryClient(channel, telemetry);
         }
@@ -127,7 +127,7 @@ namespace Opc.Ua
                 null,
                 connection,
                 configuration,
-                new ServiceMessageContext(),
+                new ServiceMessageContext(telemetry),
                 telemetry);
             return new DiscoveryClient(channel, telemetry);
         }
@@ -169,7 +169,7 @@ namespace Opc.Ua
                 applicationConfiguration,
                 discoveryUrl,
                 endpointConfiguration,
-                new ServiceMessageContext(),
+                new ServiceMessageContext(telemetry),
                 telemetry,
                 clientCertificate);
             return new DiscoveryClient(channel, telemetry);

@@ -194,7 +194,7 @@ namespace Opc.Ua.Client
             {
                 NamespaceUris = new NamespaceTable();
                 ServerUris = new StringTable();
-                Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
+                Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory, m_telemetry);
             }
 
             // initialize the NodeCache late, it needs references to the namespaceUris

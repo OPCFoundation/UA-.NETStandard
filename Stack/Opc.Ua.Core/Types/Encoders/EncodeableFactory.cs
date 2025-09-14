@@ -13,10 +13,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {
@@ -37,11 +40,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a factory initialized with the types in the core library.
         /// </summary>
-        public EncodeableFactory()
+        public EncodeableFactory(ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<EncodeableFactory>();
             m_encodeableTypes = [];
             AddEncodeableTypes(GetType().GetTypeInfo().Assembly);
-
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
@@ -50,11 +53,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a factory which is marked as shared and initialized with the types in the core library.
         /// </summary>
-        public EncodeableFactory(bool shared)
+        public EncodeableFactory(bool shared, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<EncodeableFactory>();
             m_encodeableTypes = [];
             AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
-
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
             m_shared = true;
@@ -64,16 +67,22 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a factory by copying the table from another factory.
         /// </summary>
-        public EncodeableFactory(IEncodeableFactory factory)
+        public EncodeableFactory(IEncodeableFactory factory, ITelemetryContext telemetry)
         {
-            m_encodeableTypes = [];
-
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
             if (factory != null)
             {
-                m_encodeableTypes = ((EncodeableFactory)factory.Clone()).m_encodeableTypes;
+                var cloned = ((EncodeableFactory)factory.Clone());
+                m_logger = telemetry == null ? cloned.m_logger : telemetry.CreateLogger<EncodeableFactory>();
+                m_encodeableTypes = cloned.m_encodeableTypes
+                    .ToDictionary(entry => entry.Key, entry => entry.Value);
+            }
+            else
+            {
+                m_encodeableTypes = [];
+                m_logger = telemetry.CreateLogger<EncodeableFactory>();
             }
         }
 
@@ -108,7 +117,7 @@ namespace Opc.Ua
             }
             catch (Exception)
             {
-                Utils.LogError("Could not load encodeable types from assembly: {0}", assemblyName);
+                m_logger.LogError("Could not load encodeable types from assembly: {0}", assemblyName);
             }
         }
 
@@ -139,7 +148,7 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogTrace(
+                m_logger.LogTrace(
                     "WARNING: Adding type '{0}' to shared Factory #{1}.",
                     systemType.Name,
                     InstanceId);
@@ -230,7 +239,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The default factory for the process.
         /// </remarks>
-        public static EncodeableFactory GlobalFactory { get; } = new EncodeableFactory();
+        public static EncodeableFactory GlobalFactory { get; } = new EncodeableFactory(null);
 
         /// <summary>
         /// Returns the xml qualified name for the specified system type id.
@@ -359,7 +368,7 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning(
+                    m_logger.LogWarning(
                         "WARNING: Adding type '{0}' to shared Factory #{1}.",
                         systemType.Name,
                         InstanceId);
@@ -398,7 +407,7 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning(
+                    m_logger.LogWarning(
                         "WARNING: Adding types from assembly '{0}' to shared Factory #{1}.",
                         assembly.FullName,
                         InstanceId);
@@ -533,24 +542,18 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            var clone = new EncodeableFactory(null);
-
             m_readerWriterLockSlim.EnterReadLock();
             try
             {
-                foreach (KeyValuePair<ExpandedNodeId, Type> current in m_encodeableTypes)
-                {
-                    clone.m_encodeableTypes.Add(current.Key, current.Value);
-                }
+                return new EncodeableFactory(this, null);
             }
             finally
             {
                 m_readerWriterLockSlim.ExitReadLock();
             }
-
-            return clone;
         }
 
+        private readonly ILogger m_logger;
         private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new();
         private readonly Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
 #if DEBUG

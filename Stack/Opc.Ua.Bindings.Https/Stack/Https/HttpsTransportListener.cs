@@ -123,6 +123,7 @@ namespace Opc.Ua.Bindings
         public HttpsTransportListener(string uriScheme, ITelemetryContext telemetry)
         {
             UriScheme = uriScheme;
+            m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<HttpsTransportListener>();
         }
 
@@ -183,7 +184,7 @@ namespace Opc.Ua.Bindings
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext
+                MessageContext = new ServiceMessageContext(m_telemetry)
                 {
                     MaxArrayLength = configuration.MaxArrayLength,
                     MaxByteStringLength = configuration.MaxByteStringLength,
@@ -601,5 +602,6 @@ namespace Opc.Ua.Bindings
         private CertificateTypesProvider m_serverCertProvider;
         private bool m_mutualTlsEnabled;
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

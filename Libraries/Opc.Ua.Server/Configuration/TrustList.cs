@@ -656,7 +656,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             TrustListDataType trustList)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext
+            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -676,7 +676,7 @@ namespace Opc.Ua.Server
             MemoryStream strm)
         {
             var trustList = new TrustListDataType();
-            IServiceMessageContext messageContext = new ServiceMessageContext
+            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,

@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -305,7 +306,8 @@ namespace Opc.Ua.Server.Tests
                         ServerFixtureUtils.ValidateDiagnosticInfos(
                             diagnosticsInfoCollection,
                             browseCollection,
-                            response.StringTable);
+                            response.StringTable,
+                            services.Logger);
 
                         allResults.AddRange(browseResultCollection);
                     }
@@ -351,7 +353,8 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticsInfoCollection,
                         continuationPoints,
-                        response.StringTable);
+                        response.StringTable,
+                        services.Logger);
                     allResults.AddRange(browseNextResultCollection);
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                         browseNextResultCollection);
@@ -446,7 +449,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     browsePathSnippet,
-                    response.StringTable);
+                    response.StringTable,
+                    services.Logger);
                 allBrowsePaths.AddRange(browsePathResults);
                 foreach (BrowsePathResult result in browsePathResults)
                 {
@@ -553,7 +557,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 itemsToCreate,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
 
             // modify subscription
             response = services.ModifySubscription(
@@ -593,7 +598,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 itemsToModify,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
 
             // publish request
             var acknowledgements = new SubscriptionAcknowledgementCollection();
@@ -610,7 +616,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 acknowledgements,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
             Assert.AreEqual(id, subscriptionId);
             Assert.AreEqual(0, availableSequenceNumbers.Count);
 
@@ -627,7 +634,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 subscriptions,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
 
             // wait some time to fill queue
             int loopCounter = (int)queueSize;
@@ -650,7 +658,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    services.Logger);
                 Assert.AreEqual(id, subscriptionId);
 
                 if (notificationMessage.NotificationData.Count == 0)
@@ -700,7 +709,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 subscriptions,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
 
             // disable monitoring
             var monitoredItemIds = new UInt32Collection(
@@ -716,7 +726,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 monitoredItemIds,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
 
             // delete subscription
             response = services.DeleteSubscriptions(
@@ -728,7 +739,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 subscriptions,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
         }
 
         /// <summary>
@@ -771,7 +783,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 subscriptionIds,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
 
             // wait some time to settle
             Thread.Sleep(1000);
@@ -796,7 +809,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 acknowledgements,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
             Assert.AreEqual(subscriptionId, publishedId);
 
             // static node, do not acknowledge
@@ -830,7 +844,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 subscriptionIds,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
 
             foreach (TransferResult transferResult in transferResults)
             {
@@ -869,7 +884,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 acknowledgements,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
             Assert.AreEqual(subscriptionIds[0], publishedId);
             Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
             if (sendInitialData)
@@ -918,7 +934,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 acknowledgements,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
             Assert.IsFalse(moreNotifications);
             Assert.IsTrue(subscriptionIds.Contains(publishedId));
             Assert.AreEqual(1, notificationMessage.NotificationData.Count);
@@ -943,7 +960,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     subscriptionIds,
-                    response.StringTable);
+                    response.StringTable,
+                    services.Logger);
             }
         }
 
@@ -1017,7 +1035,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 itemsToCreate,
-                response.StringTable);
+                response.StringTable,
+                services.Logger);
         }
 
         private static MonitoredItemCreateRequest CreateEventMonitoredItem(

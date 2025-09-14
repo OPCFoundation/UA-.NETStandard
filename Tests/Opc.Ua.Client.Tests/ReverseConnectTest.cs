@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -201,6 +202,8 @@ namespace Opc.Ua.Client.Tests
         [Order(300)]
         public async Task ReverseConnectAsync(string securityPolicy, ISessionFactory sessionFactory)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // ensure endpoints are available
             await RequireEndpointsAsync().ConfigureAwait(false);
 
@@ -252,7 +255,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             // Browse
-            var clientTestServices = new ClientTestServices(session);
+            var clientTestServices = new ClientTestServices(session, telemetry);
             ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
                 .BrowseFullAddressSpaceWorker(
                     clientTestServices,
@@ -272,6 +275,8 @@ namespace Opc.Ua.Client.Tests
             bool checkDomain,
             ISessionFactory sessionFactory)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
 
             // ensure endpoints are available
@@ -315,7 +320,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             // Browse
-            var clientTestServices = new ClientTestServices(session);
+            var clientTestServices = new ClientTestServices(session, telemetry);
             ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
                 .BrowseFullAddressSpaceWorker(
                     clientTestServices,

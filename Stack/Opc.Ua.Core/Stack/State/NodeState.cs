@@ -506,7 +506,7 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsXml(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -538,7 +538,7 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -581,7 +581,7 @@ namespace Opc.Ua
         /// <param name="istrm">The stream to read.</param>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -1221,7 +1221,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void LoadFromXml(ISystemContext context, XmlReader reader)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,

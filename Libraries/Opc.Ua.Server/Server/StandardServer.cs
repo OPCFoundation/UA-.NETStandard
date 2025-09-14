@@ -3410,7 +3410,7 @@ namespace Opc.Ua.Server
                     if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                     {
                         Logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
-                        m_configurationWatcher = new ConfigurationWatcher(configuration);
+                        m_configurationWatcher = new ConfigurationWatcher(configuration, Telemetry);
                         m_configurationWatcher.Changed += OnConfigurationChangedAsync;
                     }
 

@@ -386,7 +386,7 @@ namespace Opc.Ua
 
                     if (context != null)
                     {
-                        messageContext = new ServiceMessageContext
+                        messageContext = new ServiceMessageContext(context.Telemetry)
                         {
                             NamespaceUris = context.NamespaceUris,
                             ServerUris = context.ServerUris,
@@ -1603,7 +1603,7 @@ namespace Opc.Ua
             // apply data encoding.
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                var messageContext = new ServiceMessageContext
+                var messageContext = new ServiceMessageContext(context.Telemetry)
                 {
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,

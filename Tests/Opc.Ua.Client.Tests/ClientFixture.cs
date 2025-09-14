@@ -494,7 +494,7 @@ namespace Opc.Ua.Client.Tests
             if (ServiceResult.IsBad(e.Status))
             {
                 m_logger.LogError(
-                    "Session '{0}' keep alive error: {1}",
+                    "Session '{SessionName}' keep alive error: {StatusCode}",
                     session.SessionName,
                     e.Status);
             }

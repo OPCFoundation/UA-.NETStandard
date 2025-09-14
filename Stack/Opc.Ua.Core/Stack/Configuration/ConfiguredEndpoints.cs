@@ -17,6 +17,7 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -55,9 +56,10 @@ namespace Opc.Ua
         /// </summary>
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
-            string filePath)
+            string filePath,
+            ILogger logger)
         {
-            return Load(configuration, filePath, false);
+            return Load(configuration, filePath, false, logger);
         }
 
         /// <summary>
@@ -66,9 +68,10 @@ namespace Opc.Ua
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
-            bool overrideConfiguration)
+            bool overrideConfiguration,
+            ILogger logger)
         {
-            ConfiguredEndpointCollection endpoints = Load(filePath);
+            ConfiguredEndpointCollection endpoints = Load(filePath, logger);
 
             endpoints.DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
@@ -87,13 +90,13 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(string filePath)
+        public static ConfiguredEndpointCollection Load(string filePath, ILogger logger)
         {
             // load from file.
             ConfiguredEndpointCollection endpoints;
             using (Stream stream = File.OpenRead(filePath))
             {
-                endpoints = Load(stream);
+                endpoints = Load(stream, logger);
             }
             endpoints.m_filepath = filePath;
 
@@ -179,7 +182,7 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a stream.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(Stream istrm)
+        public static ConfiguredEndpointCollection Load(Stream istrm, ILogger logger)
         {
             try
             {
@@ -202,8 +205,8 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(
-                    "Unexpected error loading ConfiguredEndpoints: {0}",
+                logger.LogError(
+                    "Unexpected error loading ConfiguredEndpoints: {Message}",
                     Redaction.Redact.Create(e));
                 throw;
             }

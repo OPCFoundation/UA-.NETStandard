@@ -51,6 +51,7 @@ namespace Opc.Ua
             init
             {
                 m_telemetry = value;
+                m_messageContext = new ServiceMessageContext(m_telemetry);
                 Logger = value.CreateLogger(this);
             }
         }
@@ -67,7 +68,7 @@ namespace Opc.Ua
         /// </summary>
         public ServerBase()
         {
-            m_messageContext = new ServiceMessageContext();
+            m_messageContext = new ServiceMessageContext(null);
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
             ServiceHosts = [];
             TransportListeners = [];

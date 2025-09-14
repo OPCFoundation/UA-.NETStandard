@@ -32,6 +32,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
@@ -173,6 +174,9 @@ namespace Opc.Ua.Server.Tests
         [Order(100)]
         public void GetOperationLimits()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             var readIdCollection = new ReadValueIdCollection
             {
                 new ReadValueId
@@ -259,7 +263,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 results,
-                response.StringTable);
+                response.StringTable,
+                logger);
 
             Assert.NotNull(results);
             Assert.AreEqual(readIdCollection.Count, results.Count);
@@ -288,6 +293,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void Read()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Read
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -308,7 +316,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 dataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
         }
 
         /// <summary>
@@ -317,7 +326,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ReadAllNodes()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             if (m_operationLimits == null)
             {
                 GetOperationLimits();
@@ -352,7 +363,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     dataValues,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
 
                 foreach (DataValue dataValue in dataValues)
                 {
@@ -368,6 +380,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void Write()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Write
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -389,7 +404,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 dataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
         }
 
         /// <summary>
@@ -418,7 +434,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void BrowseFullAddressSpace()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             if (m_operationLimits == null)
             {
                 GetOperationLimits();
@@ -437,7 +455,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void TranslateBrowsePath()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             if (m_operationLimits == null)
             {
                 GetOperationLimits();
@@ -461,7 +481,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void Subscription()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             CommonTestWorkers.SubscriptionTest(serverTestServices, m_requestHeader);
         }
 
@@ -474,7 +496,9 @@ namespace Opc.Ua.Server.Tests
         [Theory]
         public void TransferSubscriptionSessionClosed(bool sendInitialData, bool useSecurity)
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             // save old security context, test fixture can only work with one session
             SecureChannelContext securityContext = SecureChannelContext.Current;
             try
@@ -542,7 +566,9 @@ namespace Opc.Ua.Server.Tests
         [Theory]
         public void TransferSubscription(bool sendInitialData, bool useSecurity)
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             // save old security context, test fixture can only work with one session
             SecureChannelContext securityContext = SecureChannelContext.Current;
             try
@@ -606,7 +632,9 @@ namespace Opc.Ua.Server.Tests
         [TestCase(false, 0U)]
         public void ResendData(bool updateValues, uint queueSize)
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             // save old security context, test fixture can only work with one session
             SecureChannelContext securityContext = SecureChannelContext.Current;
             try
@@ -661,7 +689,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
 
@@ -685,7 +714,8 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticInfos,
                         acknowledgements,
-                        response.StringTable);
+                        response.StringTable,
+                        serverTestServices.Logger);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(0, notificationMessage.NotificationData.Count);
                 }
@@ -708,7 +738,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     nodesToCall,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
 
                 // Still nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -727,7 +758,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
@@ -770,7 +802,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                 ExtensionObject items = notificationMessage.NotificationData.FirstOrDefault();
@@ -801,7 +834,8 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticInfos,
                         acknowledgements,
-                        response.StringTable);
+                        response.StringTable,
+                        serverTestServices.Logger);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                     items = notificationMessage.NotificationData.FirstOrDefault();
@@ -833,7 +867,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
@@ -852,6 +887,9 @@ namespace Opc.Ua.Server.Tests
             StatusCode expectedStatus,
             UInt32Collection subscriptionIds)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Find the ResendData method
             var nodesToCall = new CallMethodRequestCollection();
             foreach (uint subscriptionId in subscriptionIds)
@@ -878,7 +916,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 nodesToCall,
-                response.StringTable);
+                response.StringTable,
+                logger);
 
             return nodesToCall;
         }
@@ -889,6 +928,9 @@ namespace Opc.Ua.Server.Tests
         /// <param name="testSet">The nodeIds to modify.</param>
         private void UpdateValues(NodeId[] testSet)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Read values
             RequestHeader requestHeader = m_requestHeader;
             var nodesToRead = new ReadValueIdCollection();
@@ -909,7 +951,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 readDataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
             Assert.AreEqual(testSet.Length, readDataValues.Count);
 
             var modifiedValues = new DataValueCollection();
@@ -946,7 +989,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 writeDataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
         }
     }
 }
