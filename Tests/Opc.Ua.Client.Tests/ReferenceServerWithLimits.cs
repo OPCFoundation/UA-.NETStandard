@@ -59,21 +59,19 @@ namespace Opc.Ua.Client.Tests
         private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerWithLimits SessionManagerForTest { get; set; }
 
-        public override ResponseHeader Browse(
+        public override Task<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken)
         {
-            return base.Browse(
+            return base.BrowseAsync(
                 requestHeader,
                 view,
                 TestMaxBrowseReferencesPerNode,
                 nodesToBrowse,
-                out results,
-                out diagnosticInfos);
+                cancellationToken);
         }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
