@@ -2902,6 +2902,8 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
+                uint GetNextMonitoredItemId() => Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
+
                 // create items for event filters.
                 CreateMonitoredItemsForEvents(
                     context,
@@ -2913,7 +2915,7 @@ namespace Opc.Ua.Server
                     filterResults,
                     monitoredItems,
                     createDurable,
-                    ref m_lastMonitoredItemId);
+                    GetNextMonitoredItemId);
 
                 // create items for data access.
                 foreach (INodeManager nodeManager in m_nodeManagers)
@@ -2928,7 +2930,7 @@ namespace Opc.Ua.Server
                         filterResults,
                         monitoredItems,
                         createDurable,
-                        ref m_lastMonitoredItemId);
+                        GetNextMonitoredItemId);
                 }
 
                 // fill results for unknown nodes.
@@ -2955,7 +2957,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter)
+            Func<uint> getNextMonitoredItemId)
         {
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
@@ -3036,15 +3038,12 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // create a globally unique identifier.
-                    uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
-
                     IEventMonitoredItem monitoredItem = Server.EventManager.CreateMonitoredItem(
                         context,
                         nodeManager,
                         handle,
                         subscriptionId,
-                        monitoredItemId,
+                        getNextMonitoredItemId(),
                         timestampsToReturn,
                         publishingInterval,
                         itemToCreate,
