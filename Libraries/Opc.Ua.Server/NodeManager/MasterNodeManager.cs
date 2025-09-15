@@ -537,7 +537,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
-        public virtual async ValueTask<(object hanlde, IAsyncNodeManager nodeManager)>
+        public virtual async ValueTask<(object handle, IAsyncNodeManager nodeManager)>
             GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             (object handle, (INodeManager Sync, IAsyncNodeManager Async) nodeManager) =
