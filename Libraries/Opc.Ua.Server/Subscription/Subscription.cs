@@ -900,7 +900,8 @@ namespace Opc.Ua.Server
                             context,
                             datachanges,
                             datachangeDiagnostics,
-                            maxNotificationsPerMonitoredItem);
+                            maxNotificationsPerMonitoredItem,
+                            m_logger);
                     }
                     else
                     {
@@ -1412,7 +1413,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                removeResults[ii]);
+                                removeResults[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             removeDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1444,7 +1446,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                addResults[ii]);
+                                addResults[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             addDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1464,7 +1467,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                addResults[ii]);
+                                addResults[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             addDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1629,7 +1633,8 @@ namespace Opc.Ua.Server
                             diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
 
@@ -1785,7 +1790,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1868,7 +1874,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -1966,7 +1973,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -2055,7 +2063,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2132,7 +2141,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -2194,7 +2204,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }

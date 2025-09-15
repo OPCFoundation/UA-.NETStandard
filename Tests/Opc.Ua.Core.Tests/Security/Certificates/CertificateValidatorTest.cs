@@ -75,7 +75,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ushort hashSize = 512;
 
             // good applications test set
-            var appTestDataGenerator = new ApplicationTestDataGenerator(1);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appTestDataGenerator = new ApplicationTestDataGenerator(1, telemetry);
             m_goodApplicationTestSet = appTestDataGenerator.ApplicationTestSet(
                 kGoodApplicationsTestCount);
             m_notYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(

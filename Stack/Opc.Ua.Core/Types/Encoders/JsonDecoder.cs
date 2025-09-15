@@ -1348,7 +1348,7 @@ namespace Opc.Ua
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
                     m_logger.LogWarning(
-                        "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                        "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                         typeId);
                 }
                 else

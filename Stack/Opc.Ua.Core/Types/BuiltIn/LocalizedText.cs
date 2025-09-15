@@ -16,6 +16,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Opc.Ua

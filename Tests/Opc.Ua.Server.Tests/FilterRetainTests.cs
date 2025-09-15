@@ -608,7 +608,8 @@ namespace Opc.Ua.Server.Tests
                 SystemContext systemContext = GetSystemContext(telemetry);
                 m_filterContext = new FilterContext(
                     systemContext.NamespaceUris,
-                    systemContext.TypeTable);
+                    systemContext.TypeTable,
+                    systemContext.Telemetry);
             }
 
             return m_filterContext;

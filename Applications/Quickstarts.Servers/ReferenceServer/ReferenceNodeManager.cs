@@ -4964,7 +4964,7 @@ namespace Quickstarts.ReferenceServer
         private void ResetRandomGenerator(int seed, int boundaryValueFrequency = 0)
         {
             m_randomSource = new RandomSource(seed);
-            m_generator = new DataGenerator(m_randomSource)
+            m_generator = new DataGenerator(m_randomSource, Server.Telemetry)
             {
                 BoundaryValueFrequency = boundaryValueFrequency
             };

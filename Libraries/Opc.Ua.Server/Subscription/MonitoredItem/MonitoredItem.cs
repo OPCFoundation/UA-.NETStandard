@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem
     {
-        /// <summary>
+        /// <summary>max
         /// Initializes the object with its node type.
         /// </summary>
         public MonitoredItem(
@@ -1055,7 +1055,8 @@ namespace Opc.Ua.Server
                 var context = new FilterContext(
                     m_server.NamespaceUris,
                     m_server.TypeTree,
-                    Session?.PreferredLocales);
+                    Session?.PreferredLocales,
+                    m_server.Telemetry);
 
                 // event filter must be specified.
                 if (m_filterToUse is not EventFilter filter)
@@ -1265,7 +1266,8 @@ namespace Opc.Ua.Server
                             new FilterContext(
                                 m_server.NamespaceUris,
                                 m_server.TypeTree,
-                                Session?.PreferredLocales),
+                                Session?.PreferredLocales,
+                                m_server.Telemetry),
                             m_filterToUse as EventFilter,
                             e);
                     }
@@ -1319,7 +1321,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
-            uint maxNotificationsPerPublish)
+            uint maxNotificationsPerPublish,
+            ILogger logger)
         {
             if (context == null)
             {
@@ -1486,7 +1489,7 @@ namespace Opc.Ua.Server
 
             if ((DiagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
             {
-                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
+                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error, m_logger);
             }
 
             diagnostics.Enqueue(diagnosticInfo);
@@ -1909,7 +1912,8 @@ namespace Opc.Ua.Server
                         m_eventQueueHandler ??= new EventQueueHandler(
                             IsDurable,
                             m_monitoredItemQueueFactory,
-                            Id);
+                            Id,
+                            m_server.Telemetry);
                         m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                     }
                     break;
@@ -2010,7 +2014,8 @@ namespace Opc.Ua.Server
                             // initialize with existing queue
                             m_eventQueueHandler = new EventQueueHandler(
                                 restoredQueue,
-                                m_discardOldest);
+                                m_discardOldest,
+                                m_server.Telemetry);
                         }
                         else
                         {
@@ -2018,7 +2023,8 @@ namespace Opc.Ua.Server
                             m_eventQueueHandler = new EventQueueHandler(
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
-                                Id);
+                                Id,
+                                m_server.Telemetry);
                             m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }

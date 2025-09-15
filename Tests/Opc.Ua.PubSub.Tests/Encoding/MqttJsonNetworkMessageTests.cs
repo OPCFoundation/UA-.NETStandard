@@ -1878,7 +1878,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 MessageId = messageId,
                 PublisherId = publisherId,
-                DataSetWriterId = MessagesHelper.ConvertToNullable<ushort>(dataSetWriterId)
+                DataSetWriterId = MessagesHelper.ConvertToNullable<ushort>(dataSetWriterId, logger)
             };
 
             jsonNetworkMessage.DataSetMetaData.Name = metaDataName;

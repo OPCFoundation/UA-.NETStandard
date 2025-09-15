@@ -748,7 +748,8 @@ namespace Opc.Ua.Server
                                 DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                     ServerInternal,
                                     context,
-                                    result);
+                                    result,
+                                    Logger);
                                 diagnosticInfos.Add(diagnosticInfo);
                                 diagnosticsExist = true;
                             }
@@ -921,7 +922,8 @@ namespace Opc.Ua.Server
                 exception,
                 (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                 true,
-                stringTable);
+                stringTable,
+                Logger);
             responseHeader.StringTable = stringTable.ToArray();
 
             return responseHeader;

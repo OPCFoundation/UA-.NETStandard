@@ -317,7 +317,7 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Binary;
 
         /// <inheritdoc/>
-        public IServiceMessageContext Context { get; private set; }
+        public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
@@ -1438,7 +1438,8 @@ namespace Opc.Ua
                     (_, int length) = Matrix.ValidateDimensions(
                         false,
                         dimensions,
-                        Context.MaxArrayLength);
+                        Context.MaxArrayLength,
+                        m_logger);
 
                     // read the elements
                     Array elements = null;
@@ -2007,7 +2008,7 @@ namespace Opc.Ua
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(extension.TypeId))
             {
                 m_logger.LogWarning(
-                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                     typeId);
             }
 
@@ -2058,7 +2059,7 @@ namespace Opc.Ua
                     catch (Exception e)
                     {
                         m_logger.LogError(
-                            "Could not decode known type {0} encoded as Xml. Error={1}, Value={2}",
+                            "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
                             systemType.FullName,
                             e.Message,
                             element.OuterXml);
@@ -2154,7 +2155,7 @@ namespace Opc.Ua
                         // log the error only once to avoid flooding the log.
                         m_logger.LogWarning(
                             exception,
-                            "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
+                            "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
                             systemType.Name,
                             extension.TypeId);

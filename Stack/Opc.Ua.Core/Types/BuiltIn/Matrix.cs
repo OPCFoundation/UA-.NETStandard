@@ -14,6 +14,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -271,13 +272,15 @@ namespace Opc.Ua
         /// <param name="allowZeroDimension">Allow zero value dimensions </param>
         /// <param name="dimensions">Dimensions to be validated</param>
         /// <param name="maxArrayLength">The limit representing the maximum array length</param>
+        /// <param name="logger"></param>
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         public static (bool valid, int flatLength) ValidateDimensions(
             bool allowZeroDimension,
             Int32Collection dimensions,
-            int maxArrayLength)
+            int maxArrayLength,
+            ILogger logger)
         {
             bool ValidateWithSideEffect(int i, Int32Collection dimCollection)
             {
@@ -288,8 +291,8 @@ namespace Opc.Ua
                 if (zeroCompFails)
                 {
                     /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                    Utils.LogTrace(
-                        "ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.",
+                    logger.LogTrace(
+                        "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.",
                         i,
                         dimCollection);
                     dimCollection[i] = 0;

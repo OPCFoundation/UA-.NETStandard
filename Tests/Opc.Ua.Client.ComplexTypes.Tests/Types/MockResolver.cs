@@ -56,13 +56,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             NamespaceUris.Append(Namespaces.MockResolverUrl);
         }
 
-        public NodeIdDictionary<INode> DataTypeNodes { get; private set; }
+        public NodeIdDictionary<INode> DataTypeNodes { get; }
 
         /// <inheritdoc/>
-        public NodeIdDictionary<DataDictionary> DataTypeSystem { get; private set; }
+        public NodeIdDictionary<DataDictionary> DataTypeSystem { get; }
 
         /// <inheritdoc/>
-        public NamespaceTable NamespaceUris { get; private set; }
+        public NamespaceTable NamespaceUris { get; }
 
         /// <inheritdoc/>
         public IEncodeableFactory Factory => m_factory;
@@ -241,6 +241,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             return NodeId.ToExpandedNodeId(nodeId, NamespaceUris);
         }
 
-        private EncodeableFactory m_factory;
+        private readonly EncodeableFactory m_factory;
     }
 }

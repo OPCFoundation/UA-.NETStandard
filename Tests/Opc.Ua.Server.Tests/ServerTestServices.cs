@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Tests
 
         public ITelemetryContext Telemetry { get; }
 
-        public  ILogger Logger { get; }
+        public ILogger Logger { get; }
 
         public ServerTestServices(ISessionServer server, ITelemetryContext telemetry)
         {

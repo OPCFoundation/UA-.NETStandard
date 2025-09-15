@@ -108,7 +108,7 @@ namespace Opc.Ua.Gds.Tests
             await m_gdsClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
 
             // good applications test set
-            m_appTestDataGenerator = new ApplicationTestDataGenerator(1);
+            m_appTestDataGenerator = new ApplicationTestDataGenerator(1, m_telemetry);
             m_goodApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(
                 kGoodApplicationsTestCount,
                 false);

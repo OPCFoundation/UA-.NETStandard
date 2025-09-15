@@ -808,7 +808,8 @@ namespace Opc.Ua.Server
                         DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticInfos.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
@@ -1165,7 +1166,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> 
+        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
             BrowseInternalAsync(
             OperationContext context,
             ViewDescription view,
@@ -1303,7 +1304,7 @@ namespace Opc.Ua.Server
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
                         diagnosticsExist = true;
                     }
 
@@ -1553,7 +1554,11 @@ namespace Opc.Ua.Server
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                            Server,
+                            context,
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
 
@@ -1718,7 +1723,9 @@ namespace Opc.Ua.Server
                 {
                     if (sync)
                     {
-                        Utils.LogWarning("Async Browse called synchronously. Prefer using BrowseAsync for best performance. NodeManager={0}", nodeManager);
+                        m_logger.LogWarning(
+                            "Async Browse called synchronously. Prefer using BrowseAsync for best performance. NodeManager={NodeManager}",
+                            nodeManager);
                         cp = asyncNodeManager.BrowseAsync(context, cp, references, cancellationToken)
                             .AsTask().GetAwaiter().GetResult();
                     }
@@ -2023,7 +2030,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2082,13 +2090,14 @@ namespace Opc.Ua.Server
             HistoryReadValueIdCollection nodesToRead,
             CancellationToken cancellationToken = default)
         {
-            return HistoryReadInternalAsync(context,
-                                            historyReadDetails,
-                                            timestampsToReturn,
-                                            releaseContinuationPoints,
-                                            nodesToRead,
-                                            sync: false,
-                                            cancellationToken);
+            return HistoryReadInternalAsync(
+                context,
+                historyReadDetails,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodesToRead,
+                sync: false,
+                cancellationToken);
         }
 
         /// <summary>
@@ -2150,7 +2159,8 @@ namespace Opc.Ua.Server
                         diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2174,8 +2184,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async HistoryRead called synchronously. Prefer using HistoryReadAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async HistoryRead called synchronously. Prefer using HistoryReadAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.HistoryReadAsync(
@@ -2228,7 +2238,8 @@ namespace Opc.Ua.Server
                             diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
                     }
@@ -2325,7 +2336,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2352,8 +2363,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async Write called synchronously. Prefer using WriteAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async Write called synchronously. Prefer using WriteAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.WriteAsync(
@@ -2389,7 +2400,8 @@ namespace Opc.Ua.Server
                             diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
                     }
@@ -2509,7 +2521,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2533,8 +2545,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async HistoryUpdate called synchronously. Prefer using HistoryUpdateAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async HistoryUpdate called synchronously. Prefer using HistoryUpdateAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.HistoryUpdateAsync(
@@ -2583,7 +2595,8 @@ namespace Opc.Ua.Server
                             diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
                     }
@@ -2620,10 +2633,12 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
             (results, diagnosticInfos) = CallInternalAsync(
                 context,
                 methodsToCall,
                 sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
         }
 
         /// <summary>
@@ -2681,7 +2696,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
 
@@ -2703,7 +2719,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             m_logger.LogWarning(
-                                "Async Call called synchronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async Call called synchronously. Prefer using CallAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.CallAsync(
@@ -2750,7 +2766,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2809,8 +2826,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async ConditionRefresh called synchronously. Prefer using ConditionRefreshAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async ConditionRefresh called synchronously. Prefer using ConditionRefreshAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
@@ -3001,14 +3018,15 @@ namespace Opc.Ua.Server
 
                     // validate the event filter.
                     EventFilter.Result result = filter.Validate(
-                        new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
+                        new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
                     if (ServiceResult.IsBad(result.Status))
                     {
                         errors[ii] = result.Status;
                         filterResults[ii] = result.ToEventFilterResult(
                             context.DiagnosticsMask,
-                            context.StringTable);
+                            context.StringTable,
+                            m_logger);
                         continue;
                     }
 
@@ -3360,14 +3378,15 @@ namespace Opc.Ua.Server
 
                 // validate the event filter.
                 EventFilter.Result result = filter.Validate(
-                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
+                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
                 if (ServiceResult.IsBad(result.Status))
                 {
                     errors[ii] = result.Status;
                     filterResults[ii] = result.ToEventFilterResult(
                         context.DiagnosticsMask,
-                        context.StringTable);
+                        context.StringTable,
+                        m_logger);
                     continue;
                 }
 

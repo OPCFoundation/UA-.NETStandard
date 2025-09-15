@@ -161,6 +161,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             return m_innerStore.AddCRLAsync(crl, ct);
         }
+
         /// <inheritdoc/>
         public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {

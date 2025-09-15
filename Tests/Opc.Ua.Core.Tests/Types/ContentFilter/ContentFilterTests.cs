@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.ContentFilter
@@ -62,6 +63,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
     [Parallelizable]
     public class ContentFilterTests
     {
+        public ITelemetryContext Telemetry { get; }
         public EventFilter Filter { get; }
         public FilterContext FilterContext { get; }
         public TestFilterTarget TestFilterTarget { get; }
@@ -71,7 +73,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             // construct the context to use for the event filter.
             var namespaceTable = new NamespaceTable();
             var typeTable = new TypeTable(namespaceTable);
-            FilterContext = new FilterContext(namespaceTable, typeTable);
+            Telemetry = NUnitTelemetryContext.Create();
+            FilterContext = new FilterContext(namespaceTable, typeTable, Telemetry);
 
             // event filter must be specified.
             Filter = new EventFilter { WhereClause = new Ua.ContentFilter() };

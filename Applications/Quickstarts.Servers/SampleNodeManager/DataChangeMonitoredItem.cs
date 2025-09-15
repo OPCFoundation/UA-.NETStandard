@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
@@ -760,7 +761,8 @@ namespace Opc.Ua.Sample
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
-            uint maxNotificationsPerPublish)
+            uint maxNotificationsPerPublish,
+            ILogger logger)
         {
             lock (m_lock)
             {
@@ -786,7 +788,7 @@ namespace Opc.Ua.Sample
                         notificationCount < maxNotificationsPerPublish &&
                         m_queue.PublishSingleValue(out DataValue value, out ServiceResult error))
                     {
-                        Publish(context, value, error, notifications, diagnostics);
+                        Publish(context, value, error, notifications, diagnostics, logger);
                         notificationCount++;
 
                         if (m_resendData)
@@ -797,7 +799,7 @@ namespace Opc.Ua.Sample
                 }
                 else
                 {
-                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
+                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics, logger);
                 }
 
                 bool moreValuesToPublish = m_queue?.ItemsInQueue > 0;
@@ -819,7 +821,8 @@ namespace Opc.Ua.Sample
             DataValue value,
             ServiceResult error,
             Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics)
+            Queue<DiagnosticInfo> diagnostics,
+            ILogger logger)
         {
             // set semantics changed bit.
             if (m_semanticsChanged)
@@ -889,7 +892,8 @@ namespace Opc.Ua.Sample
                 diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                     m_source.Server,
                     context,
-                    m_lastError);
+                    m_lastError,
+                    logger);
             }
 
             diagnostics.Enqueue(diagnosticInfo);

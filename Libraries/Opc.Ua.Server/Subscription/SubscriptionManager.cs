@@ -917,7 +917,8 @@ namespace Opc.Ua.Server
                         DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            result);
+                            result,
+                            m_logger);
                         diagnosticInfos.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
@@ -1380,7 +1381,8 @@ namespace Opc.Ua.Server
                         DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            result);
+                            result,
+                            m_logger);
                         diagnosticInfos.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
@@ -1637,7 +1639,7 @@ namespace Opc.Ua.Server
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
                         diagnosticInfos.Add(
-                            new DiagnosticInfo(e, context.DiagnosticsMask, false, null));
+                            new DiagnosticInfo(e, context.DiagnosticsMask, false, null, m_logger));
                     }
                 }
 

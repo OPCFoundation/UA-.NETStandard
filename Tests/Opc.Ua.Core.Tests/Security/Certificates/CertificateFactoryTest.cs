@@ -88,7 +88,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public void VerifySelfSignedAppCerts(KeyHashPair keyHashPair)
         {
-            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize, telemetry);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
             using X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(
@@ -124,11 +126,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(500)]
         public void VerifySignedAppCerts(KeyHashPair keyHashPair)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             X509Certificate2 issuerCertificate = GetIssuer(keyHashPair);
             Assert.NotNull(issuerCertificate);
             Assert.NotNull(issuerCertificate.RawData);
             Assert.True(issuerCertificate.HasPrivateKey);
-            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
+            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize, telemetry);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
             using X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(

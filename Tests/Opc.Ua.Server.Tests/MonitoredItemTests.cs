@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -20,6 +22,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateMI()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<MonitoreItemTests>();
+
             MonitoredItem monitoredItem = CreateMonitoredItem();
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
@@ -34,7 +39,7 @@ namespace Opc.Ua.Server.Tests
 
             var result = new Queue<MonitoredItemNotification>();
             var result2 = new Queue<DiagnosticInfo>();
-            monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1);
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1, logger);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
@@ -70,6 +75,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateMIQueueNoQueue()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<MonitoreItemTests>();
+
             MonitoredItem monitoredItem = CreateMonitoredItem(false, 0);
 
             Assert.That(monitoredItem.QueueSize, Is.EqualTo(1));
@@ -81,7 +89,7 @@ namespace Opc.Ua.Server.Tests
 
             var result = new Queue<MonitoredItemNotification>();
             var result2 = new Queue<DiagnosticInfo>();
-            monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1);
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1, logger);
 
             Assert.That(result, Is.Not.Empty);
             MonitoredItemNotification publishResult = result.FirstOrDefault();

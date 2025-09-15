@@ -123,7 +123,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the LogLevel for the TraceEventLogger.
+        /// Sets the LogLevel for the global Logger.
         /// </summary>
         /// <remarks>
         /// The setting is ignored if ILogger is replaced.

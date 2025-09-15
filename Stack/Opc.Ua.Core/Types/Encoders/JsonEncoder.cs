@@ -44,7 +44,7 @@ namespace Opc.Ua
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
-        private Stack<string> m_namespaces = [];
+        private readonly Stack<string> m_namespaces = [];
         private bool m_commaRequired;
         private bool m_inVariantWithEncoding;
         private ushort[] m_namespaceMappings;
@@ -3750,7 +3750,7 @@ namespace Opc.Ua
                     else
                     {
                         m_logger.LogWarning(
-                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
                 }
@@ -3778,7 +3778,8 @@ namespace Opc.Ua
             (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(
                 true,
                 matrix.Dimensions,
-                Context.MaxArrayLength);
+                Context.MaxArrayLength,
+                m_logger);
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
@@ -3808,7 +3809,8 @@ namespace Opc.Ua
             (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(
                 true,
                 matrix.Dimensions,
-                Context.MaxArrayLength);
+                Context.MaxArrayLength,
+                m_logger);
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {

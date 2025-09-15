@@ -548,7 +548,7 @@ namespace Opc.Ua.Client
         /// Gets the context to use for filter operations.
         /// </summary>
         public FilterContext FilterContext
-            => new(NamespaceUris, m_nodeCache.TypeTree, m_preferredLocales);
+            => new(NamespaceUris, m_nodeCache.TypeTree, m_preferredLocales, m_telemetry);
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.

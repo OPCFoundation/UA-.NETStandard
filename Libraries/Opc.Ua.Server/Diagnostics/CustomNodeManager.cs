@@ -2537,7 +2537,7 @@ namespace Opc.Ua.Server
 
                 // validate the event filter.
                 EventFilter.Result result = readEventDetails.Filter.Validate(
-                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
+                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
                 if (ServiceResult.IsBad(result.Status))
                 {
@@ -3123,7 +3123,8 @@ namespace Opc.Ua.Server
                                 argumentError,
                                 systemContext.OperationContext.DiagnosticsMask,
                                 false,
-                                systemContext.OperationContext.StringTable));
+                                systemContext.OperationContext.StringTable,
+                                Logger));
                     }
                     else
                     {

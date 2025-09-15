@@ -4,8 +4,10 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Quickstarts.Servers;
 
 namespace Opc.Ua.Server.Tests
@@ -672,7 +674,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerOverflow()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory, 1);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var queueHandler = new EventQueueHandler(false, m_factory, 1, telemetry);
 
             queueHandler.SetQueueSize(1, false);
 
@@ -689,7 +693,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerEnqueueSize1()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory, 1);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var queueHandler = new EventQueueHandler(false, m_factory, 1, telemetry);
 
             queueHandler.SetQueueSize(1, true);
 
@@ -714,7 +720,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerEnqueueSize2()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory, 1);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var queueHandler = new EventQueueHandler(false, m_factory, 1, telemetry);
 
             queueHandler.SetQueueSize(2, false);
 
@@ -750,7 +758,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerPublish()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory, 1);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var queueHandler = new EventQueueHandler(false, m_factory, 1, telemetry);
 
             queueHandler.SetQueueSize(2, false);
 
@@ -1099,6 +1109,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateDurableMI()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<DurableMonitoredItemTests>();
+
             if (m_factory.SupportsDurableQueues)
             {
                 MonitoredItem monitoredItem = CreateDurableMonitoredItem();
@@ -1115,7 +1128,7 @@ namespace Opc.Ua.Server.Tests
 
                 var result = new Queue<MonitoredItemNotification>();
                 var result2 = new Queue<DiagnosticInfo>();
-                monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1);
+                monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1, logger);
 
                 Assert.That(result, Is.Not.Empty);
                 Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
@@ -1161,6 +1174,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateDurableMIQueueNoQueue()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<DurableMonitoredItemTests>();
+
             if (!m_factory.SupportsDurableQueues)
             {
                 Assert.Ignore("Test only works with durable queues");
@@ -1177,7 +1193,7 @@ namespace Opc.Ua.Server.Tests
 
             var result = new Queue<MonitoredItemNotification>();
             var result2 = new Queue<DiagnosticInfo>();
-            monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1);
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1, logger);
 
             Assert.That(result, Is.Not.Empty);
             MonitoredItemNotification publishResult = result.FirstOrDefault();

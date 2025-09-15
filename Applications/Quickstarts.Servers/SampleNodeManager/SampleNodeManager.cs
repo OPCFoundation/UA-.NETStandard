@@ -1899,7 +1899,8 @@ namespace Opc.Ua.Sample
                                 argumentError,
                                 systemContext.OperationContext.DiagnosticsMask,
                                 false,
-                                systemContext.OperationContext.StringTable));
+                                systemContext.OperationContext.StringTable,
+                                m_logger));
                     }
                     else
                     {

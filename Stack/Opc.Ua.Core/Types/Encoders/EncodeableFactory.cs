@@ -72,11 +72,12 @@ namespace Opc.Ua
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
-            if (factory != null)
+            if (factory is EncodeableFactory encodeableFactory)
             {
-                var cloned = ((EncodeableFactory)factory.Clone());
-                m_logger = telemetry == null ? cloned.m_logger : telemetry.CreateLogger<EncodeableFactory>();
-                m_encodeableTypes = cloned.m_encodeableTypes
+                // If telemetry is null, use the original logger
+                m_logger = telemetry == null ?
+                    encodeableFactory.m_logger : telemetry.CreateLogger<EncodeableFactory>();
+                m_encodeableTypes = encodeableFactory.m_encodeableTypes
                     .ToDictionary(entry => entry.Key, entry => entry.Value);
             }
             else
@@ -117,7 +118,7 @@ namespace Opc.Ua
             }
             catch (Exception)
             {
-                m_logger.LogError("Could not load encodeable types from assembly: {0}", assemblyName);
+                m_logger.LogError("Could not load encodeable types from assembly: {Name}", assemblyName);
             }
         }
 
@@ -149,7 +150,7 @@ namespace Opc.Ua
             if (m_shared)
             {
                 m_logger.LogTrace(
-                    "WARNING: Adding type '{0}' to shared Factory #{1}.",
+                    "WARNING: Adding type '{Name}' to shared Factory #{InstanceId}.",
                     systemType.Name,
                     InstanceId);
             }
@@ -369,7 +370,7 @@ namespace Opc.Ua
                 if (m_shared)
                 {
                     m_logger.LogWarning(
-                        "WARNING: Adding type '{0}' to shared Factory #{1}.",
+                        "WARNING: Adding type '{Name}' to shared Factory #{InstanceId}.",
                         systemType.Name,
                         InstanceId);
                 }
@@ -408,7 +409,7 @@ namespace Opc.Ua
                 if (m_shared)
                 {
                     m_logger.LogWarning(
-                        "WARNING: Adding types from assembly '{0}' to shared Factory #{1}.",
+                        "WARNING: Adding types from assembly '{FullName}' to shared Factory #{InstanceId}.",
                         assembly.FullName,
                         InstanceId);
                 }

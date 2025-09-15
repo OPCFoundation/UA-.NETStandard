@@ -66,7 +66,7 @@ namespace TestData
             m_minimumSamplingInterval = int.MaxValue;
             m_monitoredNodes = [];
             m_samplingNodes = null;
-            m_generator = new Opc.Ua.Test.DataGenerator(null)
+            m_generator = new Opc.Ua.Test.DataGenerator(null, telemetry)
             {
                 NamespaceUris = namespaceUris,
                 ServerUris = serverUris

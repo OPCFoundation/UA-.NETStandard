@@ -1302,10 +1302,7 @@ namespace Opc.Ua
                         }
                         catch (Exception ex) when (ex is not ServiceResultException)
                         {
-                            m_logger.LogError(
-                                ex,
-                                "XmlDecoder: Error reading variant. {0}",
-                                ex.Message);
+                            m_logger.LogError(ex, "XmlDecoder: Error reading variant.");
                             value = new Variant((StatusCode)StatusCodes.BadDecodingError);
                         }
                         EndField("Value");
@@ -1371,7 +1368,7 @@ namespace Opc.Ua
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
                 m_logger.LogWarning(
-                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                     typeId);
             }
 
@@ -3176,7 +3173,7 @@ namespace Opc.Ua
 
         private readonly ILogger m_logger;
         private XmlReader m_reader;
-        private Stack<string> m_namespaces = [];
+        private readonly Stack<string> m_namespaces = [];
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

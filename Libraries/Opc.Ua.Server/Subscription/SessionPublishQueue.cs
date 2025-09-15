@@ -296,7 +296,8 @@ namespace Opc.Ua.Server
                                         .CreateDiagnosticInfo(
                                             m_server,
                                             context,
-                                            result);
+                                            result,
+                                            m_logger);
                                     acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                                     diagnosticsExist = true;
                                 }
@@ -317,7 +318,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                result);
+                                result,
+                                m_logger);
                             acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                             diagnosticsExist = true;
                         }

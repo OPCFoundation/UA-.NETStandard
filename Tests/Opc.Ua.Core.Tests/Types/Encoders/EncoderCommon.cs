@@ -106,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // ensure tests are reproducible, reset for every test
             RandomSource = new RandomSource(kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         [TearDown]
@@ -123,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void SetRandomSeed(int randomSeed)
         {
             RandomSource = new RandomSource(randomSeed + kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         [DatapointSource]

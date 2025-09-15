@@ -420,7 +420,8 @@ namespace Opc.Ua.Bindings
                     fault,
                     DiagnosticsMasks.NoInnerStatus,
                     true,
-                    stringTable);
+                    stringTable,
+                    m_logger);
 
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 
@@ -499,7 +500,8 @@ namespace Opc.Ua.Bindings
                     fault,
                     DiagnosticsMasks.NoInnerStatus,
                     true,
-                    stringTable);
+                    stringTable,
+                    m_logger);
 
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 

@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -253,9 +254,11 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="diagnosticsMasks">The diagnostics masks.</param>
             /// <param name="stringTable">The string table.</param>
+            /// <param name="logger"></param>
             public ContentFilterResult ToContextFilterResult(
                 DiagnosticsMasks diagnosticsMasks,
-                StringTable stringTable)
+                StringTable stringTable,
+                ILogger logger)
             {
                 var result = new ContentFilterResult();
 
@@ -286,14 +289,16 @@ namespace Opc.Ua
 
                     elementResult2 = elementResult.ToContentFilterElementResult(
                         diagnosticsMasks,
-                        stringTable);
+                        stringTable,
+                        logger);
                     result.ElementResults.Add(elementResult2);
                     result.ElementDiagnosticInfos.Add(
                         new DiagnosticInfo(
                             elementResult.Status,
                             diagnosticsMasks,
                             false,
-                            stringTable));
+                            stringTable,
+                            logger));
                 }
 
                 if (!error)
@@ -349,9 +354,11 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="diagnosticsMasks">The diagnostics masks.</param>
             /// <param name="stringTable">The string table.</param>
+            /// <param name="logger"></param>
             public ContentFilterElementResult ToContentFilterElementResult(
                 DiagnosticsMasks diagnosticsMasks,
-                StringTable stringTable)
+                StringTable stringTable,
+                ILogger logger)
             {
                 var result = new ContentFilterElementResult();
 
@@ -383,7 +390,8 @@ namespace Opc.Ua
                                 operandResult,
                                 diagnosticsMasks,
                                 false,
-                                stringTable));
+                                stringTable,
+                                logger));
                     }
                 }
 

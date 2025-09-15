@@ -70,11 +70,11 @@ namespace Opc.Ua.Gds.Tests
 
         private readonly ServerCapabilities m_serverCapabilities;
 
-        public ApplicationTestDataGenerator(int randomStart)
+        public ApplicationTestDataGenerator(int randomStart, ITelemetryContext telemetry)
         {
             m_serverCapabilities = new ServerCapabilities();
             RandomSource = new RandomSource(randomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, telemetry);
         }
 
         public RandomSource RandomSource { get; }

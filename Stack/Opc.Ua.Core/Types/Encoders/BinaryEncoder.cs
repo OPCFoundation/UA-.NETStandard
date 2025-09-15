@@ -33,8 +33,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to a memory buffer.
         /// </summary>
-        public BinaryEncoder(
-            IServiceMessageContext context)
+        public BinaryEncoder(IServiceMessageContext context)
         {
             m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream();
@@ -2162,7 +2161,7 @@ namespace Opc.Ua
                     else
                     {
                         m_logger.LogWarning(
-                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
                 }

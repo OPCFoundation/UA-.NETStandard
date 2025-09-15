@@ -531,7 +531,8 @@ namespace Opc.Ua
                 result,
                 diagnosticsMask,
                 true,
-                stringTable);
+                stringTable,
+                logger);
 
             fault.ResponseHeader.StringTable = stringTable.ToArray();
 

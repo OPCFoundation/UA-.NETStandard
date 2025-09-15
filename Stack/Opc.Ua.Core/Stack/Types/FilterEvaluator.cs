@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -22,14 +23,26 @@ namespace Opc.Ua
     /// This class contains functions used to evaluate a ContentFilter and report the
     /// results of the evaluation.
     /// </summary>
-    public partial class ContentFilter
+    public sealed partial class FilterEvaluator
     {
+        private readonly ContentFilter m_filter;
+        private readonly FilterContext m_context;
+        private readonly IFilterTarget m_target;
+        private readonly ILogger m_logger;
+
         /// <summary>
-        /// Set the default StringComparison to use when evaluating the Equals operator.
-        /// This property is meant to be set as a config setting and not set / reset on a per context basis, to ensure consistency
+        /// Create evaluator
         /// </summary>
-        public static StringComparison EqualsOperatorDefaultStringComparison { get; set; }
-            = StringComparison.Ordinal;
+        /// <param name="filter"></param>
+        /// <param name="context"></param>
+        /// <param name="target"></param>
+        public FilterEvaluator(ContentFilter filter, FilterContext context, IFilterTarget target)
+        {
+            m_filter = filter;
+            m_context = context;
+            m_target = target;
+            m_logger = context.Telemetry.CreateLogger<FilterEvaluator>();
+        }
 
         /// <summary>
         /// Evaluates the first element in the ContentFilter. If the first or any
@@ -38,69 +51,69 @@ namespace Opc.Ua
         /// are not linked (directly or indirectly) to the first element will not
         /// be evaluated (they have no influence on the result).
         /// </summary>
-        /// <param name="context">The context to use when evaluating the filter.</param>
-        /// <param name="target">The target to use when evaluating elements that reference the type model.</param>
         /// <returns>Returns true, false or null.</returns>
-        public bool Evaluate(FilterContext context, IFilterTarget target)
+        public bool Result
         {
-            // check if nothing to do.
-            if (Elements.Count == 0)
+            get
             {
-                return true;
+                // check if nothing to do.
+                if (m_filter.Elements.Count == 0)
+                {
+                    return true;
+                }
+
+                bool? result = Evaluate(0) as bool?;
+                return result ?? false;
             }
-
-            bool? result = Evaluate(context, target, 0) as bool?;
-
-            return result ?? false;
         }
 
         /// <summary>
         /// Evaluates element at the specified index.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private object Evaluate(FilterContext context, IFilterTarget target, int index)
+        private object Evaluate(int index)
         {
             // get the element to evaluate.
-            ContentFilterElement element = Elements[index];
+            ContentFilterElement element = m_filter.Elements[index];
 
             switch (element.FilterOperator)
             {
                 case FilterOperator.And:
-                    return And(context, target, element);
+                    return And(element);
                 case FilterOperator.Or:
-                    return Or(context, target, element);
+                    return Or(element);
                 case FilterOperator.Not:
-                    return Not(context, target, element);
+                    return Not(element);
                 case FilterOperator.Equals:
-                    return Equals(context, target, element);
+                    return Equals(element);
                 case FilterOperator.GreaterThan:
-                    return GreaterThan(context, target, element);
+                    return GreaterThan(element);
                 case FilterOperator.GreaterThanOrEqual:
-                    return GreaterThanOrEqual(context, target, element);
+                    return GreaterThanOrEqual(element);
                 case FilterOperator.LessThan:
-                    return LessThan(context, target, element);
+                    return LessThan(element);
                 case FilterOperator.LessThanOrEqual:
-                    return LessThanOrEqual(context, target, element);
+                    return LessThanOrEqual(element);
                 case FilterOperator.Between:
-                    return Between(context, target, element);
+                    return Between(element);
                 case FilterOperator.InList:
-                    return InList(context, target, element);
+                    return InList(element);
                 case FilterOperator.Like:
-                    return Like(context, target, element);
+                    return Like(element);
                 case FilterOperator.IsNull:
-                    return IsNull(context, target, element);
+                    return IsNull(element);
                 case FilterOperator.Cast:
-                    return Cast(context, target, element);
+                    return Cast(element);
                 case FilterOperator.OfType:
-                    return OfType(context, target, element);
+                    return OfType(element);
                 case FilterOperator.InView:
-                    return InView(context, target, element);
+                    return InView(element);
                 case FilterOperator.RelatedTo:
-                    return RelatedTo(context, target, element);
+                    return RelatedTo(element);
                 case FilterOperator.BitwiseAnd:
-                    return BitwiseAnd(context, target, element);
+                    return BitwiseAnd(element);
                 case FilterOperator.BitwiseOr:
-                    return BitwiseOr(context, target, element);
+                    return BitwiseOr(element);
             }
 
             throw new ServiceResultException(
@@ -150,15 +163,12 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the operands necessary for the BitwiseAnd and BitwiseOr operations
         /// </summary>
-        private Tuple<object, object> GetBitwiseOperands(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private Tuple<object, object> GetBitwiseOperands(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object lhs = GetValue(context, operands[0], target);
-            object rhs = GetValue(context, operands[1], target);
+            object lhs = GetValue(operands[0]);
+            object rhs = GetValue(operands[1]);
 
             if (lhs == null || rhs == null)
             {
@@ -179,7 +189,7 @@ namespace Opc.Ua
         /// Returns the value for the element.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private object GetValue(FilterContext context, FilterOperand operand, IFilterTarget target)
+        private object GetValue(FilterOperand operand)
         {
             // return the contained value for literal operands.
 
@@ -192,8 +202,8 @@ namespace Opc.Ua
 
             if (operand is SimpleAttributeOperand simpleAttribute)
             {
-                return target.GetAttributeValue(
-                    context,
+                return m_target.GetAttributeValue(
+                    m_context,
                     simpleAttribute.TypeDefinitionId,
                     simpleAttribute.BrowsePath,
                     simpleAttribute.AttributeId,
@@ -206,13 +216,13 @@ namespace Opc.Ua
             {
                 // AttributeOperands only supported in advanced filter targets.
 
-                if (target is not IAdvancedFilterTarget advancedTarget)
+                if (m_target is not IAdvancedFilterTarget advancedTarget)
                 {
                     return false;
                 }
 
                 return advancedTarget.GetRelatedAttributeValue(
-                    context,
+                    m_context,
                     attribute.NodeId,
                     attribute.BrowsePath,
                     attribute.AttributeId,
@@ -223,7 +233,7 @@ namespace Opc.Ua
 
             if (operand is ElementOperand element)
             {
-                return Evaluate(context, target, (int)element.Index);
+                return Evaluate((int)element.Index);
             }
 
             // oops - Validate() was not called.
@@ -434,7 +444,7 @@ namespace Opc.Ua
         /// <summary>
         /// Implicitly converts the values according to their data type precedence.
         /// </summary>
-        private static void DoImplicitConversion(ref object value1, ref object value2)
+        private void DoImplicitConversion(ref object value1, ref object value2)
         {
             BuiltInType type1 = GetBuiltInType(value1);
             BuiltInType type2 = GetBuiltInType(value2);
@@ -481,7 +491,7 @@ namespace Opc.Ua
                 {
                     return false;
                 }
-                return string1.Equals(string2, EqualsOperatorDefaultStringComparison);
+                return string1.Equals(string2, ContentFilter.EqualsOperatorDefaultStringComparison);
             }
 
             return Utils.IsEqual(value1, value2);
@@ -564,7 +574,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Boolean
         /// </summary>
-        private static object ToBoolean(object value, BuiltInType sourceType)
+        private object ToBoolean(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -615,7 +625,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a SByte
         /// </summary>
-        private static object ToSByte(object value, BuiltInType sourceType)
+        private object ToSByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -714,7 +724,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Int16
         /// </summary>
-        private static object ToInt16(object value, BuiltInType sourceType)
+        private object ToInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -766,7 +776,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a UInt16
         /// </summary>
-        private static object ToUInt16(object value, BuiltInType sourceType)
+        private object ToUInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -821,7 +831,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Int32
         /// </summary>
-        private static object ToInt32(object value, BuiltInType sourceType)
+        private object ToInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -875,7 +885,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a UInt32
         /// </summary>
-        private static object ToUInt32(object value, BuiltInType sourceType)
+        private object ToUInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -929,7 +939,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Int64
         /// </summary>
-        private static object ToInt64(object value, BuiltInType sourceType)
+        private object ToInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -983,7 +993,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a UInt64
         /// </summary>
-        private static object ToUInt64(object value, BuiltInType sourceType)
+        private object ToUInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1037,7 +1047,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Float
         /// </summary>
-        private static object ToFloat(object value, BuiltInType sourceType)
+        private object ToFloat(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1089,7 +1099,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Double
         /// </summary>
-        private static object ToDouble(object value, BuiltInType sourceType)
+        private object ToDouble(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1141,7 +1151,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a String
         /// </summary>
-        private static object ToString(object value, BuiltInType sourceType)
+        private object ToString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1207,7 +1217,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a DateTime
         /// </summary>
-        private static object ToDateTime(object value, BuiltInType sourceType)
+        private object ToDateTime(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1239,7 +1249,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Guid
         /// </summary>
-        private static object ToGuid(object value, BuiltInType sourceType)
+        private object ToGuid(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1273,7 +1283,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a ByteString
         /// </summary>
-        private static object ToByteString(object value, BuiltInType sourceType)
+        private object ToByteString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1305,7 +1315,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a NodeId
         /// </summary>
-        private static object ToNodeId(object value, BuiltInType sourceType)
+        private object ToNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1339,7 +1349,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a ExpandedNodeId
         /// </summary>
-        private static object ToExpandedNodeId(object value, BuiltInType sourceType)
+        private object ToExpandedNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1375,7 +1385,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a StatusCode
         /// </summary>
-        private static object ToStatusCode(object value, BuiltInType sourceType)
+        private object ToStatusCode(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1417,7 +1427,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a QualifiedName
         /// </summary>
-        private static object ToQualifiedName(object value, BuiltInType sourceType)
+        private object ToQualifiedName(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1449,7 +1459,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a LocalizedText
         /// </summary>
-        private static object ToLocalizedText(object value, BuiltInType sourceType)
+        private object ToLocalizedText(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
@@ -1479,9 +1489,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Casts a value to the specified target type.
+        /// Casts a value to the specified m_target type.
         /// </summary>
-        private static object Cast(object source, BuiltInType targetType)
+        private object Cast(object source, BuiltInType targetType)
         {
             BuiltInType sourceType = GetBuiltInType(source);
 
@@ -1494,9 +1504,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Casts a value to the specified target type.
+        /// Casts a value to the specified m_target type.
         /// </summary>
-        private static object Cast(object source, BuiltInType sourceType, BuiltInType targetType)
+        private object Cast(object source, BuiltInType sourceType, BuiltInType targetType)
         {
             // null always casts to null.
             if (source == null)
@@ -1510,7 +1520,7 @@ namespace Opc.Ua
                 return Cast(variant.Value, targetType);
             }
 
-            // call the appropriate function if a conversion is supported for the target type.
+            // call the appropriate function if a conversion is supported for the m_target type.
             try
             {
                 switch (targetType)
@@ -1559,9 +1569,9 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
-                    "Error converting a {0} (Value={1}) to {2}.",
+                    "Error converting a {SourceType} (Value={Value}) to {TargetType}.",
                     sourceType,
                     source,
                     targetType);
@@ -1574,11 +1584,11 @@ namespace Opc.Ua
         /// <summary>
         /// And FilterOperator
         /// </summary>
-        private bool? And(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? And(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            bool? lhs = GetValue(context, operands[0], target) as bool?;
+            bool? lhs = GetValue(operands[0]) as bool?;
 
             // no need for further processing if first operand is false.
             if (lhs == false)
@@ -1586,7 +1596,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            bool? rhs = GetValue(context, operands[1], target) as bool?;
+            bool? rhs = GetValue(operands[1]) as bool?;
 
             if (lhs == null)
             {
@@ -1614,11 +1624,11 @@ namespace Opc.Ua
         /// <summary>
         /// Or FilterOperator
         /// </summary>
-        private bool? Or(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? Or(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            bool? lhs = GetValue(context, operands[0], target) as bool?;
+            bool? lhs = GetValue(operands[0]) as bool?;
 
             // no need for further processing if first operand is true.
             if (lhs == true)
@@ -1626,7 +1636,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            bool? rhs = GetValue(context, operands[1], target) as bool?;
+            bool? rhs = GetValue(operands[1]) as bool?;
 
             if (lhs == null)
             {
@@ -1654,11 +1664,11 @@ namespace Opc.Ua
         /// <summary>
         /// Not FilterOperator
         /// </summary>
-        private bool? Not(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? Not(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 1);
 
-            bool? rhs = GetValue(context, operands[0], target) as bool?;
+            bool? rhs = GetValue(operands[0]) as bool?;
 
             if (rhs == null)
             {
@@ -1671,15 +1681,12 @@ namespace Opc.Ua
         /// <summary>
         /// Equals FilterOperator
         /// </summary>
-        private bool Equals(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool Equals(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object lhs = GetValue(context, operands[0], target);
-            object rhs = GetValue(context, operands[1], target);
+            object lhs = GetValue(operands[0]);
+            object rhs = GetValue(operands[1]);
 
             DoImplicitConversion(ref lhs, ref rhs);
 
@@ -1689,15 +1696,12 @@ namespace Opc.Ua
         /// <summary>
         /// GreaterThan FilterOperator
         /// </summary>
-        private bool? GreaterThan(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool? GreaterThan(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object lhs = GetValue(context, operands[0], target);
-            object rhs = GetValue(context, operands[1], target);
+            object lhs = GetValue(operands[0]);
+            object rhs = GetValue(operands[1]);
 
             DoImplicitConversion(ref lhs, ref rhs);
 
@@ -1713,15 +1717,12 @@ namespace Opc.Ua
         /// <summary>
         /// GreaterThanOrEqual FilterOperator
         /// </summary>
-        private bool? GreaterThanOrEqual(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool? GreaterThanOrEqual(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object lhs = GetValue(context, operands[0], target);
-            object rhs = GetValue(context, operands[1], target);
+            object lhs = GetValue(operands[0]);
+            object rhs = GetValue(operands[1]);
 
             DoImplicitConversion(ref lhs, ref rhs);
 
@@ -1737,15 +1738,12 @@ namespace Opc.Ua
         /// <summary>
         /// LessThan FilterOperator
         /// </summary>
-        private bool? LessThan(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool? LessThan(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object lhs = GetValue(context, operands[0], target);
-            object rhs = GetValue(context, operands[1], target);
+            object lhs = GetValue(operands[0]);
+            object rhs = GetValue(operands[1]);
 
             DoImplicitConversion(ref lhs, ref rhs);
 
@@ -1761,15 +1759,12 @@ namespace Opc.Ua
         /// <summary>
         /// LessThanOrEqual FilterOperator
         /// </summary>
-        private bool? LessThanOrEqual(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool? LessThanOrEqual(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object lhs = GetValue(context, operands[0], target);
-            object rhs = GetValue(context, operands[1], target);
+            object lhs = GetValue(operands[0]);
+            object rhs = GetValue(operands[1]);
 
             DoImplicitConversion(ref lhs, ref rhs);
 
@@ -1785,17 +1780,14 @@ namespace Opc.Ua
         /// <summary>
         /// Between FilterOperator
         /// </summary>
-        private bool? Between(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool? Between(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 3);
 
-            object value = GetValue(context, operands[0], target);
+            object value = GetValue(operands[0]);
 
-            object min = GetValue(context, operands[1], target);
-            object max = GetValue(context, operands[2], target);
+            object min = GetValue(operands[1]);
+            object max = GetValue(operands[2]);
 
             // the min and max could be different data types so the implicit conversion must be done twice.
             object lhs = value;
@@ -1836,20 +1828,17 @@ namespace Opc.Ua
         /// <summary>
         /// InList FilterOperator
         /// </summary>
-        private bool? InList(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool? InList(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 0);
 
-            object value = GetValue(context, operands[0], target);
+            object value = GetValue(operands[0]);
 
             // check for a match.
             for (int ii = 1; ii < operands.Length; ii++)
             {
                 object lhs = value;
-                object rhs = GetValue(context, operands[ii], target);
+                object rhs = GetValue(operands[ii]);
 
                 DoImplicitConversion(ref lhs, ref rhs);
 
@@ -1866,11 +1855,11 @@ namespace Opc.Ua
         /// <summary>
         /// Like FilterOperator
         /// </summary>
-        private bool Like(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool Like(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object firstOperand = GetValue(context, operands[0], target);
+            object firstOperand = GetValue(operands[0]);
             string lhs;
             var firstOperandLocalizedText = firstOperand as LocalizedText;
             if (firstOperandLocalizedText != null)
@@ -1882,7 +1871,7 @@ namespace Opc.Ua
                 lhs = firstOperand as string;
             }
 
-            object secondOperand = GetValue(context, operands[1], target);
+            object secondOperand = GetValue(operands[1]);
             string rhs;
             var secondOperandLocalizedText = secondOperand as LocalizedText;
             if (secondOperandLocalizedText != null)
@@ -1906,14 +1895,11 @@ namespace Opc.Ua
         /// <summary>
         /// IsNull FilterOperator
         /// </summary>
-        private bool IsNull(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool IsNull(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 1);
 
-            object rhs = GetValue(context, operands[0], target);
+            object rhs = GetValue(operands[0]);
 
             return rhs == null;
         }
@@ -1922,14 +1908,12 @@ namespace Opc.Ua
         /// Cast FilterOperator
         /// </summary>
         private object Cast(
-            FilterContext context,
-            IFilterTarget target,
             ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
             // get the value to cast.
-            object value = GetValue(context, operands[0], target);
+            object value = GetValue(operands[0]);
 
             if (value == null)
             {
@@ -1937,7 +1921,7 @@ namespace Opc.Ua
             }
 
             // get the datatype to cast to.
-            if (GetValue(context, operands[1], target) is not NodeId datatype)
+            if (GetValue(operands[1]) is not NodeId datatype)
             {
                 return null;
             }
@@ -1951,17 +1935,14 @@ namespace Opc.Ua
         /// <summary>
         /// OfType FilterOperator
         /// </summary>
-        private bool OfType(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool OfType(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            var typeDefinitionId = GetValue(context, operands[0], target) as NodeId;
+            var typeDefinitionId = GetValue(operands[0]) as NodeId;
 
-            if (typeDefinitionId == null || target == null)
+            if (typeDefinitionId == null || m_target == null)
             {
                 return false;
             }
@@ -1969,7 +1950,7 @@ namespace Opc.Ua
             // check the type.
             try
             {
-                return target.IsTypeOf(context, typeDefinitionId);
+                return m_target.IsTypeOf(m_context, typeDefinitionId);
             }
             catch
             {
@@ -1980,14 +1961,11 @@ namespace Opc.Ua
         /// <summary>
         /// InView FilterOperator
         /// </summary>
-        private bool InView(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool InView(ContentFilterElement element)
         {
             // views only supported in advanced filter targets.
 
-            if (target is not IAdvancedFilterTarget advancedFilter)
+            if (m_target is not IAdvancedFilterTarget advancedFilter)
             {
                 return false;
             }
@@ -1995,17 +1973,17 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            var viewId = GetValue(context, operands[0], target) as NodeId;
+            var viewId = GetValue(operands[0]) as NodeId;
 
-            if (viewId == null || target == null)
+            if (viewId == null || m_target == null)
             {
                 return false;
             }
 
-            // check the target.
+            // check the m_target.
             try
             {
-                return advancedFilter.IsInView(context, viewId);
+                return advancedFilter.IsInView(m_context, viewId);
             }
             catch
             {
@@ -2016,26 +1994,21 @@ namespace Opc.Ua
         /// <summary>
         /// RelatedTo FilterOperator
         /// </summary>
-        private bool RelatedTo(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private bool RelatedTo(ContentFilterElement element)
         {
-            return RelatedTo(context, target, element, null);
+            return RelatedTo(element, null);
         }
 
         /// <summary>
         /// RelatedTo FilterOperator
         /// </summary>
         private bool RelatedTo(
-            FilterContext context,
-            IFilterTarget target,
             ContentFilterElement element,
             NodeId intermediateNodeId)
         {
             // RelatedTo only supported in advanced filter targets.
 
-            if (target is not IAdvancedFilterTarget advancedTarget)
+            if (m_target is not IAdvancedFilterTarget advancedTarget)
             {
                 return false;
             }
@@ -2043,13 +2016,13 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 6);
 
             // get the type of the source.
-            if (GetValue(context, operands[0], target) is not NodeId sourceTypeId)
+            if (GetValue(operands[0]) is not NodeId sourceTypeId)
             {
                 return false;
             }
 
             // get the type of reference to follow.
-            if (GetValue(context, operands[2], target) is not NodeId referenceTypeId)
+            if (GetValue(operands[2]) is not NodeId referenceTypeId)
             {
                 return false;
             }
@@ -2057,7 +2030,7 @@ namespace Opc.Ua
             // get the number of hops
             int? hops = 1;
 
-            object hopsValue = GetValue(context, operands[3], target);
+            object hopsValue = GetValue(operands[3]);
 
             if (hopsValue != null)
             {
@@ -2067,7 +2040,7 @@ namespace Opc.Ua
             // get whether to include type definition subtypes.
             bool? includeTypeDefinitionSubtypes = true;
 
-            object includeValue = GetValue(context, operands[4], target);
+            object includeValue = GetValue(operands[4]);
 
             if (includeValue != null)
             {
@@ -2078,7 +2051,7 @@ namespace Opc.Ua
             // get whether to include reference type subtypes.
             bool? includeReferenceTypeSubtypes = true;
 
-            includeValue = GetValue(context, operands[5], target);
+            includeValue = GetValue(operands[5]);
 
             if (includeValue != null)
             {
@@ -2093,20 +2066,20 @@ namespace Opc.Ua
             if (operands[1] is ElementOperand chainedOperand)
             {
                 if ( /*chainedOperand.Index < 0 ||*/
-                    chainedOperand.Index >= Elements.Count)
+                    chainedOperand.Index >= m_filter.Elements.Count)
                 {
                     return false;
                 }
 
-                ContentFilterElement chainedElement = Elements[(int)chainedOperand.Index];
+                ContentFilterElement chainedElement = m_filter.Elements[(int)chainedOperand.Index];
 
-                // get the target type from the first operand of the chained element.
+                // get the m_target type from the first operand of the chained element.
                 if (chainedElement.FilterOperator == FilterOperator.RelatedTo)
                 {
                     var nestedType = ExtensionObject.ToEncodeable(
                         chainedElement.FilterOperands[0]) as FilterOperand;
 
-                    targetTypeId = GetValue(context, nestedType, target) as NodeId;
+                    targetTypeId = GetValue(nestedType) as NodeId;
 
                     if (targetTypeId == null)
                     {
@@ -2115,7 +2088,7 @@ namespace Opc.Ua
 
                     // find the nodes that meet the criteria in the first link of the chain.
                     IList<NodeId> nodeIds = advancedTarget.GetRelatedNodes(
-                        context,
+                        m_context,
                         intermediateNodeId,
                         sourceTypeId,
                         targetTypeId,
@@ -2133,7 +2106,7 @@ namespace Opc.Ua
                     for (int ii = 0; ii < nodeIds.Count; ii++)
                     {
                         // one match is all that is required.
-                        if (RelatedTo(context, target, chainedElement, nodeIds[ii]))
+                        if (RelatedTo(chainedElement, nodeIds[ii]))
                         {
                             return true;
                         }
@@ -2144,10 +2117,10 @@ namespace Opc.Ua
                 }
             }
 
-            // get the type of the target.
+            // get the type of the m_target.
             if (targetTypeId == null)
             {
-                targetTypeId = GetValue(context, operands[1], target) as NodeId;
+                targetTypeId = GetValue(operands[1]) as NodeId;
 
                 if (targetTypeId == null)
                 {
@@ -2155,11 +2128,11 @@ namespace Opc.Ua
                 }
             }
 
-            // check the target.
+            // check the m_target.
             try
             {
                 return advancedTarget.IsRelatedTo(
-                    context,
+                    m_context,
                     intermediateNodeId,
                     sourceTypeId,
                     targetTypeId,
@@ -2177,12 +2150,9 @@ namespace Opc.Ua
         /// <summary>
         /// BitwiseAnd FilterOperator
         /// </summary>
-        private object BitwiseAnd(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private object BitwiseAnd(ContentFilterElement element)
         {
-            (object lhs, object rhs) = GetBitwiseOperands(context, target, element);
+            (object lhs, object rhs) = GetBitwiseOperands(element);
             if (lhs == null || rhs == null)
             {
                 return null;
@@ -2227,12 +2197,9 @@ namespace Opc.Ua
         /// <summary>
         /// BitwiseOr FilterOperator
         /// </summary>
-        private object BitwiseOr(
-            FilterContext context,
-            IFilterTarget target,
-            ContentFilterElement element)
+        private object BitwiseOr(ContentFilterElement element)
         {
-            (object lhs, object rhs) = GetBitwiseOperands(context, target, element);
+            (object lhs, object rhs) = GetBitwiseOperands(element);
             if (lhs == null || rhs == null)
             {
                 return null;
@@ -2287,5 +2254,34 @@ namespace Opc.Ua
         [GeneratedRegex("(?<!\\\\)(\\[!)", RegexOptions.Compiled)]
         private static partial Regex ReplaceBrackets();
 #endif
+    }
+
+    /// <summary>
+    /// Content filter extensions
+    /// </summary>
+    public static class ContentFilterExtensions
+    {
+        /// <summary>
+        /// Evaluates the first element in the ContentFilter. If the first or any
+        /// subsequent element has dependent elements, the dependent elements are
+        /// evaluated before the root element (recursive descent). Elements which
+        /// are not linked (directly or indirectly) to the first element will not
+        /// be evaluated (they have no influence on the result).
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <param name="context">The context to use when evaluating the filter.
+        /// </param>
+        /// <param name="target">The target to use when evaluating elements that
+        /// reference the type model.</param>
+        /// <returns>Returns true, false or null.</returns>
+        public static bool Evaluate(
+            this ContentFilter filter,
+            FilterContext context,
+            IFilterTarget target)
+        {
+            // check if nothing to do.
+            var evaluator = new FilterEvaluator(filter, context, target);
+            return evaluator.Result;
+        }
     }
 }

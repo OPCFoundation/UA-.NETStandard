@@ -1318,7 +1318,8 @@ namespace Opc.Ua
                 exception,
                 (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                 true,
-                stringTable);
+                stringTable,
+                Logger);
             responseHeader.StringTable = stringTable.ToArray();
 
             return responseHeader;

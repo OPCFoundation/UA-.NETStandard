@@ -122,13 +122,16 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="context">The context.</param>
+        /// <param name="telemetry"></param>
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
-            IOperationContext context)
+            IOperationContext context,
+            ITelemetryContext telemetry)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
             TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
+            Telemetry = telemetry;
             m_context = context;
         }
 
@@ -137,8 +140,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
-        public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree)
-            : this(namespaceUris, typeTree, (IList<string>)null)
+        /// <param name="telemetry"></param>
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            ITelemetryContext telemetry)
+            : this(namespaceUris, typeTree, (IList<string>)null, telemetry)
         {
         }
 
@@ -148,13 +155,16 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="telemetry"></param>
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            ITelemetryContext telemetry)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
             TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
+            Telemetry = telemetry;
             m_context = null;
             m_preferredLocales = preferredLocales;
         }
@@ -306,6 +316,11 @@ namespace Opc.Ua
                 return null;
             }
         }
+
+        /// <summary>
+        /// Telemetry context for the filter
+        /// </summary>
+        public ITelemetryContext Telemetry { get; }
 
         private readonly IOperationContext m_context;
         private readonly IList<string> m_preferredLocales;

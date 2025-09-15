@@ -31,6 +31,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Schema.Xml;
 using Opc.Ua.Tests;
@@ -69,12 +70,15 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         [Theory]
         public void ValidateResources(string[] schemaData)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<XmlSchemaWellKnownTests>();
+
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
             using Stream stream = assembly.GetManifestResourceStream(schemaData[1]);
             Assert.IsNotNull(stream);
             var schema = new XmlSchemaValidator();
             Assert.IsNotNull(schema);
-            schema.Validate(stream);
+            schema.Validate(stream, logger);
             Assert.IsNull(schema.FilePath);
             Assert.AreEqual(schemaData[0], schema.TargetSchema.TargetNamespace);
         }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -88,16 +89,19 @@ namespace Opc.Ua.Server
     public class EventQueueHandler : IEventQueueHandler
     {
         /// <summary>
-        /// Creates a new Queue
+        /// Creates a new Queue handler
         /// </summary>
         /// <param name="createDurable">create a durable queue</param>
         /// <param name="queueFactory">the factory for creating the factory for <see cref="IEventMonitoredItemQueue"/></param>
         /// <param name="monitoredItemId">the id of the monitoredItem associated with the queue</param>
+        /// <param name="telemetry"></param>
         public EventQueueHandler(
             bool createDurable,
             IMonitoredItemQueueFactory queueFactory,
-            uint monitoredItemId)
+            uint monitoredItemId,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<EventQueueHandler>();
             m_eventQueue = queueFactory.CreateEventQueue(createDurable, monitoredItemId);
             m_discardOldest = false;
             Overflow = false;
@@ -107,8 +111,12 @@ namespace Opc.Ua.Server
         /// Create an EventQueueHandler from an existing queue
         /// Used for restore after a server restart
         /// </summary>
-        public EventQueueHandler(IEventMonitoredItemQueue eventQueue, bool discardOldest)
+        public EventQueueHandler(
+            IEventMonitoredItemQueue eventQueue,
+            bool discardOldest,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<EventQueueHandler>();
             m_eventQueue = eventQueue;
             m_discardOldest = discardOldest;
             Overflow = false;
@@ -216,7 +224,8 @@ namespace Opc.Ua.Server
                     {
                         statusResult.ApplyDiagnosticMasks(
                             context.DiagnosticsMask,
-                            context.StringTable);
+                            context.StringTable,
+                            m_logger);
                     }
                 }
 
@@ -234,5 +243,6 @@ namespace Opc.Ua.Server
 
         private bool m_discardOldest;
         private readonly IEventMonitoredItemQueue m_eventQueue;
+        private readonly ILogger m_logger;
     }
 }

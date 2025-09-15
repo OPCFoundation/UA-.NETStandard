@@ -149,7 +149,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 try
                 {
-                    validator.Validate(istrm);
+                    validator.Validate(istrm, logger);
                 }
                 catch (Exception e) when (!throwOnError)
                 {
