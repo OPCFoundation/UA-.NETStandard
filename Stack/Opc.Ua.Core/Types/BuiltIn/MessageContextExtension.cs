@@ -51,7 +51,7 @@ namespace Opc.Ua
                     return extension.MessageContext;
                 }
 
-                return ServiceMessageContext.ThreadContext;
+                return ServiceMessageContext.GlobalContext;
             }
         }
 

@@ -336,8 +336,6 @@ namespace Opc.Ua
             }
             return endpoints;
         }
-
-        private readonly ILogger m_logger;
     }
 
     /// <summary>

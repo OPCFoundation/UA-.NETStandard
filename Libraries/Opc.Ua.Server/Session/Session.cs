@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -798,7 +799,16 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
+            // Legacy event source logging
             ServerUtils.EventLog.SessionState(
+                context,
+                Id.ToString(),
+                m_sessionName,
+                SecureChannelId,
+                Identity?.DisplayName ?? "(none)");
+
+            m_logger.LogInformation(
+                "Session {Context}, Id={SessionId}, Name={Name}, ChannelId={ChannelId}, User={User}",
                 context,
                 Id.ToString(),
                 m_sessionName,

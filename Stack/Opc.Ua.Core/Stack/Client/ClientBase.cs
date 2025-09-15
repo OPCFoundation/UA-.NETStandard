@@ -14,6 +14,8 @@ using System;
 using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {
@@ -46,7 +48,8 @@ namespace Opc.Ua
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+        /// <param name="disposing"><c>true</c> to release both managed and
+        /// unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
             CloseChannel();
@@ -332,6 +335,12 @@ namespace Opc.Ua
                 serviceName,
                 (int)request.RequestHeader.RequestHandle,
                 incrementedCount);
+
+            m_logger.LogTrace(
+                "{ServiceName} Called. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}",
+                serviceName,
+                request.RequestHeader.RequestHandle,
+                incrementedCount);
         }
 
         /// <summary>
@@ -372,11 +381,27 @@ namespace Opc.Ua
                     (int)requestHandle,
                     (int)statusCode.Code,
                     pendingRequestCount);
+
+                m_logger.LogTrace(
+                    "{Service} Completed. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}, StatusCode={StatusCode}",
+                    serviceName,
+                    requestHandle,
+                    pendingRequestCount,
+                    statusCode);
             }
             else
             {
-                Utils.EventLog
-                    .ServiceCallStop(serviceName, (int)requestHandle, pendingRequestCount);
+                Utils.EventLog.ServiceCallStop(
+                    serviceName,
+                    (int)requestHandle,
+                    pendingRequestCount);
+
+
+                m_logger.LogTrace(
+                    "{Service} Completed. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}",
+                    serviceName,
+                    requestHandle,
+                    pendingRequestCount);
             }
         }
 
@@ -522,6 +547,13 @@ namespace Opc.Ua
 
             return null;
         }
+
+        /// <summary>
+        /// Logger to be used by the client inheritance chain
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; set; } = NullLogger.Instance;
+#pragma warning restore IDE1006 // Naming Styles
 
         private ITransportChannel m_channel;
         private int m_nextRequestHandle;

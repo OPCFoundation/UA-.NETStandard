@@ -1181,7 +1181,7 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentException(
                     Utils.Format(
-                        "There is no connection with configurationId = {ParentConnectionId} in current configuration.",
+                        "There is no connection with configurationId = {0} in current configuration.",
                         parentConnectionId));
             }
             try

@@ -169,7 +169,6 @@ namespace Opc.Ua.Server
         public ReverseConnectServer(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
-            m_logger = Telemetry.CreateLogger<ReverseConnectServer>();
             m_connectInterval = DefaultReverseConnectInterval;
             m_connectTimeout = DefaultReverseConnectTimeout;
             m_rejectTimeout = DefaultReverseConnectRejectTimeout;
@@ -516,6 +515,5 @@ namespace Opc.Ua.Server
         private int m_rejectTimeout;
         private readonly Dictionary<Uri, ReverseConnectProperty> m_connections;
         private readonly Lock m_connectionsLock = new();
-        private readonly ILogger m_logger;
     }
 }

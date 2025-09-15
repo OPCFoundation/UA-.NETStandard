@@ -21,6 +21,15 @@ namespace Opc.Ua
     public partial class RegistrationClient
     {
         /// <summary>
+        /// Intializes the object with a channel and a message context.
+        /// </summary>
+        public RegistrationClient(ITransportChannel channel, ITelemetryContext telemetry)
+            : this(channel)
+        {
+            m_logger = telemetry.CreateLogger<RegistrationClient>();
+        }
+
+        /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
@@ -54,7 +63,7 @@ namespace Opc.Ua
                 new ServiceMessageContext(telemetry),
                 telemetry);
 
-            return new RegistrationClient(channel);
+            return new RegistrationClient(channel, telemetry);
         }
     }
 

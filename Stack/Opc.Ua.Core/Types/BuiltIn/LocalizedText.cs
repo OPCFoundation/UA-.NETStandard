@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -594,7 +595,8 @@ namespace Opc.Ua
             }
             catch
             {
-                Utils.LogInformation("Failed to parse mul locale JSON text: {0}", XmlEncodedText);
+                // TODO: Need to wire to a logger
+                Debug.WriteLine("Failed to parse mul locale JSON text: {0}", XmlEncodedText);
                 return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);

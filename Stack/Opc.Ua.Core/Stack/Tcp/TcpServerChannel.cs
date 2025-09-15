@@ -1210,7 +1210,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
-
+                m_logger.LogTrace(
+                    "ChannelId {ChannelId}: SendResponse {RequestId}",
+                    ChannelId,
+                    requestId);
                 BufferCollection buffers = null;
 
                 try

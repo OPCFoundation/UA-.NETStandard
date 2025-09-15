@@ -1032,7 +1032,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    m_dataCache = new MonitoredItemDataCache(1);
+                    m_dataCache = new MonitoredItemDataCache(m_logger, 1);
                 }
             }
         }
@@ -1148,9 +1148,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Constructs a cache for a monitored item.
         /// </summary>
-        public MonitoredItemDataCache(int queueSize = 1)
+        public MonitoredItemDataCache(ILogger logger, int queueSize = 1)
         {
             QueueSize = queueSize;
+            m_logger = logger;
             if (queueSize > 1)
             {
                 m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
@@ -1199,8 +1200,14 @@ namespace Opc.Ua.Client
         public void OnNotification(MonitoredItemNotification notification)
         {
             LastValue = notification.Value;
-            CoreClientUtils.EventLog
-                .NotificationValue(notification.ClientHandle, LastValue.WrappedValue);
+            CoreClientUtils.EventLog.Notification(
+                (int)notification.ClientHandle,
+                LastValue.WrappedValue);
+
+            m_logger.LogTrace(
+                "Notification: ClientHandle={ClientHandle}, Value={Value}",
+                notification.ClientHandle,
+                LastValue.WrappedValue);
 
             if (m_values != null)
             {
@@ -1241,6 +1248,7 @@ namespace Opc.Ua.Client
         }
 
         private Queue<DataValue> m_values;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

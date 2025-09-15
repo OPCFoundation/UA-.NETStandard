@@ -29,7 +29,6 @@
 
 using System;
 using System.Diagnostics.Tracing;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -57,46 +56,14 @@ namespace Opc.Ua.Client
         internal const int PublishStopId = PublishStartId + 1;
 
         /// <summary>
-        /// The client messages.
-        /// </summary>
-        internal const string SubscriptionStateMessage =
-            "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
-
-        internal const string NotificationMessage = "Notification: ClientHandle={0}, Value={1}";
-
-        internal const string NotificationReceivedMessage
-            = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}";
-
-        internal const string PublishStartMessage = "PUBLISH #{0} SENT";
-        internal const string PublishStopMessage = "PUBLISH #{0} RECEIVED";
-
-        /// <summary>
-        /// The Client Event Ids used for event messages, when calling ILogger.
-        /// </summary>
-        internal readonly EventId SubscriptionStateMessageEventId = new(
-            Utils.TraceMasks.Operation,
-            nameof(SubscriptionState));
-
-        internal readonly EventId NotificationEventId = new(
-            Utils.TraceMasks.Operation,
-            nameof(Notification));
-
-        internal readonly EventId NotificationReceivedEventId = new(
-            Utils.TraceMasks.Operation,
-            nameof(NotificationReceived));
-
-        internal readonly EventId PublishStartEventId = new(
-            Utils.TraceMasks.ServiceDetail,
-            nameof(PublishStart));
-
-        internal readonly EventId PublishStopEventId = new(
-            Utils.TraceMasks.ServiceDetail,
-            nameof(PublishStop));
-
-        /// <summary>
         /// The state of the client subscription.
         /// </summary>
-        [Event(SubscriptionStateId, Message = SubscriptionStateMessage, Level = EventLevel.Verbose)]
+        [Event(
+            SubscriptionStateId,
+            Message = "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, " +
+                "GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, " +
+                "PublishingEnabled={6}, MonitoredItemCount={7}",
+            Level = EventLevel.Verbose)]
         public void SubscriptionState(
             string context,
             uint id,
@@ -107,22 +74,8 @@ namespace Opc.Ua.Client
             bool currentPublishingEnabled,
             uint monitoredItemCount)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(
-                    SubscriptionStateId,
-                    context,
-                    id,
-                    lastNotificationTime,
-                    goodPublishRequestCount,
-                    currentPublishingInterval,
-                    currentKeepAliveCount,
-                    currentPublishingEnabled,
-                    monitoredItemCount);
-            }
-            Utils.LogInformation(
-                SubscriptionStateMessageEventId,
-                SubscriptionStateMessage,
+            WriteEvent(
+                SubscriptionStateId,
                 context,
                 id,
                 lastNotificationTime,
@@ -136,10 +89,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The notification message. Called internally to convert wrapped value.
         /// </summary>
-        [Event(NotificationId, Message = NotificationMessage, Level = EventLevel.Verbose)]
-        public void Notification(int clientHandle, string value)
+        [Event(
+            NotificationId,
+            Message = "Notification: ClientHandle={0}, Value={1}",
+            Level = EventLevel.Verbose)]
+        public void Notification(int clientHandle, Variant value)
         {
-            WriteEvent(NotificationId, value, clientHandle);
+            // expensive operation, only enable if tracemask set
+            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
+            {
+                WriteEvent(NotificationId, clientHandle, value.ToString());
+            }
         }
 
         /// <summary>
@@ -147,62 +107,35 @@ namespace Opc.Ua.Client
         /// </summary>
         [Event(
             NotificationReceivedId,
-            Message = NotificationReceivedMessage,
+            Message = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}",
             Level = EventLevel.Verbose)]
         public void NotificationReceived(int subscriptionId, int sequenceNumber)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
-            }
-            Utils.LogTrace(
-                NotificationReceivedEventId,
-                NotificationReceivedMessage,
-                subscriptionId,
-                sequenceNumber);
+            WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
         }
 
         /// <summary>
         /// A Publish begin received.
         /// </summary>
-        [Event(PublishStartId, Message = PublishStartMessage, Level = EventLevel.Verbose)]
+        [Event(
+            PublishStartId,
+            Message = "PUBLISH #{0} SENT",
+            Level = EventLevel.Verbose)]
         public void PublishStart(int requestHandle)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(PublishStartId, requestHandle);
-            }
-            Utils.LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
+            WriteEvent(PublishStartId, requestHandle);
         }
 
         /// <summary>
         /// A Publish complete received.
         /// </summary>
-        [Event(PublishStopId, Message = PublishStopMessage, Level = EventLevel.Verbose)]
+        [Event(
+            PublishStopId,
+            Message = "PUBLISH #{0} RECEIVED",
+            Level = EventLevel.Verbose)]
         public void PublishStop(int requestHandle)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(PublishStopId, requestHandle);
-            }
-            Utils.LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
-        }
-
-        /// <summary>
-        /// Log a Notification.
-        /// </summary>
-        [NonEvent]
-        public void NotificationValue(uint clientHandle, Variant wrappedValue)
-        {
-            // expensive operation, only enable if tracemask set
-            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    Notification((int)clientHandle, wrappedValue.ToString());
-                }
-                Utils.LogTrace(NotificationEventId, NotificationMessage, clientHandle, wrappedValue);
-            }
+            WriteEvent(PublishStopId, requestHandle);
         }
     }
 }

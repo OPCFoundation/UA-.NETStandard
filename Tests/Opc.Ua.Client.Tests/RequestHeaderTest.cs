@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
         {
-            return OneTimeSetUpAsync(
+            return OneTimeSetUpCoreAsync(
                 securityNone: false,
                 enableClientSideTracing: false,
                 enableServerSideTracing: false);
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.Tests
         public override void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(
+            OneTimeSetUpCoreAsync(
                     enableClientSideTracing: false,
                     enableServerSideTracing: false,
                     disableActivityLogging: false)

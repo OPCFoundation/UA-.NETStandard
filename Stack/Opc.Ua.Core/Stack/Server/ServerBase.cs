@@ -49,16 +49,9 @@ namespace Opc.Ua
             {
                 m_telemetry = value;
                 m_messageContext = new ServiceMessageContext(m_telemetry);
-                Logger = value.CreateLogger(this);
+                m_logger = value.CreateLogger(this);
             }
         }
-
-        /// <summary>
-        /// Logger instance for the server which is set when setting the
-        /// Telemetry member. Shall only be used by concrete implementations
-        /// deriving from this class.
-        /// </summary>
-        protected ILogger Logger { get; private set; } = NullLogger.Instance;
 
         /// <summary>
         /// Initializes object with default values.
@@ -237,7 +230,7 @@ namespace Opc.Ua
         {
             ITransportListener listener = null;
 
-            Logger.LogInformation("Create Reverse Connection to Client at {Url}.", url);
+            m_logger.LogInformation("Create Reverse Connection to Client at {Url}.", url);
 
             if (TransportListeners != null)
             {
@@ -571,7 +564,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Logger.LogError(
+                        m_logger.LogError(
                             e,
                             "Unexpected error closing a listener {Name}.",
                             listeners[ii].GetType().FullName);
@@ -857,7 +850,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Logger.LogError(
+                m_logger.LogError(
                     e,
                     "Could not load {Scheme} Stack Listener. {Message}",
                     endpointUri.Scheme,
@@ -946,7 +939,7 @@ namespace Opc.Ua
                 }
                 catch (SocketException e)
                 {
-                    Logger.LogWarning(e, "Unable to get host addresses for hostname {Name}.", hostname);
+                    m_logger.LogWarning(e, "Unable to get host addresses for hostname {Name}.", hostname);
                 }
 
                 if (addresses.Length == 0)
@@ -958,7 +951,7 @@ namespace Opc.Ua
                     }
                     catch (SocketException e)
                     {
-                        Logger.LogError(
+                        m_logger.LogError(
                             e,
                             "Unable to get host addresses for DNS hostname {Name}.",
                             fullName);
@@ -986,7 +979,7 @@ namespace Opc.Ua
             }
             catch (SocketException e)
             {
-                Logger.LogError(e, "Unable to check aliases for hostname {Name}.", computerName);
+                m_logger.LogError(e, "Unable to check aliases for hostname {Name}.", computerName);
             }
 
             if (entry != null)
@@ -1319,7 +1312,7 @@ namespace Opc.Ua
                 (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                 true,
                 stringTable,
-                Logger);
+                m_logger);
             responseHeader.StringTable = stringTable.ToArray();
 
             return responseHeader;
@@ -1608,7 +1601,7 @@ namespace Opc.Ua
                 if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    m_server.Logger.LogTrace("Server halted.");
+                    m_server.m_logger.LogTrace("Server halted.");
                     return;
                 }
 
@@ -1616,7 +1609,7 @@ namespace Opc.Ua
                 if (m_queuedRequestsCount >= m_maxRequestCount)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    m_server.Logger.LogTrace("Too many operations. Active threads: {Count}", m_activeThreadCount);
+                    m_server.m_logger.LogTrace("Too many operations. Active threads: {Count}", m_activeThreadCount);
                     return;
                 }
                 // Optionally scale up workers if needed
@@ -1665,7 +1658,7 @@ namespace Opc.Ua
                             }
                             catch (Exception ex)
                             {
-                                m_server.Logger.LogError(ex, "Unexpected error processing incoming request.");
+                                m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
                                 request.OperationCompleted(null, StatusCodes.BadInternalError);
                             }
                             finally
@@ -1698,6 +1691,15 @@ namespace Opc.Ua
             private int m_queuedRequestsCount;
             private bool m_stopped;
         }
+
+        /// <summary>
+        /// Logger instance for the server which is set when setting the
+        /// Telemetry member. Shall only be used by concrete implementations
+        /// deriving from this class.
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; private set; } = NullLogger.Instance;
+#pragma warning restore IDE1006 // Naming Styles
 
         private object m_messageContext;
         private object m_serverError;

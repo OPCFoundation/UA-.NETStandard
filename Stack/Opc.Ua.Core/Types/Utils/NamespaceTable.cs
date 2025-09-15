@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Opc.Ua
 {
@@ -89,7 +90,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < m_strings.Count; ii++)
                     {
-                        Utils.LogWarning(
+                        Debug.WriteLine(
                             "WARNING: Adding '{0}' to shared StringTable #{1}.",
                             m_strings[ii],
                             InstanceId);
@@ -113,7 +114,7 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogWarning(
+                Debug.WriteLine(
                     "WARNING: Adding '{0}' to shared StringTable #{1}.",
                     value,
                     InstanceId);
@@ -179,7 +180,7 @@ namespace Opc.Ua
 #if DEBUG
                     if (m_shared)
                     {
-                        Utils.LogWarning(
+                        Debug.WriteLine(
                             "WARNING: Adding '{0}' to shared StringTable #{1}.",
                             value,
                             InstanceId);

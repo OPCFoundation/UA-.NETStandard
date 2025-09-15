@@ -39,22 +39,6 @@ namespace Opc.Ua.Server
     public class AggregateCalculator : IAggregateCalculator
     {
         /// <summary>
-        /// Creates a default aggregator.
-        /// </summary>
-        protected AggregateCalculator(NodeId aggregateId, ITelemetryContext telemetry)
-        {
-            m_logger = telemetry.CreateLogger<AggregateCalculator>();
-            var configuration = new AggregateConfiguration
-            {
-                TreatUncertainAsBad = false,
-                PercentDataBad = 100,
-                PercentDataGood = 100,
-                UseSlopedExtrapolation = false
-            };
-            Initialize(aggregateId, DateTime.UtcNow, DateTime.MaxValue, 1000, false, configuration);
-        }
-
-        /// <summary>
         /// Initializes the calculation stream.
         /// </summary>
         /// <param name="aggregateId">The aggregate function to apply.</param>
@@ -74,27 +58,6 @@ namespace Opc.Ua.Server
             ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<AggregateCalculator>();
-            Initialize(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
-        }
-
-        /// <summary>
-        /// Initializes the calculation stream.
-        /// </summary>
-        /// <param name="aggregateId">The aggregate function to apply.</param>
-        /// <param name="startTime">The start time.</param>
-        /// <param name="endTime">The end time.</param>
-        /// <param name="processingInterval">The processing interval.</param>
-        /// <param name="stepped">Whether to use stepped interpolation.</param>
-        /// <param name="configuration">The aggregate configuration.</param>
-        /// <exception cref="ArgumentException"></exception>
-        protected void Initialize(
-            NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
-            double processingInterval,
-            bool stepped,
-            AggregateConfiguration configuration)
-        {
             AggregateId = aggregateId;
             StartTime = startTime;
             EndTime = endTime;

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -84,13 +85,16 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItemId">the id of the monitored item</param>
         /// <param name="createDurable">true if a durable queue shall be created</param>
         /// <param name="queueFactory">the factory for <see cref="IDataChangeMonitoredItemQueue"/></param>
+        /// <param name="telemetry"></param>
         /// <param name="discardedValueHandler">Handler for discarded values</param>
         public DataChangeQueueHandler(
             uint monitoredItemId,
             bool createDurable,
             IMonitoredItemQueueFactory queueFactory,
+            ITelemetryContext telemetry,
             Action discardedValueHandler = null)
         {
+            m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
 
             m_discardedValueHandler = discardedValueHandler;
@@ -254,7 +258,12 @@ namespace Opc.Ua.Server
 
                 if (!noEventLog)
                 {
-                    ServerUtils.EventLog.DequeueValue(value.WrappedValue, value.StatusCode);
+                    m_logger.LogTrace(
+                        "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                        value.WrappedValue,
+                        value.StatusCode.Code,
+                        value.StatusCode.Code,
+                        value.StatusCode.Overflow);
                 }
 
                 return true;
@@ -267,7 +276,7 @@ namespace Opc.Ua.Server
             // check for empty queue.
             if (m_dataValueQueue.ItemsInQueue == 0)
             {
-                ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
+                m_logger.LogTrace("ENQUEUE VALUE: Value={Value}", value.WrappedValue);
 
                 m_dataValueQueue.Enqueue(value, error);
 
@@ -320,7 +329,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
+                m_logger.LogTrace("ENQUEUE VALUE: Value={Value}", value.WrappedValue);
             }
 
             m_dataValueQueue.Enqueue(value, error);
@@ -375,6 +384,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly IDataChangeMonitoredItemQueue m_dataValueQueue;
+        private readonly ILogger m_logger;
         private readonly uint m_monitoredItemId;
         private bool m_discardOldest;
         private long m_nextSampleTime;

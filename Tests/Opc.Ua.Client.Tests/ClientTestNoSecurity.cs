@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Tests
         public Task OneTimeSetUpAsync()
         {
             m_clientTest.SupportsExternalServerUrl = true;
-            return m_clientTest.OneTimeSetUpAsync(true);
+            return m_clientTest.OneTimeSetUpCoreAsync(true);
         }
 
         /// <summary>

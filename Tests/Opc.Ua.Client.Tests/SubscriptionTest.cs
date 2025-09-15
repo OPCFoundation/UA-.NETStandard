@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Tests
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
-            return OneTimeSetUpAsync(securityNone: true);
+            return OneTimeSetUpCoreAsync(securityNone: true);
         }
 
         /// <summary>

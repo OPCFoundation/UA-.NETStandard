@@ -194,7 +194,8 @@ namespace Alarms
                             alarmControllerType,
                             analogTrigger,
                             interval,
-                            false);
+                            false,
+                            Server.Telemetry);
                     var analogSourceController = new SourceController(
                         analogTrigger,
                         analogAlarmController);
@@ -214,7 +215,8 @@ namespace Alarms
                             alarmControllerType,
                             booleanTrigger,
                             interval,
-                            true);
+                            true,
+                            Server.Telemetry);
                     var booleanSourceController = new SourceController(
                         booleanTrigger,
                         booleanAlarmController);

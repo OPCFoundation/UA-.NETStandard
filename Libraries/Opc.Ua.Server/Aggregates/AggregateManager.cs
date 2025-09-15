@@ -184,7 +184,8 @@ namespace Opc.Ua.Server
                 endTime,
                 processingInterval,
                 stepped,
-                configuration);
+                configuration,
+                m_server.Telemetry);
         }
 
         /// <summary>

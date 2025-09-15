@@ -789,6 +789,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueDiscardedValueHandlerInvoked()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             bool called = false;
             void DiscardedValueHandler() => called = true;
 
@@ -796,6 +798,7 @@ namespace Opc.Ua.Server.Tests
                 1,
                 false,
                 m_factory,
+                telemetry,
                 DiscardedValueHandler);
 
             queueHandler.SetQueueSize(1, true, DiagnosticsMasks.All);
@@ -826,10 +829,17 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueDiscardedValueHandlerInvokedNoDiscardOldest()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
+            var queueHandler = new DataChangeQueueHandler(
+                1,
+                false,
+                m_factory,
+                telemetry,
+                DiscardValueHandler);
 
             queueHandler.SetQueueSize(2, false, DiagnosticsMasks.All);
 
@@ -867,10 +877,17 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueSamplingIntervalOverwrites()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
+            var queueHandler = new DataChangeQueueHandler(
+                1,
+                false,
+                m_factory,
+                telemetry,
+                DiscardValueHandler);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
@@ -901,10 +918,17 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task DataValueQueueSamplingIntervalChangeAppliedAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
+            var queueHandler = new DataChangeQueueHandler(
+                1,
+                false,
+                m_factory,
+                telemetry,
+                DiscardValueHandler);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
@@ -937,10 +961,17 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueSizeChangeRequeuesValues()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
+            var queueHandler = new DataChangeQueueHandler(
+                1,
+                false,
+                m_factory,
+                telemetry,
+                DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 
@@ -990,10 +1021,17 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueDecreaseQueueSizeDiscardsOldest()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
+            var queueHandler = new DataChangeQueueHandler(
+                1,
+                false,
+                m_factory,
+                telemetry,
+                DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 
@@ -1048,10 +1086,17 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueInitialDataOverWritesLastValue()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
+            var queueHandler = new DataChangeQueueHandler(
+                1,
+                false,
+                m_factory,
+                telemetry,
+                DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 

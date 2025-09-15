@@ -103,7 +103,7 @@ namespace Opc.Ua.Gds.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Logger.LogInformation("Creating the Node Managers.");
+            m_logger.LogInformation("Creating the Node Managers.");
 
             var nodeManagers = new List<INodeManager>
             {
@@ -214,7 +214,7 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken, Logger), roles);
+                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken, m_logger), roles);
                 return;
             }
 
@@ -226,12 +226,12 @@ namespace Opc.Ua.Gds.Server
                 // todo: is cert listed in admin list? then
                 // role = GdsRole.ApplicationAdmin;
 
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "X509 Token Accepted: {Identity} as {Role}",
                     args.Identity.DisplayName,
                     Role.AuthenticatedUser);
                 args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(x509Token, Logger),
+                    new UserIdentity(x509Token, m_logger),
                     [Role.AuthenticatedUser]);
                 return;
             }
@@ -301,7 +301,7 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            X509Certificate2 certificate = token.GetOrCreateCertificate(Logger);
+            X509Certificate2 certificate = token.GetOrCreateCertificate(m_logger);
             try
             {
                 CertificateValidator.Validate(certificate);
@@ -387,13 +387,13 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
             if (application == null || application.Length != 1)
             {
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {ApplicationUri}",
                     applicationUri);
                 return;
             }
             NodeId applicationId = application.FirstOrDefault().ApplicationId;
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
             args.Identity = new GdsRoleBasedIdentity(

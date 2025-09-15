@@ -45,7 +45,7 @@ namespace Opc.Ua.Tests
         public Meter Meter { get; }
 
         /// <inheritdoc/>
-        public ILoggerFactory LoggerFactory { get; }
+        public ILoggerFactory LoggerFactory => this;
 
         /// <inheritdoc/>
         public ActivitySource ActivitySource { get; }

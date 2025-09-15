@@ -124,7 +124,11 @@ namespace Opc.Ua.Sample
 
             if (queueSize > 1)
             {
-                m_queue = new DataChangeQueueHandler(id, false, m_monitoredItemQueueFactory);
+                m_queue = new DataChangeQueueHandler(
+                    id,
+                    false,
+                    m_monitoredItemQueueFactory,
+                    source.Server.Telemetry);
                 m_queue.SetQueueSize(queueSize, discardOldest, diagnosticsMasks);
                 m_queue.SetSamplingInterval(samplingInterval);
             }
@@ -181,7 +185,8 @@ namespace Opc.Ua.Sample
                     m_queue = new DataChangeQueueHandler(
                         storedMonitoredItem.Id,
                         false,
-                        m_monitoredItemQueueFactory);
+                        m_monitoredItemQueueFactory,
+                        source.Server.Telemetry);
                     m_queue.SetQueueSize(
                         storedMonitoredItem.QueueSize,
                         storedMonitoredItem.DiscardOldest,
@@ -332,11 +337,15 @@ namespace Opc.Ua.Sample
                 // update the queue size.
                 if (queueSize > 1)
                 {
-                    (m_queue ??= new DataChangeQueueHandler(Id, false, m_monitoredItemQueueFactory))
-                        .SetQueueSize(
-                            queueSize,
-                            discardOldest,
-                            diagnosticsMasks);
+                    m_queue ??= new DataChangeQueueHandler(
+                        Id,
+                        false,
+                        m_monitoredItemQueueFactory,
+                        m_source.Server.Telemetry);
+                    m_queue.SetQueueSize(
+                        queueSize,
+                        discardOldest,
+                        diagnosticsMasks);
                     m_queue.SetSamplingInterval(samplingInterval);
                 }
                 else

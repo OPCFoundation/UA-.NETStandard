@@ -110,13 +110,13 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public virtual Task OneTimeSetUpAsync()
         {
-            return OneTimeSetUpAsync();
+            return OneTimeSetUpCoreAsync();
         }
 
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
-        public virtual async Task OneTimeSetUpAsync(
+        public virtual async Task OneTimeSetUpCoreAsync(
             bool securityNone = false,
             bool enableClientSideTracing = false,
             bool enableServerSideTracing = false,
@@ -468,7 +468,7 @@ namespace Opc.Ua.Client.Tests
         public virtual void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync().GetAwaiter().GetResult();
+            OneTimeSetUpCoreAsync().GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
             Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter()
                 .GetResult();

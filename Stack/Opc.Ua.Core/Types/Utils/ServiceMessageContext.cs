@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -48,6 +50,7 @@ namespace Opc.Ua
         /// <summary>
         /// The default context for the thread (used only during XML serialization).
         /// </summary>
+        [Obsolete("Use MessageContextExtension.Current")]
         public static ServiceMessageContext ThreadContext
         {
             get => GlobalContext;

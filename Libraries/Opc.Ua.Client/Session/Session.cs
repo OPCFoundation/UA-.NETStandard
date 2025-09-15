@@ -98,7 +98,7 @@ namespace Opc.Ua.Client
             ITelemetryContext telemetry,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
-            : base(channel)
+            : base(channel, telemetry)
         {
             Initialize(channel, configuration, endpoint, telemetry);
             LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
@@ -113,7 +113,7 @@ namespace Opc.Ua.Client
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         public Session(ITransportChannel channel, Session template, bool copyEventHandlers)
-            : base(channel)
+            : base(channel, template.m_telemetry)
         {
             Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_telemetry);
             LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
@@ -5567,6 +5567,7 @@ namespace Opc.Ua.Client
                 TickCount = HiResClock.TickCount
             };
 
+            m_logger.LogTrace("PUBLISH #{RequestHandle} SENT", requestHeader.RequestHandle);
             CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
 
             try
@@ -5623,6 +5624,7 @@ namespace Opc.Ua.Client
 
             AsyncRequestCompleted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
+            m_logger.LogTrace("PUBLISH #{RequestHandle} RECEIVED", requestHeader.RequestHandle);
             CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
 
             try
@@ -5668,6 +5670,10 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                m_logger.LogTrace(
+                    "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}",
+                    subscriptionId,
+                    notificationMessage.SequenceNumber);
                 CoreClientUtils.EventLog.NotificationReceived(
                     (int)subscriptionId,
                     (int)notificationMessage.SequenceNumber);
@@ -7258,7 +7264,6 @@ namespace Opc.Ua.Client
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
         private event EventHandler m_SessionConfigurationChanged;
-        private ILogger m_logger;
     }
 
     /// <summary>

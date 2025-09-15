@@ -298,6 +298,7 @@ namespace Opc.Ua.Server
                 if (!m_readyToPublish)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -305,6 +306,7 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
+                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] TRIGGERED", Id);
                     return true;
                 }
 
@@ -312,6 +314,7 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -325,10 +328,12 @@ namespace Opc.Ua.Server
                         ServerUtils.EventLog.MonitoredItemReady(
                             Id,
                             Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
+                        m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE {Delay}ms", Id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
                 ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
+                m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] NORMAL", Id);
                 return true;
             }
         }
@@ -954,7 +959,15 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-            ServerUtils.EventLog.QueueValue(Id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
+
+            m_logger.LogTrace(
+                Utils.TraceMasks.OperationDetail,
+                "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                Id,
+                m_lastValue.WrappedValue,
+                m_lastValue.StatusCode.Code,
+                m_lastValue.StatusCode.Code,
+                m_lastValue.StatusCode.Overflow);
         }
 
         /// <summary>
@@ -1396,8 +1409,12 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing or no items are queued
                 else
                 {
-                    ServerUtils.EventLog
-                        .DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
+                    m_logger.LogTrace(
+                        "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                        m_lastValue.WrappedValue,
+                        m_lastValue.StatusCode.Code,
+                        m_lastValue.StatusCode.Code,
+                        m_lastValue.StatusCode.Overflow);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
@@ -1892,6 +1909,7 @@ namespace Opc.Ua.Server
                                 Id,
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
+                                m_server.Telemetry,
                                 QueueOverflowHandler);
                             queueLastValue = true;
                         }
@@ -1986,6 +2004,7 @@ namespace Opc.Ua.Server
                                 Id,
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
+                                m_server.Telemetry,
                                 QueueOverflowHandler);
 
                             m_dataChangeQueueHandler.SetQueueSize(

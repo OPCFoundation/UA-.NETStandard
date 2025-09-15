@@ -89,7 +89,7 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
@@ -191,7 +191,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            Logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
+            m_logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
 
             base.OnServerStarting(configuration);
 
@@ -299,7 +299,7 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = VerifyPassword(userNameToken);
 
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "Username Token Accepted: {Identity}",
                     args.Identity?.DisplayName);
@@ -314,9 +314,9 @@ namespace Quickstarts.ReferenceServer
                 VerifyX509IdentityToken(x509Token);
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(x509Token, Logger),
+                    new UserIdentity(x509Token, m_logger),
                     [Role.AuthenticatedUser]);
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "X509 Token Accepted: {Identity}",
                     args.Identity?.DisplayName);
@@ -377,7 +377,7 @@ namespace Quickstarts.ReferenceServer
             // User with permission to configure server
             if (userName == "sysadmin" && password == "demo")
             {
-                return new SystemConfigurationIdentity(new UserIdentity(userNameToken, Logger));
+                return new SystemConfigurationIdentity(new UserIdentity(userNameToken, m_logger));
             }
 
             // standard users for CTT verification
@@ -399,7 +399,7 @@ namespace Quickstarts.ReferenceServer
                         LoadServerProperties().ProductUri,
                         new LocalizedText(info)));
             }
-            return new RoleBasedIdentity(new UserIdentity(userNameToken, Logger), [Role.AuthenticatedUser]);
+            return new RoleBasedIdentity(new UserIdentity(userNameToken, m_logger), [Role.AuthenticatedUser]);
         }
 
         /// <summary>
@@ -408,7 +408,7 @@ namespace Quickstarts.ReferenceServer
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            X509Certificate2 certificate = token.GetOrCreateCertificate(Logger);
+            X509Certificate2 certificate = token.GetOrCreateCertificate(m_logger);
             try
             {
                 if (m_userCertificateValidator != null)
@@ -459,14 +459,14 @@ namespace Quickstarts.ReferenceServer
         {
             if (TokenValidator == null)
             {
-                Logger.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
+                m_logger.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
                 return null;
             }
             try
             {
                 if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
                 {
-                    Logger.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
+                    m_logger.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
                     return TokenValidator.ValidateToken(issuedToken);
                 }
 
@@ -494,7 +494,7 @@ namespace Quickstarts.ReferenceServer
                         "token is rejected.");
                 }
 
-                Logger.LogWarning(
+                m_logger.LogWarning(
                     Utils.TraceMasks.Security,
                     "VerifyIssuedToken: Throw ServiceResultException 0x{Result:x}", result);
 

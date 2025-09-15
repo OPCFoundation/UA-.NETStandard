@@ -1932,6 +1932,17 @@ namespace Opc.Ua.Client
                 CurrentKeepAliveCount,
                 CurrentPublishingEnabled,
                 MonitoredItemCount);
+
+            m_logger.LogInformation(
+                "Subscription {Context}, Id={SubscriptionId}, LastNotificationTime={LastNotificationTime:HH:mm:ss}, GoodPublishRequestCount={GoodPublishRequestCount}, PublishingInterval={PublishingInterval}, KeepAliveCount={KeepAliveCount}, PublishingEnabled={PublishingEnabled}, MonitoredItemCount={MonitoredItemCount}",
+                context,
+                Id,
+                new DateTime(m_lastNotificationTime),
+                Session?.GoodPublishRequestCount ?? 0,
+                CurrentPublishingInterval,
+                CurrentKeepAliveCount,
+                CurrentPublishingEnabled,
+                MonitoredItemCount);
         }
 
         /// <summary>

@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.Tests
             // cast Innerchannel to ISessionChannel
             ITransportChannel channel = client.TransportChannel;
 
-            var sessionClient = new SessionClient(channel)
+            var sessionClient = new SessionClient(channel, telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.All
             };

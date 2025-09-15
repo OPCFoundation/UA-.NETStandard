@@ -1621,7 +1621,9 @@ namespace Opc.Ua.Server
 #if DEBUG
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
-                        ServerUtils.EventLog.ReadValueRange(
+                        Logger.LogTrace(
+                            Utils.TraceMasks.ServiceDetail,
+                            "READ: NodeId={NodeId} Value={Value} Range={Range}",
                             nodeToRead.NodeId,
                             value.WrappedValue,
                             nodeToRead.IndexRange);
@@ -1886,7 +1888,9 @@ namespace Opc.Ua.Server
                     }
 
 #if DEBUG
-                    ServerUtils.EventLog.WriteValueRange(
+                    Logger.LogTrace(
+                        Utils.TraceMasks.ServiceDetail,
+                        "WRITE: NodeId={NodeId} Value={Value} Range={Range}",
                         nodeToWrite.NodeId,
                         nodeToWrite.Value.WrappedValue,
                         nodeToWrite.IndexRange);
