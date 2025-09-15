@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Globalization;
@@ -39,13 +40,13 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Tests
 {
-    public sealed class NUnitTelemetryContext : ITelemetryContext, ILoggerFactory
+    public sealed class NUnitTelemetryContext : ITelemetryContext
     {
         /// <inheritdoc/>
         public Meter Meter { get; }
 
         /// <inheritdoc/>
-        public ILoggerFactory LoggerFactory => this;
+        public ILoggerFactory LoggerFactory { get; }
 
         /// <inheritdoc/>
         public ActivitySource ActivitySource { get; }
@@ -57,12 +58,8 @@ namespace Opc.Ua.Tests
         private NUnitTelemetryContext(TextWriter outputWriter)
         {
             m_writer = outputWriter;
-        }
-
-        /// <inheritdoc/>
-        public ILogger CreateLogger(string categoryName)
-        {
-            return new Logger(m_writer);
+            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(
+                builder => builder.AddProvider(new NUnitLoggerProvider(m_writer)));
         }
 
         /// <summary>
@@ -84,97 +81,177 @@ namespace Opc.Ua.Tests
             return Create(TestContext.Out);
         }
 
-        /// <summary>
-        /// Create a logger over the writer
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        public static ILogger<T> Create<T>()
+        internal sealed class BenchmarkDotNetProvider : ILoggerProvider
         {
-            return Create<T>(TestContext.Out);
+            /// <inheritdoc/>
+            public ILogger CreateLogger(string categoryName)
+            {
+                return m_loggers.GetOrAdd(categoryName, name => new Logger());
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+            }
+
+            private sealed class Logger : ILogger, IDisposable
+            {
+                private readonly BenchmarkDotNet.Loggers.ILogger m_logger;
+
+                public Logger(BenchmarkDotNet.Loggers.ILogger logger = null)
+                {
+                    m_logger = logger ?? BenchmarkDotNet.Loggers.ConsoleLogger.Default;
+                }
+
+                /// <inheritdoc/>
+                public LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
+
+                /// <inheritdoc/>
+                public IDisposable BeginScope<TState>(TState state)
+                {
+                    return this;
+                }
+
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                }
+
+                /// <inheritdoc/>
+                public bool IsEnabled(LogLevel logLevel)
+                {
+                    return logLevel >= MinimumLogLevel;
+                }
+
+                public void Log<TState>(
+                    LogLevel logLevel,
+                    EventId eventId,
+                    TState state,
+                    Exception exception,
+                    Func<TState, Exception, string> formatter)
+                {
+                    if (logLevel < MinimumLogLevel)
+                    {
+                        return;
+                    }
+                    try
+                    {
+                        var sb = new StringBuilder();
+                        sb.AppendFormat(
+                            CultureInfo.InvariantCulture,
+                            "{0:yy-MM-dd HH:mm:ss.fff}: ",
+                            DateTime.UtcNow)
+                            .Append(formatter(state, exception));
+                        m_logger.WriteLine(logLevel switch
+                        {
+                            LogLevel.Information => BenchmarkDotNet.Loggers.LogKind.Info,
+                            LogLevel.Warning => BenchmarkDotNet.Loggers.LogKind.Warning,
+                            LogLevel.Error or LogLevel.Critical => BenchmarkDotNet.Loggers.LogKind.Error,
+                            _ => BenchmarkDotNet.Loggers.LogKind.Default
+                        },
+                        sb.ToString());
+                    }
+                    catch
+                    {
+                        // intentionally ignored
+                    }
+                }
+            }
+
+            private readonly ConcurrentDictionary<string, Logger> m_loggers =
+                  new(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        /// Create a logger over the writer
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="writer"></param>
-        /// <returns></returns>
-        public static ILogger<T> Create<T>(TextWriter writer)
+        internal sealed class NUnitLoggerProvider : ILoggerProvider
         {
-            var traceLogger = new NUnitTelemetryContext(writer);
-
-            // disable the built in tracing, use nunit trace output
-            Utils.SetTraceMask(Utils.TraceMask & Utils.TraceMasks.StackTrace);
-            Utils.SetTraceOutput(Utils.TraceOutput.Off);
-
-            return traceLogger.CreateLogger<T>();
-        }
-
-        public void AddProvider(ILoggerProvider provider)
-        {
-        }
-
-        public void Dispose()
-        {
-        }
-
-        private sealed class Logger : ILogger
-        {
-            public Logger(TextWriter outputWriter)
+            public NUnitLoggerProvider(TextWriter outputWriter)
             {
                 m_outputWriter = outputWriter;
             }
 
-            public LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
-
-            public IDisposable BeginScope<TState>(TState state)
+            /// <inheritdoc/>
+            public ILogger CreateLogger(string categoryName)
             {
-                return null;
+                return m_loggers.GetOrAdd(categoryName, name => new Logger(m_outputWriter));
             }
 
-            public bool IsEnabled(LogLevel logLevel)
+            /// <inheritdoc/>
+            public void Dispose()
             {
-                return logLevel >= MinimumLogLevel;
+                m_outputWriter.Close();
             }
 
-            public void SetWriter(TextWriter outputWriter)
+            private sealed class Logger : ILogger, IDisposable
             {
-                Interlocked.Exchange(ref m_outputWriter, outputWriter);
-            }
-
-            public void Log<TState>(
-                LogLevel logLevel,
-                EventId eventId,
-                TState state,
-                Exception exception,
-                Func<TState, Exception, string> formatter)
-            {
-                if (logLevel < MinimumLogLevel)
+                public Logger(TextWriter outputWriter)
                 {
-                    return;
+                    m_outputWriter = outputWriter;
                 }
 
-                try
-                {
-                    var sb = new StringBuilder();
-                    sb.AppendFormat(
-                        CultureInfo.InvariantCulture,
-                        "{0:yy-MM-dd HH:mm:ss.fff}: ",
-                        DateTime.UtcNow)
-                        .Append(formatter(state, exception));
+                /// <inheritdoc/>
+                public LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
 
-                    string logEntry = sb.ToString();
-
-                    m_outputWriter.WriteLine(logEntry);
-                }
-                catch
+                /// <inheritdoc/>
+                public IDisposable BeginScope<TState>(TState state)
                 {
-                    // intentionally ignored
+                    return this;
                 }
+
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    m_outputWriter.Flush();
+                }
+
+                /// <inheritdoc/>
+                public bool IsEnabled(LogLevel logLevel)
+                {
+                    return logLevel >= MinimumLogLevel;
+                }
+
+                /// <inheritdoc/>
+                public void SetWriter(TextWriter outputWriter)
+                {
+                    Interlocked.Exchange(ref m_outputWriter, outputWriter);
+                }
+
+                /// <inheritdoc/>
+                public void Log<TState>(
+                    LogLevel logLevel,
+                    EventId eventId,
+                    TState state,
+                    Exception exception,
+                    Func<TState, Exception, string> formatter)
+                {
+                    if (logLevel < MinimumLogLevel)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        var sb = new StringBuilder();
+                        sb.AppendFormat(
+                            CultureInfo.InvariantCulture,
+                            "{0:yy-MM-dd HH:mm:ss.fff}: ",
+                            DateTime.UtcNow)
+                            .Append(formatter(state, exception));
+
+                        string logEntry = sb.ToString();
+
+                        m_outputWriter.WriteLine(logEntry);
+                    }
+                    catch
+                    {
+                        // intentionally ignored
+                    }
+                }
+                private TextWriter m_outputWriter;
             }
 
-            private TextWriter m_outputWriter;
+            private readonly TextWriter m_outputWriter;
+            private readonly ConcurrentDictionary<string, Logger> m_loggers =
+                  new(StringComparer.OrdinalIgnoreCase);
         }
 
         private readonly TextWriter m_writer;

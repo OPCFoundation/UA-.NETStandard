@@ -95,9 +95,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Create a publisher application
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile, null);
             Assert.IsNotNull(m_uaPublisherApplication, "m_publisherApplication should not be null");
 

@@ -15,6 +15,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Security
 {
@@ -23,6 +24,15 @@ namespace Opc.Ua.Security
     /// </summary>
     public class SecurityConfigurationManager : ISecurityConfigurationManager
     {
+        /// <summary>
+        /// Create the security configuration manager.
+        /// </summary>
+        /// <param name="telemetry"></param>
+        public SecurityConfigurationManager(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<SecurityConfigurationManager>();
+        }
+
         /// <summary>
         /// Exports the security configuration for an application identified by a file or url.
         /// </summary>
@@ -61,7 +71,7 @@ namespace Opc.Ua.Security
                     sectionName = sectionName[..^file.Extension.Length];
 
                     configFilePath =
-                        ApplicationConfiguration.GetFilePathFromAppConfig(sectionName) ??
+                        ApplicationConfiguration.GetFilePathFromAppConfig(sectionName, m_logger) ??
                         filePath + ".config";
                 }
                 catch (Exception e)
@@ -467,5 +477,7 @@ namespace Opc.Ua.Security
             document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
             return document.DocumentElement.InnerXml;
         }
+
+        private readonly ILogger m_logger;
     }
 }

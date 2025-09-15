@@ -67,9 +67,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Arrange
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_configurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);

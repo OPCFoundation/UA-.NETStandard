@@ -110,10 +110,7 @@ namespace Opc.Ua.Server
             Level = EventLevel.Verbose)]
         public void MonitoredItemReady(uint id, string state)
         {
-            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
-            {
-                WriteEvent(kMonitoredItemReadyId, id, state);
-            }
+            WriteEvent(kMonitoredItemReadyId, id, state);
         }
     }
 }

@@ -52,14 +52,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             m_publisherConfigurationFile = Utils.GetAbsoluteFilePath(
                 PublisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
                 SubscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
         }
 
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Publisher")]

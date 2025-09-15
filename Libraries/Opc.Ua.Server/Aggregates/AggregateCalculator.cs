@@ -1514,7 +1514,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly ILogger m_logger;
-        private LinkedList<DataValue> m_values;
+        private readonly LinkedList<DataValue> m_values;
         private DateTime m_startOfData;
         private DateTime m_endOfData;
     }

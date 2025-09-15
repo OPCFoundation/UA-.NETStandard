@@ -95,11 +95,7 @@ namespace Opc.Ua.Client
             Level = EventLevel.Verbose)]
         public void Notification(int clientHandle, Variant value)
         {
-            // expensive operation, only enable if tracemask set
-            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
-            {
-                WriteEvent(NotificationId, clientHandle, value.ToString());
-            }
+            WriteEvent(NotificationId, clientHandle, value.ToString());
         }
 
         /// <summary>

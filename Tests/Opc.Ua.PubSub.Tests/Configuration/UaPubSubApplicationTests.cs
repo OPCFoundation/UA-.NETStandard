@@ -50,9 +50,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_configurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(
                 configurationFile);
         }

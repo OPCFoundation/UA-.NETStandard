@@ -3465,7 +3465,9 @@ namespace Opc.Ua.Server
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
                     new TraceConfiguration();
 
+#pragma warning disable CS0612 // Type or member is obsolete
                 Configuration.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0612 // Type or member is obsolete
             }
         }
 

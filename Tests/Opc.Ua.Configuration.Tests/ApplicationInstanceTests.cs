@@ -98,9 +98,8 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(applicationInstance);
             string configPath = Utils.GetAbsoluteFilePath(
                 "Opc.Ua.Configuration.Tests.Config.xml",
-                true,
-                false,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             Assert.NotNull(configPath);
             ApplicationConfiguration applicationConfiguration = await applicationInstance
                 .LoadApplicationConfigurationAsync(configPath, true)

@@ -443,7 +443,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             CancellationToken ct = default)
         {
-            string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
+            string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName, m_logger);
             return LoadApplicationConfigurationAsync(filePath, silent, ct);
         }
 
@@ -484,7 +484,9 @@ namespace Opc.Ua.Configuration
             };
 
             // Trace off
+#pragma warning disable CS0612 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0612 // Type or member is obsolete
 
             return new ApplicationConfigurationBuilder(this);
         }

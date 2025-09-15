@@ -73,9 +73,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create a publisher application
             string publisherConfigurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
 
             m_telemetry = NUnitTelemetryContext.Create();
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile, m_telemetry);
@@ -110,9 +109,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create a subscriber application
             string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile, m_telemetry);
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 

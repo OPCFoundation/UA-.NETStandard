@@ -349,7 +349,9 @@ namespace Opc.Ua.Configuration
                 AddSecurityPolicies();
             }
 
+#pragma warning disable CS0612 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration?.ApplySettings();
+#pragma warning restore CS0612 // Type or member is obsolete
 
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType)
                 .ConfigureAwait(false);

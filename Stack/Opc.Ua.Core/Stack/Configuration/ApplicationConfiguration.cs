@@ -20,6 +20,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {
@@ -191,7 +192,7 @@ namespace Opc.Ua
             string sectionName,
             ApplicationType applicationType)
         {
-            return LoadAsync(sectionName, applicationType);
+            return LoadAsync(sectionName, applicationType, NullLogger.Instance);
         }
 
         /// <summary>
@@ -200,12 +201,14 @@ namespace Opc.Ua
         /// <param name="sectionName">Name of configuration section for the current application's
         /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
+        /// <param name="logger"></param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
-            ApplicationType applicationType)
+            ApplicationType applicationType,
+            ILogger logger)
         {
-            return LoadAsync(sectionName, applicationType, typeof(ApplicationConfiguration));
+            return LoadAsync(sectionName, applicationType, typeof(ApplicationConfiguration), logger);
         }
 
         /// <summary>
@@ -222,7 +225,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType)
         {
-            return LoadAsync(sectionName, applicationType, systemType);
+            return LoadAsync(sectionName, applicationType, systemType, NullLogger.Instance);
         }
 
         /// <summary>
@@ -232,14 +235,16 @@ namespace Opc.Ua
         /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
+        /// <param name="logger"></param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType)
+            Type systemType,
+            ILogger logger)
         {
-            string filePath = GetFilePathFromAppConfig(sectionName);
+            string filePath = GetFilePathFromAppConfig(sectionName, logger);
 
             var file = new FileInfo(filePath);
 
@@ -486,7 +491,9 @@ namespace Opc.Ua
                 // should not be here but need to preserve old behavior.
                 if (applyTraceSettings && configuration.TraceConfiguration != null)
                 {
+#pragma warning disable CS0612 // Type or member is obsolete
                     configuration.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0612 // Type or member is obsolete
                 }
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider
@@ -503,16 +510,24 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.
         /// </param>
+        /// <param name="logger"></param>
         /// <returns>File path from the application configuration file.</returns>
-        public static string GetFilePathFromAppConfig(string sectionName)
+        public static string GetFilePathFromAppConfig(string sectionName, ILogger logger)
         {
             // convert to absolute file path (expands environment strings).
-            string absolutePath = Utils.GetAbsoluteFilePath(
-                sectionName + ".Config.xml",
-                true,
-                false,
-                false);
-            return absolutePath ?? sectionName + ".Config.xml";
+            try
+            {
+                string absolutePath = Utils.GetAbsoluteFilePath(
+                    sectionName + ".Config.xml",
+                    checkCurrentDirectory: true,
+                    createAlways:  false);
+                return absolutePath ?? sectionName + ".Config.xml";
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Could not get file path from app config - returning: {SectionName}.Config.xml", sectionName);
+                return sectionName + ".Config.xml";
+            }
         }
 
         /// <summary>
@@ -674,12 +689,21 @@ namespace Opc.Ua
                 throw new InvalidOperationException("Only valid for client configurations.");
             }
 
-            string filePath = Utils.GetAbsoluteFilePath(
-                ClientConfiguration.EndpointCacheFilePath,
-                true,
-                false,
-                false,
-                false);
+            string filePath;
+            try
+            {
+                filePath = Utils.GetAbsoluteFilePath(
+                    ClientConfiguration.EndpointCacheFilePath,
+                    checkCurrentDirectory: true,
+                    createAlways: false,
+                    writable: false);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Could not get file path {FilePath}",
+                    ClientConfiguration.EndpointCacheFilePath);
+                filePath = null;
+            }
 
             if (filePath == null)
             {
@@ -716,18 +740,24 @@ namespace Opc.Ua
             }
             finally
             {
-                string localFilePath = Utils.GetAbsoluteFilePath(
-                    ClientConfiguration.EndpointCacheFilePath,
-                    true,
-                    false,
-                    true,
-                    true);
-                if (localFilePath != filePath)
+                try
                 {
-                    endpoints.Save(localFilePath);
+                    string localFilePath = Utils.GetAbsoluteFilePath(
+                        ClientConfiguration.EndpointCacheFilePath,
+                        checkCurrentDirectory: true,
+                        createAlways: true,
+                        writable: true);
+                    if (localFilePath != filePath)
+                    {
+                        endpoints.Save(localFilePath);
+                    }
+                }
+                catch (Exception e2)
+                {
+                    m_logger.LogError(e2, "Could not save configuration to file: {FilePath}",
+                        ClientConfiguration.EndpointCacheFilePath);
                 }
             }
-
             return endpoints;
         }
 
@@ -777,6 +807,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the trace settings to the current process.
         /// </summary>
+        [Obsolete]
         public void ApplySettings()
         {
             Utils.SetTraceLog(OutputFilePath, DeleteOnLoad);

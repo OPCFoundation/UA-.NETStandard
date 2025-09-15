@@ -41,12 +41,6 @@ namespace Opc.Ua.Security
             X509Certificate2 serverCertificate,
             BinaryEncodingSupport encodingSupport)
         {
-            // do nothing if security turned off.
-            if ((Utils.TraceMask & Utils.TraceMasks.Security) == 0)
-            {
-                return;
-            }
-
             if (endpoint != null)
             {
                 string encoding;
@@ -64,6 +58,7 @@ namespace Opc.Ua.Security
                 }
 
                 logger.LogInformation(
+                    Utils.TraceMasks.Security,
                     "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected To: {EndpointUrl} [{SecurityMode}/{SecurityPolicyUri}/{Encoding}]",
                     implementationInfo,
                     secureChannelId,
@@ -74,13 +69,14 @@ namespace Opc.Ua.Security
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
-                    logger.LogCertificate("Client Certificate: ", clientCertificate);
-                    logger.LogCertificate("Server Certificate: ", serverCertificate);
+                    logger.LogCertificate(Utils.TraceMasks.Security, "Client Certificate: ", clientCertificate);
+                    logger.LogCertificate(Utils.TraceMasks.Security, "Server Certificate: ", serverCertificate);
                 }
             }
             else
             {
                 logger.LogInformation(
+                    Utils.TraceMasks.Security,
                     "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected To: {EndpointUrl}",
                     implementationInfo,
                     secureChannelId,
@@ -99,13 +95,8 @@ namespace Opc.Ua.Security
             string implementationInfo,
             string secureChannelId)
         {
-            // do nothing if security turned off.
-            if ((Utils.TraceMask & Utils.TraceMasks.Security) == 0)
-            {
-                return;
-            }
-
             logger.LogInformation(
+                Utils.TraceMasks.Security,
                 "SECURE CHANNEL RENEWED [{ImplementationInfo}] [ID={SecureChannelId}]",
                 implementationInfo,
                 secureChannelId);

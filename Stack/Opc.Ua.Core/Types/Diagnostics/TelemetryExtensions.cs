@@ -128,6 +128,6 @@ namespace Opc.Ua
             new(() => new ActivitySource("Opc.Ua", "1.0.0"));
 
         private static readonly Lazy<ILoggerFactory> s_loggerFactory =
-            new(() => new NullLoggerFactory());
+            new(() => LoggerFactory.Create(builder => builder.AddProvider(Utils.LoggerProvider)));
     }
 }

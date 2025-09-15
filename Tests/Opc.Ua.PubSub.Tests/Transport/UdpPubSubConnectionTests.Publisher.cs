@@ -61,9 +61,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher configuration object with modified port
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -159,9 +158,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher configuration object with modified port
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -260,9 +258,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher configuration object with modified port
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -363,9 +360,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher configuration object with modified port
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -471,9 +467,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher configuration object with modified port
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -574,9 +569,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher configuration object with modified port
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);

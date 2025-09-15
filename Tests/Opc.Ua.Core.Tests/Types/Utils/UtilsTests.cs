@@ -99,35 +99,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
-        public void Trace()
-        {
-            Utils.LogDebug(string.Empty);
-            Utils.LogDebug(null);
-            Utils.LogError(
-                new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
-                "Exception {0}",
-                1);
-            Utils.TraceExceptionMessage(
-                new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
-                "Exception {0} {1}",
-                2,
-                3);
-            Utils.LogError(
-                new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
-                "Exception {0} {1}",
-                true,
-                2,
-                3);
-            Utils.LogError(
-                new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
-                "Exception {0} {1}",
-                false,
-                2,
-                3);
-            Utils.LogInformation("Exception {0} {1}", 2, 3);
-        }
-
-        [Test]
         public void AreDomainsEqual()
         {
             var uri1 = new Uri("opc.tcp://host1:4840");

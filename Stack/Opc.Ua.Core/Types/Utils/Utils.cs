@@ -14,6 +14,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -295,8 +296,9 @@ namespace Opc.Ua
         /// Finds the file by search the common file folders and then bin directories in the source tree
         /// </summary>
         /// <param name="fileName">Name of the file.</param>
+        /// <param name="logger"></param>
         /// <returns>The path to the file. Null if not found.</returns>
-        public static string FindInstalledFile(string fileName)
+        public static string FindInstalledFile(string fileName, ILogger logger)
         {
             if (string.IsNullOrEmpty(fileName))
             {
@@ -317,7 +319,17 @@ namespace Opc.Ua
                     .Append(Path.DirectorySeparatorChar)
                     .Append(fileName);
 
-                path = GetAbsoluteFilePath(buffer.ToString(), false, false, false);
+                try
+                {
+                    path = GetAbsoluteFilePath(
+                        buffer.ToString(),
+                        checkCurrentDirectory: false,
+                        createAlways: false);
+                }
+                catch (Exception e)
+                {
+                    logger.LogTrace(e, "Could not find installed file: {FileName}", fileName);
+                }
 
                 if (path != null)
                 {
@@ -336,7 +348,10 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAbsoluteFilePath(string filePath)
         {
-            return GetAbsoluteFilePath(filePath, false, true, false);
+            return GetAbsoluteFilePath(
+                filePath,
+                checkCurrentDirectory: false,
+                createAlways: false);
         }
 
         /// <summary>
@@ -346,7 +361,6 @@ namespace Opc.Ua
         public static string GetAbsoluteFilePath(
             string filePath,
             bool checkCurrentDirectory,
-            bool throwOnError,
             bool createAlways,
             bool writable = false)
         {
@@ -368,7 +382,7 @@ namespace Opc.Ua
 
                     if (createAlways)
                     {
-                        return CreateFile(file, filePath, throwOnError);
+                        return CreateFile(file, filePath);
                     }
                 }
 
@@ -426,56 +440,37 @@ namespace Opc.Ua
 
                         if (createAlways && writable)
                         {
-                            return CreateFile(localFile, localFile.FullName, throwOnError);
+                            return CreateFile(localFile, localFile.FullName);
                         }
                     }
                 }
             }
 
             // file does not exist.
-            if (throwOnError)
-            {
-                var message = new StringBuilder();
-                message.AppendLine("File does not exist: {0}")
-                    .AppendLine("Current directory is: {1}");
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    message.ToString(),
-                    filePath,
-                    Directory.GetCurrentDirectory());
-            }
-
-            return null;
+            var message = new StringBuilder();
+            message.AppendLine("File does not exist: {0}")
+                .AppendLine("Current directory is: {1}");
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                message.ToString(),
+                filePath,
+                Directory.GetCurrentDirectory());
         }
 
         /// <summary>
         /// Creates an empty file.
         /// </summary>
-        private static string CreateFile(FileInfo file, string filePath, bool throwOnError)
+        private static string CreateFile(FileInfo file, string filePath)
         {
-            try
+            // create the directory as required.
+            if (!file.Directory.Exists)
             {
-                // create the directory as required.
-                if (!file.Directory.Exists)
-                {
-                    Directory.CreateDirectory(file.DirectoryName);
-                }
-
-                // open and close the file.
-                using Stream ostrm = file.Open(FileMode.CreateNew, FileAccess.ReadWrite);
-                return filePath;
+                Directory.CreateDirectory(file.DirectoryName);
             }
-            catch (Exception e)
-            {
-                LogError(e, "Could not create file: {0}", filePath);
 
-                if (throwOnError)
-                {
-                    throw;
-                }
-
-                return filePath;
-            }
+            // open and close the file.
+            using Stream ostrm = file.Open(FileMode.CreateNew, FileAccess.ReadWrite);
+            return filePath;
         }
 
         /// <summary>
@@ -647,7 +642,7 @@ namespace Opc.Ua
 #if DEBUG
             catch (Exception e)
             {
-                LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
+                Debug.WriteLine("Error {0} disposing object: {1}", e, disposable.GetType().Name);
             }
 #else
             catch { }
@@ -1530,7 +1525,9 @@ namespace Opc.Ua
                 object clone = memberwiseCloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     LogTrace("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
+#pragma warning restore CS0618 // Type or member is obsolete
                     return clone;
                 }
             }
@@ -1544,7 +1541,9 @@ namespace Opc.Ua
                 object clone = cloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     LogTrace("Clone without ICloneable in class '{0}'", type.FullName);
+#pragma warning restore CS0618 // Type or member is obsolete
                     return clone;
                 }
             }
@@ -2193,11 +2192,6 @@ namespace Opc.Ua
                 {
                     var serializer = new DataContractSerializer(typeof(T));
                     return (T)serializer.ReadObject(reader);
-                }
-                catch (Exception ex)
-                {
-                    LogError("Exception parsing extension: " + ex.Message);
-                    throw;
                 }
                 finally
                 {

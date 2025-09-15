@@ -396,7 +396,6 @@ namespace Opc.Ua
                     (int)requestHandle,
                     pendingRequestCount);
 
-
                 m_logger.LogTrace(
                     "{Service} Completed. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}",
                     serviceName,

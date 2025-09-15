@@ -98,20 +98,24 @@ namespace Opc.Ua.Fuzzing
             object sender,
             UnhandledExceptionEventArgs args)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             Utils.LogCritical(
                 "Unhandled Exception: {0} IsTerminating: {1}",
                 args.ExceptionObject,
                 args.IsTerminating);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private static void Unobserved_TaskException(
             object sender,
             UnobservedTaskExceptionEventArgs args)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             Utils.LogCritical(
                 "Unobserved Exception: {0} Observed: {1}",
                 args.Exception,
                 args.Observed);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
     }
 }

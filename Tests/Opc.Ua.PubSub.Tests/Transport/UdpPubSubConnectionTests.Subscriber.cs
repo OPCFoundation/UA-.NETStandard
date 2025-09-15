@@ -63,9 +63,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -90,9 +89,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -162,9 +160,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -189,9 +186,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -271,9 +267,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -298,9 +293,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -379,9 +373,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //set subscriber configuration
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -410,9 +403,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //set publisher cofiguration
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -520,9 +512,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //set configuration
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -552,9 +543,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //set publisher configuration an create publisher
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -638,9 +628,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -666,9 +655,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -744,9 +732,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -771,9 +758,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -847,9 +833,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);
@@ -874,9 +859,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
                     configurationFile);

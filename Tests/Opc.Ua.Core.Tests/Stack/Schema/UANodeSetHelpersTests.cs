@@ -219,9 +219,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             string assetPath = Utils.GetAbsoluteFilePath(
                 "../../../../../" + nodeset2File,
-                true,
-                false,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             using var importStream = new FileStream(assetPath, FileMode.Open);
             var importedNodeSet = Export.UANodeSet.Read(importStream);
             Assert.NotNull(importedNodeSet);

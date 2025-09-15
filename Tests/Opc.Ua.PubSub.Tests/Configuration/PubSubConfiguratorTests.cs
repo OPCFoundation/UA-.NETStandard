@@ -96,17 +96,15 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // A publisher configuration source
             string publisherConfigFile = Utils.GetAbsoluteFilePath(
                 PublisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_pubConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
                 publisherConfigFile);
             // A subscriber configuration source
             string subscriberConfigFile = Utils.GetAbsoluteFilePath(
                 SubscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_subConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
                 subscriberConfigFile);
         }

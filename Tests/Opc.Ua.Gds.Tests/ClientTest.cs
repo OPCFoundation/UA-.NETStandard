@@ -1091,7 +1091,10 @@ namespace Opc.Ua.Gds.Tests
             ApplicationTestData application = m_goodApplicationTestSet[0];
             Assert.Null(application.CertificateRequestId);
             // load csr with invalid app URI
-            string testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
+            string testCSR = Utils.GetAbsoluteFilePath(
+                "test.csr",
+                checkCurrentDirectory: true,
+                createAlways: false);
             byte[] certificateRequest = File.ReadAllBytes(testCSR);
             await NUnit.Framework.Assert.ThatAsync(
                 () => m_gdsClient.GDSClient.StartSigningRequestAsync(
