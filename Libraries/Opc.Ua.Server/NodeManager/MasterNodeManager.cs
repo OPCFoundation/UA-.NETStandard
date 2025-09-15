@@ -770,8 +770,16 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
-                        .ConfigureAwait(false);
+                    if (sync)
+                    {
+                        error = TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
+                            .AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
