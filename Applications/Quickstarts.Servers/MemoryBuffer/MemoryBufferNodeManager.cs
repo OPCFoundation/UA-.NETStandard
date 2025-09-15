@@ -262,7 +262,7 @@ namespace MemoryBuffer
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
             bool createDurable,
-            ref long globalIdCounter,
+            Func<uint> getNextMonitoredItemId,
             out MonitoringFilterResult filterError,
             out IMonitoredItem monitoredItem)
         {
@@ -281,7 +281,7 @@ namespace MemoryBuffer
                     timestampsToReturn,
                     itemToCreate,
                     createDurable,
-                    ref globalIdCounter,
+                    getNextMonitoredItemId,
                     out filterError,
                     out monitoredItem);
             }
@@ -336,9 +336,6 @@ namespace MemoryBuffer
                 return StatusCodes.BadInternalError;
             }
 
-            // create a globally unique identifier.
-            uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
-
             // determine the sampling interval.
             double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
 
@@ -352,7 +349,7 @@ namespace MemoryBuffer
                 context as ServerSystemContext,
                 tag,
                 subscriptionId,
-                monitoredItemId,
+                getNextMonitoredItemId(),
                 itemToCreate.ItemToMonitor,
                 diagnosticsMasks,
                 timestampsToReturn,
