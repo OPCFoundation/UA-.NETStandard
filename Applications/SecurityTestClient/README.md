@@ -17,7 +17,7 @@ To implement
 
 Known issues:
 - Using RSA user certificates with ECC channel does not work;
-- Encrypting passwords when Server does not have an RSA certificate does not work.
+- Encrypting passwords with SecurityMode=None when Server does not have an RSA certificate does not work.
 
 ### Configuration
 The server is configured to support ECC_nistP256_AES out of the box.  
