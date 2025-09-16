@@ -51,6 +51,9 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? telemetry)
         {
+#if DEBUG
+            Debug.WriteLineIf(telemetry == null, new StackTrace());
+#endif
             return telemetry?.LoggerFactory ?? s_loggerFactory.Value;
         }
 
@@ -95,6 +98,9 @@ namespace Opc.Ua
         /// <returns></returns>
         public static Meter GetMeter(this ITelemetryContext? telemetry)
         {
+#if DEBUG
+            Debug.WriteLineIf(telemetry == null, new StackTrace());
+#endif
             return telemetry?.Meter ?? s_meter.Value;
         }
 
@@ -105,6 +111,9 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
         {
+#if DEBUG
+            Debug.WriteLineIf(telemetry == null, new StackTrace());
+#endif
             return telemetry?.ActivitySource ?? s_activitySource.Value;
         }
 

@@ -800,31 +800,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Specifies parameters used for tracing.
-    /// </summary>
-    public partial class TraceConfiguration
-    {
-        /// <summary>
-        /// Applies the trace settings to the current process.
-        /// </summary>
-        [Obsolete]
-        public void ApplySettings()
-        {
-            Utils.SetTraceLog(OutputFilePath, DeleteOnLoad);
-            Utils.SetTraceMask(TraceMasks);
-
-            if (TraceMasks == 0)
-            {
-                Utils.SetTraceOutput(Utils.TraceOutput.Off);
-            }
-            else
-            {
-                Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
-            }
-        }
-    }
-
-    /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     public partial class ServerBaseConfiguration

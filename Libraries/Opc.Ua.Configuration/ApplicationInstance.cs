@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-
 #if ECC_SUPPORT
 using System.Security.Cryptography;
 #endif
@@ -133,39 +132,6 @@ namespace Opc.Ua.Configuration
         public bool DisableCertificateAutoCreation { get; set; }
 
         /// <summary>
-        /// Processes the command line.
-        /// </summary>
-        /// <returns>
-        /// True if the arguments were processed; False otherwise.
-        /// </returns>
-        public bool ProcessCommandLine()
-        {
-            // ignore processing of command line
-            return false;
-        }
-
-        /// <summary>
-        /// Starts the UA server as a Windows Service.
-        /// </summary>
-        /// <param name="server">The server.</param>
-        /// <exception cref="NotImplementedException"></exception>
-        public void StartAsService(ServerBase server)
-        {
-            throw new NotImplementedException(
-                ".NetStandard Opc.Ua libraries do not support to start as a windows service");
-        }
-
-        /// <summary>
-        /// Starts the UA server.
-        /// </summary>
-        /// <param name="server">The server.</param>
-        [Obsolete("Use StartAsync(ServerBase server) instead.")]
-        public Task Start(ServerBase server)
-        {
-            return StartAsync(server);
-        }
-
-        /// <summary>
         /// Starts the UA server.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -187,155 +153,6 @@ namespace Opc.Ua.Configuration
         public void Stop()
         {
             Server.Stop();
-        }
-
-        /// <summary>
-        /// <see cref="LoadAppConfigAsync(bool, string, ApplicationType, Type, bool, ICertificatePasswordProvider, CancellationToken)" />
-        /// </summary>
-        [Obsolete("Use LoadAppConfigAsync instead.")]
-        public Task<ApplicationConfiguration> LoadAppConfig(
-            bool silent,
-            string filePath,
-            ApplicationType applicationType,
-            Type configurationType,
-            bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
-        {
-            return LoadAppConfigAsync(
-                    silent,
-                    filePath,
-                    applicationType,
-                    configurationType,
-                    applyTraceSettings,
-                    certificatePasswordProvider)
-                .AsTask();
-        }
-
-        /// <summary>
-        /// Loads the configuration.
-        /// </summary>
-        public async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
-            bool silent,
-            string filePath,
-            ApplicationType applicationType,
-            Type configurationType,
-            bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null,
-            CancellationToken ct = default)
-        {
-            m_logger.LogInformation("Loading application configuration file. {FilePath}", filePath);
-
-            try
-            {
-                // load the configuration file.
-                return await ApplicationConfiguration
-                    .LoadAsync(
-                        new FileInfo(filePath),
-                        applicationType,
-                        configurationType,
-                        applyTraceSettings,
-                        certificatePasswordProvider,
-                        ct)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e, "Could not load configuration file. {FilePath}", filePath);
-
-                // warn user.
-                if (!silent)
-                {
-                    if (MessageDlg != null)
-                    {
-                        MessageDlg.Message("Load Application Configuration: " + e.Message);
-                        await MessageDlg.ShowAsync().ConfigureAwait(false);
-                    }
-
-                    throw;
-                }
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// <see cref="LoadAppConfigAsync(bool, Stream, ApplicationType, Type, bool, ICertificatePasswordProvider, CancellationToken)" />
-        /// </summary>
-        [Obsolete("Use LoadAppConfigAsync instead.")]
-        public Task<ApplicationConfiguration> LoadAppConfig(
-            bool silent,
-            Stream stream,
-            ApplicationType applicationType,
-            Type configurationType,
-            bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
-        {
-            return LoadAppConfigAsync(
-                    silent,
-                    stream,
-                    applicationType,
-                    configurationType,
-                    applyTraceSettings,
-                    certificatePasswordProvider)
-                .AsTask();
-        }
-
-        /// <summary>
-        /// Loads the configuration.
-        /// </summary>
-        public async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
-            bool silent,
-            Stream stream,
-            ApplicationType applicationType,
-            Type configurationType,
-            bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null,
-            CancellationToken ct = default)
-        {
-            m_logger.LogInformation("Loading application from stream.");
-
-            try
-            {
-                // load the configuration file.
-                return await ApplicationConfiguration
-                    .LoadAsync(
-                        stream,
-                        applicationType,
-                        configurationType,
-                        applyTraceSettings,
-                        certificatePasswordProvider,
-                        ct)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e, "Could not load configuration from stream.");
-
-                // warn user.
-                if (!silent)
-                {
-                    if (MessageDlg != null)
-                    {
-                        MessageDlg.Message("Load Application Configuration: " + e.Message);
-                        await MessageDlg.ShowAsync().ConfigureAwait(false);
-                    }
-
-                    throw;
-                }
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// <see cref="LoadApplicationConfigurationAsync(Stream, bool, CancellationToken)" />
-        /// </summary>
-        [Obsolete("Use LoadApplicationConfigurationAsync instead.")]
-        public Task<ApplicationConfiguration> LoadApplicationConfiguration(
-            Stream stream,
-            bool silent)
-        {
-            return LoadApplicationConfigurationAsync(stream, silent);
         }
 
         /// <summary>
@@ -375,26 +192,6 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration = FixupAppConfig(configuration);
 
             return configuration;
-        }
-
-        /// <summary>
-        /// <see cref="LoadApplicationConfigurationAsync(string, bool, CancellationToken)" />
-        /// </summary>
-        [Obsolete("Use LoadApplicationConfigurationAsync instead.")]
-        public Task<ApplicationConfiguration> LoadApplicationConfiguration(
-            string filePath,
-            bool silent)
-        {
-            return LoadApplicationConfigurationAsync(filePath, silent).AsTask();
-        }
-
-        /// <summary>
-        /// <see cref="LoadApplicationConfigurationAsync(bool, CancellationToken)" />
-        /// </summary>
-        [Obsolete("Use LoadApplicationConfigurationAsync instead.")]
-        public Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
-        {
-            return LoadApplicationConfigurationAsync(silent).AsTask();
         }
 
         /// <summary>
@@ -489,38 +286,6 @@ namespace Opc.Ua.Configuration
 #pragma warning restore CS0612 // Type or member is obsolete
 
             return new ApplicationConfigurationBuilder(this);
-        }
-
-        /// <summary>
-        /// <see cref="CheckApplicationInstanceCertificatesAsync(bool, ushort?, CancellationToken)"/>
-        /// </summary>
-        [Obsolete("Use CheckApplicationInstanceCertificatesAsync instead.")]
-        public Task<bool> CheckApplicationInstanceCertificates(bool silent)
-        {
-            return CheckApplicationInstanceCertificatesAsync(silent).AsTask();
-        }
-
-        /// <summary>
-        /// <see cref="CheckApplicationInstanceCertificatesAsync(bool, ushort?, CancellationToken)"/>
-        /// </summary>
-        [Obsolete("Use CheckApplicationInstanceCertificatesAsync instead.")]
-        public Task<bool> CheckApplicationInstanceCertificates(
-            bool silent,
-            ushort lifeTimeInMonths,
-            CancellationToken ct = default)
-        {
-            return CheckApplicationInstanceCertificatesAsync(silent, lifeTimeInMonths, ct).AsTask();
-        }
-
-        /// <summary>
-        /// <see cref="DeleteApplicationInstanceCertificateAsync(string[], CancellationToken)"/>
-        /// </summary>
-        [Obsolete("Use DeleteApplicationInstanceCertificateAsync instead.")]
-        public Task DeleteApplicationInstanceCertificate(
-            string[] profileIds = null,
-            CancellationToken ct = default)
-        {
-            return DeleteApplicationInstanceCertificateAsync(profileIds, ct).AsTask();
         }
 
         /// <summary>
@@ -631,7 +396,7 @@ namespace Opc.Ua.Configuration
             // check that it is ok.
             if (certificate != null)
             {
-                m_logger.LogInformation("Check certificate: {Certificate}", certificate.AsLogSafeString()   );
+                m_logger.LogInformation("Check certificate: {Certificate}", certificate.AsLogSafeString());
                 bool certificateValid = await CheckApplicationInstanceCertificateAsync(
                         configuration,
                         id,
@@ -770,30 +535,97 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Helper to suppress errors which are allowed for the application certificate validation.
+        /// Loads the configuration.
         /// </summary>
-        private class CertValidationSuppressibleStatusCodes
+        internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
+            bool silent,
+            string filePath,
+            ApplicationType applicationType,
+            Type configurationType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default)
         {
-            public StatusCode[] ApprovedCodes { get; }
+            m_logger.LogInformation("Loading application configuration file. {FilePath}", filePath);
 
-            public CertValidationSuppressibleStatusCodes(ILogger logger, StatusCode[] approvedCodes)
+            try
             {
-                m_logger = logger;
-                ApprovedCodes = approvedCodes;
+                // load the configuration file.
+                return await ApplicationConfiguration
+                    .LoadAsync(
+                        new FileInfo(filePath),
+                        applicationType,
+                        configurationType,
+                        applyTraceSettings,
+                        certificatePasswordProvider,
+                        ct)
+                    .ConfigureAwait(false);
             }
-
-            public void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
+            catch (Exception e)
             {
-                if (ApprovedCodes.Contains(e.Error.StatusCode))
+                m_logger.LogError(e, "Could not load configuration file. {FilePath}", filePath);
+
+                // warn user.
+                if (!silent)
                 {
-                    m_logger.LogWarning(
-                        "Application Certificate Validation suppressed {ErrorMessage}",
-                        e.Error.StatusCode);
-                    e.Accept = true;
-                }
-            }
+                    if (MessageDlg != null)
+                    {
+                        MessageDlg.Message("Load Application Configuration: " + e.Message);
+                        await MessageDlg.ShowAsync().ConfigureAwait(false);
+                    }
 
-            private readonly ILogger m_logger;
+                    throw;
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Loads the configuration.
+        /// </summary>
+        internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
+            bool silent,
+            Stream stream,
+            ApplicationType applicationType,
+            Type configurationType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default)
+        {
+            m_logger.LogInformation("Loading application from stream.");
+
+            try
+            {
+                // load the configuration file.
+                return await ApplicationConfiguration
+                    .LoadAsync(
+                        stream,
+                        applicationType,
+                        configurationType,
+                        applyTraceSettings,
+                        certificatePasswordProvider,
+                        ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Could not load configuration from stream.");
+
+                // warn user.
+                if (!silent)
+                {
+                    if (MessageDlg != null)
+                    {
+                        MessageDlg.Message("Load Application Configuration: " + e.Message);
+                        await MessageDlg.ShowAsync().ConfigureAwait(false);
+                    }
+
+                    throw;
+                }
+
+                return null;
+            }
         }
 
         /// <summary>
@@ -813,7 +645,7 @@ namespace Opc.Ua.Configuration
             }
 
             // set suppressible errors
-            var certValidator = new CertValidationSuppressibleStatusCodes(m_logger,
+            HashSet<StatusCode> ApprovedCodes =
             [
                 StatusCodes.BadCertificateUntrusted,
                 StatusCodes.BadCertificateTimeInvalid,
@@ -821,15 +653,26 @@ namespace Opc.Ua.Configuration
                 StatusCodes.BadCertificateHostNameInvalid,
                 StatusCodes.BadCertificateRevocationUnknown,
                 StatusCodes.BadCertificateIssuerRevocationUnknown
-            ]);
+            ];
+            void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
+            {
+                if (ApprovedCodes.Contains(e.Error.StatusCode))
+                {
+                    m_logger.LogWarning(
+                        "Application Certificate Validation suppressed {ErrorMessage}",
+                        e.Error.StatusCode);
+                    e.Accept = true;
+                }
+            }
 
-            m_logger.LogInformation("Check application instance certificate {Certificate}.", certificate.AsLogSafeString());
+            m_logger.LogInformation(
+                "Check application instance certificate {Certificate}.",
+                certificate.AsLogSafeString());
 
             try
             {
                 // validate certificate.
-                configuration.CertificateValidator.CertificateValidation += certValidator
-                    .OnCertificateValidation;
+                configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
                 await configuration
                     .CertificateValidator.ValidateAsync(
                         certificate.HasPrivateKey
@@ -850,8 +693,7 @@ namespace Opc.Ua.Configuration
             }
             finally
             {
-                configuration.CertificateValidator.CertificateValidation -= certValidator
-                    .OnCertificateValidation;
+                configuration.CertificateValidator.CertificateValidation -= OnCertificateValidation;
             }
 
             // check key size

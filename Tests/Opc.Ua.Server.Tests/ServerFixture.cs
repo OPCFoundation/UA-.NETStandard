@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // start the server.
-            var server = new T { Telemetry = m_telemetry };
+            var server = new T();
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);

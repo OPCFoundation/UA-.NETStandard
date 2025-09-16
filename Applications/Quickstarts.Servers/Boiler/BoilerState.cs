@@ -37,10 +37,10 @@ namespace Boiler
 {
     public partial class BoilerState
     {
-        public BoilerState(ITelemetryContext telemetry, NodeState parent)
-            : base(parent)
+        protected override void Initialize(ITelemetryContext telemetry)
         {
-            m_logger = telemetry.LoggerFactory.CreateLogger<BoilerState>();
+            m_logger = telemetry.CreateLogger<BoilerState>();
+            base.Initialize(telemetry);
         }
 
         /// <summary>
@@ -294,7 +294,7 @@ namespace Boiler
             }
         }
 
-        private readonly ILogger m_logger;
+        private ILogger m_logger;
         private ISystemContext m_simulationContext;
         private Timer m_simulationTimer;
         private Random m_random;

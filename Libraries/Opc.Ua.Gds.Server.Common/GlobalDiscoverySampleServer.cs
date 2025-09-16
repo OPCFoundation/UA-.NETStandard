@@ -61,12 +61,9 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
-            ITelemetryContext telemetry,
             bool autoApprove = true,
             bool createStandardUsers = true)
-            : base(telemetry)
         {
-            Telemetry = telemetry;
             m_database = database;
             m_request = request;
             m_certificateGroup = certificateGroup;
@@ -263,7 +260,7 @@ namespace Opc.Ua.Gds.Server
             //check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.ApplicationCertificatesStorePath);
-            using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(Telemetry))
+            using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
                 X509Certificate2Collection matchingCerts = applicationsStore
                     .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
@@ -282,7 +279,7 @@ namespace Opc.Ua.Gds.Server
             //check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.AuthoritiesStorePath);
-            using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(Telemetry))
+            using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
                 foreach (X509CRL crl in authoritiesStore.EnumerateCRLsAsync().Result)
                 {

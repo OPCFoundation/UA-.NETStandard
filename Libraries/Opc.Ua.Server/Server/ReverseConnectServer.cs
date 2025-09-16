@@ -159,16 +159,7 @@ namespace Opc.Ua.Server
         /// Creates a reverse connect server based on a StandardServer.
         /// </summary>
         public ReverseConnectServer()
-            : this(null)
         {
-        }
-
-        /// <summary>
-        /// Creates a reverse connect server based on a StandardServer.
-        /// </summary>
-        public ReverseConnectServer(ITelemetryContext telemetry)
-        {
-            Telemetry = telemetry;
             m_connectInterval = DefaultReverseConnectInterval;
             m_connectTimeout = DefaultReverseConnectTimeout;
             m_rejectTimeout = DefaultReverseConnectRejectTimeout;

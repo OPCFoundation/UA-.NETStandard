@@ -66,19 +66,16 @@ namespace Opc.Ua.Server
         /// <param name="messageContext">The message context.</param>
         /// <param name="certificateValidator">The certificate validator.</param>
         /// <param name="instanceCertificateProvider">The certificate type provider.</param>
-        /// <param name="telemetry">Telemetry context for the server.</param>
         public ServerInternalData(
             ServerProperties serverDescription,
             ApplicationConfiguration configuration,
             IServiceMessageContext messageContext,
             CertificateValidator certificateValidator,
-            CertificateTypesProvider instanceCertificateProvider,
-            ITelemetryContext telemetry)
+            CertificateTypesProvider instanceCertificateProvider)
         {
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;
-            Telemetry = telemetry;
 
             m_endpointAddresses = [];
 
@@ -326,7 +323,7 @@ namespace Opc.Ua.Server
         public ISubscriptionStore SubscriptionStore { get; private set; }
 
         /// <inheritdoc/>
-        public ITelemetryContext Telemetry { get; }
+        public ITelemetryContext Telemetry => MessageContext.Telemetry;
 
         /// <summary>
         /// Returns the status object for the server.

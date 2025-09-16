@@ -53,22 +53,6 @@ namespace Quickstarts.ReferenceServer
     /// </remarks>
     public class ReferenceServer : ReverseConnectServer
     {
-        /// <summary>
-        /// Create a reference server
-        /// </summary>
-        public ReferenceServer()
-        {
-        }
-
-        /// <summary>
-        /// Create a reference server with the specified telemetry context.
-        /// </summary>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        public ReferenceServer(ITelemetryContext telemetry)
-            : base(telemetry)
-        {
-        }
-
         public ITokenValidator TokenValidator { get; set; }
 
         /// <summary>
@@ -117,9 +101,9 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.DurableMonitoredItemQueueFactory(Telemetry);
+                return new Servers.DurableMonitoredItemQueueFactory(server.Telemetry);
             }
-            return new MonitoredItemQueueFactory(Telemetry);
+            return new MonitoredItemQueueFactory(server.Telemetry);
         }
 
         /// <summary>
@@ -272,7 +256,7 @@ namespace Quickstarts.ReferenceServer
                     if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
                         configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
-                        var certificateValidator = new CertificateValidator(Telemetry);
+                        var certificateValidator = new CertificateValidator(MessageContext.Telemetry);
                         certificateValidator.UpdateAsync(configuration.SecurityConfiguration)
                             .Wait();
                         certificateValidator.Update(

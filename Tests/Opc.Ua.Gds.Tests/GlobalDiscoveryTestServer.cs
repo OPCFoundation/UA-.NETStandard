@@ -163,8 +163,7 @@ namespace Opc.Ua.Gds.Tests
                 applicationsDatabase,
                 applicationsDatabase,
                 new CertificateGroup(telemetry),
-                usersDatabase,
-                telemetry);
+                usersDatabase);
             await Application.StartAsync(Server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;

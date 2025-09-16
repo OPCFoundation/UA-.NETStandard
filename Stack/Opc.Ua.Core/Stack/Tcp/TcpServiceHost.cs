@@ -64,7 +64,7 @@ namespace Opc.Ua.Bindings
             // This is needed because the binding always requires a default
             // constructor construction. So the telemetry context is not available
             // until we are here.
-            ILogger logger = serverBase.Telemetry.CreateLogger<TcpServiceHost>();
+            ILogger logger = serverBase.MessageContext.Telemetry.CreateLogger<TcpServiceHost>();
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
@@ -82,7 +82,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 _ = instanceCertificateTypesProvider.SendCertificateChain;
-                ITransportListener listener = Create(serverBase.Telemetry);
+                ITransportListener listener = Create(serverBase.MessageContext.Telemetry);
                 if (listener != null)
                 {
                     var listenerEndpoints = new EndpointDescriptionCollection();

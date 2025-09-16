@@ -54,18 +54,6 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ReferenceServerWithLimits : ReferenceServer
     {
-        /// <summary>
-        /// Create a reference server
-        /// </summary>
-        public ReferenceServerWithLimits()
-        {
-        }
-
-        public ReferenceServerWithLimits(ITelemetryContext telemetry)
-            : base(telemetry)
-        {
-        }
-
         public uint TestMaxBrowseReferencesPerNode { get; set; } = 10u;
         private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerWithLimits SessionManagerForTest { get; set; }

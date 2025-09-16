@@ -47,21 +47,6 @@ namespace Opc.Ua.Server
     public class StandardServer : SessionServerBase
     {
         /// <summary>
-        /// Initialize the server with default values
-        /// </summary>
-        public StandardServer()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with telemetry context.
-        /// </summary>
-        public StandardServer(ITelemetryContext telemetry)
-        {
-            Telemetry = telemetry;
-        }
-
-        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed
@@ -2907,7 +2892,7 @@ namespace Opc.Ua.Server
             // use a dedicated certificate validator with the registration, but derive behavior from server config
             var registrationCertificateValidator = new CertificateValidationEventHandler(
                 RegistrationValidator_CertificateValidation);
-            configuration.CertificateValidator = new CertificateValidator(Telemetry);
+            configuration.CertificateValidator = new CertificateValidator(MessageContext.Telemetry);
             configuration.CertificateValidator.CertificateValidation
                 += registrationCertificateValidator;
             await configuration
@@ -2938,7 +2923,7 @@ namespace Opc.Ua.Server
 
                                 if (updateRequired)
                                 {
-                                    await endpoint.UpdateFromServerAsync(Telemetry, ct).ConfigureAwait(false);
+                                    await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
                                 }
 
                                 lock (m_registrationLock)
@@ -2961,7 +2946,7 @@ namespace Opc.Ua.Server
                                     endpoint.Description,
                                     endpoint.Configuration,
                                     instanceCertificate,
-                                    Telemetry);
+                                    MessageContext.Telemetry);
 
                                 client.OperationTimeout = 10000;
 
@@ -3444,7 +3429,7 @@ namespace Opc.Ua.Server
             lock (Lock)
             {
                 // update security configuration.
-                configuration.SecurityConfiguration.Validate(Telemetry);
+                configuration.SecurityConfiguration.Validate(MessageContext.Telemetry);
 
                 Configuration.SecurityConfiguration.TrustedIssuerCertificates = configuration
                     .SecurityConfiguration
@@ -3543,7 +3528,7 @@ namespace Opc.Ua.Server
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
                     baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
-                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, Telemetry);
+                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)
                 {
                     endpointsForHost = binding.CreateServiceHost(
@@ -3582,7 +3567,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override EndpointBase GetEndpointInstance(ServerBase server)
         {
-            return new SessionEndpoint(server) { Telemetry = Telemetry };
+            return new SessionEndpoint(server);
         }
 
         /// <summary>
@@ -3611,9 +3596,8 @@ namespace Opc.Ua.Server
                         ServerProperties,
                         configuration,
                         MessageContext,
-                        new CertificateValidator(Telemetry),
-                        InstanceCertificateTypesProvider,
-                        Telemetry);
+                        new CertificateValidator(MessageContext.Telemetry),
+                        InstanceCertificateTypesProvider);
 
                     // create the manager responsible for providing localized string resources.
                     m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
@@ -3789,7 +3773,7 @@ namespace Opc.Ua.Server
                     if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                     {
                         m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
-                        m_configurationWatcher = new ConfigurationWatcher(configuration, Telemetry);
+                        m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
                         m_configurationWatcher.Changed += OnConfigurationChangedAsync;
                     }
 
@@ -4235,7 +4219,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new MonitoredItemQueueFactory(Telemetry);
+            return new MonitoredItemQueueFactory(MessageContext.Telemetry);
         }
 
         /// <summary>

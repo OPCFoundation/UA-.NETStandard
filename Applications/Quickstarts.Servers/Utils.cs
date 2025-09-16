@@ -77,7 +77,7 @@ namespace Quickstarts.Servers
                     {
                         if (ServiceResult.IsBad(result.StatusCode))
                         {
-                            ILogger<StandardServer> logger = server.Telemetry.CreateLogger<StandardServer>();
+                            ILogger<StandardServer> logger = server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
                             logger.LogError("Error calling method with status code {StatusCode}.", result.StatusCode);
                         }
                     }
@@ -86,7 +86,7 @@ namespace Quickstarts.Servers
                 }
                 catch (Exception ex)
                 {
-                    ILogger<StandardServer> logger = server.Telemetry.CreateLogger<StandardServer>();
+                    ILogger<StandardServer> logger = server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
                     logger.LogError(ex, "Failed to start alarms for CTT.");
                 }
             }

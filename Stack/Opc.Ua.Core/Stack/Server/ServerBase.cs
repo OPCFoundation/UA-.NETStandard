@@ -33,47 +33,13 @@ namespace Opc.Ua
     public class ServerBase : IServerBase
     {
         /// <summary>
-        /// This must be set by the derived class to initialize the telemtry
-        /// system. This is a workaround for the limtation that all servers
-        /// must be constructable via the default constructor. Fixtures will
-        /// set this property immediately after construction. But users should
-        /// do the same or use a constructor with the telemetry context
-        /// parameter.
-        /// TODO: Make required, which will require the introduction of a
-        /// server factory for fixtures (where T : new())
-        /// </summary>
-        public /* required */ ITelemetryContext Telemetry
-        {
-            get => m_telemetry;
-            init
-            {
-                m_telemetry = value;
-                m_messageContext = new ServiceMessageContext(m_telemetry);
-                m_logger = value.CreateLogger(this);
-            }
-        }
-
-        /// <summary>
         /// Initializes object with default values.
         /// </summary>
         public ServerBase()
         {
+            ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_messageContext = new ServiceMessageContext(null);
-            m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
-            ServiceHosts = [];
-            TransportListeners = [];
-            Endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
-            m_userTokenPolicyId = 0;
-        }
-
-        /// <summary>
-        /// Initializes object with default values.
-        /// </summary>
-        public ServerBase(ITelemetryContext telemetry)
-            : this()
-        {
-            Telemetry = telemetry;
         }
 
         /// <summary>
@@ -126,19 +92,23 @@ namespace Opc.Ua
         /// </value>
         public IServiceMessageContext MessageContext
         {
-            get => (IServiceMessageContext)m_messageContext;
-            set => Interlocked.Exchange(ref m_messageContext, value);
+            get => m_messageContext;
+            private set
+            {
+                m_messageContext = value;
+                if (m_telemetry != value.Telemetry)
+                {
+                    m_telemetry = value.Telemetry;
+                    m_logger = m_telemetry.CreateLogger(this);
+                }
+            }
         }
 
         /// <summary>
         /// An error condition that describes why the server if not running (null if no error exists).
         /// </summary>
         /// <value>The object that combines the status code and diagnostic info structures.</value>
-        public ServiceResult ServerError
-        {
-            get => (ServiceResult)m_serverError;
-            set => Interlocked.Exchange(ref m_serverError, value);
-        }
+        public ServiceResult ServerError { get; protected set; }
 
         /// <summary>
         /// Returns the endpoints supported by the server.
@@ -161,7 +131,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="request">The request.</param>
         /// <param name="cancellationToken">The cancellationToken</param>
-        public virtual void ScheduleIncomingRequest(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
+        public virtual void ScheduleIncomingRequest(
+            IEndpointIncomingRequest request,
+            CancellationToken cancellationToken = default)
         {
             m_requestQueue.ScheduleIncomingRequest(request);
         }
@@ -548,7 +520,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_serverError = new ServiceResult(e);
+                ServerError = new ServiceResult(e);
             }
 
             // close any listeners.
@@ -692,11 +664,7 @@ namespace Opc.Ua
         /// The object used to verify client certificates
         /// </summary>
         /// <value>The identifier for an X509 certificate.</value>
-        public CertificateValidator CertificateValidator
-        {
-            get => (CertificateValidator)m_certificateValidator;
-            private set => m_certificateValidator = value;
-        }
+        public CertificateValidator CertificateValidator { get; private set; }
 
         /// <summary>
         /// The server's application instance certificate types provider.
@@ -708,37 +676,25 @@ namespace Opc.Ua
         /// The non-configurable properties for the server.
         /// </summary>
         /// <value>The properties of the current server instance.</value>
-        protected ServerProperties ServerProperties
-        {
-            get => (ServerProperties)m_serverProperties;
-            private set => m_serverProperties = value;
-        }
+        protected ServerProperties ServerProperties { get; private set; }
 
         /// <summary>
         /// The configuration for the server.
         /// </summary>
         /// <value>Object that stores the configurable configuration information for a UA application</value>
-        protected ApplicationConfiguration Configuration
-        {
-            get => (ApplicationConfiguration)m_configuration;
-            private set => m_configuration = value;
-        }
+        protected ApplicationConfiguration Configuration { get; private set; }
 
         /// <summary>
         /// The application description for the server.
         /// </summary>
         /// <value>Object that contains a description for the ApplicationDescription DataType.</value>
-        protected ApplicationDescription ServerDescription
-        {
-            get => (ApplicationDescription)m_serverDescription;
-            private set => m_serverDescription = value;
-        }
+        protected ApplicationDescription ServerDescription { get; private set; }
 
         /// <summary>
         /// Gets the list of service hosts used by the server instance.
         /// </summary>
         /// <value>The service hosts.</value>
-        protected List<ServiceHost> ServiceHosts { get; }
+        protected List<ServiceHost> ServiceHosts { get; } = [];
 
         /// <summary>
         /// Gets or set the capabilities for the server.
@@ -749,7 +705,7 @@ namespace Opc.Ua
         /// Gets the list of transport listeners used by the server instance.
         /// </summary>
         /// <value>The transport listeners.</value>
-        protected List<ITransportListener> TransportListeners { get; }
+        protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
         /// Returns the service contract to use.
@@ -831,15 +787,11 @@ namespace Opc.Ua
                     MaxChannelCount = 0
                 };
 
-                if (m_configuration is ApplicationConfiguration applicationConfiguration)
+                settings.MaxChannelCount = Configuration.ServerConfiguration.MaxChannelCount;
+                if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
                 {
-                    settings.MaxChannelCount = applicationConfiguration.ServerConfiguration
-                        .MaxChannelCount;
-                    if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
-                    {
-                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration
-                            .HttpsMutualTls;
-                    }
+                    settings.HttpsMutualTls = Configuration.ServerConfiguration
+                        .HttpsMutualTls;
                 }
 
                 listener.Open(endpointUri, settings, GetEndpointInstance(this));
@@ -1357,6 +1309,13 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnServerStarting(ApplicationConfiguration configuration)
         {
+            // use the message context from the configuration to ensure the channels are
+            // using the same one. This also sets the telemetry context for the server
+            // fromt the configuration.
+            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            messageContext.NamespaceUris = new NamespaceTable();
+            MessageContext = messageContext;
+
             // fetch properties and configuration.
             Configuration = configuration;
             ServerProperties = LoadServerProperties();
@@ -1385,7 +1344,9 @@ namespace Opc.Ua
 
             // load the instance certificate.
             X509Certificate2 defaultInstanceCertificate = null;
-            InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration, Telemetry);
+            InstanceCertificateTypesProvider = new CertificateTypesProvider(
+                configuration,
+                MessageContext.Telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
@@ -1418,11 +1379,6 @@ namespace Opc.Ua
                     .GetAwaiter()
                     .GetResult();
             }
-
-            // use the message context from the configuration to ensure the channels are using the same one.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
-            messageContext.NamespaceUris = new NamespaceTable();
-            MessageContext = messageContext;
 
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
@@ -1701,14 +1657,9 @@ namespace Opc.Ua
         protected ILogger m_logger { get; private set; } = NullLogger.Instance;
 #pragma warning restore IDE1006 // Naming Styles
 
-        private object m_messageContext;
-        private object m_serverError;
-        private object m_certificateValidator;
-        private object m_serverProperties;
-        private object m_configuration;
-        private object m_serverDescription;
+        private IServiceMessageContext m_messageContext;
         private RequestQueue m_requestQueue;
-        private readonly ITelemetryContext m_telemetry;
+        private ITelemetryContext m_telemetry;
 
         /// <summary>
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server

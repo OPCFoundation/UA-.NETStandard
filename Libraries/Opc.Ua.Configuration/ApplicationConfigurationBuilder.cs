@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -313,14 +314,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use CreateAsync instead")]
-        public Task<ApplicationConfiguration> Create()
-        {
-            return CreateAsync();
-        }
-
-        /// <inheritdoc/>
-        public async Task<ApplicationConfiguration> CreateAsync()
+        public async Task<ApplicationConfiguration> CreateAsync(CancellationToken ct = default)
         {
             // sanity checks
             if (ApplicationInstance
@@ -353,7 +347,7 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration.TraceConfiguration?.ApplySettings();
 #pragma warning restore CS0612 // Type or member is obsolete
 
-            await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType)
+            await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
 
             await ApplicationConfiguration

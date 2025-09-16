@@ -17,6 +17,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {
@@ -26,32 +27,17 @@ namespace Opc.Ua
     public abstract class EndpointBase : IEndpointBase, ITransportListenerCallback
     {
         /// <summary>
-        /// This must be set by the derived class to initialize the telemtry system
-        /// </summary>
-        public required ITelemetryContext Telemetry
-        {
-            protected get => m_telemetry;
-            init
-            {
-                m_telemetry = value;
-                m_logger = value.CreateLogger(this);
-            }
-        }
-
-        /// <summary>
         /// Initializes the object when it is created by the WCF framework.
         /// </summary>
-        protected EndpointBase(ITelemetryContext telemetry = null)
+        protected EndpointBase()
         {
-            Telemetry = telemetry;
             SupportedServices = [];
 
             try
             {
                 m_host = GetHostForContext();
                 m_server = GetServerForContext();
-
-                MessageContext = m_server.MessageContext;
+                m_logger = MessageContext.Telemetry.CreateLogger(this);
 
                 EndpointDescription = GetEndpointDescription();
             }
@@ -73,6 +59,7 @@ namespace Opc.Ua
         {
             m_host = host ?? throw new ArgumentNullException(nameof(host));
             m_server = host.Server;
+            m_logger = MessageContext.Telemetry.CreateLogger(this);
 
             SupportedServices = [];
         }
@@ -84,6 +71,7 @@ namespace Opc.Ua
         {
             m_host = null;
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = MessageContext.Telemetry.CreateLogger(this);
 
             SupportedServices = [];
         }
@@ -562,7 +550,7 @@ namespace Opc.Ua
         /// Returns the message context used by the server associated with the endpoint.
         /// </summary>
         /// <value>The message context.</value>
-        protected IServiceMessageContext MessageContext { get; set; }
+        protected IServiceMessageContext MessageContext => m_server.MessageContext;
 
         /// <summary>
         /// Returns the description for the endpoint
@@ -1190,8 +1178,13 @@ namespace Opc.Ua
             private readonly TaskCompletionSource<IServiceResponse> m_tcs;
         }
 
-        private readonly ITelemetryContext m_telemetry;
-        private readonly ILogger m_logger;
+        /// <summary>
+        /// Logger for this and the inherited classes
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; } = NullLogger.Instance;
+#pragma warning restore IDE1006 // Naming Styles
+
         private IServiceHostBase m_host;
         private IServerBase m_server;
     }

@@ -139,7 +139,7 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                Server = new T { Telemetry = m_telemetry };
+                Server = new T();
                 if (nodeManagerFactories != null)
                 {
                     foreach (INodeManagerFactory factory in nodeManagerFactories)
