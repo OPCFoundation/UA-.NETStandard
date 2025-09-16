@@ -90,11 +90,11 @@ namespace SecurityTestClient
                 var userNameidentity = new UserIdentity("sysadmin", "demo");
 
                 // will fail if PKI type does not match with selected channel SecurityPolicyUri.
-                var certificateIdentity = await LoadUserCertificate("iama.tester@example.com", "password", ct).ConfigureAwait(false);
+                // var certificateIdentity = await LoadUserCertificate("iama.tester@example.com", "password", ct).ConfigureAwait(false);
 
                 foreach (var ii in endpoints)
                 {
-                    foreach (var identity in  new UserIdentity[] { certificateIdentity })
+                    foreach (var identity in  new UserIdentity[] { userNameidentity })
                     {
                         try
                         {
