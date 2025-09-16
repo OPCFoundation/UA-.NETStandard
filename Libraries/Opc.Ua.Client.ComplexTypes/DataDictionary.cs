@@ -120,24 +120,24 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Validates the type dictionary.
         /// </summary>
-        /// <param name="logger"></param>
         /// <param name="dictionary">The encoded dictionary to validate.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
-        internal void Validate(ILogger logger, byte[] dictionary, bool throwOnError)
+        /// <param name="logger">A contextual logger to log to</param>
+        internal void Validate(byte[] dictionary, bool throwOnError, ILogger logger)
         {
-            Validate(logger, dictionary, null, throwOnError);
+            Validate(dictionary, logger, null, throwOnError);
         }
 
         /// <summary>
         /// Validates the type dictionary.
         /// </summary>
-        /// <param name="logger"></param>
         /// <param name="dictionary">The encoded dictionary to validate.</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="imports">A table of imported namespace schemas.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
         internal void Validate(
-            ILogger logger,
             byte[] dictionary,
+            ILogger logger,
             IDictionary<string, byte[]> imports = null,
             bool throwOnError = false)
         {

@@ -488,7 +488,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create node state factory
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public NodeStateFactory(ITelemetryContext telemetry)
         {
             m_telemetry = telemetry;
@@ -559,11 +559,6 @@ namespace Opc.Ua
                         break;
                 }
             }
-            if (child == null)
-            {
-                return null;
-            }
-            child.Telemetry = m_telemetry;
             return child;
         }
 

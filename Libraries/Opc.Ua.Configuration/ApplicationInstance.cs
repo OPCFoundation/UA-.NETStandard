@@ -63,7 +63,7 @@ namespace Opc.Ua.Configuration
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
         /// <param name="applicationConfiguration">The application configuration.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public ApplicationInstance(
             ApplicationConfiguration applicationConfiguration,
             ITelemetryContext telemetry)
@@ -631,7 +631,7 @@ namespace Opc.Ua.Configuration
             // check that it is ok.
             if (certificate != null)
             {
-                m_logger.LogCertificate("Check certificate:", certificate);
+                m_logger.LogInformation("Check certificate: {Certificate}", certificate.AsLogSafeString()   );
                 bool certificateValid = await CheckApplicationInstanceCertificateAsync(
                         configuration,
                         id,
@@ -823,7 +823,7 @@ namespace Opc.Ua.Configuration
                 StatusCodes.BadCertificateIssuerRevocationUnknown
             ]);
 
-            m_logger.LogCertificate("Check application instance certificate.", certificate);
+            m_logger.LogInformation("Check application instance certificate {Certificate}.", certificate.AsLogSafeString());
 
             try
             {
@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Configuration
                 id.Certificate = builder.SetRSAKeySize(CertificateFactory.DefaultKeySize)
                     .CreateForRSA();
 
-                m_logger.LogCertificate("Certificate created for RSA.", id.Certificate);
+                m_logger.LogInformation("Certificate {Certificate} created for RSA.", id.Certificate.AsLogSafeString());
             }
             else
             {
@@ -1065,9 +1065,9 @@ namespace Opc.Ua.Configuration
 
                 id.Certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
 
-                m_logger.LogCertificate(
-                    "Certificate created for {0}.",
-                    id.Certificate,
+                m_logger.LogInformation(
+                    "Certificate {Certificate} created for {Curve}.",
+                    id.Certificate.AsLogSafeString(),
                     curve.Value.Oid.FriendlyName);
 #endif
             }
@@ -1103,9 +1103,9 @@ namespace Opc.Ua.Configuration
                 .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration)
                 .ConfigureAwait(false);
 
-            m_logger.LogCertificate(
-                "Certificate created for {0}.",
-                id.Certificate,
+            m_logger.LogInformation(
+                "Certificate {Certificate} created for {ApplicationUri}.",
+                id.Certificate.AsLogSafeString(),
                 configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
@@ -1134,10 +1134,10 @@ namespace Opc.Ua.Configuration
                 .ConfigureAwait(false);
             if (certificate != null)
             {
-                m_logger.LogCertificate(
+                m_logger.LogInformation(
                     Utils.TraceMasks.Security,
-                    "Deleting application instance certificate and private key.",
-                    certificate);
+                    "Deleting application instance certificate {Certificate} and private key.",
+                    certificate.AsLogSafeString());
             }
 
             // delete trusted peer certificate.
@@ -1186,10 +1186,10 @@ namespace Opc.Ua.Configuration
                     .ConfigureAwait(false);
                 if (deleted)
                 {
-                    m_logger.LogCertificate(
+                    m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Application certificate and private key deleted.",
-                        certificate);
+                        "Application certificate {Certificate} and private key deleted.",
+                        certificate.AsLogSafeString());
                 }
             }
 
@@ -1253,9 +1253,9 @@ namespace Opc.Ua.Configuration
                         return;
                     }
 
-                    m_logger.LogCertificate(
-                        "Adding application certificate to trusted peer store.",
-                        certificate);
+                    m_logger.LogInformation(
+                        "Adding application certificate {Certificate} to trusted peer store.",
+                        certificate.AsLogSafeString());
 
                     List<string> subjectName = X509Utils.ParseDistinguishedName(
                         certificate.Subject);
@@ -1294,9 +1294,9 @@ namespace Opc.Ua.Configuration
 
                             if (deleteCert)
                             {
-                                m_logger.LogCertificate(
-                                    "Delete Certificate from trusted store.",
-                                    certificate);
+                                m_logger.LogInformation(
+                                    "Delete Certificate {Certificate} from trusted store.",
+                                    certificate.AsLogSafeString());
                                 await store.DeleteAsync(certificates[ii].Thumbprint, ct)
                                     .ConfigureAwait(false);
                                 break;

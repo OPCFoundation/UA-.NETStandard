@@ -64,7 +64,7 @@ namespace TestData
             IServerInternal server,
             ApplicationConfiguration configuration,
             string[] namespaceUris)
-            : base(server, configuration)
+            : base(server, configuration, server.Telemetry.CreateLogger<TestDataNodeManager>())
         {
             // update the namespaces.
             NamespaceUris = namespaceUris;

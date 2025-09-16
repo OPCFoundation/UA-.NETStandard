@@ -13,11 +13,21 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {
     public partial class FiniteStateMachineState
     {
+        /// <summary>
+        /// Consume the telemetry context
+        /// </summary>
+        protected override void Initialize(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<FiniteStateMachineState>();
+            base.Initialize(telemetry);
+        }
+
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -614,7 +624,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error while reporting AuditProgramTransitionEvent event.");
+                m_logger.LogError(ex, "Error while reporting AuditProgramTransitionEvent event.");
             }
         }
 
@@ -768,6 +778,7 @@ namespace Opc.Ua
         }
 
         private uint m_causeId;
+        private ILogger m_logger = NullLogger.Instance;
     }
 
     /// <summary>

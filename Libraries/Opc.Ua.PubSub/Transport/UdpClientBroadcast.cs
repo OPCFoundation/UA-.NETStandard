@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="address">The IPAddress which the socket should be bound to</param>
         /// <param name="port">The port used by the endpoint that should different than 0 on a Subscriber context</param>
         /// <param name="pubSubContext">The context in which the UDP client is to be used </param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public UdpClientBroadcast(IPAddress address, int port, UsedInContext pubSubContext, ITelemetryContext telemetry)
         {
             Address = address;

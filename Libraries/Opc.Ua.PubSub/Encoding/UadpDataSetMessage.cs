@@ -585,7 +585,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "UadpDataSetMessage.DecodeMessageDataKeyFrame");
+                m_logger.LogError(ex, "UadpDataSetMessage.DecodeMessageDataKeyFrame");
                 return null;
             }
         }
@@ -673,7 +673,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "UadpDataSetMessage.DecodeMessageDataDeltaFrame");
+                m_logger.LogError(ex, "UadpDataSetMessage.DecodeMessageDataDeltaFrame");
             }
             return null;
         }
@@ -819,7 +819,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error encoding field {Name}.", field.FieldMetaData.Name);
+                m_logger.LogError(ex, "Error encoding field {Name}.", field.FieldMetaData.Name);
             }
         }
 
@@ -845,7 +845,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 fieldMetaData.ValueRank,
                                 (BuiltInType)fieldMetaData.BuiltInType);
                         default:
-                            Logger.LogInformation(
+                            m_logger.LogInformation(
                                 "Decoding ValueRank = {ValueRank} not supported yet !!!",
                                 fieldMetaData.ValueRank);
                             break;
@@ -853,7 +853,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError(ex, "Error reading element for RawData.");
+                    m_logger.LogError(ex, "Error reading element for RawData.");
                     return StatusCodes.BadDecodingError;
                 }
             }

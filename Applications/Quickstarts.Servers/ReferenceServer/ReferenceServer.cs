@@ -63,7 +63,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Create a reference server with the specified telemetry context.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public ReferenceServer(ITelemetryContext telemetry)
             : base(telemetry)
         {

@@ -342,12 +342,12 @@ namespace Opc.Ua.Server
         {
             object[] inputParameters = [fileHandle];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
-                m_logger,
                 context,
                 objectId,
                 "Method/CloseAndUpdate",
                 method.NodeId,
-                inputParameters);
+                inputParameters,
+                m_logger);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -457,13 +457,13 @@ namespace Opc.Ua.Server
 
             // report the TrustListUpdatedAuditEvent
             m_node.ReportTrustListUpdatedAuditEvent(
-                m_logger,
                 context,
                 objectId,
                 "Method/CloseAndUpdate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode);
+                result.StatusCode,
+                m_logger);
 
             return result;
         }
@@ -477,12 +477,12 @@ namespace Opc.Ua.Server
         {
             object[] inputParameters = [certificate, isTrustedCertificate];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
-                m_logger,
                 context,
                 objectId,
                 "Method/AddCertificate",
                 method.NodeId,
-                inputParameters);
+                inputParameters,
+                m_logger);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -533,13 +533,13 @@ namespace Opc.Ua.Server
 
             // report the TrustListUpdatedAuditEvent
             m_node.ReportTrustListUpdatedAuditEvent(
-                m_logger,
                 context,
                 objectId,
                 "Method/AddCertificate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode);
+                result.StatusCode,
+                m_logger);
 
             return result;
         }
@@ -553,12 +553,12 @@ namespace Opc.Ua.Server
         {
             object[] inputParameters = [thumbprint];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
-                m_logger,
                 context,
                 objectId,
                 "Method/RemoveCertificate",
                 method.NodeId,
-                inputParameters);
+                inputParameters,
+                m_logger);
 
             HasSecureWriteAccess(context);
             ServiceResult result = StatusCodes.Good;
@@ -641,13 +641,13 @@ namespace Opc.Ua.Server
 
             // report the TrustListUpdatedAuditEvent
             m_node.ReportTrustListUpdatedAuditEvent(
-                m_logger,
                 context,
                 objectId,
                 "Method/RemoveCertificate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode);
+                result.StatusCode,
+                m_logger);
 
             return result;
         }

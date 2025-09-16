@@ -122,7 +122,7 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="context">The context.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
@@ -140,7 +140,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
@@ -155,7 +155,7 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,

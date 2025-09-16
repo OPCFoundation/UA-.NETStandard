@@ -162,101 +162,19 @@ namespace Opc.Ua
             /// </summary>
             public const int All = 0x3FF;
         }
-        /// <summary>
-        /// Formats and writes a log message for a certificate.
-        /// </summary>
-        /// <param name="logger"></param>
-        /// <param name="message">The log message as string.</param>
-        /// <param name="certificate">The certificate information to be logged.</param>
-        /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(
-            this ILogger logger,
-            string message,
-            X509Certificate2 certificate,
-            params object[] args)
-        {
-            LogCertificate(logger, LogLevel.Information, 0, message, certificate, args);
-        }
 
         /// <summary>
-        /// Formats and writes a log message for a certificate.
+        /// Format a log string of the certificate
         /// </summary>
-        /// <param name="logger"></param>
-        /// <param name="logLevel">Entry will be written on this level.</param>
-        /// <param name="message">The log message as string.</param>
-        /// <param name="certificate">The certificate information to be logged.</param>
-        /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(
-            this ILogger logger,
-            LogLevel logLevel,
-            string message,
-            X509Certificate2 certificate,
-            params object[] args)
+        /// <param name="certificate"></param>
+        /// <returns></returns>
+        public static string AsLogSafeString(this X509Certificate2 certificate)
         {
-            LogCertificate(logger, logLevel, 0, message, certificate, args);
-        }
-
-        /// <summary>
-        /// Formats and writes a log message for a certificate.
-        /// </summary>
-        /// <param name="logger"></param>
-        /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">The log message as string.</param>
-        /// <param name="certificate">The certificate information to be logged.</param>
-        /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(
-            this ILogger logger,
-            EventId eventId,
-            string message,
-            X509Certificate2 certificate,
-            params object[] args)
-        {
-            LogCertificate(logger, LogLevel.Information, eventId, message, certificate, args);
-        }
-
-        /// <summary>
-        /// Formats and writes a log message for a certificate.
-        /// </summary>
-        /// <param name="logger"></param>
-        /// <param name="logLevel">Entry will be written on this level.</param>
-        /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">The log message as string.</param>
-        /// <param name="certificate">The certificate information to be logged.</param>
-        /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(
-            this ILogger logger,
-            LogLevel logLevel,
-            EventId eventId,
-            string message,
-            X509Certificate2 certificate,
-            params object[] args)
-        {
-            // TODO: if (Logger.IsEnabled(logLevel))
+            if (certificate != null)
             {
-                StringBuilder builder = new StringBuilder().Append(message);
-                if (certificate != null)
-                {
-                    int argsLength = args.Length;
-                    builder.Append(" [{")
-                        .Append(argsLength)
-                        .Append("}] [{")
-                        .Append(argsLength + 1)
-                        .Append("}]");
-                    object[] allArgs = new object[argsLength + 2];
-                    for (int i = 0; i < argsLength; i++)
-                    {
-                        allArgs[i] = args[i];
-                    }
-                    allArgs[argsLength] = Redact.Create(certificate.Subject);
-                    allArgs[argsLength + 1] = certificate.Thumbprint;
-                    logger.Log(logLevel, eventId, builder.ToString(), allArgs);
-                }
-                else
-                {
-                    builder.Append(" (none)");
-                    logger.Log(logLevel, eventId, builder.ToString(), args);
-                }
+                return Format("[{0}], [{1}]", Redact.Create(certificate.Subject), certificate.Thumbprint);
             }
+            return "(none)";
         }
     }
 }

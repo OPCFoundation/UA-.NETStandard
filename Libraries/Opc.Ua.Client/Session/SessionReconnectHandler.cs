@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a reconnect handler.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
         /// <param name="maxReconnectPeriod">
         ///     The upper limit for the reconnect period after exponential backoff.

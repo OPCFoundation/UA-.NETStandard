@@ -23,7 +23,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create alarm condition
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="parent"></param>
         public AlarmConditionState(ITelemetryContext telemetry, NodeState parent)
             : this(parent)

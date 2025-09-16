@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
         /// <param name="port">The port.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
         public UdpClientUnicast(IPAddress localAddress, int port, ITelemetryContext telemetry)
         {

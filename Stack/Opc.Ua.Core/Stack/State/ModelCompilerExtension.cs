@@ -34,31 +34,6 @@ namespace Opc.Ua
         /// The documentation for the node that is saved in the NodeSet.
         /// </summary>
         public bool DesignToolOnly { get; set; }
-
-        /// <summary>
-        /// This must be set by the derived class to initialize the telemtry
-        /// on the node states when the node state is created. This is a
-        /// workaround for the limtation that all node states are constructable
-        /// and then initialized
-        /// </summary>
-        protected internal /* required */ ITelemetryContext Telemetry
-        {
-            get => m_telemetry;
-            internal set
-            {
-                m_telemetry = value;
-                Logger = value.CreateLogger(this);
-            }
-        }
-
-        /// <summary>
-        /// Logger to be used by the concrete node state implementations. Shall
-        /// not be used outside of the node state inheritance hierarchy. Create
-        /// new logger from telemetry context.
-        /// </summary>
-        protected ILogger Logger { get; private set; } = NullLogger.Instance;
-
-        private ITelemetryContext m_telemetry;
     }
 
     public partial class StructureDefinition

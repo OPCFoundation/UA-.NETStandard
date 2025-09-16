@@ -272,7 +272,7 @@ namespace Opc.Ua
         /// <param name="allowZeroDimension">Allow zero value dimensions </param>
         /// <param name="dimensions">Dimensions to be validated</param>
         /// <param name="maxArrayLength">The limit representing the maximum array length</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>

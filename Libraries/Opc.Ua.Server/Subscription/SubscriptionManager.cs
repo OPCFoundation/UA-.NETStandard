@@ -1646,10 +1646,10 @@ namespace Opc.Ua.Server
                 for (int i = 0; i < results.Count; i++)
                 {
                     m_server.ReportAuditTransferSubscriptionEvent(
-                        m_logger,
                         context.AuditEntryId,
                         context.Session,
-                        results[i].StatusCode);
+                        results[i].StatusCode,
+                        m_logger);
                 }
             }
         }
@@ -2251,7 +2251,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="subscriptionsToDelete">The subscriptions to delete.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         internal static void CleanupSubscriptions(
             IServerInternal server,
             IList<ISubscription> subscriptionsToDelete,

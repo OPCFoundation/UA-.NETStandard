@@ -483,7 +483,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a fault message.
         /// </summary>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="request">The request.</param>
         /// <param name="exception">The exception.</param>
         /// <returns>A fault message.</returns>
@@ -674,7 +674,7 @@ namespace Opc.Ua
             /// Processes the request.
             /// </summary>
             /// <param name="request">The request.</param>
-            /// <param name="logger"></param>
+            /// <param name="logger">A contextual logger to log to</param>
             public IServiceResponse Invoke(IServiceRequest request, ILogger logger)
             {
                 if (m_invokeService == null && m_invokeServiceAsync != null)

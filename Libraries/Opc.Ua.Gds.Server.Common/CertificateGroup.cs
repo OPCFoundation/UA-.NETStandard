@@ -192,10 +192,10 @@ namespace Opc.Ua.Gds.Server
                         Configuration.CACertificateLifetime);
                     await CreateCACertificateAsync(SubjectName, certificateType, ct).ConfigureAwait(
                         false);
-                    m_logger.LogCertificate(
+                    m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Created CA certificate: ",
-                        Certificates[certificateType]);
+                        "Created CA certificate {Certificate}",
+                        Certificates[certificateType].AsLogSafeString());
                 }
             }
         }

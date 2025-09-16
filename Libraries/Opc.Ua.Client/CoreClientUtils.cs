@@ -51,7 +51,7 @@ namespace Opc.Ua.Client
         /// Discovers the servers on the local machine.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A list of server urls.</returns>
         public static ValueTask<IList<string>> DiscoverServersAsync(
@@ -67,7 +67,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A list of server urls.</returns>
         public static async ValueTask<IList<string>> DiscoverServersAsync(
@@ -182,7 +182,7 @@ namespace Opc.Ua.Client
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint
         /// that uses security.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
         public static ValueTask<EndpointDescription> SelectEndpointAsync(
@@ -208,7 +208,7 @@ namespace Opc.Ua.Client
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <param name="discoverTimeout">The timeout for the discover operation.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
         public static async ValueTask<EndpointDescription> SelectEndpointAsync(

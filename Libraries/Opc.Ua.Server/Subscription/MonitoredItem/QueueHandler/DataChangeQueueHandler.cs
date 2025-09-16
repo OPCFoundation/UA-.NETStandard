@@ -85,7 +85,7 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItemId">the id of the monitored item</param>
         /// <param name="createDurable">true if a durable queue shall be created</param>
         /// <param name="queueFactory">the factory for <see cref="IDataChangeMonitoredItemQueue"/></param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="discardedValueHandler">Handler for discarded values</param>
         public DataChangeQueueHandler(
             uint monitoredItemId,

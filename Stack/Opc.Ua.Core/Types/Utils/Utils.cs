@@ -166,7 +166,7 @@ namespace Opc.Ua
         {
             string assemblyName = DefaultOpcUaCoreAssemblyName;
             int offset = assemblyName.IndexOf("Core", StringComparison.Ordinal);
-            System.Diagnostics.Debug.Assert(offset != -1);
+            Debug.Assert(offset != -1);
             return $"{assemblyName[0..offset]}Bindings.Https";
         }
 
@@ -296,7 +296,7 @@ namespace Opc.Ua
         /// Finds the file by search the common file folders and then bin directories in the source tree
         /// </summary>
         /// <param name="fileName">Name of the file.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The path to the file. Null if not found.</returns>
         public static string FindInstalledFile(string fileName, ILogger logger)
         {
@@ -1525,9 +1525,7 @@ namespace Opc.Ua
                 object clone = memberwiseCloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    LogTrace("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
-#pragma warning restore CS0618 // Type or member is obsolete
+                    Debug.WriteLine("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
@@ -1541,9 +1539,7 @@ namespace Opc.Ua
                 object clone = cloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    LogTrace("Clone without ICloneable in class '{0}'", type.FullName);
-#pragma warning restore CS0618 // Type or member is obsolete
+                    Debug.WriteLine("Clone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
@@ -2524,7 +2520,7 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2Collection ParseCertificateChainBlob(

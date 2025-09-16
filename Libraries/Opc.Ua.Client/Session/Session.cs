@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public Session(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
@@ -79,7 +79,7 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint used to initialize the channel.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
         /// <remarks>
@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">A configured endpoint to connect to.</param>
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
         public static async Task<ITransportChannel> CreateChannelAsync(

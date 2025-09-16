@@ -62,9 +62,11 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
             bool autoApprove = false)
-            : base(server, configuration)
+            : base(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<ApplicationsNodeManager>())
         {
-            m_logger = server.Telemetry.CreateLogger<ApplicationsNodeManager>();
             NamespaceUris = ["http://opcfoundation.org/UA/GDS/applications/", Namespaces.OpcUaGds];
 
             SystemContext.NodeIdFactory = this;
@@ -1896,7 +1898,6 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private readonly ILogger m_logger;
         private readonly bool m_autoApprove;
         private uint m_nextNodeId;
         private readonly ApplicationConfiguration m_configuration;

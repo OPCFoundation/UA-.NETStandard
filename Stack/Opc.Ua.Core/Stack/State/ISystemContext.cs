@@ -124,7 +124,7 @@ namespace Opc.Ua
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public SystemContext(IOperationContext context, ITelemetryContext telemetry)
         {
             Telemetry = telemetry;

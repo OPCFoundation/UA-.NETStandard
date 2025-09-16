@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="uaPubSubApplication">The parent <see cref="UaPubSubApplication"/></param>
         /// <param name="pubSubConnectionDataType">The configuration object for the new <see cref="UaPubSubConnection"/></param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The new instance of <see cref="UaPubSubConnection"/>.</returns>
         /// <exception cref="ArgumentException"></exception>
         public static UaPubSubConnection CreateConnection(

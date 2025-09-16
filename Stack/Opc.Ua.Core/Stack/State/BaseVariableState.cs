@@ -49,6 +49,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Consume the telemetry context
+        /// </summary>
+        protected override void Initialize(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<BaseVariableState>();
+            base.Initialize(telemetry);
+        }
+
+        /// <summary>
         /// Initializes the instance from another instance.
         /// </summary>
         /// <param name="context">The description how access the system containing the data.</param>
@@ -880,7 +889,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e, "Unexpected error exporting node");
+                    m_logger.LogError(e, "Unexpected error exporting node");
                 }
             }
         }
@@ -2017,6 +2026,7 @@ namespace Opc.Ua
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
+        private ILogger m_logger = NullLogger.Instance;
         private static readonly char[] s_commaSeparator = [','];
     }
 

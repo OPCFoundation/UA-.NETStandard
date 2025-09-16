@@ -653,7 +653,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Array.Resize(ref schema, zeroTerminator);
             }
 
-            dictionaryToLoad.Validate(m_logger, schema, imports);
+            dictionaryToLoad.Validate(schema, m_logger, imports);
 
             await AddDataTypesAsync(dictionaryToLoad, dictionaryId, ct).ConfigureAwait(false);
 

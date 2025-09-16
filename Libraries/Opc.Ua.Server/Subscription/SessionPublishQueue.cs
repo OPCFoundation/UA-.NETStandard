@@ -147,12 +147,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                var queuedSubscription = new QueuedSubscription
-                {
-                    ReadyToPublish = false,
-                    Timestamp = DateTime.UtcNow,
-                    Subscription = subscription
-                };
+                var queuedSubscription = new QueuedSubscription(subscription);
 
                 m_queuedSubscriptions.Add(queuedSubscription);
 
@@ -454,14 +449,7 @@ namespace Opc.Ua.Server
                         m_queuedRequests.RemoveFirst();
                     }
 
-                    request = new QueuedRequest
-                    {
-                        SecureChannelId = SecureChannelContext.Current.SecureChannelId,
-                        Deadline = deadline,
-                        Subscription = null,
-                        Error = StatusCodes.Good,
-                        Logger = m_logger
-                    };
+                    request = new QueuedRequest(SecureChannelContext.Current.SecureChannelId, deadline, m_logger);
 
                     if (operation == null)
                     {
@@ -764,50 +752,46 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A request queued while waiting for a subscription.
         /// </summary>
-        private class QueuedRequest : IDisposable
+        private sealed class QueuedRequest : IDisposable
         {
-            public ManualResetEvent Event;
-            public AsyncPublishOperation Operation;
-            public DateTime Deadline;
-            public StatusCode Error;
-            public ILogger Logger;
-            public QueuedSubscription Subscription;
-            public string SecureChannelId;
+            public QueuedRequest(string secureChannelId, DateTime deadline, ILogger logger)
+            {
+                m_logger = logger;
+                SecureChannelId = secureChannelId;
+                Deadline = deadline;
+                Error = StatusCodes.Good;
+            }
+
+            public ManualResetEvent Event { get; set; }
+            public AsyncPublishOperation Operation { get; set; }
+            public DateTime Deadline { get; }
+            public StatusCode Error { get; set; }
+            public QueuedSubscription Subscription { get; set; }
+            public string SecureChannelId { get; }
 
             /// <summary>
             /// Frees any unmanaged resources.
             /// </summary>
             public void Dispose()
             {
-                Dispose(true);
-            }
+                Error = StatusCodes.BadServerHalted;
 
-            /// <summary>
-            /// An overrideable version of the Dispose.
-            /// </summary>
-            protected virtual void Dispose(bool disposing)
-            {
-                if (disposing)
+                if (Operation != null)
                 {
-                    Error = StatusCodes.BadServerHalted;
+                    Operation.Dispose();
+                    Operation = null;
+                }
 
-                    if (Operation != null)
+                if (Event != null)
+                {
+                    try
                     {
-                        Operation.Dispose();
-                        Operation = null;
+                        Event.Set();
+                        Event.Dispose();
                     }
-
-                    if (Event != null)
+                    catch
                     {
-                        try
-                        {
-                            Event.Set();
-                            Event.Dispose();
-                        }
-                        catch
-                        {
-                            // ignore errors.
-                        }
+                        // ignore errors.
                     }
                 }
             }
@@ -869,20 +853,29 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e, "Publish request no longer available.");
+                    m_logger.LogError(e, "Publish request no longer available.");
                 }
             }
+
+            private readonly ILogger m_logger;
         }
 
         /// <summary>
         /// Stores a subscription that has notifications ready to be sent back to the client.
         /// </summary>
-        private class QueuedSubscription
+        private sealed class QueuedSubscription
         {
-            public ISubscription Subscription;
-            public DateTime Timestamp;
-            public bool ReadyToPublish;
-            public bool Publishing;
+            public QueuedSubscription(ISubscription subscription)
+            {
+                Subscription = subscription;
+                ReadyToPublish = false;
+                Timestamp = DateTime.UtcNow;
+            }
+
+            public ISubscription Subscription { get; }
+            public DateTime Timestamp { get; set; }
+            public bool ReadyToPublish { get; set; }
+            public bool Publishing { get; set; }
         }
 
         /// <summary>
@@ -890,67 +883,58 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context, params object[] args)
         {
-            // TODO: implement as EventSource
+            // Pseudocode:
+            // 1. Fast exit if trace not enabled.
+            // 2. Format context with args (InvariantCulture).
+            // 3. Under lock gather:
+            //    - sessionId
+            //    - subscriptionCount
+            //    - requestCount
+            //    - readyToPublishCount
+            //    - expiredCount
+            // 4. Emit single structured LogTrace with constant template.
             if (!m_logger.IsEnabled(LogLevel.Trace))
             {
                 return;
             }
 
-            var buffer = new StringBuilder();
+            object sessionId = null;
+            int subscriptionCount;
+            int requestCount;
+            int readyToPublishCount = 0;
+            int expiredCount = 0;
 
             lock (m_lock)
             {
-                buffer.Append("PublishQueue ")
-                    .AppendFormat(CultureInfo.InvariantCulture, context, args);
+                sessionId = m_session?.Id;
+                subscriptionCount = m_queuedSubscriptions.Count;
+                requestCount = m_queuedRequests.Count;
 
-                if (m_session != null)
+                for (int i = 0; i < m_queuedSubscriptions.Count; i++)
                 {
-                    buffer.AppendFormat(
-                        CultureInfo.InvariantCulture,
-                        ", SessionId={0}",
-                        m_session.Id);
-                }
-
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    ", SubscriptionCount={0}, RequestCount={1}",
-                    m_queuedSubscriptions.Count,
-                    m_queuedRequests.Count);
-
-                int readyToPublish = 0;
-
-                for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
-                {
-                    if (m_queuedSubscriptions[ii].ReadyToPublish)
+                    if (m_queuedSubscriptions[i].ReadyToPublish)
                     {
-                        readyToPublish++;
+                        readyToPublishCount++;
                     }
                 }
 
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    ", ReadyToPublishCount={0}",
-                    readyToPublish);
-
-                int expiredRequests = 0;
-
-                for (LinkedListNode<QueuedRequest> ii = m_queuedRequests.First;
-                    ii != null;
-                    ii = ii.Next)
+                for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First; node != null; node = node.Next)
                 {
-                    if (ii.Value.Deadline < DateTime.UtcNow)
+                    if (node.Value.Deadline < DateTime.UtcNow)
                     {
-                        expiredRequests++;
+                        expiredCount++;
                     }
                 }
-
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    ", ExpiredCount={0}",
-                    expiredRequests);
             }
 
-            m_logger.LogTrace(buffer.ToString());
+            m_logger.LogTrace(
+                "PublishQueue {Context}, SessionId={SessionId}, SubscriptionCount={SubscriptionCount}, RequestCount={RequestCount}, ReadyToPublishCount={ReadyToPublishCount}, ExpiredCount={ExpiredCount}",
+                Utils.Format(context, args),
+                sessionId,
+                subscriptionCount,
+                requestCount,
+                readyToPublishCount,
+                expiredCount);
         }
 
         private readonly Lock m_lock = new();

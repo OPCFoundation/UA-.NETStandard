@@ -164,10 +164,10 @@ namespace Opc.Ua.Server
 
                         // report the AuditCancelEventType
                         m_server.ReportAuditCancelEvent(
-                            m_logger,
                             request.Session.Id,
                             requestHandle,
-                            StatusCodes.Good);
+                            StatusCodes.Good,
+                            m_logger);
                     }
                 }
             }

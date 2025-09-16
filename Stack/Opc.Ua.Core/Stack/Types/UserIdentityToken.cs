@@ -310,7 +310,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get certificate with validation
         /// </summary>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns></returns>
         public X509Certificate2 GetOrCreateCertificate(ILogger logger)
         {

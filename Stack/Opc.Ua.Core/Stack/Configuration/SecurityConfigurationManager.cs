@@ -27,7 +27,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Create the security configuration manager.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public SecurityConfigurationManager(ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<SecurityConfigurationManager>();

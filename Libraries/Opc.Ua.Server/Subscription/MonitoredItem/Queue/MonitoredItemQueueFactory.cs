@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Create monitored item queue factory
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public MonitoredItemQueueFactory(ITelemetryContext telemetry)
         {
             m_telemetry = telemetry;

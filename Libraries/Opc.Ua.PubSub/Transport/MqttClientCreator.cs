@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="reconnectInterval">Number of seconds to reconnect to the MQTT broker</param>
         /// <param name="mqttClientOptions">The client options for MQTT broker connection</param>
         /// <param name="receiveMessageHandler">The receiver message handler</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="topicFilter">The topics to which to subscribe</param>
         /// <param name="ct"></param>
         internal static async Task<IMqttClient> GetMqttClientAsync(

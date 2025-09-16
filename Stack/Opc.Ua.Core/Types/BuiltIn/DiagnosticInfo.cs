@@ -112,7 +112,7 @@ namespace Opc.Ua
         /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         public DiagnosticInfo(
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
@@ -132,7 +132,7 @@ namespace Opc.Ua
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
         /// <param name="depth">The recursion depth of the inner diagnostics field</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         private DiagnosticInfo(
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
@@ -160,7 +160,7 @@ namespace Opc.Ua
         /// <param name="diagnosticsMask">A bitmask describing the type of diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings that may contain additional diagnostic data</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         public DiagnosticInfo(
             Exception exception,
             DiagnosticsMasks diagnosticsMask,
@@ -210,11 +210,11 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a service result.
         /// </summary>
-        /// <param name="logger"></param>
         /// <param name="result">The transaction result</param>
         /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
         /// <param name="depth">The depth of the inner diagnostics property</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <exception cref="ArgumentNullException"><paramref name="stringTable"/> is <c>null</c>.</exception>
         private void Initialize(
             ServiceResult result,

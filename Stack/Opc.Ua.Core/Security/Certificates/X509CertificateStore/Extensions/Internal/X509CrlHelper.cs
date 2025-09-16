@@ -46,7 +46,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// Gets all crls from the provided X509 Store on Windows
         /// </summary>
         /// <param name="storeHandle">HCERTSTORE Handle to X509 Store</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>array of all found crls as byte array</returns>
         /// <exception cref="PlatformNotSupportedException"></exception>
         public static byte[][] GetCrls(IntPtr storeHandle, ILogger logger)
@@ -121,7 +121,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// </summary>
         /// <param name="storeHandle">HCERTSTORE Handle to X509 Store</param>
         /// <param name="crl">the crl as Asn1 or PKCS7 encoded byte array</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <exception cref="PlatformNotSupportedException"></exception>
         public static void AddCrl(IntPtr storeHandle, byte[] crl, ILogger logger)
         {
@@ -201,7 +201,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// </summary>
         /// <param name="storeHandle">HCERTSTORE Handle to X509 Store</param>
         /// <param name="crl">asn1 encoded crl to delete from the store</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>true if delete sucessfully, false if failure</returns>
         /// <exception cref="PlatformNotSupportedException"></exception>
         public static bool DeleteCrl(IntPtr storeHandle, byte[] crl, ILogger logger)

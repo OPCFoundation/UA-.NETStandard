@@ -1166,7 +1166,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_logger.LogInformation("Security Policy: {SecurityPolicyUri}", SecurityPolicyUri);
-            m_logger.LogCertificate("Sender Certificate:", senderCertificate);
+            m_logger.LogInformation("Sender Certificate {Certificate}", senderCertificate.AsLogSafeString());
 
             // return the body.
             return new ArraySegment<byte>(

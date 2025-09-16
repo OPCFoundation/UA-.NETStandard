@@ -246,6 +246,7 @@ namespace Opc.Ua.Tests
                         // intentionally ignored
                     }
                 }
+
                 private TextWriter m_outputWriter;
             }
 

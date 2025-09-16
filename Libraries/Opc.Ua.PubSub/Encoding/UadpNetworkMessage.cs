@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> conflagration object that produced this message.</param>
         /// <param name="uadpDataSetMessages"><see cref="UadpDataSetMessage"/> list as input</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         public UadpNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<UadpDataSetMessage> uadpDataSetMessages,

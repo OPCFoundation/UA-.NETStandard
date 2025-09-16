@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// Create new instance of <see cref="DataCollector"/>.
         /// </summary>
         /// <param name="dataStore">Reference to the <see cref="IUaPubSubDataStore"/> that will be used to collect data.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public DataCollector(IUaPubSubDataStore dataStore, ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<DataCollector>();

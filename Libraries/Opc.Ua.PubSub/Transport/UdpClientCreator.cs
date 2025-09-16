@@ -102,8 +102,8 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
         /// <param name="networkInterface">The configured network interface name.</param>
         /// <param name="configuredEndpoint">The configured <see cref="IPEndPoint"/> that will be used for data exchange.</param>
-        /// <param name="telemetry"></param>
-        /// <param name="logger"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="logger">A contextual logger to log to</param>
         internal static List<UdpClient> GetUdpClients(
             UsedInContext pubSubContext,
             string networkInterface,
@@ -192,8 +192,8 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
         /// <param name="networkInterface">The network interface</param>
         /// <param name="configuredEndpoint">The configured IP endpoint to use</param>
-        /// <param name="telemetry"></param>
-        /// <param name="logger"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="logger">A contextual logger to log to</param>
         private static UdpClient CreateUdpClientForNetworkInterface(
             UsedInContext pubSubContext,
             NetworkInterface networkInterface,

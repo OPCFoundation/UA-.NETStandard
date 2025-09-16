@@ -72,9 +72,12 @@ namespace Alarms
             IServerInternal server,
             ApplicationConfiguration configuration,
             string[] namespaceUris)
-            : base(server, configuration, namespaceUris)
+            : base(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<AlarmNodeManager>(),
+                  namespaceUris)
         {
-            m_logger = server.Telemetry.CreateLogger<AlarmNodeManager>();
         }
 
         /// <summary>
@@ -987,7 +990,6 @@ namespace Alarms
             m_simulationTimer = null;
         }
 
-        private readonly ILogger m_logger;
         private readonly Dictionary<string, AlarmHolder> m_alarms = [];
         private readonly Dictionary<string, SourceController> m_triggerMap = [];
         private bool m_allowEntry;

@@ -239,21 +239,21 @@ namespace Opc.Ua.Bindings
                                         nameof(HttpsTransportChannel));
                                     foreach (X509ChainElement element in chain.ChainElements)
                                     {
-                                        m_logger.LogCertificate(
+                                        m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
-                                            "{ChannelType}: ",
-                                            element.Certificate,
-                                            i);
+                                            "{Index}: {Certificate}",
+                                            i,
+                                            element.Certificate.AsLogSafeString());
                                         validationChain.Add(element.Certificate);
                                         i++;
                                     }
                                 }
                                 else
                                 {
-                                    m_logger.LogCertificate(
+                                    m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
-                                        "{ChannelType} Validate Server Certificate: ",
-                                        cert,
+                                        "{ChannelType} Validate Server Certificate: {Certificate}",
+                                        cert.AsLogSafeString(),
                                         nameof(HttpsTransportChannel));
                                     validationChain.Add(cert);
                                 }

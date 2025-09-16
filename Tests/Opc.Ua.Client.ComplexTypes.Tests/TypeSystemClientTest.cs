@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public async Task OneTimeSetUpAsync(ITelemetryContext telemetry)
         {
             // pki directory root for test runs.

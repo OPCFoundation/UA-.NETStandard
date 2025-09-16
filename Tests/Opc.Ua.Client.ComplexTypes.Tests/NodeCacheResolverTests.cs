@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 {
                     try
                     {
-                        dictionaryToLoad.Validate(logger, dictionary, true);
+                        dictionaryToLoad.Validate(dictionary, true, logger);
                     }
                     catch (Exception ex)
                     {
@@ -179,7 +179,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 }
                 else
                 {
-                    dictionaryToLoad.Validate(logger, dictionary, true);
+                    dictionaryToLoad.Validate(dictionary, true, logger);
                 }
             }
         }

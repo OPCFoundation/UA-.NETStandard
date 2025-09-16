@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_udpConnection = udpConnection;
             Telemetry = telemetry;
-            Logger = logger;
+            m_logger = logger;
 
             Initialize();
         }
@@ -72,8 +72,6 @@ namespace Opc.Ua.PubSub.Transport
         /// Get the corresponding <see cref="IServiceMessageContext"/>
         /// </summary>
         public IServiceMessageContext MessageContext { get; private set; }
-
-        protected ILogger Logger { get; }
         protected Lock Lock { get; } = new();
         protected ITelemetryContext Telemetry { get; }
 
@@ -95,7 +93,7 @@ namespace Opc.Ua.PubSub.Transport
                             DiscoveryNetworkInterfaceName,
                             DiscoveryNetworkAddressEndPoint,
                             Telemetry,
-                            Logger);
+                            m_logger);
                     }
                 })
                 .ConfigureAwait(false);
@@ -136,27 +134,31 @@ namespace Opc.Ua.PubSub.Transport
                 ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
                     is NetworkAddressUrlDataType discoveryNetworkAddressUrlState)
             {
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "The configuration for connection {Name} has custom DiscoveryAddress configuration.",
                     pubSubConnectionConfiguration.Name);
 
                 DiscoveryNetworkInterfaceName = discoveryNetworkAddressUrlState.NetworkInterface;
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
                     discoveryNetworkAddressUrlState.Url,
-                    Logger);
+                    m_logger);
             }
 
             if (DiscoveryNetworkAddressEndPoint == null)
             {
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "The configuration for connection {Name} will use the default DiscoveryAddress: {DiscoveryUrl}.",
                     pubSubConnectionConfiguration.Name,
                     kDefaultDiscoveryUrl);
 
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
                     kDefaultDiscoveryUrl,
-                    Logger);
+                    m_logger);
             }
         }
+
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; }
+#pragma warning restore IDE1006 // Naming Styles
     }
 }

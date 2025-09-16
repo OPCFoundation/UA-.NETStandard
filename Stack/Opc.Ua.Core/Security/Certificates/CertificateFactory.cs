@@ -55,7 +55,7 @@ namespace Opc.Ua
         /// <param name="encodedData">The encoded data.</param>
         /// <param name="useCache">if set to <c>true</c> the copy of the certificate
         /// in the cache is used.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The certificate.</returns>
         public static X509Certificate2 Create(
             ReadOnlyMemory<byte> encodedData,
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate to load.</param>
         /// <param name="ensurePrivateKeyAccessible">If true a key container is created
         /// for a certificate that must be deleted by calling Cleanup.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The cached certificate.</returns>
         /// <remarks>
         /// This function is necessary because all private keys used for cryptography

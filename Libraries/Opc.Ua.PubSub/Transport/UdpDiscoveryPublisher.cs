@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Transport
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogInformation(
+                        m_logger.LogInformation(
                             "UdpDiscoveryPublisher: UdpClient '{Endpoint}' Cannot receive data. Exception: {Message}",
                             discoveryUdpClient.Client.LocalEndPoint,
                             ex.Message);
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    Logger.LogInformation(
+                    m_logger.LogInformation(
                         "OnUadpDiscoveryReceive received message with length {Length} from {Address}",
                         message.Length,
                         source.Address);
@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "OnUadpDiscoveryReceive from {Address}", source.Address);
+                m_logger.LogError(ex, "OnUadpDiscoveryReceive from {Address}", source.Address);
             }
 
             try
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "OnUadpDiscoveryReceive BeginReceive threw Exception {Message}",
                     ex.Message);
 
@@ -149,11 +149,11 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void ProcessReceivedMessageDiscovery(byte[] messageBytes, IPEndPoint source)
         {
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery from source={Source}",
                 source);
 
-            var networkMessage = new UadpNetworkMessage(Logger);
+            var networkMessage = new UadpNetworkMessage(m_logger);
             // decode the received message
             networkMessage.Decode(MessageContext, messageBytes, null);
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Transport
                     .UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData &&
                 networkMessage.DataSetWriterIds != null)
             {
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {Address} for {DataSetWriterIds}",
                     source.Address,
                     string.Join(", ", networkMessage.DataSetWriterIds));
@@ -213,7 +213,7 @@ namespace Opc.Ua.PubSub.Transport
                             .CreateDataSetMetaDataNetworkMessages(
                                 [.. m_metadataWriterIdsToSend]))
                     {
-                        Logger.LogInformation(
+                        m_logger.LogInformation(
                             "UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{DataSetWriterId}",
                             message.DataSetWriterId);
 
@@ -247,7 +247,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     foreach (UaNetworkMessage responsesMessage in responsesMessages)
                     {
-                        Logger.LogInformation(
+                        m_logger.LogInformation(
                             "UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{DataSetWriterId}",
                             responsesMessage.DataSetWriterId);
 
@@ -277,7 +277,7 @@ namespace Opc.Ua.PubSub.Transport
                     publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
                     m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value);
 
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");
 
                 m_udpConnection.PublishNetworkMessage(message);

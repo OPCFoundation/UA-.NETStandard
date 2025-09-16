@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="sessionFactory">Used to create session to the server.</param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,

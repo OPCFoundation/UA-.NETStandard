@@ -68,9 +68,19 @@ namespace Opc.Ua.Server
         public ConfigurationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : base(server, configuration)
+            : this(server, configuration, server.Telemetry.CreateLogger<ConfigurationNodeManager>())
         {
-            m_logger = server.Telemetry.CreateLogger<ConfigurationNodeManager>();
+        }
+
+        /// <summary>
+        /// Initializes the configuration and diagnostics manager.
+        /// </summary>
+        public ConfigurationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger)
+            : base(server, configuration, logger)
+        {
             string rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
                 .StorePath;
             if (!string.IsNullOrEmpty(rejectedStorePath))
@@ -461,11 +471,11 @@ namespace Opc.Ua.Server
             X509Certificate2 newCert = null;
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
-                m_logger,
                 context,
                 objectId,
                 method,
-                inputArguments);
+                inputArguments,
+                m_logger);
             try
             {
                 if (certificate == null)
@@ -672,16 +682,16 @@ namespace Opc.Ua.Server
                                     "Failed to open application certificate store.");
                             }
 
-                            m_logger.LogCertificate(
+                            m_logger.LogInformation(
                                 Utils.TraceMasks.Security,
-                                "Delete application certificate: ",
-                                existingCertIdentifier.Certificate);
+                                "Delete application certificate {Certificate}",
+                                existingCertIdentifier.Certificate.AsLogSafeString());
                             appStore.DeleteAsync(existingCertIdentifier.Thumbprint, cancellation)
                                 .Wait(cancellation);
-                            m_logger.LogCertificate(
+                            m_logger.LogInformation(
                                 Utils.TraceMasks.Security,
-                                "Add new application certificate: ",
-                                updateCertificate.CertificateWithPrivateKey);
+                                "Add new application certificate {Certificate}",
+                                updateCertificate.CertificateWithPrivateKey.AsLogSafeString());
                             ICertificatePasswordProvider passwordProvider = m_configuration
                                 .SecurityConfiguration
                                 .CertificatePasswordProvider;
@@ -718,10 +728,10 @@ namespace Opc.Ua.Server
                             {
                                 try
                                 {
-                                    m_logger.LogCertificate(
+                                    m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
-                                        "Add new issuer certificate: ",
-                                        issuer);
+                                        "Add new issuer certificate {Certificate}",
+                                        issuer.AsLogSafeString());
                                     issuerStore.AddAsync(issuer, ct: cancellation)
                                         .Wait(cancellation);
                                 }
@@ -737,13 +747,13 @@ namespace Opc.Ua.Server
                         }
 
                         Server.ReportCertificateUpdatedAuditEvent(
-                            m_logger,
                             context,
                             objectId,
                             method,
                             inputArguments,
                             certificateGroupId,
-                            certificateTypeId);
+                            certificateTypeId,
+                            m_logger);
                     }
                     catch (Exception ex)
                     {
@@ -762,16 +772,16 @@ namespace Opc.Ua.Server
             {
                 // report the failure of UpdateCertificate via an audit event
                 Server.ReportCertificateUpdatedAuditEvent(
-                    m_logger,
                     context,
                     objectId,
                     method,
                     inputArguments,
                     certificateGroupId,
                     certificateTypeId,
+                    m_logger,
                     e);
                 // Raise audit certificate event
-                Server.ReportAuditCertificateEvent(m_logger, newCert, e);
+                Server.ReportAuditCertificateEvent(newCert, e, m_logger);
                 throw;
             }
 
@@ -839,10 +849,10 @@ namespace Opc.Ua.Server
                 }
             }
 
-            m_logger.LogCertificate(
+            m_logger.LogInformation(
                 Utils.TraceMasks.Security,
-                "Create signing request: ",
-                certWithPrivateKey);
+                "Create signing request {Certificate}",
+                certWithPrivateKey.AsLogSafeString());
             byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
                 X509Utils.GetDomainsFromCertificate(certWithPrivateKey));
@@ -914,10 +924,10 @@ namespace Opc.Ua.Server
                     if (updateCertificate != null)
                     {
                         disconnectSessions = true;
-                        m_logger.LogCertificate(
+                        m_logger.LogInformation(
                             Utils.TraceMasks.Security,
-                            "Apply Changes for certificate: ",
-                            updateCertificate.CertificateWithPrivateKey);
+                            "Apply Changes for certificate {Certificate}",
+                            updateCertificate.CertificateWithPrivateKey.AsLogSafeString());
                     }
                 }
                 finally
@@ -1175,6 +1185,5 @@ namespace Opc.Ua.Server
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier m_rejectedStore;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
-        private readonly ILogger m_logger;
     }
 }

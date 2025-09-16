@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_transportProtocol = TransportProtocol.UDP;
 
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 "UdpPubSubConnection with name '{Name}' was created.",
                 pubSubConnectionDataType.Name);
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Transport
                         NetworkInterfaceName,
                         NetworkAddressEndPoint,
                         Telemetry,
-                        Logger);
+                        m_logger);
                 }
 
                 m_udpDiscoveryPublisher = new UdpDiscoveryPublisher(this, Telemetry);
@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Transport
                         NetworkInterfaceName,
                         NetworkAddressEndPoint,
                         Telemetry,
-                        Logger);
+                        m_logger);
 
                     foreach (UdpClient subscriberUdpClient in m_subscriberUdpClients)
                     {
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogInformation(
+                            m_logger.LogInformation(
                                 "UdpClient '{Endpoint}' Cannot receive data. Exception: {Message}",
                                 subscriberUdpClient.Client.LocalEndPoint,
                                 ex.Message);
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Transport
                                 new UadpNetworkMessage(
                                     writerGroupConfiguration,
                                     dataSet.DataSetMetaData,
-                                    Logger)
+                                    m_logger)
                                 {
                                     PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
                                     DataSetWriterId = dataSetWriter.DataSetWriterId
@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Transport
                         if (ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings)
                             is UadpDataSetWriterMessageDataType dataSetMessageSettings)
                         {
-                            var uadpDataSetMessage = new UadpDataSetMessage(dataSet, Logger)
+                            var uadpDataSetMessage = new UadpDataSetMessage(dataSet, m_logger)
                             {
                                 DataSetWriterId = dataSetWriter.DataSetWriterId
                             };
@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Transport
             var uadpNetworkMessage = new UadpNetworkMessage(
                 writerGroupConfiguration,
                 dataSetMessages,
-                Logger);
+                m_logger);
             uadpNetworkMessage.SetNetworkMessageContentMask(
                 (UadpNetworkMessageContentMask)messageSettings.NetworkMessageContentMask);
             uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
@@ -338,7 +338,7 @@ namespace Opc.Ua.PubSub.Transport
                             .DataSetMetaData;
                         if (metaData != null)
                         {
-                            var networkMessage = new UadpNetworkMessage(writerGroup, metaData, Logger)
+                            var networkMessage = new UadpNetworkMessage(writerGroup, metaData, m_logger)
                             {
                                 PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
                                 DataSetWriterId = dataSetWriterId
@@ -370,7 +370,7 @@ namespace Opc.Ua.PubSub.Transport
                     response.DataSetWriterIds,
                     response.DataSetWriterConfig,
                     response.StatusCodes,
-                    Logger)
+                    m_logger)
                 {
                     PublisherId = PubSubConnectionConfiguration.PublisherId.Value
                 };
@@ -408,14 +408,14 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
 
-                                Logger.LogInformation(
+                                m_logger.LogInformation(
                                     "UdpPubSubConnection.PublishNetworkMessage bytes:{Length}, endpoint:{Endpoint}",
                                     bytes.Length,
                                     NetworkAddressEndPoint);
                             }
                             catch (Exception ex)
                             {
-                                Logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
+                                m_logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
                                 return false;
                             }
                         }
@@ -425,7 +425,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
+                m_logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
                 return false;
             }
 
@@ -477,7 +477,7 @@ namespace Opc.Ua.PubSub.Transport
                 PubSubConnectionConfiguration.TransportProfileUri == Profiles
                     .PubSubUdpUadpTransport)
             {
-                return new UadpNetworkMessage(endpoints, publisherProvideEndpointsStatusCode, Logger)
+                return new UadpNetworkMessage(endpoints, publisherProvideEndpointsStatusCode, m_logger)
                 {
                     PublisherId = publisherId
                 };
@@ -531,18 +531,18 @@ namespace Opc.Ua.PubSub.Transport
             if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                 is not NetworkAddressUrlDataType networkAddressUrlState)
             {
-                Logger.LogError(
+                m_logger.LogError(
                     "The configuration for connection {Name} has invalid Address configuration.",
                     PubSubConnectionConfiguration.Name);
                 return;
             }
             // set properties
             NetworkInterfaceName = networkAddressUrlState.NetworkInterface;
-            NetworkAddressEndPoint = UdpClientCreator.GetEndPoint(networkAddressUrlState.Url, Logger);
+            NetworkAddressEndPoint = UdpClientCreator.GetEndPoint(networkAddressUrlState.Url, m_logger);
 
             if (NetworkAddressEndPoint == null)
             {
-                Logger.LogError(
+                m_logger.LogError(
                     "The configuration for connection {Name} with Url:'{Url}' resulted in an invalid endpoint.",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url);
@@ -554,7 +554,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void ProcessReceivedMessage(byte[] message, IPEndPoint source)
         {
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 "UdpPubSubConnection.ProcessReceivedMessage from source={Source}",
                 source);
 
@@ -579,7 +579,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
 
-            var networkMessage = new UadpNetworkMessage(Logger);
+            var networkMessage = new UadpNetworkMessage(m_logger);
             networkMessage.DataSetDecodeErrorOccurred += NetworkMessage_DataSetDecodeErrorOccurred;
             networkMessage.Decode(MessageContext, message, dataSetReadersToDecode);
             networkMessage.DataSetDecodeErrorOccurred -= NetworkMessage_DataSetDecodeErrorOccurred;
@@ -616,7 +616,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    Logger.LogInformation(
+                    m_logger.LogInformation(
                         "OnUadpReceive received message with length {Length} from {Address}",
                         message.Length,
                         source.Address);
@@ -639,7 +639,7 @@ namespace Opc.Ua.PubSub.Transport
                         // check if the RawData message is marked as handled
                         if (rawDataReceivedEventArgs.Handled)
                         {
-                            Logger.LogInformation(
+                            m_logger.LogInformation(
                                 "UdpConnection message from source={Source} is marked as handled and will not be decoded.",
                                 rawDataReceivedEventArgs.Source);
                             return;
@@ -652,7 +652,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "OnUadpReceive from {Address}", source.Address);
+                m_logger.LogError(ex, "OnUadpReceive from {Address}", source.Address);
             }
 
             try
@@ -662,7 +662,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "OnUadpReceive BeginReceive threw Exception {Message}",
                     ex.Message);
 

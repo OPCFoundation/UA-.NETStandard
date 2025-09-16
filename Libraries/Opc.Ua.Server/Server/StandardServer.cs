@@ -275,12 +275,12 @@ namespace Opc.Ua.Server
             Exception exception)
         {
             ServerInternal?.ReportAuditOpenSecureChannelEvent(
-                m_logger,
                 globalChannelId,
                 endpointDescription,
                 request,
                 clientCertificate,
-                exception);
+                exception,
+                m_logger);
         }
 
         /// <inheritdoc/>
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server
             string globalChannelId,
             Exception exception)
         {
-            ServerInternal?.ReportAuditCloseSecureChannelEvent(m_logger, globalChannelId, exception);
+            ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception, m_logger);
         }
 
         /// <inheritdoc/>
@@ -296,7 +296,7 @@ namespace Opc.Ua.Server
             X509Certificate2 clientCertificate,
             Exception exception)
         {
-            ServerInternal?.ReportAuditCertificateEvent(m_logger, clientCertificate, exception);
+            ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception, m_logger);
         }
 
         /// <summary>
@@ -404,11 +404,11 @@ namespace Opc.Ua.Server
                             {
                                 // report the AuditCertificateDataMismatch event for invalid uri
                                 ServerInternal?.ReportAuditCertificateDataMismatchEvent(
-                                    m_logger,
                                     parsedClientCertificate,
                                     null,
                                     clientDescription.ApplicationUri,
-                                    StatusCodes.BadCertificateUriInvalid);
+                                    StatusCodes.BadCertificateUriInvalid,
+                                    m_logger);
 
                                 throw ServiceResultException.Create(
                                     StatusCodes.BadCertificateUriInvalid,
@@ -488,11 +488,11 @@ namespace Opc.Ua.Server
                             "Server - Client connects with an endpointUrl [{EndpointUrl}] which does not match Server hostnames.",
                             endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
-                            m_logger,
                             context?.AuditEntryId,
                             session,
                             revisedSessionTimeout,
-                            endpointUrl);
+                            endpointUrl,
+                            m_logger);
                     }
                 }
 
@@ -554,10 +554,10 @@ namespace Opc.Ua.Server
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
-                    m_logger,
                     context?.AuditEntryId,
                     session,
-                    revisedSessionTimeout);
+                    revisedSessionTimeout,
+                    m_logger);
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
@@ -576,10 +576,10 @@ namespace Opc.Ua.Server
 
                 // report the failed AuditCreateSessionEvent
                 ServerInternal.ReportAuditCreateSessionEvent(
-                    m_logger,
                     context?.AuditEntryId,
                     session,
                     revisedSessionTimeout,
+                    m_logger,
                     e);
 
                 if (session != null)
@@ -952,9 +952,9 @@ namespace Opc.Ua.Server
 
                 // report the audit event for close session
                 ServerInternal.ReportAuditCloseSessionEvent(
-                    m_logger,
                     context.AuditEntryId,
                     session,
+                    m_logger,
                     "Session/CloseSession");
 
                 return CreateResponse(requestHeader, context.StringTable);
@@ -1502,7 +1502,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(m_logger, context, "Read", e);
+                ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -1555,7 +1555,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(m_logger, context, "Read", e);
+                ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -1627,7 +1627,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(m_logger, context, "HistoryRead", e);
+                ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -1694,7 +1694,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(m_logger, context, "HistoryRead", e);
+                ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -3919,9 +3919,9 @@ namespace Opc.Ua.Server
                     {
                         // raise close session audit event
                         ServerInternal.ReportAuditCloseSessionEvent(
-                            m_logger,
                             null,
                             session,
+                            m_logger,
                             "Session/Terminated");
                     }
 

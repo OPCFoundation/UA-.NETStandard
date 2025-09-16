@@ -48,10 +48,22 @@ namespace Opc.Ua.Server
         public DiagnosticsNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : base(server, configuration)
+            : this(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<DiagnosticsNodeManager>())
         {
-            m_logger = server.Telemetry.CreateLogger<DiagnosticsNodeManager>();
+        }
 
+        /// <summary>
+        /// Initializes the node manager.
+        /// </summary>
+        public DiagnosticsNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger)
+            : base(server, configuration, logger)
+        {
             AliasRoot = "Core";
 
             string[] namespaceUris = [Namespaces.OpcUa, Namespaces.OpcUa + "Diagnostics"];
@@ -2134,7 +2146,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly ILogger m_logger;
         private readonly ushort m_namespaceIndex;
         private long m_lastUsedId;
         private Timer m_diagnosticsScanTimer;

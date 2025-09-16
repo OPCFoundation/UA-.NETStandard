@@ -573,10 +573,9 @@ namespace Opc.Ua
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                m_logger.LogCertificate(
-                    LogLevel.Warning,
-                    "Validation errors suppressed: ",
-                    certificate);
+                m_logger.LogWarning(
+                    "Validation errors suppressed: {Certificate}",
+                    certificate.AsLogSafeString());
                 m_validatedCertificates[certificate.Thumbprint] = X509CertificateLoader
                     .LoadCertificate(
                         certificate.RawData);
@@ -625,10 +624,9 @@ namespace Opc.Ua
 
             try
             {
-                m_logger.LogCertificate(
-                    LogLevel.Warning,
-                    "Validation errors suppressed: ",
-                    certificate);
+                m_logger.LogWarning(
+                    "Validation errors suppressed: {Certificate}",
+                    certificate.AsLogSafeString());
                 m_validatedCertificates[certificate.Thumbprint] = X509CertificateLoader
                     .LoadCertificate(
                         certificate.RawData);
@@ -845,11 +843,10 @@ namespace Opc.Ua
             // check for errors that may be suppressed.
             if (ContainsUnsuppressibleSC(se.Result))
             {
-                m_logger.LogCertificate(
-                    LogLevel.Error,
-                    "Certificate rejected. Reason={0}.",
-                    certificate,
-                    se.Result.StatusCode);
+                m_logger.LogError(
+                    "Certificate {Certificate} rejected. Reason={ServiceResult}.",
+                    certificate.AsLogSafeString(),
+                    se.Result);
 
                 // save the chain in rejected store to allow to add certs to a trusted or issuer store
                 Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
@@ -885,7 +882,7 @@ namespace Opc.Ua
                         serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                     {
                         accept = true;
-                        m_logger.LogCertificate("Auto accepted certificate: ", certificate);
+                        m_logger.LogInformation("Auto accepted certificate {Certificate}", certificate.AsLogSafeString());
                     }
 
                     if (accept)
@@ -911,11 +908,10 @@ namespace Opc.Ua
             if (!accept)
             {
                 // only log errors if the cert validation failed and it was not accepted
-                m_logger.LogCertificate(
-                    LogLevel.Error,
-                    "Certificate validation failed with suppressible errors but was rejected. Reason={0}.",
-                    certificate,
-                    se.Result.StatusCode);
+                m_logger.LogError(
+                    "Certificate {Certificate} validation failed with suppressible errors but was rejected. Reason={ServiceResult}.",
+                    certificate.AsLogSafeString(),
+                    se.Result);
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
                 // save the chain in rejected store to allow to add cert to a trusted or issuer store
@@ -1474,10 +1470,10 @@ namespace Opc.Ua
                         if (issuer == null || !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
                         {
                             // the chain used for cert validation differs from the issuers provided
-                            m_logger.LogCertificate(
+                            m_logger.LogInformation(
                                 Utils.TraceMasks.Security,
-                                "An unexpected certificate was used in the certificate chain.",
-                                issuerCert);
+                                "An unexpected certificate {Certificate} was used in the certificate chain.",
+                                issuerCert.AsLogSafeString());
                             chainIncomplete = true;
                             isIssuerTrusted = false;
                             break;
@@ -1851,10 +1847,9 @@ namespace Opc.Ua
                     else
                     {
                         // write the invalid certificate to rejected store if specified.
-                        m_logger.LogCertificate(
-                            LogLevel.Error,
-                            "Certificate rejected. Reason={Reason}.",
-                            serverCertificate,
+                        m_logger.LogError(
+                            "Certificate {Certificate} rejected. Reason={ServiceResult}.",
+                            serverCertificate.AsLogSafeString(),
                             Redact.Create(serviceResult));
                         Task.Run(async () => await SaveCertificateAsync(serverCertificate)
                             .ConfigureAwait(false));

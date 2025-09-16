@@ -54,10 +54,13 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration,
             bool useSamplingGroups = false)
-            : base(server, configuration, useSamplingGroups, Namespaces.ReferenceServer)
+            : base(
+                  server,
+                  configuration,
+                  useSamplingGroups,
+                  server.Telemetry.CreateLogger<ReferenceNodeManager>(),
+                  Namespaces.ReferenceServer)
         {
-            m_logger = server.Telemetry.CreateLogger<ReferenceNodeManager>();
-
             SystemContext.NodeIdFactory = this;
 
             // use suitable defaults if no configuration exists.
@@ -5085,7 +5088,6 @@ namespace Quickstarts.ReferenceServer
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
-        private readonly ILogger m_logger;
 
         private static readonly bool[] s_booleanArray
             = [true, false, true, false, true, false, true, false, true];

@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             else
             {
-                Logger.LogError(
+                m_logger.LogError(
                     Utils.TraceMasks.Error,
                     "The current MessageMapping {MessageMapping} does not have a valid message creator",
                     m_messageMapping);
@@ -183,7 +183,7 @@ namespace Opc.Ua.PubSub.Transport
             m_publisherMqttClientOptions = GetMqttClientOptions();
             m_subscriberMqttClientOptions = GetMqttClientOptions();
 
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 "MqttPubSubConnection with name '{Name}' was created.",
                 pubSubConnectionDataType.Name);
         }
@@ -321,7 +321,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
+                            m_logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
                             return false;
                         }
 
@@ -331,7 +331,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
+                m_logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
                 return false;
             }
 
@@ -361,7 +361,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                     is not NetworkAddressUrlDataType networkAddressUrlState)
                 {
-                    Logger.LogError(
+                    m_logger.LogError(
                         "The configuration for mqttConnection {Name} has invalid Address configuration.",
                         PubSubConnectionConfiguration.Name);
 
@@ -388,7 +388,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (UrlScheme == null)
                 {
-                    Logger.LogError(
+                    m_logger.LogError(
                         "The configuration for mqttConnection {Name} has invalid MQTT URL '{Url}'.",
                         PubSubConnectionConfiguration.Name,
                         networkAddressUrlState.Url);
@@ -448,7 +448,7 @@ namespace Opc.Ua.PubSub.Transport
                             m_reconnectIntervalSeconds,
                             m_publisherMqttClientOptions,
                             null,
-                            Logger)
+                            m_logger)
                         .ConfigureAwait(false);
             }
 
@@ -494,7 +494,7 @@ namespace Opc.Ua.PubSub.Transport
                             m_reconnectIntervalSeconds,
                             m_subscriberMqttClientOptions,
                             ProcessMqttMessage,
-                            Logger,
+                            m_logger,
                             topics)
                         .ConfigureAwait(false);
             }
@@ -505,7 +505,7 @@ namespace Opc.Ua.PubSub.Transport
                 m_subscriberMqttClient = subscriberClient;
             }
 
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 "Connection '{Name}' started {Publishers} publishers and {Subscribers} subscribers.",
                 PubSubConnectionConfiguration.Name,
                 nrOfPublishers,
@@ -609,7 +609,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             string topic = eventArgs.ApplicationMessage.Topic;
 
-            Logger.LogInformation("MQTTConnection - ProcessMqttMessage() received from topic={Topic}", topic);
+            m_logger.LogInformation("MQTTConnection - ProcessMqttMessage() received from topic={Topic}", topic);
 
             // get the datasetreaders for received message topic
             var dataSetReaders = new List<DataSetReaderDataType>();
@@ -667,7 +667,7 @@ namespace Opc.Ua.PubSub.Transport
                 // check if the RawData message is marked as handled
                 if (rawDataReceivedEventArgs.Handled)
                 {
-                    Logger.LogInformation(
+                    m_logger.LogInformation(
                         "MqttConnection message from topic={Topic} is marked as handled and will not be decoded.",
                         topic);
                     return Task.CompletedTask;
@@ -697,7 +697,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             else
             {
-                Logger.LogInformation(
+                m_logger.LogInformation(
                     "MqttConnection - ProcessMqttMessage() No DataSetReader is registered for topic={Topic}.",
                     topic);
             }
@@ -736,7 +736,7 @@ namespace Opc.Ua.PubSub.Transport
             if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                 is not NetworkAddressUrlDataType networkAddressUrlState)
             {
-                Logger.LogError(
+                m_logger.LogError(
                     "The configuration for mqttConnection {Name} has invalid Address configuration.",
                     PubSubConnectionConfiguration.Name);
                 return null;
@@ -749,7 +749,7 @@ namespace Opc.Ua.PubSub.Transport
                 (connectionUri.Scheme != Utils.UriSchemeMqtt) &&
                 (connectionUri.Scheme != Utils.UriSchemeMqtts))
             {
-                Logger.LogError(
+                m_logger.LogError(
                     "The configuration for mqttConnection '{Name}' has an invalid Url value {Url}. The Uri scheme should be either {Mqtt}:// or {Mqtts}://",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url,
@@ -760,7 +760,7 @@ namespace Opc.Ua.PubSub.Transport
 
             if (connectionUri == null)
             {
-                Logger.LogError(
+                m_logger.LogError(
                     "The configuration for mqttConnection '{Name}' has an invalid Url value {Url}.",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url);
@@ -781,7 +781,7 @@ namespace Opc.Ua.PubSub.Transport
 
             ITransportProtocolConfiguration transportProtocolConfiguration
                 = new MqttClientProtocolConfiguration(
-                PubSubConnectionConfiguration.ConnectionProperties, Logger);
+                PubSubConnectionConfiguration.ConnectionProperties, m_logger);
 
             if (transportProtocolConfiguration is MqttClientProtocolConfiguration mqttProtocolConfiguration)
             {
@@ -894,7 +894,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Set up a new instance of a certificate validator based on passed in tls options
         /// </summary>
         /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"/></param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>A new instance of stack validator <see cref="CertificateValidator"/></returns>
         private static CertificateValidator CreateCertificateValidator(
             MqttTlsOptions mqttTlsOptions,
@@ -941,7 +941,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogError(
+                m_logger.LogError(
                     ex,
                     "Connection '{Name}' - Broker certificate '{Subject}' rejected.",
                     PubSubConnectionConfiguration.Name,
@@ -949,7 +949,7 @@ namespace Opc.Ua.PubSub.Transport
                 return false;
             }
 
-            Logger.LogInformation(
+            m_logger.LogInformation(
                 Utils.TraceMasks.Security,
                 "Connection '{Name}' - Broker certificate '{Subject}'  accepted.",
                 PubSubConnectionConfiguration.Name,
@@ -992,7 +992,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "MqttPubSubConnection.CertificateValidation error.");
+                m_logger.LogError(ex, "MqttPubSubConnection.CertificateValidation error.");
             }
         }
 

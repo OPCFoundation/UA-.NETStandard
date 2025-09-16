@@ -41,7 +41,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Craete a new instance of the instantiator.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public TestableSessionInstantiator(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;

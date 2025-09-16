@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public AggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
@@ -84,7 +84,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The aggregate function applied by the calculator.
         /// </summary>
-        public NodeId AggregateId { get; private set; }
+        public NodeId AggregateId { get; }
 
         /// <summary>
         /// Queues a raw value for processing.
@@ -290,27 +290,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The start time for the request.
         /// </summary>
-        protected DateTime StartTime { get; private set; }
+        protected DateTime StartTime { get; }
 
         /// <summary>
         /// The end time for the request.
         /// </summary>
-        protected DateTime EndTime { get; private set; }
+        protected DateTime EndTime { get; }
 
         /// <summary>
         /// The processing interval for the request.
         /// </summary>
-        protected double ProcessingInterval { get; private set; }
+        protected double ProcessingInterval { get; }
 
         /// <summary>
         /// True if the data series requires stepped interpolation.
         /// </summary>
-        protected bool Stepped { get; private set; }
+        protected bool Stepped { get; }
 
         /// <summary>
         /// The configuration to use when processing.
         /// </summary>
-        protected AggregateConfiguration Configuration { get; private set; }
+        protected AggregateConfiguration Configuration { get; }
 
         /// <summary>
         /// Whether to use the server timestamp for all processing.
@@ -320,7 +320,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// True if data is being processed in reverse order.
         /// </summary>
-        protected bool TimeFlowsBackward { get; private set; }
+        protected bool TimeFlowsBackward { get; }
 
         /// <summary>
         /// Whether to use the server timestamp for all processing.

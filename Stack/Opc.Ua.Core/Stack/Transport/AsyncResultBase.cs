@@ -13,6 +13,7 @@
 using System;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {
@@ -27,7 +28,7 @@ namespace Opc.Ua
         /// <param name="callback">The callback to use when the operation completes.</param>
         /// <param name="callbackData">The callback data.</param>
         /// <param name="timeout">The timeout for the operation.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         public AsyncResultBase(
             AsyncCallback callback,
             object callbackData,
@@ -44,7 +45,7 @@ namespace Opc.Ua
         /// <param name="callbackData">The callback data.</param>
         /// <param name="timeout">The timeout for the operation.</param>
         /// <param name="cts">Cancellation token for async operation.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         public AsyncResultBase(
             AsyncCallback callback,
             object callbackData,
@@ -55,7 +56,7 @@ namespace Opc.Ua
             m_callback = callback;
             AsyncState = callbackData;
             m_deadline = DateTime.MinValue;
-            Logger = logger;
+            m_logger = logger ?? NullLogger.Instance;
             m_cts = cts;
 
             if (timeout > 0)
@@ -259,7 +260,7 @@ namespace Opc.Ua
                 catch (ObjectDisposedException ode)
                 {
                     // ignore
-                    Logger.LogTrace(
+                    m_logger.LogTrace(
                         ode,
                         "Unexpected error handling OperationCompleted for AsyncResult operation.");
                 }
@@ -283,7 +284,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    Logger.LogTrace(
+                    m_logger.LogTrace(
                         e,
                         "Unexpected error handling dispose of timer for AsyncResult operation.");
                 }
@@ -313,7 +314,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    Logger.LogTrace(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
+                    m_logger.LogTrace(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
                 }
             }
         }
@@ -331,7 +332,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Logger.LogTrace(
+                m_logger.LogTrace(
                     e,
                     "Unexpected error handling timeout for ChannelAsyncResult operation.");
             }
@@ -375,7 +376,9 @@ namespace Opc.Ua
         /// <summary>
         /// Logger to use here and in derived results
         /// </summary>
-        protected ILogger Logger { get; }
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; }
+#pragma warning restore IDE1006 // Naming Styles
 
         private readonly AsyncCallback m_callback;
         private ManualResetEvent m_waitHandle;

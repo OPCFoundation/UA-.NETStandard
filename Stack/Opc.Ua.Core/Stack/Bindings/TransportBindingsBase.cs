@@ -127,7 +127,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Try to load a binding from well known assemblies at runtime.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="scheme">The uri scheme of the binding.</param>
         private bool TryAddDefaultTransportBindings(ITelemetryContext telemetry, string scheme)
         {

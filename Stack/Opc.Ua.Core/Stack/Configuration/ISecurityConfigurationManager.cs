@@ -43,7 +43,7 @@ namespace Opc.Ua.Security
         /// Returns an instance of the type identified by the assembly qualified name.
         /// </summary>
         /// <param name="typeName">Name of the type.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The new instance.</returns>
         /// <exception cref="ServiceResultException"></exception>
         public static ISecurityConfigurationManager CreateInstance(string typeName, ITelemetryContext telemetry)

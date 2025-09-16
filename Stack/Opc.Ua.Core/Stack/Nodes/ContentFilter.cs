@@ -254,7 +254,7 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="diagnosticsMasks">The diagnostics masks.</param>
             /// <param name="stringTable">The string table.</param>
-            /// <param name="logger"></param>
+            /// <param name="logger">A contextual logger to log to</param>
             public ContentFilterResult ToContextFilterResult(
                 DiagnosticsMasks diagnosticsMasks,
                 StringTable stringTable,
@@ -354,7 +354,7 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="diagnosticsMasks">The diagnostics masks.</param>
             /// <param name="stringTable">The string table.</param>
-            /// <param name="logger"></param>
+            /// <param name="logger">A contextual logger to log to</param>
             public ContentFilterElementResult ToContentFilterElementResult(
                 DiagnosticsMasks diagnosticsMasks,
                 StringTable stringTable,

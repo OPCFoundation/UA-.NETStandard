@@ -94,7 +94,7 @@ namespace Opc.Ua.Server
         /// <param name="createDurable">create a durable queue</param>
         /// <param name="queueFactory">the factory for creating the factory for <see cref="IEventMonitoredItemQueue"/></param>
         /// <param name="monitoredItemId">the id of the monitoredItem associated with the queue</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public EventQueueHandler(
             bool createDurable,
             IMonitoredItemQueueFactory queueFactory,

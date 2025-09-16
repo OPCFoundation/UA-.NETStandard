@@ -50,16 +50,11 @@ namespace Opc.Ua.PubSub
         protected const uint kDefaultConfigMinorVersion = 0;
 
         /// <summary>
-        /// A Logger to be used by this and derived classes
-        /// </summary>
-        protected ILogger Logger { get; }
-
-        /// <summary>
         /// Create new instance of <see cref="UaDataSetMessage"/>
         /// </summary>
         protected UaDataSetMessage(ILogger logger)
         {
-            Logger = logger;
+            m_logger = logger;
             DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
             MetaDataVersion = new ConfigurationVersionDataType
@@ -140,5 +135,12 @@ namespace Opc.Ua.PubSub
 
             return DataSetDecodeErrorReason.NoError;
         }
+
+        /// <summary>
+        /// A Logger to be used by this and derived classes
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; }
+#pragma warning restore IDE1006 // Naming Styles
     }
 }

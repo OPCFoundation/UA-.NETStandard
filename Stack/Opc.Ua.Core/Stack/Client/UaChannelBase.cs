@@ -34,7 +34,7 @@ namespace Opc.Ua
             init
             {
                 m_telemetry = value;
-                Logger = value.CreateLogger(this);
+                m_logger = value.CreateLogger(this);
             }
         }
 
@@ -410,7 +410,7 @@ namespace Opc.Ua
                 return UaBypassChannel.BeginClose(callback, callbackData);
             }
 
-            var result = new AsyncResultBase(callback, callbackData, 0, Logger);
+            var result = new AsyncResultBase(callback, callbackData, 0, m_logger);
             result.OperationCompleted();
             return result;
         }
@@ -910,7 +910,9 @@ namespace Opc.Ua
         /// not be used outside of the channel inheritance hierarchy. Create
         /// new logger from telemetry context.
         /// </summary>
-        protected ILogger Logger { get; private set; } = NullLogger.Instance;
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; private set; } = NullLogger.Instance;
+#pragma warning restore IDE1006 // Naming Styles
 
         private readonly ITelemetryContext m_telemetry;
         private readonly IServiceMessageContext m_messageContext;
@@ -927,7 +929,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create channel
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         protected UaChannelBase(ITelemetryContext telemetry = null)
             : base(telemetry)
         {
@@ -970,7 +972,7 @@ namespace Opc.Ua
             AsyncCallback callback,
             object asyncState)
         {
-            var asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState, Logger);
+            var asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState, m_logger);
 
             lock (asyncResult.Lock)
             {
@@ -1003,7 +1005,7 @@ namespace Opc.Ua
                 return;
             }
 
-            Logger.LogInformation("RECONNECT: Reconnecting to {Url}.", m_settings.Description.EndpointUrl);
+            m_logger.LogInformation("RECONNECT: Reconnecting to {Url}.", m_settings.Description.EndpointUrl);
         }
 
         /// <inheritdoc/>
@@ -1024,7 +1026,7 @@ namespace Opc.Ua
             /// <param name="channel">The channel.</param>
             /// <param name="callback">The callback.</param>
             /// <param name="callbackData">The callback data.</param>
-            /// <param name="logger"></param>
+            /// <param name="logger">A contextual logger to log to</param>
             public UaChannelAsyncResult(
                 TChannel channel,
                 AsyncCallback callback,
@@ -1060,7 +1062,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(
+                    m_logger.LogError(
                         e,
                         "Unexpected exception invoking UaChannelAsyncResult callback function.");
                 }

@@ -87,11 +87,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Allows a subclass to consume the telemetry context to create loggers or any other observability
+        /// instruments. This method is called by all Initialize overloads. However, it is possible that it
+        /// is not called if any of them does not call their base implementation.  Therefore it is advised
+        /// to always initialize a logger using the NullLogger.Instance to avoid Null reference exceptions.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        protected virtual void Initialize(ITelemetryContext telemetry)
+        {
+            // defined by subclass.
+        }
+
+        /// <summary>
         /// When overridden in a derived class, initializes the instance with the default values.
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
         protected virtual void Initialize(ISystemContext context)
         {
+            Initialize(context.Telemetry);
+
             // defined by subclass.
         }
 
@@ -132,6 +146,8 @@ namespace Opc.Ua
         /// <param name="source">The source node.</param>
         protected virtual void Initialize(ISystemContext context, NodeState source)
         {
+            Initialize(context.Telemetry);
+
             Handle = source.Handle;
             SymbolicName = source.SymbolicName;
             m_nodeId = source.m_nodeId;
@@ -2018,7 +2034,7 @@ namespace Opc.Ua
 
             // get the node factory.
             NodeStateFactory factory = context.NodeStateFactory
-                ?? new NodeStateFactory(parent.Telemetry);
+                ?? new NodeStateFactory(context.Telemetry);
 
             // create the appropriate node.
 

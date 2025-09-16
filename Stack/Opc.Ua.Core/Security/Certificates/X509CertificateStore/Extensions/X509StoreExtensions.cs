@@ -43,7 +43,7 @@ namespace Opc.Ua.X509StoreExtensions
         /// Enumerate all Crls in a Windows X509 Store
         /// </summary>
         /// <param name="store">the Windows X509 Store to retrieve the crls from</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>the crls as a byte array</returns>
         /// <exception cref="PlatformNotSupportedException">if not called on a supported OS (Windows >= XP)</exception>
         /// <exception cref="ArgumentNullException">if store is null</exception>
@@ -68,7 +68,7 @@ namespace Opc.Ua.X509StoreExtensions
         /// </summary>
         /// <param name="store">the Windows X509 Store to add the crl to</param>
         /// <param name="crl">the ASN1 encoded crl as byte array</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <exception cref="PlatformNotSupportedException">if not called on a
         /// supported OS (Windows >= XP)</exception>
         /// <exception cref="ArgumentNullException">if store is null</exception>
@@ -98,7 +98,7 @@ namespace Opc.Ua.X509StoreExtensions
         /// </summary>
         /// <param name="store">the Windows X509 Store to delete the crl from</param>
         /// <param name="crl">the ASN1 encoded crl as byte array</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <exception cref="PlatformNotSupportedException">if not called on a
         /// supported OS (Windows >= XP)</exception>
         /// <exception cref="ArgumentNullException">if store is null</exception>

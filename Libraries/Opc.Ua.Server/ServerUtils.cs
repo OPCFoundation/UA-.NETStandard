@@ -468,7 +468,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="context">The context containing the string stable.</param>
         /// <param name="error">The error to translate.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The diagnostics with references to the strings in the context string table.</returns>
         public static DiagnosticInfo CreateDiagnosticInfo(
             IServerInternal server,

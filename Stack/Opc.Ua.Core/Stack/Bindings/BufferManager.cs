@@ -113,7 +113,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="maxBufferSize">Max size of the buffer.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public BufferManager(string name, int maxBufferSize, ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<BufferManager>();
@@ -364,7 +364,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the suggested max rent size for data in the buffers.
         /// </summary>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="maxBufferSize">The max buffer size configured.</param>
         private static int DetermineSuggestedBufferSize(ILogger logger, int maxBufferSize)
         {

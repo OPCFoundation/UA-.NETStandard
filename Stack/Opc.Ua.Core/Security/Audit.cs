@@ -23,7 +23,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Called when a secure channel is created by the client.
         /// </summary>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="implementationInfo">Information about the secure channel implementation.</param>
         /// <param name="endpointUrl">The identifier assigned to the secure channel</param>
         /// <param name="secureChannelId">The identifier assigned to the secure channel</param>
@@ -69,8 +69,14 @@ namespace Opc.Ua.Security
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
-                    logger.LogCertificate(Utils.TraceMasks.Security, "Client Certificate: ", clientCertificate);
-                    logger.LogCertificate(Utils.TraceMasks.Security, "Server Certificate: ", serverCertificate);
+                    logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "Client Certificate: {Certificate}",
+                        clientCertificate.AsLogSafeString());
+                    logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "Server Certificate: {Certificate}",
+                        serverCertificate.AsLogSafeString());
                 }
             }
             else
@@ -87,7 +93,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Called when a secure channel is renewed by the client.
         /// </summary>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="implementationInfo">Information about the secure channel implementation.</param>
         /// <param name="secureChannelId">The identifier assigned to the secure channel.</param>
         public static void SecureChannelRenewed(

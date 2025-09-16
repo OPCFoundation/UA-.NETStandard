@@ -296,7 +296,7 @@ namespace Opc.Ua.Server
                 if (session.HasExpired)
                 {
                     // raise audit event for session closed because of timeout
-                    m_server.ReportAuditCloseSessionEvent(m_logger, null, session, "Session/Timeout");
+                    m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
 
                     m_server.CloseSession(null, session.Id, false);
 
@@ -610,7 +610,7 @@ namespace Opc.Ua.Server
                             }
 
                             // raise audit event for session closed because of timeout
-                            m_server.ReportAuditCloseSessionEvent(m_logger, null, session, "Session/Timeout");
+                            m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
 
                             m_server.CloseSession(null, session.Id, false);
                         }

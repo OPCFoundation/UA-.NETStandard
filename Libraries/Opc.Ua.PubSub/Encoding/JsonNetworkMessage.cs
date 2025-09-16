@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         public JsonNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<JsonDataSetMessage> jsonDataSetMessages,

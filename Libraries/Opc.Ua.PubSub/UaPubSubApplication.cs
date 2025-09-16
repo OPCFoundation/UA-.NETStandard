@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Initializes a new instance of the <see cref="UaPubSubApplication"/> class.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="dataStore">The current implementation of <see cref="IUaPubSubDataStore"/>
         /// used by this instance of pub sub application</param>
         /// <param name="applicationId"> The application id for instance.</param>
@@ -164,7 +164,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
         /// used by this instance of pub sub application</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(IUaPubSubDataStore dataStore, ITelemetryContext telemetry)
         {
@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub
         /// from the specified path.
         /// </summary>
         /// <param name="configFilePath">The path of the configuration path.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
         /// used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>

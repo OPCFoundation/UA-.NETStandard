@@ -506,26 +506,22 @@ namespace Opc.Ua.PubSub.Encoding
                     // the field value is encoded as a Variant encoded using the reversible OPC UA JSON Data Encoding
                     // defined in OPC 10000-6.
                     encoder.ForceNamespaceUri = false;
-#pragma warning disable CS0618 // Type or member is obsolete
-                    encoder.UsingReversibleEncoding(
+                    encoder.UsingAlternateEncoding(
                         encoder.WriteVariant,
                         fieldName,
                         valueToEncode,
-                        true);
-#pragma warning restore CS0618 // Type or member is obsolete
+                        JsonEncodingType.Reversible);
                     break;
                 case FieldTypeEncodingMask.RawData:
                     // If the DataSetFieldContentMask results in a RawData representation,
                     // the field value is a Variant encoded using the non-reversible OPC UA JSON Data Encoding
                     // defined in OPC 10000-6
                     encoder.ForceNamespaceUri = true;
-#pragma warning disable CS0618 // Type or member is obsolete
-                    encoder.UsingReversibleEncoding(
+                    encoder.UsingAlternateEncoding(
                         encoder.WriteVariant,
                         fieldName,
                         valueToEncode,
-                        false);
-#pragma warning restore CS0618 // Type or member is obsolete
+                        JsonEncodingType.NonReversible);
                     break;
                 case FieldTypeEncodingMask.DataValue:
                     var dataValue = new DataValue { WrappedValue = valueToEncode };
@@ -558,13 +554,11 @@ namespace Opc.Ua.PubSub.Encoding
                     // If the DataSetFieldContentMask results in a DataValue representation,
                     // the field value is a DataValue encoded using the non-reversible OPC UA JSON Data Encoding
                     encoder.ForceNamespaceUri = true;
-#pragma warning disable CS0618 // Type or member is obsolete
-                    encoder.UsingReversibleEncoding(
+                    encoder.UsingAlternateEncoding(
                         encoder.WriteDataValue,
                         fieldName,
                         dataValue,
-                        false);
-#pragma warning restore CS0618 // Type or member is obsolete
+                        JsonEncodingType.NonReversible);
                     break;
             }
         }
@@ -593,13 +587,13 @@ namespace Opc.Ua.PubSub.Encoding
                             (BuiltInType)fieldMetaData.BuiltInType);
                     }
 
-                    Logger.LogInformation(
+                    m_logger.LogInformation(
                         "JsonDataSetMessage - Decoding ValueRank = {ValueRank} not supported yet !!!",
                         fieldMetaData.ValueRank);
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError(ex, "JsonDataSetMessage - Error reading element for RawData.");
+                    m_logger.LogError(ex, "JsonDataSetMessage - Error reading element for RawData.");
                     return StatusCodes.BadDecodingError;
                 }
             }
@@ -714,7 +708,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "JsonDataSetMessage - Error decoding field {Name}", fieldName);
+                m_logger.LogError(ex, "JsonDataSetMessage - Error decoding field {Name}", fieldName);
             }
 
             return null;

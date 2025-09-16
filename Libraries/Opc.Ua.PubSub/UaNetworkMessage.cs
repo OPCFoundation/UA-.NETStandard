@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="uaDataSetMessages">The containing data set messages.</param>
-        /// <param name="logger"></param>
+        /// <param name="logger">A contextual logger to log to</param>
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<UaDataSetMessage> uaDataSetMessages,

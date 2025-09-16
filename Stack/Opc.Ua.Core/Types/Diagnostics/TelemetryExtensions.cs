@@ -47,7 +47,7 @@ namespace Opc.Ua
         /// Get a logger factory from a context with or without logger factory
         /// Returns the default logger factory if none is provided.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns></returns>
         public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? telemetry)
         {
@@ -58,7 +58,7 @@ namespace Opc.Ua
         /// Create a logger from a logger factory
         /// </summary>
         /// <typeparam name="TContext"></typeparam>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns></returns>
         public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? telemetry)
         {
@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// Create a logger from a logger factory
         /// </summary>
         /// <typeparam name="TContext"></typeparam>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="context"></param>
         /// <returns></returns>
         public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? telemetry, TContext context)
@@ -80,7 +80,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a logger from a logger factory
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="categoryName"></param>
         /// <returns></returns>
         public static ILogger CreateLogger(this ITelemetryContext? telemetry, string categoryName)
@@ -91,7 +91,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get meter instance or a default one.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns></returns>
         public static Meter GetMeter(this ITelemetryContext? telemetry)
         {
@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get activity source
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns></returns>
         public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
         {
@@ -111,7 +111,7 @@ namespace Opc.Ua
         /// <summary>
         /// Start activity
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="name"></param>
         /// <param name="kind"></param>
         /// <returns></returns>
