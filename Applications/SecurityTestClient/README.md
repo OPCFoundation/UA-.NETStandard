@@ -7,6 +7,7 @@ Implements
 - NIST p256 with AES-GCM and ChaCha20Poly1305;
 - Chained Key Derivation after Renewal;
 - Channel Bound Signatures for Server, Client and UserTokens
+- EncryptedSecrets with AES-GCM and ChaCha20Poly1305;
 
 To implement
 - Session Activation Tokens
