@@ -525,11 +525,15 @@ namespace Opc.Ua.Server
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Append(parsedClientCertificate.RawData, clientNonce);
-                        serverSignature = SecurityPolicies.Sign(
-                            instanceCertificate,
+                        serverSignature = SecurityPolicies.CreateSignatureData(
                             context.SecurityPolicyUri,
-                            dataToSign);
+                            instanceCertificate,
+                            SecureChannelContext.Current?.SecureChannelSecret,
+                            parsedClientCertificate?.RawData,
+                            SecureChannelContext.Current?.ClientChannelCertificate,
+                            SecureChannelContext.Current?.ServerChannelCertificate,
+                            clientNonce,
+                            serverNonce);
                     }
                 }
 

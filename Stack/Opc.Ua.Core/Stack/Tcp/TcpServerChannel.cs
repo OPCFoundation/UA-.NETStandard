@@ -655,6 +655,8 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
+                token.PreviousSecret = CurrentToken?.Secret;
+
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce;
                 if (!ValidateNonce(ClientCertificate, token.ClientNonce))

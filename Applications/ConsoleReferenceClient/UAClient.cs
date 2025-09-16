@@ -234,6 +234,7 @@ namespace Quickstarts
                             serverUrl,
                             useSecurity,
                             ct).ConfigureAwait(false);
+                        endpointDescription.SecurityMode = MessageSecurityMode.Sign;
                     }
 
                     // Get the endpoint by connecting to server's discovery endpoint.

@@ -76,8 +76,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins processing a request received via a binary encoded channel.
         /// </summary>
-        /// <param name="channeId">A unique identifier for the secure channel which is the source of the request.</param>
-        /// <param name="endpointDescription">The description of the endpoint which the secure channel is using.</param>
+        /// <param name="context">The context for the SecureChannel</param>
         /// <param name="request">The incoming request.</param>
         /// <param name="callback">The callback.</param>
         /// <param name="callbackData">The callback data.</param>
@@ -86,17 +85,16 @@ namespace Opc.Ua
         /// </returns>
         /// <seealso cref="EndProcessRequest"/>
         /// <seealso cref="ITransportListener"/>
-        /// <exception cref="ArgumentNullException"><paramref name="channeId"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public IAsyncResult BeginProcessRequest(
-            string channeId,
-            EndpointDescription endpointDescription,
+            SecureChannelContext context,
             IServiceRequest request,
             AsyncCallback callback,
             object callbackData)
         {
-            if (channeId == null)
+            if (context == null)
             {
-                throw new ArgumentNullException(nameof(channeId));
+                throw new ArgumentNullException(nameof(context));
             }
 
             if (request == null)
@@ -106,11 +104,6 @@ namespace Opc.Ua
 
             // create operation.
             var result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
-
-            var context = new SecureChannelContext(
-                channeId,
-                endpointDescription,
-                RequestEncoding.Binary);
 
             // begin invoke service.
             return result.BeginProcessRequest(context, request);

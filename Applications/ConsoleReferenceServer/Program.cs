@@ -44,6 +44,8 @@ namespace Quickstarts.ReferenceServer
     {
         public static async Task<int> Main(string[] args)
         {
+            Console.OutputEncoding = System.Text.Encoding.Unicode;
+
             TextWriter output = Console.Out;
             output.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
 

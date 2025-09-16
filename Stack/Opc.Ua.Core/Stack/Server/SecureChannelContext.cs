@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Threading;
 
 namespace Opc.Ua
@@ -24,15 +25,24 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="secureChannelId">The secure channel identifier.</param>
         /// <param name="endpointDescription">The endpoint description.</param>
+        /// <param name="secureChannelSecret">A unique value cryptographically tied to the secure channel.</param>
+        /// <param name="serverChannelCertificate">The server certificate used by the secure channel.</param>
+        /// <param name="clientChannelCertificate">The client certificate used by the secure channel.</param>
         /// <param name="messageEncoding">The message encoding.</param>
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription endpointDescription,
-            RequestEncoding messageEncoding)
+            RequestEncoding messageEncoding,
+            byte[] secureChannelSecret,
+            byte[] serverChannelCertificate,
+            byte[] clientChannelCertificate)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
             MessageEncoding = messageEncoding;
+            SecureChannelSecret = secureChannelSecret;
+            ServerChannelCertificate = serverChannelCertificate;
+            ClientChannelCertificate = clientChannelCertificate;
         }
 
         /// <summary>
@@ -67,6 +77,21 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The message encoding.</value>
         public RequestEncoding MessageEncoding { get; }
+
+        /// <summary>
+        /// A unique value cryptographically tied to the secure channel.
+        /// </summary>
+        public byte[] SecureChannelSecret { get; }
+
+        /// <summary>
+        /// The server certificate used by the secure channel.
+        /// </summary>
+        public byte[] ServerChannelCertificate { get; }
+
+        /// <summary>
+        /// The client certificate used by the secure channel.
+        /// </summary>
+        public byte[] ClientChannelCertificate { get; }
 
         /// <summary>
         /// The active secure channel for the thread.

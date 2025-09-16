@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -96,6 +97,7 @@ namespace Opc.Ua.Bindings
                                 policy.SecurityMode,
                                 policy.SecurityPolicyUri)
                         };
+
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                             configuration,
                             description);
@@ -105,6 +107,33 @@ namespace Opc.Ua.Bindings
                             instanceCertificateTypesProvider);
 
                         listenerEndpoints.Add(description);
+                    }
+
+                    // need to handle the case where there is no RSA endpoint configured by user names need to be encrypted.
+                    var noSecurityEndpoints = listenerEndpoints
+                        .Where(x => x.SecurityMode == MessageSecurityMode.None)
+                        .ToList();
+
+                    foreach (var noSecurityEndpoint in noSecurityEndpoints)
+                    {
+                        var userNamePolicies = noSecurityEndpoint.UserIdentityTokens
+                            .Where(x => x.TokenType == UserTokenType.UserName)
+                            .ToList();
+
+                        foreach (var userNamePolicy in userNamePolicies)
+                        {
+                            // check for an unsupported SecurityPolicyUri in the None endpoint.
+                            if (!listenerEndpoints.Any(x => x.SecurityPolicyUri == userNamePolicy.SecurityPolicyUri))
+                            {
+                                var endpointToUse = listenerEndpoints
+                                    .Where(x => x.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                                    .OrderByDescending(x => x.SecurityLevel)
+                                    .FirstOrDefault();
+
+                                userNamePolicy.SecurityPolicyUri = endpointToUse.SecurityPolicyUri;
+                                noSecurityEndpoint.ServerCertificate = endpointToUse.ServerCertificate;
+                            }
+                        }
                     }
 
                     serverBase.CreateServiceHostEndpoint(

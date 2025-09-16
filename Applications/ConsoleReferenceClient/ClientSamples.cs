@@ -1463,12 +1463,12 @@ namespace Quickstarts
                 // Log MonitoredItem Notification event
                 var notification = e.NotificationValue as MonitoredItemNotification;
                 DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
-                m_output.WriteLine(
-                    "Notification: {0} \"{1}\" and Value = {2} at [{3}].",
-                    notification.Message.SequenceNumber,
-                    monitoredItem.ResolvedNodeId,
-                    notification.Value,
-                    localTime.ToLongTimeString());
+                //m_output.WriteLine(
+                //    "Notification: {0} \"{1}\" and Value = {2} at [{3}].",
+                //    notification.Message.SequenceNumber,
+                //    monitoredItem.ResolvedNodeId,
+                //    notification.Value,
+                //    localTime.ToLongTimeString());
             }
             catch (Exception ex)
             {
@@ -1523,10 +1523,10 @@ namespace Quickstarts
                                         " seconds";
                                 }
 
-                                m_output.WriteLine(
-                                    "Event Received - total count = {0}{1}",
-                                    m_processedEvents.ToString(CultureInfo.InvariantCulture),
-                                    timeBetweenEvents);
+                                //m_output.WriteLine(
+                                //    "Event Received - total count = {0}{1}",
+                                //    m_processedEvents.ToString(CultureInfo.InvariantCulture),
+                                //    timeBetweenEvents);
                             }
                             catch (Exception ex)
                             {
@@ -1536,11 +1536,11 @@ namespace Quickstarts
                             }
                         }
 
-                        m_output.WriteLine(
-                            "\tField [{0}] \"{1}\" = [{2}]",
-                            entry.Key.ToString(CultureInfo.InvariantCulture),
-                            fieldName,
-                            field.Value);
+                        //m_output.WriteLine(
+                        //    "\tField [{0}] \"{1}\" = [{2}]",
+                        //    entry.Key.ToString(CultureInfo.InvariantCulture),
+                        //    fieldName,
+                        //    field.Value);
                     }
                 }
             }

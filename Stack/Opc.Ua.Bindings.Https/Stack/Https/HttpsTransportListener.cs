@@ -468,10 +468,19 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                // note: do not use Task.Factory.FromAsync here
-                IAsyncResult result = m_callback.BeginProcessRequest(
+                var serverCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
+
+                var channelContext = new SecureChannelContext(
                     ListenerId,
                     endpoint,
+                    RequestEncoding.Binary,
+                    Array.Empty<byte>(),
+                    serverCertificate?.RawData,
+                    context.Connection.ClientCertificate?.RawData);
+
+                // note: do not use Task.Factory.FromAsync here
+                IAsyncResult result = m_callback.BeginProcessRequest(
+                    channelContext,
                     input,
                     null,
                     null);

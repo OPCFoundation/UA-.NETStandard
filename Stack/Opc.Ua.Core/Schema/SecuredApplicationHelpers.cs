@@ -271,7 +271,9 @@ namespace Opc.Ua.Security
                 CreateProfile(SecurityPolicies.Basic256),
                 CreateProfile(SecurityPolicies.Basic256Sha256),
                 CreateProfile(SecurityPolicies.Aes128_Sha256_RsaOaep),
-                CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss)
+                CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss),
+                CreateProfile(SecurityPolicies.RSA_DH_AES_GCM),
+                CreateProfile(SecurityPolicies.RSA_DH_ChaChaPoly)
             };
 
             if (policies != null)
@@ -353,17 +355,28 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     result = 10;
                     break;
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    result = 11;
-                    break;
-                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     result = 12;
                     break;
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    result = 13;
-                    break;
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_nistP384:
-                    result = 14;
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    Utils.LogWarning( $"Deprecated Security Policy {SecurityPolicies.GetDisplayName(policyUri)} requested - Not recommended.");
+                    result = 2;
+                    break;
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
+                    result = 15;
+                    break;
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
+                    result = 16;
                     break;
                 case SecurityPolicies.None:
                     return 0;
@@ -402,12 +415,26 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.Basic256Sha256:
                     case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    case SecurityPolicies.RSA_DH_AES_GCM:
+                    case SecurityPolicies.RSA_DH_ChaChaPoly:
                     case SecurityPolicies.ECC_nistP256:
+                    case SecurityPolicies.ECC_nistP256_AES:
+                    case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                     case SecurityPolicies.ECC_brainpoolP256r1:
+                    case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                    case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                     case SecurityPolicies.ECC_nistP384:
+                    case SecurityPolicies.ECC_nistP384_AES:
+                    case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                     case SecurityPolicies.ECC_brainpoolP384r1:
+                    case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                    case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     case SecurityPolicies.ECC_curve25519:
+                    case SecurityPolicies.ECC_curve25519_AES:
+                    case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                     case SecurityPolicies.ECC_curve448:
+                    case SecurityPolicies.ECC_curve448_AES:
+                    case SecurityPolicies.ECC_curve448_ChaChaPoly:
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                         break;
                 }

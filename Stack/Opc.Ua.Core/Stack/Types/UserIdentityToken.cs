@@ -52,7 +52,14 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature with the token (implemented by the subclass).
         /// </summary>
-        public virtual SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
+        public virtual SignatureData Sign(
+            string securityPolicyUri,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] serverNonce,
+            byte[] clientNonce)
         {
             return new SignatureData();
         }
@@ -61,9 +68,14 @@ namespace Opc.Ua
         /// Verifies a signature created with the token (implemented by the subclass).
         /// </summary>
         public virtual bool Verify(
-            byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] serverNonce,
+            byte[] clientNonce)
         {
             return true;
         }
@@ -309,14 +321,52 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature with the token.
         /// </summary>
-        public override SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
+        public override SignatureData Sign(
+            string securityPolicyUri,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] serverNonce,
+            byte[] clientNonce)
         {
             X509Certificate2 certificate = m_certificate ??
                 CertificateFactory.Create(m_certificateData, true);
 
-            SignatureData signatureData = SecurityPolicies.Sign(
+            // nothing more to do if no encryption.
+            if (string.IsNullOrEmpty(securityPolicyUri))
+            {
+                return new SignatureData();
+            }
+
+            // get the info object.
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            // unsupported policy.
+            if (info == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    securityPolicyUri);
+            }
+  
+            // create the data to sign.
+            byte[] dataToSign = (info.SecureChannelEnhancements)
+                ? Utils.Append(
+                    serverCertificate ?? Array.Empty<byte>(),
+                    serverChannelCertificate ?? Array.Empty<byte>(),
+                    clientCertificate ?? Array.Empty<byte>(),
+                    clientChannelCertificate ?? Array.Empty<byte>(),
+                    serverNonce ?? Array.Empty<byte>(),
+                    clientNonce ?? Array.Empty<byte>())
+                : Utils.Append(
+                    serverCertificate ?? Array.Empty<byte>(),
+                    serverNonce);
+
+            SignatureData signatureData = SecurityPolicies.CreateSignatureData(
+                info,
                 certificate,
-                securityPolicyUri,
                 dataToSign);
 
             m_certificateData = certificate.RawData;
@@ -329,20 +379,57 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public override bool Verify(
-            byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] serverNonce,
+            byte[] clientNonce)
         {
             try
             {
                 X509Certificate2 certificate = m_certificate ??
                     CertificateFactory.Create(m_certificateData, true);
 
-                bool valid = SecurityPolicies.Verify(
+                // nothing more to do if no encryption.
+                if (string.IsNullOrEmpty(securityPolicyUri))
+                {
+                    return true;
+                }
+
+                // get the info object.
+                var info = SecurityPolicies.GetInfo(securityPolicyUri);
+
+                // unsupported policy.
+                if (info == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Unsupported security policy: {0}",
+                        securityPolicyUri);
+                }
+
+                // create the data to sign.
+                byte[] dataToVerify = (info.SecureChannelEnhancements)
+                    ? Utils.Append(
+                        serverCertificate ?? Array.Empty<byte>(),
+                        serverChannelCertificate ?? Array.Empty<byte>(),
+                        clientCertificate ?? Array.Empty<byte>(),
+                        clientChannelCertificate ?? Array.Empty<byte>(),
+                        serverNonce ?? Array.Empty<byte>(),
+                        clientNonce ?? Array.Empty<byte>())
+                    :
+                     Utils.Append(
+                        serverCertificate ?? Array.Empty<byte>(),
+                        serverNonce);
+
+                bool valid = SecurityPolicies.VerifySignatureData(
+                    signatureData,
+                    info,
                     certificate,
-                    securityPolicyUri,
-                    dataToVerify,
-                    signatureData);
+                    dataToVerify);
 
                 m_certificateData = certificate.RawData;
 
@@ -489,7 +576,14 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature with the token.
         /// </summary>
-        public override SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
+        public override SignatureData Sign(
+            string securityPolicyUri,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] serverNonce,
+            byte[] clientNonce)
         {
             return null;
         }
@@ -498,9 +592,14 @@ namespace Opc.Ua
         /// Verifies a signature created with the token.
         /// </summary>
         public override bool Verify(
-            byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] serverNonce,
+            byte[] clientNonce)
         {
             return true;
         }

@@ -70,9 +70,9 @@ namespace Quickstarts.ConsoleReferenceClient
 
             // command line options
             bool showHelp = false;
-            bool autoAccept = false;
-            string username = null;
-            string userpassword = null;
+            bool autoAccept = true;
+            string username = "sysadmin";
+            string userpassword = "demo";
             string userCertificateThumbprint = null;
             string userCertificatePassword = null;
             bool logConsole = false;
@@ -276,7 +276,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 );
 
                 // connect Url?
-                var serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
+                var serverUrl = new Uri("opc.tcp://localhost:62541");
                 if (!string.IsNullOrEmpty(extraArg))
                 {
                     serverUrl = new Uri(extraArg);
@@ -654,7 +654,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         }
                         else
                         {
-                            int quitTimeout = 65_000;
+                            int quitTimeout = 65000000;
                             if (enableDurableSubscriptions)
                             {
                                 quitTimeout = 150_000;
@@ -690,8 +690,8 @@ namespace Quickstarts.ConsoleReferenceClient
                             // Wait for some DataChange notifications from MonitoredItems
                             int waitCounters = 0;
                             const int checkForWaitTime = 1000;
-                            const int closeSessionTime = checkForWaitTime * 15;
-                            const int restartSessionTime = checkForWaitTime * 45;
+                            const int closeSessionTime = checkForWaitTime * 150;
+                            const int restartSessionTime = checkForWaitTime * 450;
                             const bool stopNotQuit = false;
                             int stopCount = 0;
                             while (!quit && !stopNotQuit && waitCounters < quitTimeout)

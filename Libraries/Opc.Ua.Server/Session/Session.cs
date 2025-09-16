@@ -477,15 +477,16 @@ namespace Opc.Ua.Server
                             StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(
-                        m_serverCertificate.RawData,
-                        m_serverNonce.Data);
-
-                    if (!SecurityPolicies.Verify(
-                            ClientCertificate,
+                    if (!SecurityPolicies.VerifySignatureData(
+                            clientSignature,
                             EndpointDescription.SecurityPolicyUri,
-                            dataToSign,
-                            clientSignature))
+                            ClientCertificate,
+                            SecureChannelContext.Current.SecureChannelSecret,
+                            m_serverCertificate.RawData,
+                            SecureChannelContext.Current.ServerChannelCertificate,
+                            SecureChannelContext.Current.ClientChannelCertificate,
+                            m_serverNonce.Data,
+                            ClientNonce))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -499,24 +500,23 @@ namespace Opc.Ua.Server
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
-                                serverCertificateChainList.AddRange(
-                                    serverCertificateChain[i].RawData);
+                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
                             }
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(
+                            if (!SecurityPolicies.VerifySignatureData(
+                                clientSignature,
+                                EndpointDescription.SecurityPolicyUri,
+                                ClientCertificate,
+                                SecureChannelContext.Current.SecureChannelSecret,
                                 serverCertificateChainData,
-                                m_serverNonce.Data);
-
-                            if (!SecurityPolicies.Verify(
-                                    ClientCertificate,
-                                    EndpointDescription.SecurityPolicyUri,
-                                    dataToSign,
-                                    clientSignature))
+                                SecureChannelContext.Current.ServerChannelCertificate,
+                                SecureChannelContext.Current.ClientChannelCertificate,
+                                m_serverNonce.Data,
+                                ClientNonce))
                             {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadApplicationSignatureInvalid);
+                                throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
                             }
                         }
                         else
@@ -1034,11 +1034,17 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    byte[] dataToSign = Utils.Append(
-                        m_serverCertificate.RawData,
-                        m_serverNonce.Data);
+                    var valid = token.Verify(
+                        userTokenSignature,
+                        securityPolicyUri,
+                        m_serverCertificate?.RawData,
+                        SecureChannelContext.Current?.ServerChannelCertificate,
+                        ClientCertificate?.RawData,
+                        SecureChannelContext.Current?.ClientChannelCertificate,
+                        m_serverNonce.Data,
+                        ClientNonce);
 
-                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                    if (!valid)
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -1052,17 +1058,20 @@ namespace Opc.Ua.Server
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
-                                serverCertificateChainList.AddRange(
-                                    serverCertificateChain[i].RawData);
+                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
                             }
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(
+                            if (!token.Verify(
+                                userTokenSignature,
+                                securityPolicyUri,
                                 serverCertificateChainData,
-                                m_serverNonce.Data);
-
-                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                                SecureChannelContext.Current?.ServerChannelCertificate,
+                                ClientCertificate?.RawData,
+                                SecureChannelContext.Current?.ClientChannelCertificate,
+                                m_serverNonce.Data,
+                                ClientNonce))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,

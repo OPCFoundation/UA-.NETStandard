@@ -186,6 +186,8 @@ namespace Opc.Ua
                     securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                     securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
                     securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
+                    securityPolicies.Add(SecurityPolicies.RSA_DH_AES_GCM);
+                    securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
                     continue;
                 }
                 if (applicationCertificate.CertificateType.Identifier is uint identifier)
@@ -194,23 +196,33 @@ namespace Opc.Ua
                     {
                         case ObjectTypes.EccNistP256ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_nistP256);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_AES);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_ChaChaPoly);
                             break;
                         case ObjectTypes.EccNistP384ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP256);
                             securityPolicies.Add(SecurityPolicies.ECC_nistP384);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_AES);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_ChaChaPoly);
                             break;
                         case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_AES);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
                             break;
                         case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_AES);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
                             break;
                         case ObjectTypes.EccCurve25519ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_curve25519);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_AES);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_ChaChaPoly);
                             break;
                         case ObjectTypes.EccCurve448ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_curve448);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve448_AES);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve448_ChaChaPoly);
                             break;
                         case ObjectTypes.RsaMinApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.Basic128Rsa15);

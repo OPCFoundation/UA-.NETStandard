@@ -57,16 +57,40 @@ namespace Opc.Ua
         public byte[] Data { get; private set; }
 
 #if ECC_SUPPORT
+        internal byte[] GenerateSecret(
+            Nonce remoteNonce,
+            byte[] previousSecret)
+        {
+            byte[] ikm = null;
+
+#if NET8_0_OR_GREATER
+            ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
+
+            if (previousSecret != null)
+            {
+                for (int ii = 0; ii < ikm.Length && ii < previousSecret.Length; ii++)
+                {
+                    ikm[ii] ^= previousSecret[ii];
+                }
+
+                System.Console.WriteLine($"OLD={Utils.ToHexString(previousSecret).Substring(0, 8)}");
+            }
+
+            System.Console.WriteLine($"IKM={Utils.ToHexString(ikm).Substring(0, 8)}");
+#endif
+            return ikm;
+        }
+
         /// <summary>
         /// Derives a key from the remote nonce, using the specified salt, hash algorithm, and length.
         /// </summary>
-        /// <param name="remoteNonce">The remote nonce to use in key derivation.</param>
+        /// <param name="secret">The secret to use in key derivation.</param>
         /// <param name="salt">The salt to use in key derivation.</param>
         /// <param name="algorithm">The hash algorithm to use in key derivation.</param>
         /// <param name="length">The length of the derived key.</param>
         /// <returns>The derived key.</returns>
         public byte[] DeriveKey(
-            Nonce remoteNonce,
+            byte[] secret,
             byte[] salt,
             HashAlgorithmName algorithm,
             int length)
@@ -113,23 +137,27 @@ namespace Opc.Ua
                 throw new NotSupportedException();
             }
 #endif
+
+#if NET8_0_OR_GREATER
             if (m_ecdh != null)
             {
-                byte[] secret = m_ecdh.DeriveKeyFromHmac(
-                    remoteNonce.m_ecdh.PublicKey,
-                    algorithm,
-                    salt,
-                    null,
-                    null);
-
-                byte[] output = new byte[length];
-
                 HMAC hmac = algorithm.Name switch
                 {
-                    "SHA256" => new HMACSHA256(secret),
-                    "SHA384" => new HMACSHA384(secret),
-                    _ => new HMACSHA256(secret)
+                    "SHA256" => new HMACSHA256(salt),
+                    "SHA384" => new HMACSHA384(salt),
+                    _ => new HMACSHA256(salt)
                 };
+
+                //byte[] secret2 = m_ecdh.DeriveKeyFromHmac(
+                //    remoteNonce.m_ecdh.PublicKey,
+                //    algorithm,
+                //    salt,
+                //    null,
+                //    null);
+
+                //System.Console.WriteLine($"PRK2={Utils.ToHexString(secret2).Substring(0, 8)}");
+
+                byte[] output = new byte[length];
 
                 byte counter = 1;
 
@@ -163,6 +191,7 @@ namespace Opc.Ua
                 return output;
             }
 
+#endif
             return Data;
         }
 #endif
@@ -184,22 +213,34 @@ namespace Opc.Ua
             {
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.nistP256);
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.nistP384);
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1);
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
 
 #endif
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                 {
                     return CreateNonceForCurve25519();
                 }
 
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                 {
                     return CreateNonceForCurve448();
                 }
@@ -235,18 +276,30 @@ namespace Opc.Ua
             {
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData);
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
 
 #endif
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                     return CreateNonceForCurve25519(nonceData);
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     return CreateNonceForCurve448(nonceData);
             }
 
@@ -318,17 +371,29 @@ namespace Opc.Ua
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                 case SecurityPolicies.ECC_curve25519:
                     return 32;
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                     // Q.X + Q.Y = 32 + 32 = 64
                     return 64;
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     // Q.X + Q.Y = 48 + 48 = 96
                     return 96;
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     // Q.X
                     return 56;
                 default:

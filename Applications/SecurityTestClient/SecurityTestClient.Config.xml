@@ -4,9 +4,9 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart Console Reference Client</ApplicationName>
-  <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceClient</ApplicationUri>
-  <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceClient</ProductUri>
+  <ApplicationName>Security Test Client</ApplicationName>
+  <ApplicationUri>urn:localhost:UA:SecurityTestClient</ApplicationUri>
+  <ProductUri>uri:opcfoundation.org:SecurityTestClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
   <SecurityConfiguration>
     <!-- Where the application instance certificate is stored (MachineDefault) -->
@@ -15,14 +15,14 @@
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
         <StorePath>./pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Security Test Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
       -->
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
         <StorePath>./pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Security Test Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>NistP256</CertificateTypeString>
       </CertificateIdentifier>
       <!--
@@ -37,7 +37,7 @@
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
         <StorePath>./pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Security Test Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
       </CertificateIdentifier>
       -->
@@ -45,7 +45,7 @@
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
         <StorePath>./pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Security Test Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
       -->
@@ -84,7 +84,7 @@
     <!-- Where the User trust list is stored-->
     <TrustedUserCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>./pki/trustedUser</StorePath>
+      <StorePath>./pki/user</StorePath>
     </TrustedUserCertificates>
   </SecurityConfiguration>
   <TransportConfigurations></TransportConfigurations>
@@ -122,7 +122,7 @@
   </ClientConfiguration>
   <Extensions></Extensions>
   <TraceConfiguration>
-    <OutputFilePath>./Logs/Quickstarts.ReferenceClient.log.txt</OutputFilePath>
+    <OutputFilePath>./Logs/SecurityTestClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

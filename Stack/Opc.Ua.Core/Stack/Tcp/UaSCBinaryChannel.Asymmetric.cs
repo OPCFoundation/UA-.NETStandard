@@ -176,6 +176,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     uint length = Nonce.GetNonceLength(SecurityPolicyUri);
 
                     if (length > 0)
@@ -185,11 +187,23 @@ namespace Opc.Ua.Bindings
                     break;
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     m_localNonce = Nonce.CreateNonce(SecurityPolicyUri);
                     return m_localNonce.Data;
 #endif
@@ -224,6 +238,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     // try to catch programming errors by rejecting nonces with all zeros.
                     for (int ii = 0; ii < nonce.Length; ii++)
                     {
@@ -237,11 +253,23 @@ namespace Opc.Ua.Bindings
 
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     m_remoteNonce = Nonce.CreateNonce(SecurityPolicyUri, nonce);
                     return true;
 #endif
@@ -264,6 +292,8 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     return RsaUtils.GetPlainTextBlockSize(
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA256);
@@ -288,6 +318,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.Basic128Rsa15:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     return RsaUtils.GetCipherTextBlockSize(receiverCertificate);
                 default:
                     return 1;
@@ -394,17 +426,34 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     return RsaUtils.GetSignatureLength(senderCertificate);
+
+                case SecurityPolicies.None:
+                    return 0;
+
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     return EccUtils.GetSignatureLength(senderCertificate);
 #endif
+
                 default:
-                    return 0;
+                    throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
             }
         }
 
@@ -1184,6 +1233,9 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
+                case SecurityPolicies.None:
+                    return null;
+
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic128Rsa15:
                     return Rsa_Sign(
@@ -1199,6 +1251,8 @@ namespace Opc.Ua.Bindings
                         HashAlgorithmName.SHA256,
                         RSASignaturePadding.Pkcs1);
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     return Rsa_Sign(
                         dataToSign,
                         senderCertificate,
@@ -1206,16 +1260,28 @@ namespace Opc.Ua.Bindings
                         RSASignaturePadding.Pss);
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256);
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA384);
 #endif
                 default:
-                    return null;
+                    throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
             }
         }
 
@@ -1254,6 +1320,8 @@ namespace Opc.Ua.Bindings
                         HashAlgorithmName.SHA256,
                         RSASignaturePadding.Pkcs1);
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     return Rsa_Verify(
                         dataToVerify,
                         signature,
@@ -1263,16 +1331,28 @@ namespace Opc.Ua.Bindings
 
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     return EccUtils.Verify(
                         dataToVerify,
                         signature,
                         senderCertificate,
                         HashAlgorithmName.SHA256);
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     return EccUtils.Verify(
                         dataToVerify,
                         signature,
@@ -1309,6 +1389,8 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     return Rsa_Encrypt(
                         dataToEncrypt,
                         headerToCopy,
@@ -1320,6 +1402,29 @@ namespace Opc.Ua.Bindings
                         headerToCopy,
                         receiverCertificate,
                         RsaUtils.Padding.Pkcs1);
+
+#if ECC_SUPPORT
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
+                case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
+                    goto default;
+#endif
+
                 default:
                     byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Encrypt");
 
@@ -1366,6 +1471,8 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     return Rsa_Decrypt(
                         dataToDecrypt,
                         headerToCopy,

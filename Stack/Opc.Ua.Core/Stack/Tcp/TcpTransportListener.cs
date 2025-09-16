@@ -994,9 +994,16 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback != null)
                 {
-                    IAsyncResult result = m_callback.BeginProcessRequest(
+                    var context = new SecureChannelContext(
                         channel.GlobalChannelId,
                         channel.EndpointDescription,
+                        RequestEncoding.Binary,
+                        channel.CurrentToken?.SecureChannelSecret,
+                        channel.CurrentToken?.ServerCertificate,
+                        channel.CurrentToken?.ClientCertificate);
+
+                    IAsyncResult result = m_callback.BeginProcessRequest(
+                        context,
                         request,
                         OnProcessRequestComplete,
                         new object[] { channel, requestId, request });

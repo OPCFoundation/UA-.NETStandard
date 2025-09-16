@@ -23,8 +23,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins processing a request received via a binary encoded channel.
         /// </summary>
-        /// <param name="channeId">A unique identifier for the secure channel which is the source of the request.</param>
-        /// <param name="endpointDescription">The description of the endpoint which the secure channel is using.</param>
+        /// <param name="context">The context for the secure channel.</param>
         /// <param name="request">The incoming request.</param>
         /// <param name="callback">The callback.</param>
         /// <param name="callbackData">The callback data.</param>
@@ -32,8 +31,7 @@ namespace Opc.Ua
         /// <seealso cref="EndProcessRequest" />
         /// <seealso cref="ITransportListener" />
         IAsyncResult BeginProcessRequest(
-            string channeId,
-            EndpointDescription endpointDescription,
+            SecureChannelContext context,
             IServiceRequest request,
             AsyncCallback callback,
             object callbackData);

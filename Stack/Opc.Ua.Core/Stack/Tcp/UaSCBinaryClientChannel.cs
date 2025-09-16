@@ -595,6 +595,11 @@ namespace Opc.Ua.Bindings
             ChannelToken token = CreateToken();
             token.ClientNonce = CreateNonce(ClientCertificate);
 
+            if (renew)
+            {
+                token.PreviousSecret = CurrentToken?.Secret;
+            }
+
             // construct the request.
             var request = new OpenSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;

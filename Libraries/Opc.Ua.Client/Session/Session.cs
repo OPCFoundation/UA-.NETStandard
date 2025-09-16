@@ -1656,7 +1656,7 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Nonce.CreateRandomNonceData(length);
+            m_clientNonce = Nonce.CreateRandomNonceData(length);
 
             // send the application instance certificate for the client.
             BuildCertificateData(
@@ -1696,7 +1696,7 @@ namespace Opc.Ua.Client
                             m_endpoint.Description.Server.ApplicationUri,
                             m_endpoint.EndpointUrl.ToString(),
                             sessionName,
-                            clientNonce,
+                            m_clientNonce,
                             null,
                             sessionTimeout,
                             (uint)MessageContext.MaxMessageSize,
@@ -1721,7 +1721,7 @@ namespace Opc.Ua.Client
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl.ToString(),
                         sessionName,
-                        clientNonce,
+                        m_clientNonce,
                         clientCertificateChainData ?? clientCertificateData,
                         sessionTimeout,
                         (uint)MessageContext.MaxMessageSize,
@@ -1767,19 +1767,23 @@ namespace Opc.Ua.Client
                     serverSignature,
                     clientCertificateData,
                     clientCertificateChainData,
-                    clientNonce);
+                    m_clientNonce,
+                    serverNonce);
 
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
-                // create the client signature.
-                byte[] dataToSign = Utils.Append(serverCertificate?.RawData, serverNonce);
-                SignatureData clientSignature = SecurityPolicies.Sign(
-                    m_instanceCertificate,
+                SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                     securityPolicyUri,
-                    dataToSign);
+                    m_instanceCertificate,
+                    TransportChannel.CurrentToken.SecureChannelSecret,
+                    serverCertificateData,
+                    TransportChannel.CurrentToken.ServerCertificate,
+                    TransportChannel.CurrentToken.ClientCertificate,
+                    serverNonce,
+                    m_clientNonce);
 
                 // select the security policy for the user token.
                 string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
@@ -1802,8 +1806,13 @@ namespace Opc.Ua.Client
 
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(
-                    dataToSign,
-                    tokenSecurityPolicyUri);
+                    tokenSecurityPolicyUri,
+                    serverCertificateData,
+                    TransportChannel.CurrentToken?.ServerCertificate,
+                    m_instanceCertificate?.RawData,
+                    TransportChannel.CurrentToken?.ClientCertificate,
+                    serverNonce,
+                    m_clientNonce);
 
                 // encrypt token.
                 identityToken.Encrypt(
@@ -1953,11 +1962,15 @@ namespace Opc.Ua.Client
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
             // create the client signature.
-            byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, serverNonce);
-            SignatureData clientSignature = SecurityPolicies.Sign(
-                m_instanceCertificate,
+            var clientSignature = SecurityPolicies.CreateSignatureData(
                 securityPolicyUri,
-                dataToSign);
+                m_instanceCertificate,
+                TransportChannel.CurrentToken.SecureChannelSecret,
+                m_serverCertificate?.RawData,
+                TransportChannel.CurrentToken.ServerCertificate,
+                TransportChannel.CurrentToken.ClientCertificate,
+                serverNonce,
+                m_clientNonce);
 
             // choose a default token.
             identity ??= new UserIdentity();
@@ -2001,9 +2014,15 @@ namespace Opc.Ua.Client
             // sign data with user token.
             UserIdentityToken identityToken = identity.GetIdentityToken();
             identityToken.PolicyId = identityPolicy.PolicyId;
-            SignatureData userTokenSignature = identityToken.Sign(
-                dataToSign,
-                tokenSecurityPolicyUri);
+
+            var userTokenSignature = identityToken.Sign(
+                tokenSecurityPolicyUri,
+                m_endpoint.Description.ServerCertificate,
+                TransportChannel.CurrentToken.ServerCertificate,
+                m_instanceCertificate.RawData,
+                TransportChannel.CurrentToken.ClientCertificate,
+                serverNonce,
+                m_clientNonce);
 
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
@@ -6002,7 +6021,8 @@ namespace Opc.Ua.Client
             SignatureData serverSignature,
             byte[] clientCertificateData,
             byte[] clientCertificateChainData,
-            byte[] clientNonce)
+            byte[] clientNonce,
+            byte[] serverNonce)
         {
             if (serverSignature == null || serverSignature.Signature == null)
             {
@@ -6014,24 +6034,30 @@ namespace Opc.Ua.Client
             }
 
             // validate the server's signature.
-            byte[] dataToSign = Utils.Append(clientCertificateData, clientNonce);
-
-            if (!SecurityPolicies.Verify(
-                    serverCertificate,
+            if (!SecurityPolicies.VerifySignatureData(
+                    serverSignature,
                     m_endpoint.Description.SecurityPolicyUri,
-                    dataToSign,
-                    serverSignature))
+                    serverCertificate,
+                    TransportChannel.CurrentToken?.SecureChannelSecret,
+                    clientCertificateData,
+                    TransportChannel.CurrentToken?.ClientCertificate,
+                    TransportChannel.CurrentToken?.ServerCertificate,
+                    m_clientNonce,
+                    serverNonce))
             {
                 // validate the signature with complete chain if the check with leaf certificate failed.
                 if (clientCertificateChainData != null)
                 {
-                    dataToSign = Utils.Append(clientCertificateChainData, clientNonce);
-
-                    if (!SecurityPolicies.Verify(
-                        serverCertificate,
+                    if (!SecurityPolicies.VerifySignatureData(
+                        serverSignature,
                         m_endpoint.Description.SecurityPolicyUri,
-                        dataToSign,
-                        serverSignature))
+                        serverCertificate,
+                        TransportChannel.CurrentToken?.SecureChannelSecret,
+                        clientCertificateChainData,
+                        TransportChannel.CurrentToken?.ClientCertificate,
+                        TransportChannel.CurrentToken?.ServerCertificate,
+                        m_clientNonce,
+                        serverNonce))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadApplicationSignatureInvalid,
@@ -6222,10 +6248,16 @@ namespace Opc.Ua.Client
             // create the client signature.
             byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, m_serverNonce);
             EndpointDescription endpoint = m_endpoint.Description;
-            SignatureData clientSignature = SecurityPolicies.Sign(
+
+            var clientSignature = SecurityPolicies.CreateSignatureData(
+                m_endpoint.Description.SecurityPolicyUri,
                 m_instanceCertificate,
-                endpoint.SecurityPolicyUri,
-                dataToSign);
+                TransportChannel.CurrentToken?.SecureChannelSecret,
+                m_serverCertificate?.RawData,
+                TransportChannel.CurrentToken?.ServerCertificate,
+                TransportChannel.CurrentToken?.ClientCertificate,
+                m_serverNonce,
+                m_clientNonce);
 
             // check that the user identity is supported by the endpoint.
             UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
@@ -6269,9 +6301,15 @@ namespace Opc.Ua.Client
             // sign data with user token.
             UserIdentityToken identityToken = m_identity.GetIdentityToken();
             identityToken.PolicyId = identityPolicy.PolicyId;
+
             SignatureData userTokenSignature = identityToken.Sign(
-                dataToSign,
-                tokenSecurityPolicyUri);
+                tokenSecurityPolicyUri,
+                m_endpoint.Description.ServerCertificate,
+                TransportChannel.CurrentToken.ServerCertificate,
+                m_instanceCertificate.RawData,
+                TransportChannel.CurrentToken.ClientCertificate,
+                m_serverNonce,
+                m_clientNonce);
 
             // encrypt token.
             identityToken.Encrypt(
@@ -7195,6 +7233,7 @@ namespace Opc.Ua.Client
         private SystemContext m_systemContext;
         private NodeCache m_nodeCache;
         private List<IUserIdentity> m_identityHistory;
+        private byte[] m_clientNonce;
         private byte[] m_serverNonce;
         private byte[] m_previousServerNonce;
         private X509Certificate2 m_serverCertificate;
