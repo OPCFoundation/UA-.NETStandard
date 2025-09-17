@@ -55,7 +55,7 @@ namespace Alarms
 
         public AlarmController(BaseDataVariableState variable, int interval, bool isBoolean, ITelemetryContext telemetry)
         {
-            m_logger = telemetry.LoggerFactory.CreateLogger<AlarmController>();
+            m_logger = telemetry.CreateLogger<AlarmController>();
             m_variable = variable;
             m_interval = interval;
             m_isBoolean = isBoolean;

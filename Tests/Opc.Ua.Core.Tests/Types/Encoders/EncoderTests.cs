@@ -38,6 +38,7 @@ using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -1159,6 +1160,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EnsureNodeIdNullIsNotModified()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string text1 =
                 "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\"," +
                 "\"Key\":{\"Name\":\"o\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
@@ -1169,6 +1172,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "{\"Identifier\":\"i=14802\"}}]}}}}},\"TypeId\":" +
                 "{\"Identifier\":\"i=14803\"}}]";
 
+            using IDisposable scope = MessageContextExtension.SetScopedContext(telemetry);
             JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
 
             Assert.NotNull(NodeId.Null);

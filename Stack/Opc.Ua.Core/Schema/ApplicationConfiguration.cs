@@ -352,7 +352,7 @@ namespace Opc.Ua
     /// Specifies parameters used for tracing.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public partial class TraceConfiguration
+    public class TraceConfiguration
     {
         /// <summary>
         /// The default constructor.

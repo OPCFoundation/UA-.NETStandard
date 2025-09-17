@@ -436,12 +436,14 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging)
         {
+            string expectedName = m_telemetry.GetActivitySource().Name;
+
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.ActivitySource.Name,
+                    ShouldListenTo = (source) => source.Name == expectedName,
 
                     // Sample all data and recorded activities
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
@@ -456,7 +458,7 @@ namespace Opc.Ua.Client.Tests
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.ActivitySource.Name,
+                    ShouldListenTo = (source) => source.Name == expectedName,
 
                     // Sample all data and recorded activities
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>

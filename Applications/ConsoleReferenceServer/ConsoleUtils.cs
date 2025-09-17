@@ -63,7 +63,6 @@ namespace Quickstarts
                 })
                 .AddSerilog(Log.Logger);
 
-            Meter = new Meter("Quickstarts", "1.0.0");
             ActivitySource = new ActivitySource("Quickstarts", "1.0.0");
 
             m_logger = LoggerFactory.CreateLogger("Main");
@@ -76,7 +75,10 @@ namespace Quickstarts
         public ILoggerFactory LoggerFactory { get; internal set; }
 
         /// <inheritdoc/>
-        public Meter Meter { get; }
+        public Meter CreateMeter()
+        {
+            return new Meter("Quickstarts", "1.0.0");
+        }
 
         /// <inheritdoc/>
         public ActivitySource ActivitySource { get; }
@@ -84,7 +86,7 @@ namespace Quickstarts
         /// <inheritdoc/>
         public void Dispose()
         {
-            Meter.Dispose();
+            CreateMeter().Dispose();
             ActivitySource.Dispose();
             LoggerFactory.Dispose();
 

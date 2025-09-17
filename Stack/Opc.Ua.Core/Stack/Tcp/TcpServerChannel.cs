@@ -108,7 +108,7 @@ namespace Opc.Ua.Bindings
 
             var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger);
 
-            var tcpMessageSocketFactory = new TcpMessageSocketFactory();
+            var tcpMessageSocketFactory = new TcpMessageSocketFactory(Telemetry);
             ar.Socket = Socket = tcpMessageSocketFactory.Create(
                 this,
                 BufferManager,

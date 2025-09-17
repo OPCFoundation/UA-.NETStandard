@@ -30,7 +30,6 @@
 using System;
 using System.Linq;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 

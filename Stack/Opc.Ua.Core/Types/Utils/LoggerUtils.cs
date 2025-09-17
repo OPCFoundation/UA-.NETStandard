@@ -40,14 +40,7 @@
 
 #nullable enable
 
-using System;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression

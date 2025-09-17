@@ -59,6 +59,7 @@ namespace Quickstarts.Servers
         public BatchPersistor(ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<DurableDataChangeMonitoredItemQueue>();
+            m_telemetry = telemetry;
         }
 
         /// <inheritdoc/>
@@ -114,6 +115,7 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
+                    using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
                     result = JsonConvert.DeserializeObject(json, batch.GetType(), s_settings);
 
                     File.Delete(filePath);
@@ -151,6 +153,7 @@ namespace Quickstarts.Servers
             batch.CancelBatchPersist = cancellationTokenSource;
             try
             {
+                using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
                 string result = JsonConvert.SerializeObject(batch, s_settings);
 
                 if (!Directory.Exists(s_storage_path))
@@ -254,5 +257,6 @@ namespace Quickstarts.Servers
         private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new();
         private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToPersist = new();
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

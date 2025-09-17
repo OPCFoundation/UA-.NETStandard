@@ -11,19 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-
-#if ECC_SUPPORT
-using System.Security.Cryptography;
-#endif
 
 namespace Opc.Ua
 {
@@ -35,7 +22,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the trace settings to the current process.
         /// </summary>
-        [Obsolete]
+        [Obsolete("Use ITelemetryContext configuration surface")]
         public static void ApplySettings(this TraceConfiguration configuration)
         {
             Utils.SetTraceLog(configuration.OutputFilePath, configuration.DeleteOnLoad);

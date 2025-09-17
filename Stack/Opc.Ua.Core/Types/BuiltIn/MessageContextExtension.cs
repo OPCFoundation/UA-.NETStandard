@@ -72,6 +72,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Clone the current context as a new scope
+        /// </summary>
+        public static IDisposable SetScopedContext(ITelemetryContext telemetry)
+        {
+            MessageContextExtension previousContext = Current;
+            Current = new MessageContextExtension(
+                new ServiceMessageContext(previousContext.MessageContext, telemetry));
+
+            return new DisposableAction(() => Current = previousContext);
+        }
+
+        /// <summary>
         /// Disposable wrapper for reseting the Current context to
         /// the previous value on exiting the using scope
         /// </summary>

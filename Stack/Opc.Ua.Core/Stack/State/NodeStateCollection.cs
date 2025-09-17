@@ -17,7 +17,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Xml;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -486,15 +485,6 @@ namespace Opc.Ua
     public class NodeStateFactory
     {
         /// <summary>
-        /// Create node state factory
-        /// </summary>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        public NodeStateFactory(ITelemetryContext telemetry)
-        {
-            m_telemetry = telemetry;
-        }
-
-        /// <summary>
         /// Creates a new instance.
         /// </summary>
         /// <param name="context">The current context.</param>
@@ -596,6 +586,5 @@ namespace Opc.Ua
         }
 
         private NodeIdDictionary<Type> m_types;
-        private readonly ITelemetryContext m_telemetry;
     }
 }

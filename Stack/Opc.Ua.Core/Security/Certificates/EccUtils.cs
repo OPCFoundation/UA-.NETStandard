@@ -14,6 +14,8 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
+#if ECC_SUPPORT
+using Microsoft.Extensions.Logging;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -25,8 +27,7 @@ using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
-#else
-using Microsoft.Extensions.Logging;
+#endif
 #endif
 
 namespace Opc.Ua

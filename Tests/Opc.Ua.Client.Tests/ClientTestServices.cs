@@ -46,7 +46,7 @@ namespace Opc.Ua.Client.Tests
         {
             m_session = session;
             Telemetry = telemetry;
-            Logger = telemetry.LoggerFactory.CreateLogger<ClientTestServices>();
+            Logger = telemetry.CreateLogger<ClientTestServices>();
         }
 
         public ResponseHeader Browse(

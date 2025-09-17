@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 
 #nullable enable
@@ -36,27 +38,42 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Provides context for tracing, metrics and logging.
+    /// Default telemetry implementation
     /// </summary>
-    public interface ITelemetryContext
+    public sealed class DefaultTelemetry : ITelemetryContext
     {
-        /// <summary>
-        /// Create the meter instance to create and record metrics.
-        /// The caller is responsible to dispose the meter instance
-        /// returned.
-        /// </summary>
-        Meter CreateMeter();
+        /// <inheritdoc/>
+        public ILoggerFactory LoggerFactory { get; } =
+            Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder => builder.AddProvider(Utils.LoggerProvider));
 
-        /// <summary>
-        /// Access the logger factory to create logger objects.
-        /// </summary>
-        ILoggerFactory LoggerFactory { get; }
+        /// <inheritdoc/>
+        public Meter CreateMeter()
+        {
+            (string name, string version) = GetAssemblyInfo();
+            return new Meter(name, version);
+        }
 
-        /// <summary>
-        /// Get a activity source for the current assembly.
-        /// Do not dispose the activity source returned as it is
-        /// held as part of the telemetry context.
-        /// </summary>
-        ActivitySource ActivitySource { get; }
+        /// <inheritdoc/>
+        public ActivitySource ActivitySource
+            => m_sources.GetOrAdd(GetAssemblyInfo(),
+                    key => new ActivitySource(key.Item1, key.Item2));
+
+        private (string, string) GetAssemblyInfo()
+        {
+            return m_cache.GetOrAdd(Assembly.GetExecutingAssembly(), GetAssemblyInfoCore);
+            static (string, string) GetAssemblyInfoCore(Assembly assembly)
+            {
+                string version = assembly
+                    .GetCustomAttribute<AssemblyFileVersionAttribute>()?
+                    .Version ??
+                    "1.0.0";
+                string name = assembly.FullName ?? "Opc.Ua";
+                return (name, version);
+            }
+        }
+
+        private readonly ConcurrentDictionary<(string, string), ActivitySource> m_sources = [];
+        private readonly ConcurrentDictionary<Assembly, (string, string)> m_cache = [];
     }
 }

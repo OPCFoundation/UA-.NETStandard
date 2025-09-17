@@ -48,7 +48,7 @@ namespace Opc.Ua
     /// name collisions with anything that is called 'Log'
     /// the Utils class hosts the Logger class.
     /// </remarks>
-    public class TraceLoggerProvider : ILoggerProvider
+    public sealed class TraceLoggerProvider : ILoggerProvider
     {
         /// <summary>
         /// Gets the current trace mask settings.
@@ -182,9 +182,11 @@ namespace Opc.Ua
                 Exception? exception,
                 Func<TState, Exception?, string> formatter)
             {
-                // do nothing if mask not enabled.
-                int traceMask = m_provider.GetTraceMask(eventId, logLevel);
-                m_provider.Log(state, exception, traceMask, formatter);
+                m_provider.Log(
+                    state,
+                    exception,
+                    GetTraceMask(eventId, logLevel),
+                    formatter);
             }
 
             private readonly TraceLoggerProvider m_provider;
@@ -195,7 +197,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id.</param>
         /// <param name="logLevel">The log level.</param>
-        internal int GetTraceMask(EventId eventId, LogLevel logLevel)
+        internal static int GetTraceMask(EventId eventId, LogLevel logLevel)
         {
             int mask = eventId.Id & Utils.TraceMasks.All;
             if (mask == 0)

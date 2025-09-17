@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -270,7 +269,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTypes Build(string applicationUri, string productUri)
         {
             // App Uri and cert subject
-            ApplicationConfiguration = new ApplicationConfiguration
+            ApplicationConfiguration = new ApplicationConfiguration(m_telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType,
@@ -281,9 +280,9 @@ namespace Opc.Ua.Configuration
             };
 
             // Trace off
-#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0612 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
 
             return new ApplicationConfigurationBuilder(this);
         }
@@ -645,7 +644,7 @@ namespace Opc.Ua.Configuration
             }
 
             // set suppressible errors
-            HashSet<StatusCode> ApprovedCodes =
+            HashSet<StatusCode> approvedCodes =
             [
                 StatusCodes.BadCertificateUntrusted,
                 StatusCodes.BadCertificateTimeInvalid,
@@ -656,7 +655,7 @@ namespace Opc.Ua.Configuration
             ];
             void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
             {
-                if (ApprovedCodes.Contains(e.Error.StatusCode))
+                if (approvedCodes.Contains(e.Error.StatusCode))
                 {
                     m_logger.LogWarning(
                         "Application Certificate Validation suppressed {ErrorMessage}",
@@ -942,7 +941,7 @@ namespace Opc.Ua.Configuration
                 .ConfigureAwait(false);
 
             await configuration
-                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration)
+                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
                 .ConfigureAwait(false);
 
             m_logger.LogInformation(

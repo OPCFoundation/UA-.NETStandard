@@ -72,10 +72,11 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(itemToMonitor));
             }
 
+            m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
+
             Initialize();
 
             m_server = server;
-            m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
             NodeManager = nodeManager;
             ManagerHandle = managerHandle;
             SubscriptionId = subscriptionId;
@@ -168,6 +169,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(storedMonitoredItem));
             }
+            m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
 
             Initialize();
 

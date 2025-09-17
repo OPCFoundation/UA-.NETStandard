@@ -10,9 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.Diagnostics.Tracing;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {

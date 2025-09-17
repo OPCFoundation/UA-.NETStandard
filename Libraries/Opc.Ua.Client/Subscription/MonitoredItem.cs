@@ -33,6 +33,7 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua.Client
 {
@@ -182,7 +183,7 @@ namespace Opc.Ua.Client
             NodeClass = NodeClass.Variable;
 
             // Creates a default logger even if telemetry is null
-            m_logger ??= (Subscription?.Telemetry).CreateLogger<Subscription>();
+            m_logger ??= NullLogger.Instance;
         }
 
         /// <summary>
@@ -1020,7 +1021,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// To save memory the cache is by default not initialized
         /// until <see cref="SaveValueInCache(IEncodeable)"/> is called.
-        ///
         /// </summary>
         private void EnsureCacheIsInitialized()
         {
@@ -1032,7 +1032,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    m_dataCache = new MonitoredItemDataCache(m_logger, 1);
+                    m_dataCache = new MonitoredItemDataCache(Subscription?.Telemetry, 1);
                 }
             }
         }
@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Client
         private bool m_discardOldest;
         private static long s_globalClientHandle;
         private Subscription m_subscription;
-        private ILogger m_logger;
+        private ILogger m_logger = NullLogger.Instance;
         private Lock m_cache = new();
         private MonitoredItemDataCache m_dataCache;
         private MonitoredItemEventCache m_eventCache;
@@ -1148,10 +1148,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Constructs a cache for a monitored item.
         /// </summary>
-        public MonitoredItemDataCache(ILogger logger, int queueSize = 1)
+        public MonitoredItemDataCache(ITelemetryContext telemetry, int queueSize = 1)
         {
             QueueSize = queueSize;
-            m_logger = logger;
+            m_logger = telemetry.CreateLogger<MonitoredItemDataCache>();
             if (queueSize > 1)
             {
                 m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));

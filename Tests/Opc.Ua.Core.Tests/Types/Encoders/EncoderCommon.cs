@@ -91,7 +91,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
             NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ServerUris = new StringTable();
-            BufferManager = new BufferManager(nameof(EncoderCommon), kTestBlockSize, null);
+            BufferManager = new BufferManager(nameof(EncoderCommon), kTestBlockSize, Telemetry);
             RecyclableMemoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = kTestBlockSize });
         }

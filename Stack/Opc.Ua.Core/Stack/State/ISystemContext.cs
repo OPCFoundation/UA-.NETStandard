@@ -117,7 +117,7 @@ namespace Opc.Ua
         public SystemContext(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
-            NodeStateFactory = new NodeStateFactory(telemetry);
+            NodeStateFactory = new NodeStateFactory();
         }
 
         /// <summary>
@@ -128,7 +128,7 @@ namespace Opc.Ua
         public SystemContext(IOperationContext context, ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
-            NodeStateFactory = new NodeStateFactory(telemetry);
+            NodeStateFactory = new NodeStateFactory();
             OperationContext = context;
         }
 

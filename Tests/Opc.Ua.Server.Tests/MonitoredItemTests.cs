@@ -17,15 +17,15 @@ namespace Opc.Ua.Server.Tests
     [SetUICulture("en-us")]
     [Parallelizable]
     [MemoryDiagnoser]
-    public class MonitoreItemTests
+    public class MonitoredItemTests
     {
         [Test]
         public void CreateMI()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger logger = telemetry.CreateLogger<MonitoreItemTests>();
+            ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
 
-            MonitoredItem monitoredItem = CreateMonitoredItem();
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -54,7 +54,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMI()
         {
-            MonitoredItem monitoredItem = CreateMonitoredItem(true);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -76,9 +78,9 @@ namespace Opc.Ua.Server.Tests
         public void CreateMIQueueNoQueue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger logger = telemetry.CreateLogger<MonitoreItemTests>();
+            ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
 
-            MonitoredItem monitoredItem = CreateMonitoredItem(false, 0);
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, false, 0);
 
             Assert.That(monitoredItem.QueueSize, Is.EqualTo(1));
 
@@ -103,7 +105,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIOverflow()
         {
-            MonitoredItem monitoredItem = CreateMonitoredItem(true, 2);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -129,7 +133,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIOverflowMultiplePublish()
         {
-            MonitoredItem monitoredItem = CreateMonitoredItem(true, 2);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -169,7 +175,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIOverflowNoDiscard()
         {
-            MonitoredItem monitoredItem = CreateMonitoredItem(true, 2, true);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -195,7 +203,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIPublishPartial()
         {
-            MonitoredItem monitoredItem = CreateMonitoredItem(true, 3);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 3);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -230,6 +240,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         private static MonitoredItem CreateMonitoredItem(
+            ITelemetryContext telemetry,
             bool events = false,
             uint queueSize = 10,
             bool discardOldest = false)
@@ -241,6 +252,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(new MonitoredItemQueueFactory(serverMock.Object.Telemetry));
             serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
 
             var nodeMangerMock = new Mock<INodeManager>();
 

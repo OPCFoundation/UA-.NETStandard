@@ -23,29 +23,49 @@ namespace Opc.Ua
         /// Initializes the object with default values.
         /// </summary>
         public ServiceMessageContext(ITelemetryContext telemetry)
-            : this(telemetry, false)
+            : this(GlobalContext, telemetry)
         {
         }
 
-        private ServiceMessageContext(ITelemetryContext telemetry, bool shared)
+        /// <summary>
+        /// Create a copy of the provided context
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="telemetry"></param>
+        public ServiceMessageContext(IServiceMessageContext context, ITelemetryContext telemetry)
         {
-            Telemetry = telemetry;
+            Telemetry = context.Telemetry ?? telemetry;
+            MaxStringLength = context.MaxStringLength;
+            MaxByteStringLength = context.MaxByteStringLength;
+            MaxArrayLength = context.MaxArrayLength;
+            MaxMessageSize = context.MaxMessageSize;
+            MaxEncodingNestingLevels = context.MaxEncodingNestingLevels;
+            MaxDecoderRecoveries = context.MaxDecoderRecoveries;
+            m_namespaceUris = new NamespaceTable(context.NamespaceUris);
+            m_serverUris = new StringTable(context.ServerUris);
+            m_factory = new EncodeableFactory(context.Factory, telemetry);
+        }
+
+        /// <summary>
+        /// Create a shared context
+        /// </summary>
+        private ServiceMessageContext()
+        {
             MaxStringLength = DefaultEncodingLimits.MaxStringLength;
             MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
             MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
             MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
             MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
-            m_namespaceUris = new NamespaceTable(shared);
-            m_serverUris = new StringTable(shared);
+            m_namespaceUris = new NamespaceTable(true);
+            m_serverUris = new StringTable(true);
             m_factory = EncodeableFactory.GlobalFactory;
         }
 
         /// <summary>
         /// The default context for the process (used only during XML serialization).
         /// </summary>
-        public static ServiceMessageContext GlobalContext { get; }
-            = new ServiceMessageContext(null, true);
+        public static ServiceMessageContext GlobalContext { get; } = new();
 
         /// <summary>
         /// The default context for the thread (used only during XML serialization).

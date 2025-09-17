@@ -40,16 +40,44 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Tests
 {
+    public sealed class TelemetryParameterizable
+    {
+        public static TelemetryParameterizable<T> Create<T>(Func<ITelemetryContext, T> factory)
+        {
+            return new TelemetryParameterizable<T>(factory);
+        }
+    }
+
+    public sealed class TelemetryParameterizable<T>
+    {
+        internal TelemetryParameterizable(Func<ITelemetryContext, T> factory)
+        {
+            m_factory = factory ?? throw new ArgumentNullException(nameof(factory));
+        }
+
+        public T Create(ITelemetryContext telemetry)
+        {
+            return m_factory(telemetry);
+        }
+
+        private readonly Func<ITelemetryContext, T> m_factory;
+    }
+
     public sealed class NUnitTelemetryContext : ITelemetryContext
     {
+        private static readonly DefaultTelemetry s_default = new();
+
         /// <inheritdoc/>
-        public Meter Meter { get; }
+        public Meter CreateMeter()
+        {
+            return s_default.CreateMeter();
+        }
+
+        /// <inheritdoc/>
+        public ActivitySource ActivitySource => s_default.ActivitySource;
 
         /// <inheritdoc/>
         public ILoggerFactory LoggerFactory { get; }
-
-        /// <inheritdoc/>
-        public ActivitySource ActivitySource { get; }
 
         /// <summary>
         /// Create telemetry context over a writer
@@ -251,6 +279,7 @@ namespace Opc.Ua.Tests
             }
 
             private readonly TextWriter m_outputWriter;
+
             private readonly ConcurrentDictionary<string, Logger> m_loggers =
                   new(StringComparer.OrdinalIgnoreCase);
         }

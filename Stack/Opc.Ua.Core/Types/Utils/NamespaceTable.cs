@@ -27,7 +27,6 @@ namespace Opc.Ua
         public StringTable()
         {
             m_strings = [];
-
 #if DEBUG
             InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
@@ -39,9 +38,20 @@ namespace Opc.Ua
         public StringTable(bool shared)
         {
             m_strings = [];
-
 #if DEBUG
             m_shared = shared;
+            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
+#endif
+        }
+
+        /// <summary>
+        /// Copies the table
+        /// </summary>
+        /// <param name="table"></param>
+        public StringTable(StringTable table)
+        {
+            Update(table.m_strings);
+#if DEBUG
             InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
@@ -52,7 +62,6 @@ namespace Opc.Ua
         public StringTable(IEnumerable<string> strings)
         {
             Update(strings);
-
 #if DEBUG
             InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
@@ -258,7 +267,10 @@ namespace Opc.Ua
             return mapping;
         }
 
-        private List<string> m_strings;
+        /// <summary>
+        /// Access the string table from sub classes
+        /// </summary>
+        protected List<string> m_strings;
 
 #if DEBUG
         /// <summary>
@@ -288,10 +300,19 @@ namespace Opc.Ua
         public NamespaceTable(bool shared)
         {
             Append(Namespaces.OpcUa);
-
 #if DEBUG
             m_shared = shared;
 #endif
+        }
+
+        /// <summary>
+        /// Create a copy
+        /// </summary>
+        /// <param name="namespaceTable"></param>
+        public NamespaceTable(NamespaceTable namespaceTable)
+            : base(namespaceTable)
+        {
+            Debug.Assert(m_strings[0] == Namespaces.OpcUa);
         }
 
         /// <summary>
@@ -305,7 +326,8 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="namespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="namespaceUris"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public new void Update(IEnumerable<string> namespaceUris)
         {
@@ -314,26 +336,14 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceUris));
             }
 
-            // check that first entry is the UA namespace.
-            int ii = 0;
-
-            foreach (string namespaceUri in namespaceUris)
-            {
-                if (ii == 0 && namespaceUri != Namespaces.OpcUa)
-                {
-                    throw new ArgumentException(
-                        "The first namespace in the table must be the OPC-UA namespace.");
-                }
-
-                ii++;
-
-                if (ii == 2)
-                {
-                    break;
-                }
-            }
-
             base.Update(namespaceUris);
+
+            // check that first entry is the UA namespace.
+            if (m_strings[0] != Namespaces.OpcUa)
+            {
+                throw new ArgumentException(
+                    "The first namespace in the table must be the OPC-UA namespace.");
+            }
         }
     }
 }

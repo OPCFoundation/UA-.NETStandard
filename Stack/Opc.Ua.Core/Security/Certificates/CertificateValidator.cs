@@ -108,14 +108,20 @@ namespace Opc.Ua
         /// Updates the validator with the current state of the configuration.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        public virtual async Task UpdateAsync(ApplicationConfiguration configuration)
+        public virtual async Task UpdateAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken ct = default)
         {
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            await UpdateAsync(configuration.SecurityConfiguration).ConfigureAwait(false);
+            await UpdateAsync(
+                configuration.SecurityConfiguration,
+                applicationUri: null,
+                ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -192,14 +198,15 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         public virtual async Task UpdateAsync(
             SecurityConfiguration configuration,
-            string applicationUri = null)
+            string applicationUri = null,
+            CancellationToken ct = default)
         {
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            await m_semaphore.WaitAsync().ConfigureAwait(false);
+            await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
 
             try
             {
@@ -241,7 +248,7 @@ namespace Opc.Ua
                         .ApplicationCertificates)
                     {
                         X509Certificate2 certificate = await applicationCertificate
-                            .FindAsync(true, applicationUri)
+                            .FindAsync(true, applicationUri, m_telemetry, ct)
                             .ConfigureAwait(false);
                         if (certificate == null)
                         {
@@ -272,9 +279,10 @@ namespace Opc.Ua
         /// </summary>
         public virtual async Task UpdateCertificateAsync(
             SecurityConfiguration securityConfiguration,
-            string applicationUri = null)
+            string applicationUri = null,
+            CancellationToken ct = default)
         {
-            await m_semaphore.WaitAsync().ConfigureAwait(false);
+            await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
 
             try
             {
@@ -291,7 +299,9 @@ namespace Opc.Ua
                     await applicationCertificate
                         .LoadPrivateKeyExAsync(
                             securityConfiguration.CertificatePasswordProvider,
-                            applicationUri)
+                            applicationUri,
+                            m_telemetry,
+                            ct)
                         .ConfigureAwait(false);
                 }
             }
@@ -300,7 +310,7 @@ namespace Opc.Ua
                 m_semaphore.Release();
             }
 
-            await UpdateAsync(securityConfiguration, applicationUri).ConfigureAwait(false);
+            await UpdateAsync(securityConfiguration, applicationUri, ct).ConfigureAwait(false);
 
             lock (m_callbackLock)
             {
@@ -655,7 +665,8 @@ namespace Opc.Ua
         public async Task<bool> GetIssuersNoExceptionsOnGetIssuerAsync(
             X509Certificate2Collection certificates,
             List<CertificateIdentifier> issuers,
-            Dictionary<X509Certificate2, ServiceResultException> validationErrors)
+            Dictionary<X509Certificate2, ServiceResultException> validationErrors,
+            CancellationToken ct = default)
         {
             bool isTrusted = false;
             CertificateIdentifier issuer = null;
@@ -682,7 +693,8 @@ namespace Opc.Ua
                             certificate,
                             m_trustedCertificateList,
                             m_trustedCertificateStore,
-                            true)
+                            true,
+                            ct)
                         .ConfigureAwait(false);
                 }
                 else
@@ -691,7 +703,8 @@ namespace Opc.Ua
                             certificate,
                             m_trustedCertificateList,
                             m_trustedCertificateStore,
-                            true)
+                            true,
+                            ct)
                         .ConfigureAwait(false);
                 }
 
@@ -703,7 +716,8 @@ namespace Opc.Ua
                                 certificate,
                                 m_issuerCertificateList,
                                 m_issuerCertificateStore,
-                                true)
+                                true,
+                                ct)
                             .ConfigureAwait(false);
                     }
                     else
@@ -712,7 +726,8 @@ namespace Opc.Ua
                                 certificate,
                                 m_issuerCertificateList,
                                 m_issuerCertificateStore,
-                                true)
+                                true,
+                                ct)
                             .ConfigureAwait(false);
                     }
 
@@ -724,7 +739,8 @@ namespace Opc.Ua
                                     certificate,
                                     untrustedCollection,
                                     null,
-                                    true)
+                                    true,
+                                    ct)
                                 .ConfigureAwait(false);
                         }
                         else
@@ -733,7 +749,8 @@ namespace Opc.Ua
                                 certificate,
                                 untrustedCollection,
                                 null,
-                                true)
+                                true,
+                                ct)
                                 .ConfigureAwait(false);
                         }
                     }
@@ -762,7 +779,11 @@ namespace Opc.Ua
 
                     issuers.Add(issuer);
 
-                    certificate = await issuer.FindAsync(false).ConfigureAwait(false);
+                    certificate = await issuer.FindAsync(
+                        false,
+                        applicationUri: null,
+                        m_telemetry,
+                        ct).ConfigureAwait(false);
                 }
             } while (issuer != null);
 
@@ -785,12 +806,14 @@ namespace Opc.Ua
         /// </summary>
         public Task<bool> GetIssuersAsync(
             X509Certificate2Collection certificates,
-            List<CertificateIdentifier> issuers)
+            List<CertificateIdentifier> issuers,
+            CancellationToken ct = default)
         {
             return GetIssuersNoExceptionsOnGetIssuerAsync(
                 certificates,
                 issuers,
-                null); // ensures legacy behavior is respected
+                validationErrors: null, // ensures legacy behavior is respected
+                ct);
         }
 
         /// <summary>
@@ -811,11 +834,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="issuers">The issuers.</param>
+        /// <param name="ct"></param>
         public Task<bool> GetIssuersAsync(
             X509Certificate2 certificate,
-            List<CertificateIdentifier> issuers)
+            List<CertificateIdentifier> issuers,
+            CancellationToken ct = default)
         {
-            return GetIssuersAsync([certificate], issuers);
+            return GetIssuersAsync([certificate], issuers, ct);
         }
 
         /// <summary>
@@ -1031,7 +1056,8 @@ namespace Opc.Ua
         /// Returns the certificate information for a trusted peer certificate.
         /// </summary>
         private async Task<CertificateIdentifier> GetTrustedCertificateAsync(
-            X509Certificate2 certificate)
+            X509Certificate2 certificate,
+            CancellationToken ct = default)
         {
             // check if explicitly trusted.
             if (m_trustedCertificateList != null)
@@ -1039,7 +1065,7 @@ namespace Opc.Ua
                 for (int ii = 0; ii < m_trustedCertificateList.Count; ii++)
                 {
                     X509Certificate2 trusted = await m_trustedCertificateList[ii]
-                        .FindAsync(false)
+                        .FindAsync(false, applicationUri: null, m_telemetry, ct)
                         .ConfigureAwait(false);
 
                     if (trusted != null &&
@@ -1060,7 +1086,7 @@ namespace Opc.Ua
                     try
                     {
                         X509Certificate2Collection trusted = await store
-                            .FindByThumbprintAsync(certificate.Thumbprint)
+                            .FindByThumbprintAsync(certificate.Thumbprint, ct)
                             .ConfigureAwait(false);
 
                         for (int ii = 0; ii < trusted.Count; ii++)
@@ -1144,7 +1170,8 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             CertificateIdentifierCollection explicitList,
             CertificateStoreIdentifier certificateStore,
-            bool checkRecovationStatus)
+            bool checkRecovationStatus,
+            CancellationToken ct = default)
         {
             ServiceResultException serviceResult = null;
 
@@ -1170,7 +1197,11 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < explicitList.Count; ii++)
                 {
-                    X509Certificate2 issuer = await explicitList[ii].FindAsync(false)
+                    X509Certificate2 issuer = await explicitList[ii].FindAsync(
+                        false,
+                        applicationUri: null,
+                        m_telemetry,
+                        ct)
                         .ConfigureAwait(false);
 
                     if (issuer != null)
@@ -1208,7 +1239,7 @@ namespace Opc.Ua
                         return (null, null);
                     }
 
-                    X509Certificate2Collection certificates = await store.EnumerateAsync()
+                    X509Certificate2Collection certificates = await store.EnumerateAsync(ct)
                         .ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
@@ -1230,7 +1261,7 @@ namespace Opc.Ua
                                 if (checkRecovationStatus)
                                 {
                                     StatusCode status = await store
-                                        .IsRevokedAsync(issuer, certificate)
+                                        .IsRevokedAsync(issuer, certificate, ct)
                                         .ConfigureAwait(false);
 
                                     if (StatusCode.IsBad(status) &&
@@ -1293,7 +1324,8 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             CertificateIdentifierCollection explicitList,
             CertificateStoreIdentifier certificateStore,
-            bool checkRecovationStatus)
+            bool checkRecovationStatus,
+            CancellationToken ct = default)
         {
             // check for root.
             if (X509Utils.IsSelfSigned(certificate))
@@ -1306,7 +1338,8 @@ namespace Opc.Ua
                     certificate,
                     explicitList,
                     certificateStore,
-                    checkRecovationStatus)
+                    checkRecovationStatus,
+                    ct)
                 .ConfigureAwait(false);
             if (srex != null)
             {
@@ -1345,8 +1378,8 @@ namespace Opc.Ua
                 return;
             }
 
-            CertificateIdentifier trustedCertificate = await GetTrustedCertificateAsync(certificate)
-                .ConfigureAwait(false);
+            CertificateIdentifier trustedCertificate =
+                await GetTrustedCertificateAsync(certificate, ct).ConfigureAwait(false);
 
             // get the issuers (checks the revocation lists if using directory stores).
             var issuers = new List<CertificateIdentifier>();
@@ -1355,7 +1388,8 @@ namespace Opc.Ua
             bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuerAsync(
                 certificates,
                 issuers,
-                validationErrors)
+                validationErrors,
+                ct)
                 .ConfigureAwait(false);
 
             ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);

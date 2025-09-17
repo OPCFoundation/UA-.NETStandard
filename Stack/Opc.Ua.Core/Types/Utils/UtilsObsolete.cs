@@ -13,7 +13,6 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
@@ -573,7 +572,7 @@ namespace Opc.Ua
             if (Tracing.IsEnabled())
             {
                 // call the legacy logging handler (TraceEvent)
-                int traceMask = LoggerProvider.GetTraceMask(eventId, logLevel);
+                int traceMask = TraceLoggerProvider.GetTraceMask(eventId, logLevel);
                 Tracing.Instance.RaiseTraceEvent(
                     new TraceEventArgs(traceMask, message, string.Empty, null, args));
             }
@@ -615,7 +614,7 @@ namespace Opc.Ua
             if (Tracing.IsEnabled())
             {
                 // call the legacy logging handler (TraceEvent)
-                int traceMask = LoggerProvider.GetTraceMask(eventId, logLevel);
+                int traceMask = TraceLoggerProvider.GetTraceMask(eventId, logLevel);
                 LoggerProvider.Tracing.RaiseTraceEvent(
                     new TraceEventArgs(traceMask, message, string.Empty, exception, args));
             }

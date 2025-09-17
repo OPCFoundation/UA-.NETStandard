@@ -54,10 +54,12 @@ namespace Quickstarts.Servers
         private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
 
         public SubscriptionStore(IServerInternal server)
         {
             m_logger = server.Telemetry.CreateLogger<SubscriptionStore>();
+            m_telemetry = server.Telemetry;
             m_durableMonitoredItemQueueFactory = server
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
@@ -66,6 +68,7 @@ namespace Quickstarts.Servers
         {
             try
             {
+                using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
                 string result = JsonConvert.SerializeObject(subscriptions, s_settings);
 
                 if (!Directory.Exists(s_storage_path))
@@ -98,10 +101,9 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    List<IStoredSubscription> result = JsonConvert
-                        .DeserializeObject<List<IStoredSubscription>>(
-                            json,
-                            s_settings);
+                    using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
+                    List<IStoredSubscription> result =
+                        JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
 
                     File.Delete(filePath);
 

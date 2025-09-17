@@ -343,15 +343,18 @@ namespace Opc.Ua.Configuration
                 AddSecurityPolicies();
             }
 
-#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration?.ApplySettings();
-#pragma warning restore CS0612 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
 
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
 
             await ApplicationConfiguration
-                .CertificateValidator.UpdateAsync(ApplicationConfiguration.SecurityConfiguration)
+                .CertificateValidator.UpdateAsync(
+                    ApplicationConfiguration.SecurityConfiguration,
+                    applicationUri: null,
+                    ct)
                 .ConfigureAwait(false);
 
             return ApplicationConfiguration;

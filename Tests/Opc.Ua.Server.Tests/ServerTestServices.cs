@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests
         public ServerTestServices(ISessionServer server, ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
-            Logger = telemetry.LoggerFactory.CreateLogger<ServerTestServices>();
+            Logger = telemetry.CreateLogger<ServerTestServices>();
             m_server = server;
         }
 

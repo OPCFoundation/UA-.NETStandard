@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 #nullable enable
 
@@ -51,10 +53,8 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? telemetry)
         {
-#if DEBUG
-            Debug.WriteLineIf(telemetry == null, new StackTrace());
-#endif
-            return telemetry?.LoggerFactory ?? s_loggerFactory.Value;
+            DebugCheck(telemetry);
+            return telemetry?.LoggerFactory ?? s_default.Value.LoggerFactory;
         }
 
         /// <summary>
@@ -73,11 +73,11 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="TContext"></typeparam>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <param name="context"></param>
+        /// <param name="context">A context to infer the </param>
         /// <returns></returns>
-        public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? telemetry, TContext context)
+        public static ILogger CreateLogger<TContext>(this ITelemetryContext? telemetry, TContext context)
         {
-            return telemetry.GetLoggerFactory().CreateLogger<TContext>();
+            return telemetry.CreateLogger(context?.GetType().FullName ?? typeof(TContext).FullName!);
         }
 
         /// <summary>
@@ -96,12 +96,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns></returns>
-        public static Meter GetMeter(this ITelemetryContext? telemetry)
+        public static Meter CreateMeter(this ITelemetryContext? telemetry)
         {
-#if DEBUG
-            Debug.WriteLineIf(telemetry == null, new StackTrace());
-#endif
-            return telemetry?.Meter ?? s_meter.Value;
+            DebugCheck(telemetry);
+            return telemetry?.CreateMeter() ?? s_default.Value.CreateMeter();
         }
 
         /// <summary>
@@ -111,10 +109,8 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
         {
-#if DEBUG
-            Debug.WriteLineIf(telemetry == null, new StackTrace());
-#endif
-            return telemetry?.ActivitySource ?? s_activitySource.Value;
+            DebugCheck(telemetry);
+            return telemetry?.ActivitySource ?? s_default.Value.ActivitySource;
         }
 
         /// <summary>
@@ -130,13 +126,81 @@ namespace Opc.Ua
             return telemetry.GetActivitySource().StartActivity(name, kind);
         }
 
-        private static readonly Lazy<Meter> s_meter =
-            new(() => new Meter("Opc.Ua", "1.0.0"));
+        /// <summary>
+        /// Perform a debug check to help analyze null telemetry anywhere and helping
+        /// us to weed out areas that need telemetry plumbed through.
+        /// </summary>
+        /// <param name="telemetry"></param>
+        [Conditional("DEBUG")]
+        private static void DebugCheck(ITelemetryContext? telemetry)
+        {
+            if (telemetry == null)
+            {
+                var stackTrace = new StackTrace(true);
+                StackLog.Instance.Collect(stackTrace);
+            }
+        }
 
-        private static readonly Lazy<ActivitySource> s_activitySource =
-            new(() => new ActivitySource("Opc.Ua", "1.0.0"));
+        private static readonly Lazy<DefaultTelemetry> s_default =
+            new(() => new DefaultTelemetry(), true);
+    }
 
-        private static readonly Lazy<ILoggerFactory> s_loggerFactory =
-            new(() => LoggerFactory.Create(builder => builder.AddProvider(Utils.LoggerProvider)));
+    /// <summary>
+    /// Helper to dump stack traces.
+    /// </summary>
+    internal sealed class StackLog
+    {
+        public static readonly StackLog Instance = new(false);
+
+        /// <summary>
+        /// Create stack log
+        /// </summary>
+        /// <param name="justLog"></param>
+        /// <param name="fileName"></param>
+        public StackLog(bool justLog, string? fileName = null)
+        {
+            if (justLog)
+            {
+                return;
+            }
+            // Find the folder with the solution files
+            string path = Environment.CurrentDirectory;
+            while (System.IO.Directory.GetFiles(path, "*.slnx").Length == 0)
+            {
+                DirectoryInfo? parent = System.IO.Directory.GetParent(path);
+                if (parent == null)
+                {
+                    break;
+                }
+                path = parent.FullName;
+            }
+            m_fileName = System.IO.Path.Combine(
+                path ?? string.Empty,
+                fileName ?? "stacktraces.log");
+        }
+
+        /// <summary>
+        /// Collect the stack trace if it has not already been reported.
+        /// </summary>
+        /// <param name="trace"></param>
+        public void Collect(StackTrace trace)
+        {
+            string str = trace.ToString();
+            if (s_reported.TryAdd(str, true))
+            {
+                if (m_fileName == null)
+                {
+                    Debug.WriteLine(str);
+                    return;
+                }
+                lock (s_reported)
+                {
+                    System.IO.File.AppendAllText(m_fileName, str + "\n\n");
+                }
+            }
+        }
+
+        private readonly ConcurrentDictionary<string, bool> s_reported = new();
+        private readonly string? m_fileName;
     }
 }

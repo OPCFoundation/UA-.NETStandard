@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Tests
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp, ITelemetryContext telemetry = null)
         {
             Telemetry = telemetry ?? NUnitTelemetryContext.Create();
-            m_logger = telemetry.CreateLogger<ClientTestFramework>();
+            m_logger = Telemetry.CreateLogger<ClientTestFramework>();
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;

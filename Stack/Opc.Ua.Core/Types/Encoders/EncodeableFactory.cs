@@ -53,9 +53,9 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a factory which is marked as shared and initialized with the types in the core library.
         /// </summary>
-        public EncodeableFactory(bool shared, ITelemetryContext telemetry)
+        private EncodeableFactory()
         {
-            m_logger = telemetry.CreateLogger<EncodeableFactory>();
+            m_logger = NullLogger.Instance;
             m_encodeableTypes = [];
             AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
 #if DEBUG
@@ -240,7 +240,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The default factory for the process.
         /// </remarks>
-        public static EncodeableFactory GlobalFactory { get; } = new EncodeableFactory(null);
+        public static EncodeableFactory GlobalFactory { get; } = new();
 
         /// <summary>
         /// Returns the xml qualified name for the specified system type id.

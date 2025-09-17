@@ -54,8 +54,7 @@ namespace Opc.Ua.Fuzzing
                 })
                 .AddSerilog(Log.Logger);
 
-            Meter = new Meter("Quickstarts", "1.0.0");
-            ActivitySource = new ActivitySource("Quickstarts", "1.0.0");
+            ActivitySource = new ActivitySource("Fuzzing", "1.0.0");
 
             m_logger = LoggerFactory.CreateLogger("Main");
 
@@ -67,7 +66,10 @@ namespace Opc.Ua.Fuzzing
         public ILoggerFactory LoggerFactory { get; internal set; }
 
         /// <inheritdoc/>
-        public Meter Meter { get; }
+        public Meter CreateMeter()
+        {
+            return new Meter("Fuzzing", "1.0.0");
+        }
 
         /// <inheritdoc/>
         public ActivitySource ActivitySource { get; }
@@ -75,7 +77,7 @@ namespace Opc.Ua.Fuzzing
         /// <inheritdoc/>
         public void Dispose()
         {
-            Meter.Dispose();
+            CreateMeter().Dispose();
             ActivitySource.Dispose();
             LoggerFactory.Dispose();
 

@@ -491,9 +491,9 @@ namespace Opc.Ua
                 // should not be here but need to preserve old behavior.
                 if (applyTraceSettings && configuration.TraceConfiguration != null)
                 {
-#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                     configuration.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0612 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider
@@ -520,7 +520,7 @@ namespace Opc.Ua
                 string absolutePath = Utils.GetAbsoluteFilePath(
                     sectionName + ".Config.xml",
                     checkCurrentDirectory: true,
-                    createAlways:  false);
+                    createAlways: false);
                 return absolutePath ?? sectionName + ".Config.xml";
             }
             catch (Exception e)
@@ -656,7 +656,11 @@ namespace Opc.Ua
                 ServerConfiguration.PublishingResolution = 50;
             }
 
-            await CertificateValidator.UpdateAsync(SecurityConfiguration).ConfigureAwait(false);
+            await CertificateValidator.UpdateAsync(
+                SecurityConfiguration,
+                applicationUri: null,
+                ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>

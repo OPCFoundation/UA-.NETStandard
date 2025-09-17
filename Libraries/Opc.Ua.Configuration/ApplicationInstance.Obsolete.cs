@@ -57,8 +57,10 @@ namespace Opc.Ua.Configuration
         /// <returns>
         /// True if the arguments were processed; False otherwise.
         /// </returns>
-        [Obsolete]
+        [Obsolete("This call has been a no-op for several releases and will be removed")]
+#pragma warning disable RCS1175 // Unused 'this' parameter
         public static bool ProcessCommandLine(this ApplicationInstance application)
+#pragma warning restore RCS1175 // Unused 'this' parameter
         {
             // ignore processing of command line
             return false;
@@ -71,7 +73,9 @@ namespace Opc.Ua.Configuration
         /// <param name="server">The server.</param>
         /// <exception cref="NotImplementedException"></exception>
         [Obsolete(".NetStandard Opc.Ua libraries do not support to start as a windows service")]
+#pragma warning disable RCS1175 // Unused 'this' parameter
         public static void StartAsService(this ApplicationInstance application, ServerBase server)
+#pragma warning restore RCS1175 // Unused 'this' parameter
         {
         }
 

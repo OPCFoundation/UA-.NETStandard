@@ -38,7 +38,6 @@ namespace Opc.Ua
         public ServerBase()
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
-            m_messageContext = new ServiceMessageContext(null);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
         }
 
@@ -90,9 +89,10 @@ namespace Opc.Ua
         /// <value>The message context that stores context information associated with a UA
         /// server that is used during message processing.
         /// </value>
+        /// <exception cref="ServiceResultException">if server was not started</exception>
         public IServiceMessageContext MessageContext
         {
-            get => m_messageContext;
+            get => m_messageContext ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
             private set
             {
                 m_messageContext = value;
@@ -558,6 +558,8 @@ namespace Opc.Ua
                     host.Close();
                 }
             }
+
+            m_messageContext = null;
         }
 
         /// <summary>

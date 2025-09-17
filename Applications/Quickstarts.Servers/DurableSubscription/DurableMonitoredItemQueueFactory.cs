@@ -136,6 +136,7 @@ namespace Quickstarts.Servers
             {
                 Directory.CreateDirectory(targetPath);
             }
+            using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
             foreach (uint id in ids)
             {
                 try
@@ -196,6 +197,7 @@ namespace Quickstarts.Servers
                 }
                 string result = File.ReadAllText(targetFile);
                 File.Delete(targetFile);
+                using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
                 StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(
                     result,
                     s_settings);
@@ -229,10 +231,10 @@ namespace Quickstarts.Servers
                 }
                 string result = File.ReadAllText(targetFile);
                 File.Delete(targetFile);
-                StorableDataChangeQueue template = JsonConvert
-                    .DeserializeObject<StorableDataChangeQueue>(
-                        result,
-                        s_settings);
+                using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
+                StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(
+                    result,
+                    s_settings);
 
                 var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
                 m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);

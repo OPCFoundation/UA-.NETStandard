@@ -1295,7 +1295,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() =>
                 certValidator.UpdateAsync((SecurityConfiguration)null).GetAwaiter().GetResult());
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() =>
-                certValidator.UpdateAsync(null).GetAwaiter().GetResult());
+                certValidator.UpdateAsync((ApplicationConfiguration)null).GetAwaiter().GetResult());
         }
 
         /// <summary>

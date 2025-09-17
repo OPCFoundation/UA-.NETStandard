@@ -118,7 +118,7 @@ namespace Opc.Ua.Client
             Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_telemetry);
             LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
             SessionFactory = template.SessionFactory;
-            DefaultSubscription = template.DefaultSubscription;
+            m_defaultSubscription = template.m_defaultSubscription;
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
             m_sessionTimeout = template.m_sessionTimeout;
@@ -178,7 +178,7 @@ namespace Opc.Ua.Client
             m_endpoint = endpoint;
 
             // update the default subscription.
-            DefaultSubscription.MinLifetimeInterval = (uint)configuration.ClientConfiguration
+            DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
                 .MinSubscriptionLifetime;
 
             // initialize the message context.
@@ -248,16 +248,6 @@ namespace Opc.Ua.Client
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
             ServerMaxContinuationPointsPerBrowse = 0;
-
-            DefaultSubscription = new Subscription(null)
-            {
-                DisplayName = "Subscription",
-                PublishingInterval = 1000,
-                KeepAliveCount = 10,
-                LifetimeCount = 1000,
-                Priority = 255,
-                PublishingEnabled = true
-            };
         }
 
         /// <summary>
@@ -367,8 +357,8 @@ namespace Opc.Ua.Client
             {
                 StopKeepAliveTimer();
 
-                Utils.SilentDispose(DefaultSubscription);
-                DefaultSubscription = null;
+                Utils.SilentDispose(m_defaultSubscription);
+                m_defaultSubscription = null;
 
                 Utils.SilentDispose(m_nodeCache);
                 m_nodeCache = null;
@@ -609,7 +599,25 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets or Sets the default subscription for the session.
         /// </summary>
-        public Subscription DefaultSubscription { get; set; }
+        public Subscription DefaultSubscription
+        {
+            get => m_defaultSubscription ??= new Subscription(m_telemetry)
+            {
+                DisplayName = "Subscription",
+                PublishingInterval = 1000,
+                KeepAliveCount = 10,
+                LifetimeCount = 1000,
+                Priority = 255,
+                PublishingEnabled = true,
+                MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
+                  .MinSubscriptionLifetime
+            };
+            set
+            {
+                Utils.SilentDispose(m_defaultSubscription);
+                m_defaultSubscription = value;
+            }
+        }
 
         /// <summary>
         /// Gets or Sets how frequently the server is pinged to see if communication is still working.
@@ -1175,11 +1183,14 @@ namespace Opc.Ua.Client
             {
                 clientCertificate = await LoadCertificateAsync(
                     configuration,
-                    endpointDescription.SecurityPolicyUri)
+                    endpointDescription.SecurityPolicyUri,
+                    telemetry,
+                    ct)
                     .ConfigureAwait(false);
                 clientCertificateChain = await LoadCertificateChainAsync(
                     configuration,
-                    clientCertificate)
+                    clientCertificate,
+                    ct)
                     .ConfigureAwait(false);
             }
 
@@ -3980,7 +3991,7 @@ namespace Opc.Ua.Client
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await LoadInstanceCertificateAsync(null).ConfigureAwait(false);
+                await LoadInstanceCertificateAsync(clientCertificate: null, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -6804,7 +6815,9 @@ namespace Opc.Ua.Client
         /// Asynchronously load instance certificate
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task LoadInstanceCertificateAsync(X509Certificate2 clientCertificate)
+        private async Task LoadInstanceCertificateAsync(
+            X509Certificate2 clientCertificate,
+            CancellationToken ct = default)
         {
             if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
             {
@@ -6812,7 +6825,9 @@ namespace Opc.Ua.Client
                 {
                     m_instanceCertificate = await LoadCertificateAsync(
                             m_configuration,
-                            m_endpoint.Description.SecurityPolicyUri)
+                            m_endpoint.Description.SecurityPolicyUri,
+                            m_telemetry,
+                            ct)
                         .ConfigureAwait(false);
                     if (m_instanceCertificate == null)
                     {
@@ -6840,7 +6855,8 @@ namespace Opc.Ua.Client
                 // load certificate chain.
                 m_instanceCertificateChain = await LoadCertificateChainAsync(
                     m_configuration,
-                    m_instanceCertificate)
+                    m_instanceCertificate,
+                    ct)
                     .ConfigureAwait(false);
             }
         }
@@ -6851,11 +6867,15 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         private static async Task<X509Certificate2> LoadCertificateAsync(
             ApplicationConfiguration configuration,
-            string securityProfile)
+            string securityProfile,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
-            return await configuration
-                    .SecurityConfiguration.FindApplicationCertificateAsync(securityProfile, true)
-                    .ConfigureAwait(false)
+            return await configuration.SecurityConfiguration.FindApplicationCertificateAsync(
+                securityProfile,
+                privateKey: true,
+                telemetry,
+                ct).ConfigureAwait(false)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "ApplicationCertificate for the security profile {0} cannot be found.",
@@ -6867,7 +6887,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private static async Task<X509Certificate2Collection> LoadCertificateChainAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 clientCertificate)
+            X509Certificate2 clientCertificate,
+            CancellationToken ct = default)
         {
             X509Certificate2Collection clientCertificateChain = null;
             // load certificate chain.
@@ -6876,7 +6897,7 @@ namespace Opc.Ua.Client
                 clientCertificateChain = new X509Certificate2Collection(clientCertificate);
                 List<CertificateIdentifier> issuers = [];
                 await configuration
-                    .CertificateValidator.GetIssuersAsync(clientCertificate, issuers)
+                    .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
                     .ConfigureAwait(false);
 
                 for (int i = 0; i < issuers.Count; i++)
@@ -7245,6 +7266,7 @@ namespace Opc.Ua.Client
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private string m_userTokenSecurityPolicyUri;
         private Nonce m_eccServerEphemeralKey;
+        private Subscription m_defaultSubscription;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
 

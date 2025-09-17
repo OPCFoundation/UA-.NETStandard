@@ -27,7 +27,7 @@ namespace Opc.Ua.Bindings
         /// Create a Tcp transport channel.
         /// </summary>
         public TcpTransportChannel(ITelemetryContext telemetry)
-            : base(new TcpMessageSocketFactory(), telemetry)
+            : base(new TcpMessageSocketFactory(telemetry), telemetry)
         {
         }
     }
@@ -212,6 +212,15 @@ namespace Opc.Ua.Bindings
     public class TcpMessageSocketFactory : IMessageSocketFactory
     {
         /// <summary>
+        /// Create a socket factory
+        /// </summary>
+        /// <param name="telemetry"></param>
+        public TcpMessageSocketFactory(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+        }
+
+        /// <summary>
         /// The method creates a new instance of a UA-TCP message socket
         /// </summary>
         /// <returns> the message socket</returns>
@@ -220,7 +229,11 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            return new TcpMessageSocket(sink, bufferManager, receiveBufferSize);
+            return new TcpMessageSocket(
+                sink,
+                bufferManager,
+                receiveBufferSize,
+                m_telemetry);
         }
 
         /// <summary>
@@ -228,6 +241,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <value>The implementation string.</value>
         public string Implementation => "UA-TCP";
+
+        private readonly ITelemetryContext m_telemetry;
     }
 
     /// <summary>
@@ -241,8 +256,10 @@ namespace Opc.Ua.Bindings
         public TcpMessageSocket(
             IMessageSink sink,
             BufferManager bufferManager,
-            int receiveBufferSize)
+            int receiveBufferSize,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<TcpMessageSocket>();
             m_sink = sink;
             m_socket = null;
             m_bufferManager = bufferManager ??

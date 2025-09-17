@@ -13,6 +13,7 @@
 using System;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -140,7 +141,9 @@ namespace Opc.Ua
         /// </summary>
         public async Task<X509Certificate2> FindApplicationCertificateAsync(
             string securityPolicy,
-            bool privateKey)
+            bool privateKey,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
                 securityPolicy))
@@ -170,7 +173,11 @@ namespace Opc.Ua
 
                 if (id != null)
                 {
-                    return await id.FindAsync(privateKey).ConfigureAwait(false);
+                    return await id.FindAsync(
+                        privateKey,
+                        applicationUri: null,
+                        telemetry: telemetry,
+                        ct).ConfigureAwait(false);
                 }
             }
 

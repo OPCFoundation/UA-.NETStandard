@@ -620,6 +620,7 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
 
             SystemContext systemContext = GetSystemContext(telemetry);
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
             serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
             serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
             serverMock.Setup(s => s.MonitoredItemQueueFactory)

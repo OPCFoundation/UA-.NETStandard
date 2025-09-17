@@ -316,9 +316,9 @@ namespace Quickstarts.ConsoleReferenceClient
                         StringComparison.Ordinal
                     );
                     config.TraceConfiguration.DeleteOnLoad = true;
-#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                     config.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0612 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
 
                 // setup the logging

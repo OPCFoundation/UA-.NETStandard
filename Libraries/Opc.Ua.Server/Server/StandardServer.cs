@@ -2896,7 +2896,10 @@ namespace Opc.Ua.Server
             configuration.CertificateValidator.CertificateValidation
                 += registrationCertificateValidator;
             await configuration
-                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration)
+                .CertificateValidator.UpdateAsync(
+                    configuration.SecurityConfiguration,
+                    applicationUri: null,
+                    ct)
                 .ConfigureAwait(false);
 
             try
@@ -3450,9 +3453,9 @@ namespace Opc.Ua.Server
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
                     new TraceConfiguration();
 
-#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                 Configuration.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0612 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
             }
         }
 
