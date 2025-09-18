@@ -1233,7 +1233,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            MonitoredItemId monitoredItemId)
+            MonitoredItemIds monitoredItemId)
         {
             if (context == null)
             {

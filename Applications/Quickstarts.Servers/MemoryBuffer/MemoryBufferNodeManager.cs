@@ -262,7 +262,7 @@ namespace MemoryBuffer
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
             bool createDurable,
-            MonitoredItemId monitoredItemId,
+            MonitoredItemIds monitoredItemId,
             out MonitoringFilterResult filterError,
             out IMonitoredItem monitoredItem)
         {

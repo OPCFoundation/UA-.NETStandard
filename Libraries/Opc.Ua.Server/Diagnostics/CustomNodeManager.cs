@@ -3651,7 +3651,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            MonitoredItemId monitoredItemId)
+            MonitoredItemIds monitoredItemId)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -3779,7 +3779,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
             bool createDurable,
-            MonitoredItemId monitoredItemId,
+            MonitoredItemIds monitoredItemId,
             out MonitoringFilterResult filterResult,
             out IMonitoredItem monitoredItem)
         {
