@@ -1233,7 +1233,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            Func<uint> getNextMonitoredItemId)
+            MonitoredItemId monitoredItemId)
         {
             if (context == null)
             {
@@ -1363,7 +1363,7 @@ namespace Opc.Ua.Server
                             subscriptionId,
                             publishingInterval,
                             timestampsToReturn,
-                            getNextMonitoredItemId(),
+                            monitoredItemId.Next(),
                             node,
                             itemToCreate,
                             range,

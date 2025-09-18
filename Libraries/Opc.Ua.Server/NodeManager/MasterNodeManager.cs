@@ -1162,7 +1162,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> 
+        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
             BrowseInternalAsync(
             OperationContext context,
             ViewDescription view,
@@ -2902,8 +2902,6 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                uint GetNextMonitoredItemId() => Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
-
                 // create items for event filters.
                 CreateMonitoredItemsForEvents(
                     context,
@@ -2915,7 +2913,7 @@ namespace Opc.Ua.Server
                     filterResults,
                     monitoredItems,
                     createDurable,
-                    GetNextMonitoredItemId);
+                    m_monitoredItemId);
 
                 // create items for data access.
                 foreach (INodeManager nodeManager in m_nodeManagers)
@@ -2930,7 +2928,7 @@ namespace Opc.Ua.Server
                         filterResults,
                         monitoredItems,
                         createDurable,
-                        GetNextMonitoredItemId);
+                        m_monitoredItemId);
                 }
 
                 // fill results for unknown nodes.
@@ -2957,7 +2955,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            Func<uint> getNextMonitoredItemId)
+            MonitoredItemId monitoredItemId)
         {
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
@@ -3043,7 +3041,7 @@ namespace Opc.Ua.Server
                         nodeManager,
                         handle,
                         subscriptionId,
-                        getNextMonitoredItemId(),
+                        monitoredItemId.Next(),
                         timestampsToReturn,
                         publishingInterval,
                         itemToCreate,
@@ -3134,7 +3132,7 @@ namespace Opc.Ua.Server
                     savedOwnerIdentity);
             }
 
-            m_lastMonitoredItemId = itemsToRestore.Max(i => i.Id);
+            m_monitoredItemId = new MonitoredItemId(itemsToRestore.Max(i => i.Id));
         }
 
         /// <summary>
@@ -4258,7 +4256,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly List<INodeManager> m_nodeManagers;
         private readonly List<IAsyncNodeManager> m_asyncNodeManagers;
-        private long m_lastMonitoredItemId;
+        private MonitoredItemId m_monitoredItemId = new();
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1);
     }
@@ -4302,5 +4300,42 @@ namespace Opc.Ua.Server
         /// The target of the reference.
         /// </summary>
         public NodeId TargetId { get; }
+    }
+
+    /// <summary>
+    /// Represents a generator for unique monitored item ids.
+    /// Call next() to retrieve the next valid monitoredItemId.
+    /// </summary>
+    /// <remarks>This class provides a mechanism to generate sequential ids for monitored
+    /// items. It is designed to ensure thread-safe incrementation of the identifier.</remarks>
+    public class MonitoredItemId
+    {
+        /// <summary>
+        /// Initialize the MonitoredItem Id class starting from 0.
+        /// </summary>
+        public MonitoredItemId()
+        {
+            m_lastMonitoredItemId = default;
+        }
+
+        /// <summary>
+        /// Initialize the monitoredItem with a start value.
+        /// </summary>
+        /// <param name="firstId"></param>
+        public MonitoredItemId(uint firstId)
+        {
+            m_lastMonitoredItemId = firstId;
+        }
+
+        /// <summary>
+        /// Get the next uniqe monitored item id.
+        /// </summary>
+        /// <returns>an uint that can be used as an id for a montiored item</returns>
+        public uint Next()
+        {
+            return Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
+        }
+
+        private long m_lastMonitoredItemId;
     }
 }
