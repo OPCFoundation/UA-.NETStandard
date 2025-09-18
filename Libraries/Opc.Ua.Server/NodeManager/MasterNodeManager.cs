@@ -4328,14 +4328,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Get the next uniqe monitored item id.
+        /// Get the next unique monitored item id.
         /// </summary>
-        /// <returns>an uint that can be used as an id for a montiored item</returns>
+        /// <returns>an uint that can be used as an id for a monitored item</returns>
         public uint Next()
         {
-            return Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
+            lock (m_lock)
+            {
+                return Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
+            }
         }
 
+        private readonly Lock m_lock = new Lock();
         private long m_lastMonitoredItemId;
     }
 }
