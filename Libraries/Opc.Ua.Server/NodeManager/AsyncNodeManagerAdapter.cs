@@ -143,7 +143,7 @@ namespace Opc.Ua.Server
                                                    IList<MonitoringFilterResult> filterErrors,
                                                    IList<IMonitoredItem> monitoredItems,
                                                    bool createDurable,
-                                                   Func<uint> getNextMonitoredItemId,
+                                                   MonitoredItemIdFactory monitoredItemIdFactory,
                                                    CancellationToken cancellationToken = default)
         {
             if (NodeManager is ICreateMonitoredItemsAsyncNodeManager asyncNodeManager)
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server
                                                                   filterErrors,
                                                                   monitoredItems,
                                                                   createDurable,
-                                                                  getNextMonitoredItemId,
+                                                                  monitoredItemIdFactory,
                                                                   cancellationToken);
             }
 
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server
                                               filterErrors,
                                               monitoredItems,
                                               createDurable,
-                                              getNextMonitoredItemId);
+                                              monitoredItemIdFactory);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
