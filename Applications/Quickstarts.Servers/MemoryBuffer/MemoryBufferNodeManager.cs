@@ -262,7 +262,7 @@ namespace MemoryBuffer
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
             bool createDurable,
-            Func<uint> getNextMonitoredItemId,
+            MonitoredItemIdFactory monitoredItemIdFactory,
             out MonitoringFilterResult filterError,
             out IMonitoredItem monitoredItem)
         {
@@ -281,7 +281,7 @@ namespace MemoryBuffer
                     timestampsToReturn,
                     itemToCreate,
                     createDurable,
-                    getNextMonitoredItemId,
+                    monitoredItemIdFactory,
                     out filterError,
                     out monitoredItem);
             }
@@ -349,7 +349,7 @@ namespace MemoryBuffer
                 context as ServerSystemContext,
                 tag,
                 subscriptionId,
-                getNextMonitoredItemId(),
+                monitoredItemIdFactory.GetNextId(),
                 itemToCreate.ItemToMonitor,
                 diagnosticsMasks,
                 timestampsToReturn,

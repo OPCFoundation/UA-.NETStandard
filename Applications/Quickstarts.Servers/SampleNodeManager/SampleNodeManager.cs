@@ -2157,7 +2157,7 @@ namespace Opc.Ua.Sample
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            Func<uint> getNextMonitoredItemId)
+            MonitoredItemIdFactory monitoredItemIdFactory)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -2211,7 +2211,7 @@ namespace Opc.Ua.Sample
                         timestampsToReturn,
                         itemToCreate,
                         createDurable,
-                        getNextMonitoredItemId,
+                        monitoredItemIdFactory,
                         out MonitoringFilterResult filterError,
                         out IMonitoredItem monitoredItem);
 
@@ -2255,7 +2255,7 @@ namespace Opc.Ua.Sample
                         timestampsToReturn,
                         itemToCreate,
                         createDurable,
-                        getNextMonitoredItemId,
+                        monitoredItemIdFactory,
                         out MonitoringFilterResult filterError,
                         out IMonitoredItem monitoredItem);
 
@@ -2567,7 +2567,7 @@ namespace Opc.Ua.Sample
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
             bool createDurable,
-            Func<uint> getNextMonitoredItemId,
+            MonitoredItemIdFactory monitoredItemIdFactory,
             out MonitoringFilterResult filterError,
             out IMonitoredItem monitoredItem)
         {
@@ -2659,7 +2659,7 @@ namespace Opc.Ua.Sample
             // create the item.
             DataChangeMonitoredItem datachangeItem = monitoredNode.CreateDataChangeItem(
                 context,
-                getNextMonitoredItemId(),
+                monitoredItemIdFactory.GetNextId(),
                 itemToCreate.ItemToMonitor.AttributeId,
                 itemToCreate.ItemToMonitor.ParsedIndexRange,
                 itemToCreate.ItemToMonitor.DataEncoding,
