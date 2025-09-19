@@ -4310,7 +4310,6 @@ namespace Opc.Ua.Server
     /// items. It is designed to ensure thread-safe incrementation of the identifier.</remarks>
     public class MonitoredItemIdFactory
     {
-
         /// <summary>
         /// Initialize the MonitoredItemIdFactory with a new start value the ids start incrementing from.
         /// </summary>
