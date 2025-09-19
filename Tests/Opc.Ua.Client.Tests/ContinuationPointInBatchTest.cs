@@ -984,8 +984,8 @@ namespace Opc.Ua.Client.Tests
                 .Where(x => x.Contains("BadNoContinuationPoints", StringComparison.Ordinal))
                 .ToList();
 
-            Assert.IsTrue(
-                messagesWithBadNoCPSC.Count == expectedResults.ExpectedNumberOfBadNoCPSCs.Count);
+            Assert.AreEqual(
+                messagesWithBadNoCPSC.Count, expectedResults.ExpectedNumberOfBadNoCPSCs.Count);
 
             int pass = 0;
             foreach (string s in messagesWithBadNoCPSC)

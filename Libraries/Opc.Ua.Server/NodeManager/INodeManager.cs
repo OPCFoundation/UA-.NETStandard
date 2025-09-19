@@ -570,7 +570,118 @@ namespace Opc.Ua.Server
         IHistoryUpdateAsyncNodeManager,
         IConditionRefreshAsyncNodeManager,
         ITranslateBrowsePathAsyncNodeManager,
-        IBrowseAsyncNodeManager;
+        IBrowseAsyncNodeManager
+    {
+        /// <summary>
+        /// Returns the NamespaceUris for the Nodes belonging to the NodeManager.
+        /// </summary>
+        /// <remarks>
+        /// <para>By default the MasterNodeManager uses the namespaceIndex to determine who owns an Node.</para>
+        /// <para>
+        /// Servers that do not wish to partition their address space this way must provide their own
+        /// implementation of MasterNodeManager.GetManagerHandle().
+        /// </para>
+        /// <para>NodeManagers which depend on a custom partitioning scheme must return a null value.</para>
+        /// </remarks>
+        IEnumerable<string> NamespaceUris { get; }
+
+        /// <summary>
+        /// Creates the address space by loading any configuration information an connecting to an underlying system (if applicable).
+        /// </summary>
+        /// <returns>A table of references that need to be added to other node managers.</returns>
+        /// <remarks>
+        /// A node manager owns a set of nodes. These nodes may be known in advance or they may be stored in an
+        /// external system are retrived on demand. These nodes may have two way references to nodes that are owned
+        /// by other node managers. In these cases, the node managers only manage one half of those references. The
+        /// other half of the reference should be returned to the MasterNodeManager.
+        /// </remarks>
+        ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the metadata associated with the node.
+        /// </summary>
+        /// <remarks>
+        /// Returns null if the node does not exist.
+        /// </remarks>
+        ValueTask<NodeMetadata> GetNodeMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes the address by releasing all resources and disconnecting from any underlying system.
+        /// </summary>
+        ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns an opaque handle identifying to the node to the node manager.
+        /// </summary>
+        /// <returns>A node handle, null if the node manager does not recognize the node id.</returns>
+        /// <remarks>
+        /// The method must not block by querying an underlying system. If the node manager wraps an
+        /// underlying system then it must check to see if it recognizes the syntax of the node id.
+        /// The handle in this case may simply be a partially parsed version of the node id.
+        /// </remarks>
+        ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds references to the node manager.
+        /// </summary>
+        /// <remarks>
+        /// The node manager checks the dictionary for nodes that it owns and ensures the associated references exist.
+        /// </remarks>
+        ValueTask AddReferencesAsync(
+            IDictionary<NodeId, IList<IReference>> references,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes a reference.
+        /// </summary>
+        ValueTask<ServiceResult> DeleteReferenceAsync(
+            object sourceHandle,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            bool deleteBidirectional,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Called when the session is closed.
+        /// </summary>
+        ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns true if the node is in the view.
+        /// </summary>
+        ValueTask<bool> IsNodeInViewAsync(
+            OperationContext context,
+            NodeId viewId,
+            object nodeHandle,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the metadata needed for validating permissions, associated with the node with
+        /// the option to optimize services by using a cache.
+        /// </summary>
+        /// <remarks>
+        /// Returns null if the node does not exist.
+        /// It should return null in case the implementation wishes to handover the task to the parent INodeManager.GetNodeMetadata
+        /// </remarks>
+        ValueTask<NodeMetadata> GetPermissionMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            CancellationToken cancellationToken = default);
+    }
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.

@@ -72,7 +72,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the continuation point.
         /// </summary>
-        public INodeManager Manager { get; set; }
+        public IAsyncNodeManager Manager { get; set; }
 
         /// <summary>
         /// The view being browsed.
