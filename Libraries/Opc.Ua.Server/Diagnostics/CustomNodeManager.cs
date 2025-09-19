@@ -407,7 +407,7 @@ namespace Opc.Ua.Server
                 return null;
             }
             // search node id in all node managers
-            foreach ((INodeManager nodeManager, _) in Server.NodeManager.NodeManagers)
+            foreach (INodeManager nodeManager in Server.NodeManager.NodeManagers)
             {
                 if (nodeManager.GetManagerHandle(nodeId) is not NodeHandle handle)
                 {
