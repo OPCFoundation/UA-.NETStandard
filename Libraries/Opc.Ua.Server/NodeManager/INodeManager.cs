@@ -290,7 +290,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter);
+            MonitoredItemIdFactory monitoredItemIdFactory);
 
         /// <summary>
         /// Restore a set of monitored items after a restart.
