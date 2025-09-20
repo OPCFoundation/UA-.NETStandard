@@ -194,7 +194,7 @@ namespace Opc.Ua.Client
             {
                 NamespaceUris = new NamespaceTable();
                 ServerUris = new StringTable();
-                Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory, m_telemetry);
+                Factory = new EncodeableFactory(m_telemetry);
             }
 
             // initialize the NodeCache late, it needs references to the namespaceUris
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client
             m_sessionTimeout = 0;
             NamespaceUris = new NamespaceTable();
             ServerUris = new StringTable();
-            Factory = EncodeableFactory.GlobalFactory;
+            Factory = new EncodeableFactory(m_telemetry);
             m_configuration = null;
             m_instanceCertificate = null;
             m_endpoint = null;
@@ -1837,6 +1837,7 @@ namespace Opc.Ua.Client
                     serverCertificate,
                     serverNonce,
                     m_userTokenSecurityPolicyUri,
+                    MessageContext,
                     m_logger,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
@@ -2041,6 +2042,7 @@ namespace Opc.Ua.Client
                 m_serverCertificate,
                 serverNonce,
                 m_userTokenSecurityPolicyUri,
+                MessageContext,
                 m_logger,
                 m_eccServerEphemeralKey,
                 m_instanceCertificate,
@@ -6312,6 +6314,7 @@ namespace Opc.Ua.Client
                 m_serverCertificate,
                 m_serverNonce,
                 m_userTokenSecurityPolicyUri,
+                MessageContext,
                 m_logger,
                 m_eccServerEphemeralKey,
                 m_instanceCertificate,

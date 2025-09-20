@@ -77,8 +77,9 @@ namespace Opc.Ua
         public static IDisposable SetScopedContext(ITelemetryContext telemetry)
         {
             MessageContextExtension previousContext = Current;
+
             Current = new MessageContextExtension(
-                new ServiceMessageContext(previousContext.MessageContext, telemetry));
+                new ServiceMessageContext(CurrentContext, telemetry));
 
             return new DisposableAction(() => Current = previousContext);
         }

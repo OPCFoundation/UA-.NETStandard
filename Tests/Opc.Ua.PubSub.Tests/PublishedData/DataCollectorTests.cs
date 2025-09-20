@@ -69,9 +69,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 m_configurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType pubSubConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
 
             var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
             //Act

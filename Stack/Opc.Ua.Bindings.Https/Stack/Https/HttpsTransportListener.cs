@@ -177,26 +177,23 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            {
+                MaxArrayLength = configuration.MaxArrayLength,
+                MaxByteStringLength = configuration.MaxByteStringLength,
+                MaxMessageSize = configuration.MaxMessageSize,
+                MaxStringLength = configuration.MaxStringLength,
+                MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
+                NamespaceUris = settings.NamespaceUris,
+                ServerUris = new StringTable(),
+                Factory = settings.Factory
+            })
             {
                 MaxBufferSize = configuration.MaxBufferSize,
                 MaxMessageSize = configuration.MaxMessageSize,
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-
-                MessageContext = new ServiceMessageContext(m_telemetry)
-                {
-                    MaxArrayLength = configuration.MaxArrayLength,
-                    MaxByteStringLength = configuration.MaxByteStringLength,
-                    MaxMessageSize = configuration.MaxMessageSize,
-                    MaxStringLength = configuration.MaxStringLength,
-                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
-                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                    NamespaceUris = settings.NamespaceUris,
-                    ServerUris = new StringTable(),
-                    Factory = settings.Factory
-                },
-
                 CertificateValidator = settings.CertificateValidator
             };
 

@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             .. Enum.GetValues(typeof(BuiltInType))
                 .Cast<BuiltInType>()
 #endif
-            .Where(b => b is > BuiltInType.Null and < BuiltInType.DataValue)
+                .Where(b => b is > BuiltInType.Null and < BuiltInType.DataValue)
         ];
 
         /// <summary>

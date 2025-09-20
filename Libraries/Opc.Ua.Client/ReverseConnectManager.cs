@@ -233,7 +233,11 @@ namespace Opc.Ua.Client
             try
             {
                 ApplicationConfiguration configuration = await ApplicationConfiguration
-                    .LoadAsync(new FileInfo(args.FilePath), m_applicationType, m_configType)
+                    .LoadAsync(
+                        new FileInfo(args.FilePath),
+                        m_applicationType,
+                        m_configType,
+                        m_telemetry)
                     .ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);

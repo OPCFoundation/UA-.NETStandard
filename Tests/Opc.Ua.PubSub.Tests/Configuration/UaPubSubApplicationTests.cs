@@ -52,8 +52,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 m_configurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             m_pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(
-                configurationFile);
+                configurationFile,
+                telemetry);
         }
 
         [Test(Description = "Validate Create call with null path")]

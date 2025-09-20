@@ -900,8 +900,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }.ToArray();
 
         [DatapointSource]
-        public static readonly StatusCode[] GoodAndBadStatusCodes = [StatusCodes.Good, StatusCodes
-            .BadAlreadyExists];
+        public static readonly StatusCode[] GoodAndBadStatusCodes =
+        [
+            StatusCodes.Good,
+            StatusCodes.BadAlreadyExists
+        ];
 
         [OneTimeSetUp]
         protected new void OneTimeSetUp()

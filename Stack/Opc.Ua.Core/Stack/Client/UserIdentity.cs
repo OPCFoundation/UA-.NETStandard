@@ -14,6 +14,8 @@ using System;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -60,41 +62,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with an X509 certificate identifier
-        /// </summary>
-        public UserIdentity(CertificateIdentifier certificateId, ILogger logger)
-            : this(certificateId, new CertificatePasswordProvider(string.Empty), logger)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
-        /// </summary>
-        public UserIdentity(
-            CertificateIdentifier certificateId,
-            CertificatePasswordProvider certificatePasswordProvider,
-            ILogger logger)
-        {
-            if (certificateId == null)
-            {
-                throw new ArgumentNullException(nameof(certificateId));
-            }
-
-            X509Certificate2 certificate = certificateId
-                .LoadPrivateKeyExAsync(certificatePasswordProvider)
-                .GetAwaiter()
-                .GetResult();
-
-            if (certificate == null || !certificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(
-                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
-            }
-
-            Initialize(certificate, logger);
-        }
-
-        /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
         public UserIdentity(X509Certificate2 certificate, ILogger logger)
@@ -137,6 +104,53 @@ namespace Opc.Ua
                 default:
                     throw new ArgumentException("Unrecognized UA user identity token type.", nameof(token));
             }
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="certificateId"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static async Task<UserIdentity> CreateAsync(
+            CertificateIdentifier certificateId,
+            CertificatePasswordProvider certificatePasswordProvider,
+            ITelemetryContext telemetry,
+            ILogger logger = null,
+            CancellationToken ct = default)
+        {
+            if (certificateId == null)
+            {
+                throw new ArgumentNullException(nameof(certificateId));
+            }
+
+            X509Certificate2 certificate = await certificateId
+                .LoadPrivateKeyExAsync(certificatePasswordProvider, applicationUri: null, telemetry, ct)
+                .ConfigureAwait(false);
+
+            if (certificate == null || !certificate.HasPrivateKey)
+            {
+                throw new ServiceResultException(
+                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
+            }
+
+            return new UserIdentity(certificate, logger ?? telemetry.CreateLogger<UserIdentity>());
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier
+        /// </summary>
+        public static Task<UserIdentity> CreateAsync(
+            CertificateIdentifier certificateId,
+            ITelemetryContext telemetry,
+            ILogger logger = null,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                certificateId,
+                new CertificatePasswordProvider(string.Empty),
+                telemetry,
+                logger,
+                ct);
         }
 
         /// <summary>

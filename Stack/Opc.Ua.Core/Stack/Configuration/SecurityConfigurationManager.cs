@@ -31,6 +31,7 @@ namespace Opc.Ua.Security
         public SecurityConfigurationManager(ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<SecurityConfigurationManager>();
+            m_telemetry = telemetry;
         }
 
         /// <summary>
@@ -138,6 +139,7 @@ namespace Opc.Ua.Security
                             typeof(ApplicationConfiguration));
                         applicationConfiguration = serializer.ReadObject(
                             reader) as ApplicationConfiguration;
+                        applicationConfiguration.Initialize(m_telemetry);
                     }
                 }
                 finally
@@ -479,5 +481,6 @@ namespace Opc.Ua.Security
         }
 
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

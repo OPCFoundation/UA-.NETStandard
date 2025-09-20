@@ -23,8 +23,17 @@ namespace Opc.Ua
         /// Initializes the object with default values.
         /// </summary>
         public ServiceMessageContext(ITelemetryContext telemetry)
-            : this(GlobalContext, telemetry)
         {
+            Telemetry = telemetry;
+            MaxStringLength = DefaultEncodingLimits.MaxStringLength;
+            MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
+            MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
+            MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
+            MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
+            m_namespaceUris = new NamespaceTable();
+            m_serverUris = new StringTable();
+            m_factory = new EncodeableFactory(telemetry);
         }
 
         /// <summary>
@@ -47,25 +56,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a shared context
-        /// </summary>
-        private ServiceMessageContext()
-        {
-            MaxStringLength = DefaultEncodingLimits.MaxStringLength;
-            MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
-            MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
-            MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
-            MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
-            MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
-            m_namespaceUris = new NamespaceTable(true);
-            m_serverUris = new StringTable(true);
-            m_factory = EncodeableFactory.GlobalFactory;
-        }
-
-        /// <summary>
         /// The default context for the process (used only during XML serialization).
         /// </summary>
-        public static ServiceMessageContext GlobalContext { get; } = new();
+        public static ServiceMessageContext GlobalContext { get; } = new(null);
 
         /// <summary>
         /// The default context for the thread (used only during XML serialization).
@@ -108,7 +101,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_namespaceUris = GlobalContext.NamespaceUris;
+                    m_namespaceUris = new NamespaceTable();
                     return;
                 }
                 m_namespaceUris = value;
@@ -123,7 +116,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_serverUris = GlobalContext.ServerUris;
+                    m_serverUris = new StringTable();
                     return;
                 }
 
@@ -139,7 +132,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_factory = GlobalContext.Factory;
+                    m_factory = new EncodeableFactory(Telemetry);
                     return;
                 }
 

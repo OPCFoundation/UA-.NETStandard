@@ -369,7 +369,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes the contents of an extension object.
         /// </summary>
-        /// <param name="context">The context (uses ServiceMessageContext.GlobalContext if null).</param>
+        /// <param name="context">The context (uses MessageContextExtension.Current.MessageContext if null).</param>
         /// <param name="targetType">The type that the ExtensionObject must be converted to.</param>
         /// <param name="extension">The ExtensionObject to convert.</param>
         /// <param name="throwOnError">Whether to throw an exception on error.</param>
@@ -391,8 +391,7 @@ namespace Opc.Ua
                 IDecoder decoder = null;
                 try
                 {
-                    ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
-
+                    IServiceMessageContext messageContext;
                     if (context != null)
                     {
                         messageContext = new ServiceMessageContext(context.Telemetry)
@@ -401,6 +400,10 @@ namespace Opc.Ua
                             ServerUris = context.ServerUris,
                             Factory = context.EncodeableFactory
                         };
+                    }
+                    else
+                    {
+                        messageContext = MessageContextExtension.Current.MessageContext;
                     }
 
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)

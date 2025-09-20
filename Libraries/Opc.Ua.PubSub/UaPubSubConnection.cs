@@ -59,11 +59,7 @@ namespace Opc.Ua.PubSub
             Telemetry = telemetry;
 
             // set the default message context that uses the GlobalContext
-            MessageContext = new ServiceMessageContext(Telemetry)
-            {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
+            MessageContext = new ServiceMessageContext(Telemetry);
 
             Application =
                 parentUaPubSubApplication ??

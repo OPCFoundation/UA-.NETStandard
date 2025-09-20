@@ -420,7 +420,7 @@ namespace Opc.Ua.Configuration.Tests
                 ICertificateStore store =
                     applicationInstance.ApplicationConfiguration.SecurityConfiguration
                         .TrustedPeerCertificates
-                        .OpenStore(null))
+                        .OpenStore(telemetry))
             {
                 // store public key in trusted store
                 byte[] rawData = applicationCertificate.Certificate.RawData;
@@ -431,7 +431,7 @@ namespace Opc.Ua.Configuration.Tests
             if (deleteAfterUse)
             {
                 string thumbprint = applicationCertificate.Certificate.Thumbprint;
-                using (ICertificateStore store = applicationCertificate.OpenStore(null))
+                using (ICertificateStore store = applicationCertificate.OpenStore(telemetry))
                 {
                     bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
@@ -440,7 +440,7 @@ namespace Opc.Ua.Configuration.Tests
                     ICertificateStore store =
                         applicationInstance.ApplicationConfiguration.SecurityConfiguration
                             .TrustedPeerCertificates
-                            .OpenStore(null))
+                            .OpenStore(telemetry))
                 {
                     bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
@@ -730,7 +730,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken())
                 .ConfigureAwait(false);
             ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates
-                .OpenStore(null);
+                .OpenStore(telemetry);
             X509Certificate2Collection storedCertificates = await store
                 .FindByThumbprintAsync(cert.Thumbprint)
                 .ConfigureAwait(false);

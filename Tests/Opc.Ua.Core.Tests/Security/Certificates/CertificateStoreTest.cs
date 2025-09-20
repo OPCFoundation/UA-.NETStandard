@@ -114,7 +114,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
-            await appCertificate.AddToStoreAsync(CertificateStoreType.X509Store, storePath, telemetry: telemetry)
+            await appCertificate.AddToStoreAsync(
+                CertificateStoreType.X509Store,
+                storePath,
+                telemetry: telemetry)
                 .ConfigureAwait(false);
             using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
                 appCertificate.RawData);
@@ -127,7 +130,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 StorePath = storePath,
                 StoreType = CertificateStoreType.X509Store
             };
-            X509Certificate2 privateKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
+            X509Certificate2 privateKey = await id.LoadPrivateKeyAsync(
+                password: null,
+                telemetry: telemetry).ConfigureAwait(false);
             Assert.NotNull(privateKey);
             Assert.True(privateKey.HasPrivateKey);
 
@@ -176,13 +181,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             {
                 // check no password fails to load
-                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
+                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(
+                    password: null,
+                    telemetry: telemetry).ConfigureAwait(false);
                 Assert.IsNull(nullKey);
             }
 
             {
                 // check invalid password fails to load
-                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync("123")
+                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(
+                    "123",
+                    telemetry: telemetry)
                     .ConfigureAwait(false);
                 Assert.IsNull(nullKey);
             }
@@ -190,13 +199,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 // check invalid password fails to load
                 X509Certificate2 nullKey = await id.LoadPrivateKeyExAsync(
-                    new CertificatePasswordProvider("123"))
+                    new CertificatePasswordProvider("123"),
+                    telemetry: telemetry)
                     .ConfigureAwait(false);
                 Assert.IsNull(nullKey);
             }
 
             X509Certificate2 privateKey = await id.LoadPrivateKeyExAsync(
-                new CertificatePasswordProvider(password))
+                new CertificatePasswordProvider(password),
+                telemetry: telemetry)
                 .ConfigureAwait(false);
 
             Assert.NotNull(privateKey);

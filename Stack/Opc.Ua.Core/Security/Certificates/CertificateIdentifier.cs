@@ -191,7 +191,7 @@ namespace Opc.Ua
                         .LoadPrivateKeyAsync(
                             Thumbprint,
                             SubjectName,
-                            null,
+                            applicationUri: null,
                             CertificateType,
                             password,
                             ct)
@@ -203,7 +203,7 @@ namespace Opc.Ua
                         m_certificate = await store
                             .LoadPrivateKeyAsync(
                                 Thumbprint,
-                                null,
+                                subjectName: null,
                                 applicationUri,
                                 CertificateType,
                                 password,
@@ -215,7 +215,7 @@ namespace Opc.Ua
                 }
                 return null;
             }
-            return await FindAsync(true, ct: ct).ConfigureAwait(false);
+            return await FindAsync(true, telemetry: telemetry, ct: ct).ConfigureAwait(false);
         }
 
         /// <summary>

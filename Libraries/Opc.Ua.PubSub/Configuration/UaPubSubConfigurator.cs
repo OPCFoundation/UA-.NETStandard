@@ -53,6 +53,7 @@ namespace Opc.Ua.PubSub.Configuration
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private readonly Dictionary<uint, object> m_idsToObjects = [];
         private readonly Dictionary<object, uint> m_objectsToIds = [];
         private readonly Dictionary<uint, PubSubState> m_idsToPubSubState = [];
@@ -140,6 +141,7 @@ namespace Opc.Ua.PubSub.Configuration
         public UaPubSubConfigurator(ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<UaPubSubConfigurator>();
+            m_telemetry = telemetry;
 
             PubSubConfiguration = new PubSubConfigurationDataType
             {
@@ -288,9 +290,8 @@ namespace Opc.Ua.PubSub.Configuration
                     "The specified file {0} does not exist",
                     configFilePath);
             }
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configFilePath);
+            PubSubConfigurationDataType pubSubConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configFilePath, m_telemetry);
 
             LoadConfiguration(pubSubConfiguration, replaceExisting);
         }

@@ -175,7 +175,7 @@ namespace Opc.Ua
             messageContext.ServerUris = new StringTable();
             if (clonedFactory)
             {
-                messageContext.Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory, m_telemetry);
+                messageContext.Factory = new EncodeableFactory(m_telemetry);
             }
             return messageContext;
         }
@@ -192,7 +192,7 @@ namespace Opc.Ua
             string sectionName,
             ApplicationType applicationType)
         {
-            return LoadAsync(sectionName, applicationType, NullLogger.Instance);
+            return LoadAsync(sectionName, applicationType, NullLogger.Instance, null);
         }
 
         /// <summary>
@@ -202,13 +202,23 @@ namespace Opc.Ua
         /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
+        /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
-            ILogger logger)
+            ILogger logger,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
-            return LoadAsync(sectionName, applicationType, typeof(ApplicationConfiguration), logger);
+            return LoadAsync(
+                sectionName,
+                applicationType,
+                typeof(ApplicationConfiguration),
+                logger,
+                telemetry,
+                ct);
         }
 
         /// <summary>
@@ -225,7 +235,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType)
         {
-            return LoadAsync(sectionName, applicationType, systemType, NullLogger.Instance);
+            return LoadAsync(sectionName, applicationType, systemType, NullLogger.Instance, null);
         }
 
         /// <summary>
@@ -236,13 +246,17 @@ namespace Opc.Ua
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
+        /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
             Type systemType,
-            ILogger logger)
+            ILogger logger,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             string filePath = GetFilePathFromAppConfig(sectionName, logger);
 
@@ -265,7 +279,7 @@ namespace Opc.Ua
                     message.ToString());
             }
 
-            return LoadAsync(file, applicationType, systemType);
+            return LoadAsync(file, applicationType, systemType, telemetry, ct);
         }
 
         /// <summary>
@@ -273,10 +287,14 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="file">The file.</param>
         /// <param name="systemType">Type of the system.</param>
+        /// <param name="telemetry"></param>
         /// <returns>Application configuration</returns>
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         /// <exception cref="ServiceResultException"></exception>
-        public static ApplicationConfiguration LoadWithNoValidation(FileInfo file, Type systemType)
+        public static ApplicationConfiguration LoadWithNoValidation(
+            FileInfo file,
+            Type systemType,
+            ITelemetryContext telemetry)
         {
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
             try
@@ -284,6 +302,7 @@ namespace Opc.Ua
                 var serializer = new DataContractSerializer(systemType);
 
                 var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+                configuration.Initialize(telemetry);
 
                 if (configuration != null)
                 {
@@ -321,7 +340,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType)
         {
-            return LoadAsync(file, applicationType, systemType);
+            return LoadAsync(file, applicationType, systemType, null);
         }
 
         /// <summary>
@@ -330,13 +349,17 @@ namespace Opc.Ua
         /// <param name="file">The file.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
+        /// <param name="telemetry"></param>
+        /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType)
+            Type systemType,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
-            return LoadAsync(file, applicationType, systemType, true);
+            return LoadAsync(file, applicationType, systemType, true, telemetry, ct: ct);
         }
 
         /// <summary>
@@ -361,6 +384,7 @@ namespace Opc.Ua
                 applicationType,
                 systemType,
                 applyTraceSettings,
+                null,
                 certificatePasswordProvider);
         }
 
@@ -371,6 +395,7 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="telemetry"></param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
@@ -380,6 +405,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
+            ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
@@ -389,13 +415,13 @@ namespace Opc.Ua
             {
                 using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
                 configuration = await LoadAsync(
-                        stream,
-                        applicationType,
-                        systemType,
-                        applyTraceSettings,
-                        certificatePasswordProvider,
-                        ct)
-                    .ConfigureAwait(false);
+                    stream,
+                    applicationType,
+                    systemType,
+                    applyTraceSettings,
+                    telemetry,
+                    certificatePasswordProvider,
+                    ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -442,6 +468,7 @@ namespace Opc.Ua
                 applicationType,
                 systemType,
                 applyTraceSettings,
+                null,
                 certificatePasswordProvider);
         }
 
@@ -452,6 +479,7 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="telemetry"></param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
@@ -461,6 +489,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
+            ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
@@ -471,6 +500,7 @@ namespace Opc.Ua
             {
                 var serializer = new DataContractSerializer(systemType);
                 configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
+                configuration.Initialize(telemetry);
             }
             catch (Exception e)
             {

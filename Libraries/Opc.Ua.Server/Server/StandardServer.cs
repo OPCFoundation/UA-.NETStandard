@@ -3409,7 +3409,8 @@ namespace Opc.Ua.Server
                     .LoadAsync(
                         new FileInfo(args.FilePath),
                         Configuration.ApplicationType,
-                        Configuration.GetType())
+                        Configuration.GetType(),
+                        MessageContext.Telemetry)
                     .ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);

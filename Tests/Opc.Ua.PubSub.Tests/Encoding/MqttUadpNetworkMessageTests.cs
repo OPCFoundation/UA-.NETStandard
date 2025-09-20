@@ -183,8 +183,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate PublisherId with PublisherId as parameter")]
@@ -322,8 +321,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate GroupHeader with PublisherId as parameter")]
@@ -436,8 +434,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate WriterGroupId with PublisherId as parameter")]
@@ -550,8 +547,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate GroupVersion with PublisherId as parameter")]
@@ -668,8 +664,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate NetworkMessageNumber with PublisherId as parameter")]
@@ -785,8 +780,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate SequenceNumber with PublisherId as parameter")]
@@ -891,8 +885,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate PayloadHeader with PublisherId as parameter")]
@@ -1005,8 +998,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate Timestamp with PublisherId as parameter")]
@@ -1122,8 +1114,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate PicoSeconds with PublisherId as parameter")]
@@ -1240,8 +1231,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate DataSetClassId with PublisherId as parameter")]
@@ -1353,8 +1343,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, logger);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate that Uadp metadata is encoded/decoded correctly")]
@@ -1441,10 +1430,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uaMetaDataNetworkMessages,
                 "Uadp ua-metadata entries are missing from configuration!");
 
-            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, logger);
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, telemetry);
             }
         }
 
@@ -1861,16 +1849,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Compare encoded/decoded network messages
         /// </summary>
         /// <param name="uadpNetworkMessage">the message to encode</param>
-        private static void CompareEncodeDecodeMetaData(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
+        private static void CompareEncodeDecodeMetaData(UadpNetworkMessage uadpNetworkMessage, ITelemetryContext telemetry)
         {
             Assert.IsTrue(
                 uadpNetworkMessage.IsMetaDataMessage,
                 "The received message is not a metadata message");
 
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(telemetry));
 
+            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
-            uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
+            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(telemetry), bytes, null);
 
             Assert.IsTrue(
                 uaNetworkMessageDecoded.IsMetaDataMessage,
@@ -1894,13 +1883,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static void CompareEncodeDecode(
             UadpNetworkMessage uadpNetworkMessage,
             IList<DataSetReaderDataType> dataSetReaders,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
+
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                ServiceMessageContext.GlobalContext,
+                new ServiceMessageContext(telemetry),
                 bytes,
                 dataSetReaders);
 

@@ -422,11 +422,12 @@ namespace Quickstarts.ConsoleReferenceClient
 
                         if (userCertificateIdentifier != null)
                         {
-                            uaClient.UserIdentity = new UserIdentity(
+                            uaClient.UserIdentity = UserIdentity.CreateAsync(
                                 userCertificateIdentifier,
                                 new CertificatePasswordProvider(userCertificatePassword ?? string.Empty),
+                                telemetry,
                                 logger
-                            );
+                            ).GetAwaiter().GetResult();
                         }
                         else
                         {

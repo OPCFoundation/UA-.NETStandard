@@ -887,7 +887,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
@@ -904,7 +904,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(

@@ -333,13 +333,13 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas();
             var messageContext = new ServiceMessageContext(m_telemetry)
             {
                 NamespaceUris = settings.NamespaceUris,
                 ServerUris = new StringTable(),
                 Factory = settings.Factory
             };
+            m_quotas = new ChannelQuotas(messageContext);
 
             if (configuration != null)
             {
@@ -357,7 +357,6 @@ namespace Opc.Ua.Bindings
                 messageContext.MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels;
                 messageContext.MaxDecoderRecoveries = configuration.MaxDecoderRecoveries;
             }
-            m_quotas.MessageContext = messageContext;
 
             m_quotas.CertificateValidator = settings.CertificateValidator;
 

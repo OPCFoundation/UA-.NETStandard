@@ -556,6 +556,7 @@ namespace Opc.Ua.Configuration
                         applicationType,
                         configurationType,
                         applyTraceSettings,
+                        m_telemetry,
                         certificatePasswordProvider,
                         ct)
                     .ConfigureAwait(false);
@@ -603,6 +604,7 @@ namespace Opc.Ua.Configuration
                         applicationType,
                         configurationType,
                         applyTraceSettings,
+                        m_telemetry,
                         certificatePasswordProvider,
                         ct)
                     .ConfigureAwait(false);

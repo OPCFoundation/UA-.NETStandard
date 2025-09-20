@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             DataTypeSystem = [];
             DataTypeNodes = [];
-            m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory, telemetry);
+            m_factory = new EncodeableFactory(telemetry);
             NamespaceUris = new NamespaceTable();
 
             NamespaceUris.Append("urn:This:is:my:test:encoder");

@@ -1030,6 +1030,7 @@ namespace Opc.Ua.Server
                         m_serverCertificate,
                         m_serverNonce,
                         securityPolicyUri,
+                        m_server.MessageContext,
                         m_logger,
                         m_eccUserTokenNonce,
                         ClientCertificate,

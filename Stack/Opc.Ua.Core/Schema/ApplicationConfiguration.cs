@@ -40,8 +40,7 @@ namespace Opc.Ua
         /// </summary>
         public ApplicationConfiguration(ITelemetryContext telemetry)
         {
-            m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<ApplicationConfiguration>();
+            Initialize(telemetry);
 
             Initialize();
         }
@@ -51,9 +50,6 @@ namespace Opc.Ua
         /// </summary>
         public ApplicationConfiguration(ApplicationConfiguration template)
         {
-            m_telemetry = template.m_telemetry;
-            m_logger = template.m_logger;
-
             ApplicationName = template.ApplicationName;
             ApplicationType = template.ApplicationType;
             ApplicationUri = template.ApplicationUri;
@@ -69,8 +65,9 @@ namespace Opc.Ua
             m_extensions = template.m_extensions;
             m_extensionObjects = template.m_extensionObjects;
             SourceFilePath = template.SourceFilePath;
-            m_messageContext = template.m_messageContext;
             m_properties = template.m_properties;
+            m_telemetry = template.m_telemetry;
+            m_logger = template.m_logger;
         }
 
         /// <summary>
@@ -83,10 +80,21 @@ namespace Opc.Ua
             m_transportConfigurations = [];
             DisableHiResClock = false;
             m_properties = [];
-            CertificateValidator = new CertificateValidator(m_telemetry);
             m_extensionObjects = [];
 
+            CertificateValidator ??= new CertificateValidator(m_telemetry);
             m_logger ??= m_telemetry.CreateLogger<ApplicationConfiguration>();
+        }
+
+        /// <summary>
+        /// Initialize telemetry context - after loading
+        /// </summary>
+        /// <param name="telemetry"></param>
+        internal void Initialize(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ApplicationConfiguration>();
+            CertificateValidator = new CertificateValidator(m_telemetry);
         }
 
         /// <summary>
@@ -224,13 +232,12 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool DisableHiResClock { get; set; }
 
-        private readonly ITelemetryContext m_telemetry;
+        private ITelemetryContext m_telemetry;
         private ILogger m_logger;
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
         private XmlElementCollection m_extensions;
         private List<object> m_extensionObjects;
-        private readonly IServiceMessageContext m_messageContext;
         private Dictionary<string, object> m_properties;
     }
 

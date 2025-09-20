@@ -31,6 +31,7 @@ using System;
 using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Server
@@ -124,7 +125,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            var configuration = new ApplicationConfiguration
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "Test",
                 ApplicationType = ApplicationType.Server,

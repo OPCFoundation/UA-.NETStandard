@@ -63,9 +63,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
@@ -160,9 +159,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
@@ -260,9 +258,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
@@ -362,9 +359,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
@@ -469,9 +465,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
@@ -571,9 +566,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,

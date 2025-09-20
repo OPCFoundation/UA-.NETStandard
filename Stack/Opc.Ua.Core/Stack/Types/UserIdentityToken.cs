@@ -29,6 +29,7 @@ namespace Opc.Ua
             X509Certificate2 receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
+            IServiceMessageContext context,
             ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
@@ -44,6 +45,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
+            IServiceMessageContext context,
             ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
@@ -120,6 +122,7 @@ namespace Opc.Ua
             X509Certificate2 receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
+            IServiceMessageContext context,
             ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
@@ -159,16 +162,6 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                var secret = new EncryptedSecret
-                {
-                    ReceiverCertificate = receiverCertificate,
-                    SecurityPolicyUri = securityPolicyUri,
-                    ReceiverNonce = receiverEphemeralKey,
-                    SenderCertificate = senderCertificate,
-                    SenderIssuerCertificates = senderIssuerCertificates,
-                    DoNotEncodeSenderCertificate = doNotEncodeSenderCertificate
-                };
-
                 // check if the complete chain is included in the sender issuers.
                 if (senderIssuerCertificates != null &&
                     senderIssuerCertificates.Count > 0 &&
@@ -184,8 +177,16 @@ namespace Opc.Ua
                     senderIssuerCertificates = issuers;
                 }
 
-                secret.SenderIssuerCertificates = senderIssuerCertificates;
-                secret.SenderNonce = Nonce.CreateNonce(securityPolicyUri);
+                var secret = new EncryptedSecret(
+                    context,
+                    securityPolicyUri,
+                    senderIssuerCertificates,
+                    receiverCertificate,
+                    receiverEphemeralKey,
+                    senderCertificate,
+                    Nonce.CreateNonce(securityPolicyUri),
+                    null,
+                    doNotEncodeSenderCertificate);
 
                 m_password = secret.Encrypt(m_decryptedPassword, receiverNonce);
                 m_encryptionAlgorithm = null;
@@ -204,6 +205,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
+            IServiceMessageContext context,
             ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
@@ -271,15 +273,15 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                var secret = new EncryptedSecret
-                {
-                    SenderCertificate = senderCertificate,
-                    SenderIssuerCertificates = senderIssuerCertificates,
-                    Validator = validator,
-                    ReceiverCertificate = certificate,
-                    ReceiverNonce = ephemeralKey,
-                    SecurityPolicyUri = securityPolicyUri
-                };
+                var secret = new EncryptedSecret(
+                    context,
+                    securityPolicyUri,
+                    senderIssuerCertificates,
+                    certificate,
+                    ephemeralKey,
+                    senderCertificate,
+                    null,
+                    validator);
 
                 m_decryptedPassword = secret.Decrypt(
                     DateTime.UtcNow.AddHours(-1),
@@ -425,6 +427,7 @@ namespace Opc.Ua
             X509Certificate2 receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
+            IServiceMessageContext context,
             ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
@@ -460,6 +463,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
+            IServiceMessageContext context,
             ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,

@@ -280,7 +280,6 @@ namespace Opc.Ua
             TypeId = ExpandedNodeId.Null;
             Encoding = ExtensionObjectEncoding.None;
             m_body = null;
-            m_context = MessageContextExtension.CurrentContext;
         }
 
         /// <summary>
@@ -329,12 +328,6 @@ namespace Opc.Ua
             Body = body;
         }
 
-        [OnSerializing]
-        private void UpdateContext(StreamingContext context)
-        {
-            m_context = MessageContextExtension.CurrentContext;
-        }
-
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
@@ -344,7 +337,6 @@ namespace Opc.Ua
             TypeId = ExpandedNodeId.Null;
             Encoding = ExtensionObjectEncoding.None;
             m_body = null;
-            m_context = MessageContextExtension.CurrentContext;
         }
 
         /// <summary>
@@ -688,12 +680,13 @@ namespace Opc.Ua
         {
             get
             {
+                IServiceMessageContext context = MessageContextExtension.CurrentContext;
                 // must use the XML encoding id if encoding in an XML stream.
                 if (m_body is IEncodeable encodeable)
                 {
                     return ExpandedNodeId.ToNodeId(
                         encodeable.XmlEncodingId,
-                        m_context.NamespaceUris);
+                        context.NamespaceUris);
                 }
 
                 // check for null Id.
@@ -703,9 +696,13 @@ namespace Opc.Ua
                     return new NodeId();
                 }
 
-                return ExpandedNodeId.ToNodeId(TypeId, m_context.NamespaceUris);
+                return ExpandedNodeId.ToNodeId(TypeId, context.NamespaceUris);
             }
-            set => TypeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
+            set
+            {
+                IServiceMessageContext context = MessageContextExtension.CurrentContext;
+                TypeId = NodeId.ToExpandedNodeId(value, context.NamespaceUris);
+            }
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
@@ -720,7 +717,8 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using var encoder = new XmlEncoder(m_context);
+                IServiceMessageContext context = MessageContextExtension.CurrentContext;
+                using var encoder = new XmlEncoder(context);
                 // write body.
                 encoder.WriteExtensionObjectBody(m_body);
 
@@ -741,7 +739,8 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                using var decoder = new XmlDecoder(value, m_context);
+                IServiceMessageContext context = MessageContextExtension.CurrentContext;
+                using var decoder = new XmlDecoder(value, context);
                 // read body.
                 Body = decoder.ReadExtensionObjectBody(TypeId);
 
@@ -767,7 +766,6 @@ namespace Opc.Ua
         }
 
         private object m_body;
-        private IServiceMessageContext m_context;
     }
 
     /// <summary>

@@ -198,9 +198,8 @@ namespace Opc.Ua.PubSub
                     "The specified file {0} does not exist",
                     configFilePath);
             }
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configFilePath);
+            PubSubConfigurationDataType pubSubConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configFilePath, telemetry);
 
             return Create(pubSubConfiguration, dataStore, telemetry);
         }

@@ -186,21 +186,21 @@ namespace Opc.Ua
         public void Collect(StackTrace trace)
         {
             string str = trace.ToString();
-            if (s_reported.TryAdd(str, true))
+            if (m_reported.TryAdd(str, true))
             {
                 if (m_fileName == null)
                 {
                     Debug.WriteLine(str);
                     return;
                 }
-                lock (s_reported)
+                lock (m_reported)
                 {
                     System.IO.File.AppendAllText(m_fileName, str + "\n\n");
                 }
             }
         }
 
-        private readonly ConcurrentDictionary<string, bool> s_reported = new();
+        private readonly ConcurrentDictionary<string, bool> m_reported = new();
         private readonly string? m_fileName;
     }
 }

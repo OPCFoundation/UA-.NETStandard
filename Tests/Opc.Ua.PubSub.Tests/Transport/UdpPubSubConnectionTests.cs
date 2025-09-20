@@ -39,6 +39,7 @@ using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
@@ -83,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_uaPublisherApplication;
         private UdpPubSubConnection m_udpPublisherConnection;
-
+        private IServiceMessageContext m_messageContext;
         private ManualResetEvent m_shutdownEvent;
 
         /// <summary>
@@ -92,6 +93,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [OneTimeSetUp]
         public void MyTestInitialize()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            m_messageContext = new ServiceMessageContext(telemetry);
+
             // Create a publisher application
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,

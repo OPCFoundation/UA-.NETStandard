@@ -616,7 +616,11 @@ namespace Opc.Ua.Gds.Server
                     StoreType = store.StoreType
                 };
                 X509Certificate2 certCAWithPrivateKey =
-                    await certCAIdentifier.LoadPrivateKeyAsync(issuerKeyFilePassword, ct: ct)
+                    await certCAIdentifier.LoadPrivateKeyAsync(
+                        issuerKeyFilePassword,
+                        applicationUri: null,
+                        telemetry,
+                        ct)
                         .ConfigureAwait(false)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,

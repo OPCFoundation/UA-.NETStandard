@@ -55,7 +55,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Order(1)]
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromUnicast()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -65,9 +64,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -78,7 +76,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -91,9 +91,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -104,7 +105,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -116,7 +119,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             m_shutdownEvent = new ManualResetEvent(false);
 
             // physical network ip is mandatory on UdpClientUnicast as parameter
-            UdpClient udpUnicastClient = new UdpClientUnicast(localhost.Address, kDiscoveryPortNo, telemetry);
+            UdpClient udpUnicastClient = new UdpClientUnicast(
+                localhost.Address,
+                kDiscoveryPortNo,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(udpUnicastClient, "udpUnicastClient is null");
 
             // first physical network ip = unicast address ip
@@ -152,7 +158,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromBroadcast()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -162,9 +167,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
+
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -175,7 +182,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -188,9 +197,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
@@ -204,7 +214,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     broadcastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -221,7 +233,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 localhost.Address,
                 kDiscoveryPortNo,
                 UsedInContext.Publisher,
-                telemetry);
+                m_messageContext.Telemetry);
             Assert.IsNotNull(udpBroadcastClient, "udpBroadcastClient is null");
 
             var remoteEndPoint = new IPEndPoint(broadcastIPAddress, kDiscoveryPortNo);
@@ -256,7 +268,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromMulticast()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -269,9 +280,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -282,7 +294,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -295,9 +309,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -308,7 +323,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -325,7 +342,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 localhost.Address,
                 multicastIPAddress,
                 0,
-                telemetry);
+                m_messageContext.Telemetry);
             Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
 
             var remoteEndPoint = new IPEndPoint(multicastIPAddress, kDiscoveryPortNo);
@@ -360,7 +377,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromDiscoveryResponse_DataSetMetadata()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -375,9 +391,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             //set address and create subscriber
@@ -389,7 +406,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -405,9 +424,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             //set address and create publisher
@@ -419,7 +439,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -439,7 +461,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 localhost.Address,
                 multicastIPAddress,
                 0,
-                telemetry);
+                m_messageContext.Telemetry);
             Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
 
             //set endpoint and send message
@@ -461,7 +483,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .PubSubConnections[0]
                 .PubSubConnectionConfiguration
                 .WriterGroups[0];
-            var networkMessage = new UadpNetworkMessage(writerConfig, metaData, telemetry.CreateLogger<UdpPubSubConnectionTests>())
+            var networkMessage = new UadpNetworkMessage(
+                writerConfig,
+                metaData,
+                m_messageContext.Telemetry.CreateLogger<UdpPubSubConnectionTests>())
             {
                 PublisherId = m_uaPublisherApplication.ApplicationId,
                 DataSetWriterId = writerConfig.DataSetWriters[0].DataSetWriterId
@@ -499,7 +524,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromDiscoveryResponse_DataSetWriterConfig()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -514,9 +538,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             //set address and create subscriber
@@ -528,7 +553,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -545,9 +572,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -558,7 +586,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -575,7 +605,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 localhost.Address,
                 multicastIPAddress,
                 0,
-                telemetry);
+                m_messageContext.Telemetry);
             Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
 
             //set endpoint and send message
@@ -616,7 +646,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromDiscoveryResponse_SubscriberRequestDataSetWriterConfiguration()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -630,9 +659,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -643,7 +673,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -657,9 +689,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -670,7 +703,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -720,7 +755,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromDiscoveryResponse_SubscriberRequestPublisherEndpoints()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -734,9 +768,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -747,7 +782,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -760,9 +797,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -773,7 +811,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -821,7 +861,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromDiscoveryResponse_PublisherTriggerEndpoints()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -835,9 +874,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_subscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType subscriberConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -848,7 +888,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            var subscriberApplication = UaPubSubApplication.Create(
+                subscriberConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
             var subscriberConnection = subscriberApplication.PubSubConnections[
@@ -861,9 +903,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+            PubSubConfigurationDataType publisherConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -874,7 +917,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            var publisherApplication = UaPubSubApplication.Create(
+                publisherConfiguration,
+                m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[
@@ -896,7 +941,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 localhost.Address,
                 multicastIPAddress,
                 0,
-                telemetry);
+                m_messageContext.Telemetry);
             Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
 
             var remoteEndPoint = new IPEndPoint(multicastIPAddress, kDiscoveryPortNo);
@@ -1078,7 +1123,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// <param name="publisherConnection">the connection</param>
         /// <param name="udpConnectionType">the connection's type</param>
         /// <param name="networkMessageIndex">the network message index</param>
-        private static byte[] BuildNetworkMessages(
+        private byte[] BuildNetworkMessages(
             UdpPubSubConnection publisherConnection,
             UdpConnectionType udpConnectionType = UdpConnectionType.Discovery,
             int networkMessageIndex = 0)
@@ -1114,7 +1159,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 UaNetworkMessage message = networkMessages[networkMessageIndex];
 
-                return message.Encode(ServiceMessageContext.GlobalContext);
+                return message.Encode(m_messageContext);
             }
             catch (Exception ex)
             {
@@ -1126,7 +1171,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// <summary>
         /// Prepare Publisher UADP Discovery request with PublisherEndpoints data
         /// </summary>
-        private static byte[] PreparePublisherEndpointsMessage(
+        private byte[] PreparePublisherEndpointsMessage(
             UdpPubSubConnection publisherConnection,
             UdpConnectionType udpConnectionType = UdpConnectionType.Networking)
         {
@@ -1143,7 +1188,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         publisherConnection.PubSubConnectionConfiguration.PublisherId.Value);
                     Assert.IsNotNull(networkMessage, "uaNetworkMessage shall not return null");
 
-                    return networkMessage.Encode(ServiceMessageContext.GlobalContext);
+                    return networkMessage.Encode(m_messageContext);
                 }
 
                 return null;
@@ -1156,7 +1201,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         /// <summary>
-        /// UADP Discovery: Provide Publisher demo PublisherEndpoints setting GetPublisherEndpointsCallback method to deliver them during a Subscriber request
+        /// UADP Discovery: Provide Publisher demo PublisherEndpoints setting GetPublisherEndpointsCallback
+        /// method to deliver them during a Subscriber request
         /// </summary>
         private List<EndpointDescription> GetPublisherEndpoints()
         {
@@ -1210,7 +1256,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// Prepare data for a DataSetWriterConfigurationMessage
         /// </summary>
         /// <param name="publisherConnection">Publisher connection</param>
-        private static byte[] PrepareDataSetWriterConfigurationMessage(
+        private byte[] PrepareDataSetWriterConfigurationMessage(
             UdpPubSubConnection publisherConnection)
         {
             try
@@ -1233,7 +1279,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     networkMessage,
                     "CreateDataSetWriterCofigurationMessages returned null");
 
-                return networkMessage.Encode(ServiceMessageContext.GlobalContext);
+                return networkMessage.Encode(m_messageContext);
             }
             catch (Exception ex)
             {

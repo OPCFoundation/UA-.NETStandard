@@ -436,27 +436,25 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
-            m_quotas = new ChannelQuotas
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            {
+                MaxArrayLength = configuration.MaxArrayLength,
+                MaxByteStringLength = configuration.MaxByteStringLength,
+                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
+                        configuration.MaxMessageSize),
+                MaxStringLength = configuration.MaxStringLength,
+                MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
+                NamespaceUris = m_settings.NamespaceUris,
+                ServerUris = new StringTable(),
+                Factory = m_settings.Factory
+            })
             {
                 MaxBufferSize = configuration.MaxBufferSize,
                 MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
                     configuration.MaxMessageSize),
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-                MessageContext = new ServiceMessageContext(m_telemetry)
-                {
-                    MaxArrayLength = configuration.MaxArrayLength,
-                    MaxByteStringLength = configuration.MaxByteStringLength,
-                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
-                        configuration.MaxMessageSize),
-                    MaxStringLength = configuration.MaxStringLength,
-                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
-                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                    NamespaceUris = m_settings.NamespaceUris,
-                    ServerUris = new StringTable(),
-                    Factory = m_settings.Factory
-                },
-
                 CertificateValidator = settings.CertificateValidator
             };
 

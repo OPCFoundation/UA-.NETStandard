@@ -45,8 +45,12 @@ namespace Opc.Ua.Server.Tests
     public class ServerStartupTests
     {
         [DatapointSource]
-        public string[] UriSchemes = [Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps, Utils
-            .UriSchemeOpcHttps];
+        public string[] UriSchemes =
+        [
+            Utils.UriSchemeOpcTcp,
+            Utils.UriSchemeHttps,
+            Utils.UriSchemeOpcHttps
+        ];
 
         /// <summary>
         /// Start a server fixture with different uri schemes.

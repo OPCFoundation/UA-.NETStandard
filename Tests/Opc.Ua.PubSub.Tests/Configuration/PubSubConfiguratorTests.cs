@@ -99,14 +99,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 checkCurrentDirectory: true,
                 createAlways: false);
             m_pubConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
-                publisherConfigFile);
+                publisherConfigFile,
+                telemetry);
             // A subscriber configuration source
             string subscriberConfigFile = Utils.GetAbsoluteFilePath(
                 SubscriberConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
             m_subConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
-                subscriberConfigFile);
+                subscriberConfigFile,
+                telemetry);
         }
 
         [Test(Description = "Validate ConnectionAdded event is triggered")]

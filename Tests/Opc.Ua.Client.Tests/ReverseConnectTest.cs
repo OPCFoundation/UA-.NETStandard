@@ -54,11 +54,11 @@ namespace Opc.Ua.Client.Tests
         private Uri m_endpointUrl;
 
         [DatapointSource]
-        public static readonly ISessionFactory[] SessionFactories =
+        public static readonly TelemetryParameterizable<ISessionFactory>[] SessionFactories =
         [
-            new TraceableSessionFactory(null),
-            new TestableSessionFactory(null),
-            new DefaultSessionFactory(null)
+            TelemetryParameterizable.Create<ISessionFactory>(t => new TraceableSessionFactory(t)),
+            TelemetryParameterizable.Create<ISessionFactory>(t => new TestableSessionFactory(t)),
+            TelemetryParameterizable.Create<ISessionFactory>(t => new DefaultSessionFactory(t))
         ];
 
         /// <summary>
@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.Tests
 
         [Theory]
         [Order(300)]
-        public async Task ReverseConnectAsync(string securityPolicy, ISessionFactory sessionFactory)
+        public async Task ReverseConnectAsync(string securityPolicy, TelemetryParameterizable<ISessionFactory> sessionFactory)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -233,7 +233,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            ISession session = await sessionFactory
+            ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
                     connection,
@@ -273,7 +273,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ReverseConnect2Async(
             bool updateBeforeConnect,
             bool checkDomain,
-            ISessionFactory sessionFactory)
+            TelemetryParameterizable<ISessionFactory> sessionFactory)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            ISession session = await sessionFactory
+            ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
                     ClientFixture.ReverseConnectManager,

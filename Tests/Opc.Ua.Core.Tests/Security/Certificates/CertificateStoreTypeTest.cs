@@ -35,7 +35,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     "Certificates",
                     "CertificateStoreTypeTestConfig.xml"));
             ApplicationConfiguration appConfig = await ApplicationConfiguration
-                .LoadAsync(fileInfo, ApplicationType.Client, null)
+                .LoadAsync(fileInfo, ApplicationType.Client, systemType: null, telemetry)
                 .ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
