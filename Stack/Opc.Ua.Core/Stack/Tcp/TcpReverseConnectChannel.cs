@@ -12,6 +12,7 @@
 
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -28,9 +29,11 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            EndpointDescriptionCollection endpoints)
-            : base(contextId, listener, bufferManager, quotas, null, endpoints)
+            EndpointDescriptionCollection endpoints,
+            ITelemetryContext telemetry)
+            : base(contextId, listener, bufferManager, quotas, null, endpoints, telemetry)
         {
+            m_logger = telemetry.CreateLogger<TcpReverseConnectChannel>();
         }
 
         /// <summary>
@@ -55,7 +58,7 @@ namespace Opc.Ua.Bindings
                     // check for reverse hello.
                     if (messageType == TcpMessageType.ReverseHello)
                     {
-                        Utils.LogInfo("ChannelId {0}: ProcessReverseHelloMessage", ChannelId);
+                        m_logger.LogInformation("ChannelId {Id}: ProcessReverseHelloMessage", ChannelId);
                         return ProcessReverseHelloMessage(messageType, messageChunk);
                     }
 
@@ -136,5 +139,7 @@ namespace Opc.Ua.Bindings
 
             return false;
         }
+
+        private readonly ILogger m_logger;
     }
 }

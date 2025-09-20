@@ -44,24 +44,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes a new instance of the class.
         /// </summary>
-        public TraceableSession(ISession session)
+        public TraceableSession(ISession session, ITelemetryContext telemetry)
         {
             Session = session;
+            m_telemetry = telemetry;
+            SessionFactory = new TraceableSessionFactory(telemetry);
         }
-
-        /// <summary>
-        /// Activity Source Name.
-        /// </summary>
-        public static readonly string ActivitySourceName
-            = "Opc.Ua.Client-TraceableSession-ActivitySource";
-
-        /// <summary>
-        /// Activity Source static instance.
-        /// </summary>
-        public static ActivitySource ActivitySource => s_activitySource.Value;
-
-        private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
-            new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <inheritdoc/>
         public ISession Session { get; }
@@ -123,7 +111,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ISessionFactory SessionFactory => TraceableSessionFactory.Instance;
+        public ISessionFactory SessionFactory { get; }
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint => Session.ConfiguredEndpoint;
@@ -310,7 +298,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task ReconnectAsync(CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.ReconnectAsync(ct).ConfigureAwait(false);
         }
 
@@ -319,28 +307,28 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection connection,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.ReconnectAsync(connection, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.ReconnectAsync(channel, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             Session.Save(filePath, knownTypes);
         }
 
@@ -350,7 +338,7 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptions,
             IEnumerable<Type> knownTypes = null)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             Session.Save(stream, subscriptions, knownTypes);
         }
 
@@ -360,7 +348,7 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptions,
             IEnumerable<Type> knownTypes = null)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             Session.Save(filePath, subscriptions, knownTypes);
         }
 
@@ -370,7 +358,7 @@ namespace Opc.Ua.Client
             bool transferSubscriptions = false,
             IEnumerable<Type> knownTypes = null)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Load(stream, transferSubscriptions, knownTypes);
         }
 
@@ -380,14 +368,14 @@ namespace Opc.Ua.Client
             bool transferSubscriptions = false,
             IEnumerable<Type> knownTypes = null)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Load(filePath, transferSubscriptions, knownTypes);
         }
 
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.FetchTypeTreeAsync(typeId, ct).ConfigureAwait(false);
         }
 
@@ -396,7 +384,7 @@ namespace Opc.Ua.Client
             ExpandedNodeIdCollection typeIds,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.FetchTypeTreeAsync(typeIds, ct).ConfigureAwait(false);
         }
 
@@ -405,7 +393,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.FetchReferencesAsync(nodeId, ct).ConfigureAwait(false);
         }
 
@@ -414,7 +402,7 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.FetchReferencesAsync(nodeIds, ct).ConfigureAwait(false);
         }
 
@@ -423,7 +411,7 @@ namespace Opc.Ua.Client
             StringCollection preferredLocales,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.ChangePreferredLocalesAsync(preferredLocales, ct)
                 .ConfigureAwait(false);
         }
@@ -434,7 +422,7 @@ namespace Opc.Ua.Client
             StringCollection preferredLocales,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.UpdateSessionAsync(identity, preferredLocales, ct)
                 .ConfigureAwait(false);
         }
@@ -446,14 +434,14 @@ namespace Opc.Ua.Client
             out NodeIdCollection componentIds,
             out IList<ServiceResult> errors)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             Session.FindComponentIds(instanceId, componentPaths, out componentIds, out errors);
         }
 
         /// <inheritdoc/>
         public async Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadByteStringInChunksAsync(nodeId, ct).ConfigureAwait(false);
         }
 
@@ -463,7 +451,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.OpenAsync(sessionName, identity, ct).ConfigureAwait(false);
         }
 
@@ -475,7 +463,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct)
                 .ConfigureAwait(false);
         }
@@ -489,7 +477,7 @@ namespace Opc.Ua.Client
             bool checkDomain,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session
                 .OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct)
                 .ConfigureAwait(false);
@@ -505,7 +493,7 @@ namespace Opc.Ua.Client
             bool closeChannel,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session
                 .OpenAsync(
                     sessionName,
@@ -521,7 +509,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             await Session.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
         }
 
@@ -532,7 +520,7 @@ namespace Opc.Ua.Client
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadNodesAsync(nodeIds, nodeClass, optionalAttributes, ct)
                 .ConfigureAwait(false);
         }
@@ -540,14 +528,14 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<DataValue> ReadValueAsync(NodeId nodeId, CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task<Node> ReadNodeAsync(NodeId nodeId, CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadNodeAsync(nodeId, ct).ConfigureAwait(false);
         }
 
@@ -558,7 +546,7 @@ namespace Opc.Ua.Client
             bool optionalAttributes = true,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadNodeAsync(nodeId, nodeClass, optionalAttributes, ct)
                 .ConfigureAwait(false);
         }
@@ -569,7 +557,7 @@ namespace Opc.Ua.Client
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadNodesAsync(nodeIds, optionalAttributes, ct)
                 .ConfigureAwait(false);
         }
@@ -579,28 +567,28 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CloseAsync(ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CloseAsync(closeChannel, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CloseAsync(timeout, ct).ConfigureAwait(false);
         }
 
@@ -610,35 +598,35 @@ namespace Opc.Ua.Client
             bool closeChannel,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CloseAsync(timeout, closeChannel, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.AddSubscription(subscription);
         }
 
         /// <inheritdoc/>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.RemoveTransferredSubscription(subscription);
         }
 
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(Subscription subscription)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.RemoveSubscriptionsAsync(subscriptions).ConfigureAwait(false);
         }
 
@@ -651,7 +639,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void StartPublishing(int timeout, bool fullQueue)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             Session.StartPublishing(timeout, fullQueue);
         }
 
@@ -661,7 +649,7 @@ namespace Opc.Ua.Client
             uint sequenceNumber,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.RepublishAsync(subscriptionId, sequenceNumber, ct)
                 .ConfigureAwait(false);
         }
@@ -688,7 +676,7 @@ namespace Opc.Ua.Client
             out SignatureData serverSignature,
             out uint maxRequestMessageSize)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.CreateSession(
                 requestHeader,
                 clientDescription,
@@ -779,7 +767,7 @@ namespace Opc.Ua.Client
             uint maxResponseMessageSize,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .CreateSessionAsync(
                     requestHeader,
@@ -808,7 +796,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.ActivateSession(
                 requestHeader,
                 clientSignature,
@@ -869,7 +857,7 @@ namespace Opc.Ua.Client
             SignatureData userTokenSignature,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .ActivateSessionAsync(
                     requestHeader,
@@ -886,7 +874,7 @@ namespace Opc.Ua.Client
         [Obsolete("Use CloseSessionAsync() instead.")]
         public ResponseHeader CloseSession(RequestHeader requestHeader, bool deleteSubscriptions)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.CloseSession(requestHeader, deleteSubscriptions);
         }
 
@@ -918,7 +906,7 @@ namespace Opc.Ua.Client
             bool deleteSubscriptions,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CloseSessionAsync(requestHeader, deleteSubscriptions, ct)
                 .ConfigureAwait(false);
         }
@@ -930,7 +918,7 @@ namespace Opc.Ua.Client
             uint requestHandle,
             out uint cancelCount)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Cancel(requestHeader, requestHandle, out cancelCount);
         }
 
@@ -958,7 +946,7 @@ namespace Opc.Ua.Client
             uint requestHandle,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CancelAsync(requestHeader, requestHandle, ct)
                 .ConfigureAwait(false);
         }
@@ -971,7 +959,7 @@ namespace Opc.Ua.Client
             out AddNodesResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.AddNodes(requestHeader, nodesToAdd, out results, out diagnosticInfos);
         }
 
@@ -1002,7 +990,7 @@ namespace Opc.Ua.Client
             AddNodesItemCollection nodesToAdd,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.AddNodesAsync(requestHeader, nodesToAdd, ct).ConfigureAwait(false);
         }
 
@@ -1014,7 +1002,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.AddReferences(
                 requestHeader,
                 referencesToAdd,
@@ -1049,7 +1037,7 @@ namespace Opc.Ua.Client
             AddReferencesItemCollection referencesToAdd,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.AddReferencesAsync(requestHeader, referencesToAdd, ct)
                 .ConfigureAwait(false);
         }
@@ -1062,7 +1050,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.DeleteNodes(
                 requestHeader,
                 nodesToDelete,
@@ -1097,7 +1085,7 @@ namespace Opc.Ua.Client
             DeleteNodesItemCollection nodesToDelete,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.DeleteNodesAsync(requestHeader, nodesToDelete, ct)
                 .ConfigureAwait(false);
         }
@@ -1110,7 +1098,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.DeleteReferences(
                 requestHeader,
                 referencesToDelete,
@@ -1149,7 +1137,7 @@ namespace Opc.Ua.Client
             DeleteReferencesItemCollection referencesToDelete,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.DeleteReferencesAsync(requestHeader, referencesToDelete, ct)
                 .ConfigureAwait(false);
         }
@@ -1164,7 +1152,7 @@ namespace Opc.Ua.Client
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Browse(
                 requestHeader,
                 view,
@@ -1211,7 +1199,7 @@ namespace Opc.Ua.Client
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct)
                 .ConfigureAwait(false);
@@ -1226,7 +1214,7 @@ namespace Opc.Ua.Client
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.BrowseNext(
                 requestHeader,
                 releaseContinuationPoints,
@@ -1269,7 +1257,7 @@ namespace Opc.Ua.Client
             ByteStringCollection continuationPoints,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .BrowseNextAsync(requestHeader, releaseContinuationPoints, continuationPoints, ct)
                 .ConfigureAwait(false);
@@ -1287,7 +1275,7 @@ namespace Opc.Ua.Client
             uint nodeClassMask,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .ManagedBrowseAsync(
                     requestHeader,
@@ -1310,7 +1298,7 @@ namespace Opc.Ua.Client
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.TranslateBrowsePathsToNodeIds(
                 requestHeader,
                 browsePaths,
@@ -1352,7 +1340,7 @@ namespace Opc.Ua.Client
             BrowsePathCollection browsePaths,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct)
                 .ConfigureAwait(false);
@@ -1365,7 +1353,7 @@ namespace Opc.Ua.Client
             NodeIdCollection nodesToRegister,
             out NodeIdCollection registeredNodeIds)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.RegisterNodes(requestHeader, nodesToRegister, out registeredNodeIds);
         }
 
@@ -1395,7 +1383,7 @@ namespace Opc.Ua.Client
             NodeIdCollection nodesToRegister,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.RegisterNodesAsync(requestHeader, nodesToRegister, ct)
                 .ConfigureAwait(false);
         }
@@ -1406,7 +1394,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.UnregisterNodes(requestHeader, nodesToUnregister);
         }
 
@@ -1438,7 +1426,7 @@ namespace Opc.Ua.Client
             NodeIdCollection nodesToUnregister,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct)
                 .ConfigureAwait(false);
         }
@@ -1458,7 +1446,7 @@ namespace Opc.Ua.Client
             out DiagnosticInfoCollection diagnosticInfos,
             out ContentFilterResult filterResult)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.QueryFirst(
                 requestHeader,
                 view,
@@ -1525,7 +1513,7 @@ namespace Opc.Ua.Client
             uint maxReferencesToReturn,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .QueryFirstAsync(
                     requestHeader,
@@ -1547,7 +1535,7 @@ namespace Opc.Ua.Client
             out QueryDataSetCollection queryDataSets,
             out byte[] revisedContinuationPoint)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.QueryNext(
                 requestHeader,
                 releaseContinuationPoint,
@@ -1590,7 +1578,7 @@ namespace Opc.Ua.Client
             byte[] continuationPoint,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .QueryNextAsync(requestHeader, releaseContinuationPoint, continuationPoint, ct)
                 .ConfigureAwait(false);
@@ -1606,7 +1594,7 @@ namespace Opc.Ua.Client
             out DataValueCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Read(
                 requestHeader,
                 maxAge,
@@ -1653,7 +1641,7 @@ namespace Opc.Ua.Client
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .ReadAsync(requestHeader, maxAge, timestampsToReturn, nodesToRead, ct)
                 .ConfigureAwait(false);
@@ -1670,7 +1658,7 @@ namespace Opc.Ua.Client
             out HistoryReadResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.HistoryRead(
                 requestHeader,
                 historyReadDetails,
@@ -1721,7 +1709,7 @@ namespace Opc.Ua.Client
             HistoryReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .HistoryReadAsync(
                     requestHeader,
@@ -1741,7 +1729,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Write(requestHeader, nodesToWrite, out results, out diagnosticInfos);
         }
 
@@ -1772,7 +1760,7 @@ namespace Opc.Ua.Client
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.WriteAsync(requestHeader, nodesToWrite, ct).ConfigureAwait(false);
         }
 
@@ -1784,7 +1772,7 @@ namespace Opc.Ua.Client
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.HistoryUpdate(
                 requestHeader,
                 historyUpdateDetails,
@@ -1823,7 +1811,7 @@ namespace Opc.Ua.Client
             ExtensionObjectCollection historyUpdateDetails,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct)
                 .ConfigureAwait(false);
         }
@@ -1836,7 +1824,7 @@ namespace Opc.Ua.Client
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Call(requestHeader, methodsToCall, out results, out diagnosticInfos);
         }
 
@@ -1867,7 +1855,7 @@ namespace Opc.Ua.Client
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CallAsync(requestHeader, methodsToCall, ct).ConfigureAwait(false);
         }
 
@@ -1881,7 +1869,7 @@ namespace Opc.Ua.Client
             out MonitoredItemCreateResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.CreateMonitoredItems(
                 requestHeader,
                 subscriptionId,
@@ -1928,7 +1916,7 @@ namespace Opc.Ua.Client
             MonitoredItemCreateRequestCollection itemsToCreate,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .CreateMonitoredItemsAsync(
                     requestHeader,
@@ -1949,7 +1937,7 @@ namespace Opc.Ua.Client
             out MonitoredItemModifyResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.ModifyMonitoredItems(
                 requestHeader,
                 subscriptionId,
@@ -1996,7 +1984,7 @@ namespace Opc.Ua.Client
             MonitoredItemModifyRequestCollection itemsToModify,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .ModifyMonitoredItemsAsync(
                     requestHeader,
@@ -2017,7 +2005,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.SetMonitoringMode(
                 requestHeader,
                 subscriptionId,
@@ -2064,7 +2052,7 @@ namespace Opc.Ua.Client
             UInt32Collection monitoredItemIds,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .SetMonitoringModeAsync(
                     requestHeader,
@@ -2088,7 +2076,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection removeResults,
             out DiagnosticInfoCollection removeDiagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.SetTriggering(
                 requestHeader,
                 subscriptionId,
@@ -2148,7 +2136,7 @@ namespace Opc.Ua.Client
             UInt32Collection linksToRemove,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .SetTriggeringAsync(
                     requestHeader,
@@ -2169,7 +2157,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.DeleteMonitoredItems(
                 requestHeader,
                 subscriptionId,
@@ -2212,7 +2200,7 @@ namespace Opc.Ua.Client
             UInt32Collection monitoredItemIds,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .DeleteMonitoredItemsAsync(requestHeader, subscriptionId, monitoredItemIds, ct)
                 .ConfigureAwait(false);
@@ -2233,7 +2221,7 @@ namespace Opc.Ua.Client
             out uint revisedLifetimeCount,
             out uint revisedMaxKeepAliveCount)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.CreateSubscription(
                 requestHeader,
                 requestedPublishingInterval,
@@ -2301,7 +2289,7 @@ namespace Opc.Ua.Client
             byte priority,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .CreateSubscriptionAsync(
                     requestHeader,
@@ -2329,7 +2317,7 @@ namespace Opc.Ua.Client
             out uint revisedLifetimeCount,
             out uint revisedMaxKeepAliveCount)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.ModifySubscription(
                 requestHeader,
                 subscriptionId,
@@ -2394,7 +2382,7 @@ namespace Opc.Ua.Client
             byte priority,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .ModifySubscriptionAsync(
                     requestHeader,
@@ -2417,7 +2405,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.SetPublishingMode(
                 requestHeader,
                 publishingEnabled,
@@ -2460,7 +2448,7 @@ namespace Opc.Ua.Client
             UInt32Collection subscriptionIds,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .SetPublishingModeAsync(requestHeader, publishingEnabled, subscriptionIds, ct)
                 .ConfigureAwait(false);
@@ -2478,7 +2466,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Publish(
                 requestHeader,
                 subscriptionAcknowledgements,
@@ -2532,7 +2520,7 @@ namespace Opc.Ua.Client
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.PublishAsync(requestHeader, subscriptionAcknowledgements, ct)
                 .ConfigureAwait(false);
         }
@@ -2545,7 +2533,7 @@ namespace Opc.Ua.Client
             uint retransmitSequenceNumber,
             out NotificationMessage notificationMessage)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.Republish(
                 requestHeader,
                 subscriptionId,
@@ -2586,7 +2574,7 @@ namespace Opc.Ua.Client
             uint retransmitSequenceNumber,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .RepublishAsync(requestHeader, subscriptionId, retransmitSequenceNumber, ct)
                 .ConfigureAwait(false);
@@ -2601,7 +2589,7 @@ namespace Opc.Ua.Client
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.TransferSubscriptions(
                 requestHeader,
                 subscriptionIds,
@@ -2644,7 +2632,7 @@ namespace Opc.Ua.Client
             bool sendInitialValues,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct)
                 .ConfigureAwait(false);
@@ -2658,7 +2646,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.DeleteSubscriptions(
                 requestHeader,
                 subscriptionIds,
@@ -2697,7 +2685,7 @@ namespace Opc.Ua.Client
             UInt32Collection subscriptionIds,
             CancellationToken ct)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.DeleteSubscriptionsAsync(requestHeader, subscriptionIds, ct)
                 .ConfigureAwait(false);
         }
@@ -2705,14 +2693,14 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void AttachChannel(ITransportChannel channel)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             Session.AttachChannel(channel);
         }
 
         /// <inheritdoc/>
         public void DetachChannel()
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             Session.DetachChannel();
         }
 
@@ -2746,14 +2734,14 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.SaveSessionConfiguration(stream);
         }
 
         /// <inheritdoc/>
         public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return Session.ApplySessionConfiguration(sessionConfiguration);
         }
 
@@ -2762,7 +2750,7 @@ namespace Opc.Ua.Client
             Subscription subscription,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.RemoveSubscriptionAsync(subscription, ct).ConfigureAwait(false);
         }
 
@@ -2771,7 +2759,7 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptions,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.RemoveSubscriptionsAsync(subscriptions, ct).ConfigureAwait(false);
         }
 
@@ -2781,7 +2769,7 @@ namespace Opc.Ua.Client
             bool sendInitialValues,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session
                 .ReactivateSubscriptionsAsync(subscriptions, sendInitialValues, ct)
                 .ConfigureAwait(false);
@@ -2793,7 +2781,7 @@ namespace Opc.Ua.Client
             bool sendInitialValues,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.TransferSubscriptionsAsync(subscriptions, sendInitialValues, ct)
                 .ConfigureAwait(false);
         }
@@ -2805,7 +2793,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default,
             params object[] args)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.CallAsync(objectId, methodId, ct, args).ConfigureAwait(false);
         }
 
@@ -2814,7 +2802,7 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptions,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ResendDataAsync(subscriptions, ct).ConfigureAwait(false);
         }
 
@@ -2823,7 +2811,7 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadDisplayNameAsync(
                 nodeIds,
                 ct).ConfigureAwait(false);
@@ -2835,7 +2823,7 @@ namespace Opc.Ua.Client
             IList<string> componentPaths,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.FindComponentIdsAsync(
                 instanceId,
                 componentPaths,
@@ -2847,7 +2835,7 @@ namespace Opc.Ua.Client
             NodeId variableId,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadAvailableEncodingsAsync(
                 variableId,
                 ct).ConfigureAwait(false);
@@ -2858,7 +2846,7 @@ namespace Opc.Ua.Client
             NodeId encodingId,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.FindDataDescriptionAsync(
                 encodingId,
                 ct).ConfigureAwait(false);
@@ -2869,7 +2857,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.ReadValueAsync<T>(nodeId, ct).ConfigureAwait(false);
         }
 
@@ -2890,7 +2878,7 @@ namespace Opc.Ua.Client
                 uint nodeClassMask,
                 CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.BrowseAsync(
                 requestHeader,
                 view,
@@ -2916,7 +2904,7 @@ namespace Opc.Ua.Client
                 bool releaseContinuationPoint,
                 CancellationToken ct = default)
         {
-            using Activity activity = ActivitySource.StartActivity();
+            using Activity activity = m_telemetry.StartActivity();
             return await Session.BrowseNextAsync(
                 requestHeader,
                 continuationPoints,
@@ -2924,5 +2912,7 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
         }
+
+        private readonly ITelemetryContext m_telemetry;
     }
 }

@@ -648,7 +648,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             // Session
-            var clientTestServices = new ClientTestServices(Session);
+            var clientTestServices = new ClientTestServices(Session, Telemetry);
             ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
                 clientTestServices,
                 requestHeader);

@@ -16,6 +16,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Test
 {
@@ -127,7 +128,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Initializes the data generator.
         /// </summary>
-        public DataGenerator(IRandomSource random)
+        public DataGenerator(IRandomSource random, ITelemetryContext telemetry)
         {
             MaxArrayLength = 100;
             MaxStringLength = 100;
@@ -136,6 +137,7 @@ namespace Opc.Ua.Test
             MinDateTimeValue = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             MaxDateTimeValue = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             m_random = random;
+            m_logger = telemetry.CreateLogger<DataGenerator>();
             BoundaryValueFrequency = 20;
             NamespaceUris = new NamespaceTable();
             ServerUris = new StringTable();
@@ -1061,7 +1063,8 @@ namespace Opc.Ua.Test
                 ServiceResult.Good,
                 DiagnosticsMasks.NoInnerStatus,
                 true,
-                new StringTable());
+                new StringTable(),
+                m_logger);
         }
 
         /// <inheritdoc/>
@@ -1382,6 +1385,7 @@ namespace Opc.Ua.Test
             return buffer.ToString();
         }
 
+        private readonly ILogger m_logger;
         private readonly IRandomSource m_random;
         private readonly SortedDictionary<string, object[]> m_boundaryValues;
         private readonly string[] m_availableLocales;

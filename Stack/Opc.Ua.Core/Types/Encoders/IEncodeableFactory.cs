@@ -31,11 +31,6 @@ namespace Opc.Ua
     public interface IEncodeableFactory : ICloneable
     {
         /// <summary>
-        /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
-        /// </summary>
-        int InstanceId { get; }
-
-        /// <summary>
         /// Adds an extension type to the factory.
         /// </summary>
         /// <param name="systemType">The underlying system type to add to the factory</param>

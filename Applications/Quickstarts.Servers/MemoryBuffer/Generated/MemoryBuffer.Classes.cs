@@ -267,7 +267,7 @@ namespace MemoryBuffer
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,

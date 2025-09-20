@@ -61,8 +61,9 @@ namespace Opc.Ua.Client.Tests
         public TestableSession(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-            : this(channel as ITransportChannel, configuration, endpoint, null)
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry)
+            : this(channel as ITransportChannel, configuration, endpoint, null, telemetry)
         {
         }
 
@@ -88,6 +89,7 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
+            ITelemetryContext telemetry,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
             : base(
@@ -95,6 +97,7 @@ namespace Opc.Ua.Client.Tests
                 configuration,
                 endpoint,
                 clientCertificate,
+                telemetry,
                 availableEndpoints,
                 discoveryProfileUris)
         {
@@ -147,7 +150,8 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
-        public TestableSubscription()
+        public TestableSubscription(ITelemetryContext telemetry)
+            : base(telemetry)
         {
         }
 

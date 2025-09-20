@@ -43,15 +43,21 @@ namespace Opc.Ua.Fuzzing
 
         public static readonly string[] TestcaseEncoderSuffixes = [".Binary", ".Json", ".Xml"];
 
-        public static void Run(string workPath)
+        /// <summary>
+        /// Run the encoder test cases
+        /// </summary>
+        /// <param name="workPath"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public static void Run(string workPath, ITelemetryContext telemetry)
         {
             // Create the Testcases for the binary decoder.
+            FuzzableCode.MessageContext = new ServiceMessageContext(telemetry);
             string pathSuffix = TestcaseEncoderSuffixes[(int)TestCaseEncoders.Binary];
             string pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;
             foreach (MessageEncoder messageEncoder in MessageEncoders)
             {
                 byte[] message;
-                using (var encoder = new BinaryEncoder(MessageContext))
+                using (var encoder = new BinaryEncoder(FuzzableCode.MessageContext))
                 {
                     messageEncoder(encoder);
                     message = encoder.CloseAndReturnBuffer();
@@ -86,7 +92,7 @@ namespace Opc.Ua.Fuzzing
             {
                 byte[] message;
                 using (var memoryStream = new MemoryStream(0x1000))
-                using (var encoder = new JsonEncoder(MessageContext, true, false, memoryStream))
+                using (var encoder = new JsonEncoder(FuzzableCode.MessageContext, true, false, memoryStream))
                 {
                     messageEncoder(encoder);
                     encoder.Close();
@@ -113,11 +119,11 @@ namespace Opc.Ua.Fuzzing
             foreach (MessageEncoder messageEncoder in MessageEncoders)
             {
                 string xml;
-                using (var encoder = new XmlEncoder(MessageContext))
+                using (var encoder = new XmlEncoder(FuzzableCode.MessageContext))
                 {
                     encoder.SetMappingTables(
-                        MessageContext.NamespaceUris,
-                        MessageContext.ServerUris);
+                        FuzzableCode.MessageContext.NamespaceUris,
+                        FuzzableCode.MessageContext.ServerUris);
                     messageEncoder(encoder);
                     xml = encoder.CloseAndReturnText();
                 }

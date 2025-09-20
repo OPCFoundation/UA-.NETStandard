@@ -47,8 +47,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class EncodeableTypesTests : EncoderCommon
     {
         [DatapointSource]
-        public Type[] TypeArray = [.. typeof(BaseObjectState).Assembly.GetExportedTypes()
-            .Where(IsEncodeableType)];
+        public Type[] TypeArray =
+        [
+            .. typeof(BaseObjectState).Assembly
+                .GetExportedTypes()
+                .Where(IsEncodeableType)
+        ];
 
         /// <summary>
         /// Verify encode and decode of an encodeable type.

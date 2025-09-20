@@ -34,6 +34,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -57,6 +58,8 @@ namespace Opc.Ua.Server
             }
 
             Server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<MasterNodeManager>();
+
             m_nodeManagers = [];
             m_asyncNodeManagers = [];
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration
@@ -293,9 +296,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.LogInfo(
+                m_logger.LogInformation(
                     Utils.TraceMasks.StartStop,
-                    "MasterNodeManager.Startup - NodeManagers={0}",
+                    "MasterNodeManager.Startup - NodeManagers={Count}",
                     m_nodeManagers.Count);
 
                 // create the address spaces.
@@ -311,9 +314,9 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            "Unexpected error creating address space for NodeManager #{0}.",
+                            "Unexpected error creating address space for NodeManager #{Index}.",
                             ii);
                         throw;
                     }
@@ -330,9 +333,9 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            "Unexpected error adding references for NodeManager #{0}.",
+                            "Unexpected error adding references for NodeManager #{Index}.",
                             ii);
                         throw;
                     }
@@ -360,9 +363,9 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError(
+                            m_logger.LogError(
                                 e,
-                                "Unexpected error closing session for NodeManager #{0}.",
+                                "Unexpected error closing session for NodeManager #{Index}.",
                                 ii);
                         }
                     }
@@ -377,9 +380,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.LogInfo(
+                m_logger.LogInformation(
                     Utils.TraceMasks.StartStop,
-                    "MasterNodeManager.Shutdown - NodeManagers={0}",
+                    "MasterNodeManager.Shutdown - NodeManagers={Count}",
                     m_nodeManagers.Count);
 
                 foreach (INodeManager nodeManager in m_nodeManagers)
@@ -643,9 +646,9 @@ namespace Opc.Ua.Server
                 registeredNodeIds.Add(nodesToRegister[ii]);
             }
 
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.RegisterNodes - Count={0}",
+                "MasterNodeManager.RegisterNodes - Count={Count}",
                 nodesToRegister.Count);
 
             // it is up to the node managers to assign the handles.
@@ -676,9 +679,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodesToUnregister));
             }
 
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.UnregisterNodes - Count={0}",
+                "MasterNodeManager.UnregisterNodes - Count={Count}",
                 nodesToUnregister.Count);
 
             // it is up to the node managers to assign the handles.
@@ -813,7 +816,8 @@ namespace Opc.Ua.Server
                         DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticInfos.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
@@ -1004,7 +1008,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error translating browse path.");
+                m_logger.LogError(e, "Unexpected error translating browse path.");
                 return;
             }
 
@@ -1170,7 +1174,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> 
+        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
             BrowseInternalAsync(
             OperationContext context,
             ViewDescription view,
@@ -1308,7 +1312,7 @@ namespace Opc.Ua.Server
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
                         diagnosticsExist = true;
                     }
 
@@ -1558,7 +1562,11 @@ namespace Opc.Ua.Server
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                            Server,
+                            context,
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
 
@@ -1723,7 +1731,9 @@ namespace Opc.Ua.Server
                 {
                     if (sync)
                     {
-                        Utils.LogWarning("Async Browse called synchronously. Prefer using BrowseAsync for best performance. NodeManager={0}", nodeManager);
+                        m_logger.LogWarning(
+                            "Async Browse called synchronously. Prefer using BrowseAsync for best performance. NodeManager={NodeManager}",
+                            nodeManager);
                         cp = asyncNodeManager.BrowseAsync(context, cp, references, cancellationToken)
                             .AsTask().GetAwaiter().GetResult();
                     }
@@ -1933,9 +1943,9 @@ namespace Opc.Ua.Server
             // add placeholder for each result.
             bool validItems = false;
 
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.Read - Count={0}",
+                "MasterNodeManager.Read - Count={Count}",
                 nodesToRead.Count);
 
             PrepareValidationCache(
@@ -1977,8 +1987,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async Read called synchronously. Prefer using ReadAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async Read called synchronously. Prefer using ReadAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.ReadAsync(
@@ -2028,7 +2038,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2087,13 +2098,14 @@ namespace Opc.Ua.Server
             HistoryReadValueIdCollection nodesToRead,
             CancellationToken cancellationToken = default)
         {
-            return HistoryReadInternalAsync(context,
-                                            historyReadDetails,
-                                            timestampsToReturn,
-                                            releaseContinuationPoints,
-                                            nodesToRead,
-                                            sync: false,
-                                            cancellationToken);
+            return HistoryReadInternalAsync(
+                context,
+                historyReadDetails,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodesToRead,
+                sync: false,
+                cancellationToken);
         }
 
         /// <summary>
@@ -2155,7 +2167,8 @@ namespace Opc.Ua.Server
                         diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2179,8 +2192,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async HistoryRead called synchronously. Prefer using HistoryReadAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async HistoryRead called synchronously. Prefer using HistoryReadAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.HistoryReadAsync(
@@ -2233,7 +2246,8 @@ namespace Opc.Ua.Server
                             diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
                     }
@@ -2330,7 +2344,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2357,8 +2371,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async Write called synchronously. Prefer using WriteAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async Write called synchronously. Prefer using WriteAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.WriteAsync(
@@ -2394,7 +2408,8 @@ namespace Opc.Ua.Server
                             diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
                     }
@@ -2514,7 +2529,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2538,8 +2553,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async HistoryUpdate called synchronously. Prefer using HistoryUpdateAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async HistoryUpdate called synchronously. Prefer using HistoryUpdateAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.HistoryUpdateAsync(
@@ -2588,7 +2603,8 @@ namespace Opc.Ua.Server
                             diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
                     }
@@ -2688,7 +2704,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
 
@@ -2709,8 +2726,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async Call called synchronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async Call called synchronously. Prefer using CallAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.CallAsync(
@@ -2757,7 +2774,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             Server,
                             context,
-                            errors[ii]);
+                            errors[ii],
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2816,8 +2834,8 @@ namespace Opc.Ua.Server
                     {
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
-                            Utils.LogWarning(
-                                "Async ConditionRefresh called synchronously. Prefer using ConditionRefreshAsync for best performance. NodeManager={0}",
+                            m_logger.LogWarning(
+                                "Async ConditionRefresh called synchronously. Prefer using ConditionRefreshAsync for best performance. NodeManager={NodeManager}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
@@ -2831,7 +2849,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error calling ConditionRefreshAsync on AsyncNodeManager.");
+                    m_logger.LogError(e, "Error calling ConditionRefreshAsync on AsyncNodeManager.");
                 }
             }
         }
@@ -3008,14 +3026,15 @@ namespace Opc.Ua.Server
 
                     // validate the event filter.
                     EventFilter.Result result = filter.Validate(
-                        new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
+                        new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
                     if (ServiceResult.IsBad(result.Status))
                     {
                         errors[ii] = result.Status;
                         filterResults[ii] = result.ToEventFilterResult(
                             context.DiagnosticsMask,
-                            context.StringTable);
+                            context.StringTable,
+                            m_logger);
                         continue;
                     }
 
@@ -3074,9 +3093,9 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.LogError(
+                                m_logger.LogError(
                                     e,
-                                    "NodeManager threw an exception subscribing to all events. NodeManager={0}",
+                                    "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}",
                                     manager);
                             }
                         }
@@ -3195,9 +3214,9 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.LogError(
+                                m_logger.LogError(
                                     e,
-                                    "NodeManager threw an exception subscribing to all events. NodeManager={0}",
+                                    "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}",
                                     manager);
                             }
                         }
@@ -3367,14 +3386,15 @@ namespace Opc.Ua.Server
 
                 // validate the event filter.
                 EventFilter.Result result = filter.Validate(
-                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
+                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
                 if (ServiceResult.IsBad(result.Status))
                 {
                     errors[ii] = result.Status;
                     filterResults[ii] = result.ToEventFilterResult(
                         context.DiagnosticsMask,
-                        context.StringTable);
+                        context.StringTable,
+                        m_logger);
                     continue;
                 }
 
@@ -4265,6 +4285,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly List<INodeManager> m_nodeManagers;
         private readonly List<IAsyncNodeManager> m_asyncNodeManagers;
         private long m_lastMonitoredItemId;

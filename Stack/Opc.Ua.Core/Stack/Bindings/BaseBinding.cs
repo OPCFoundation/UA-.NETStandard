@@ -23,9 +23,10 @@ namespace Opc.Ua.Bindings
         protected BaseBinding(
             NamespaceTable namespaceUris,
             IEncodeableFactory factory,
-            EndpointConfiguration configuration)
+            EndpointConfiguration configuration,
+            ITelemetryContext telemetry)
         {
-            MessageContext = new ServiceMessageContext
+            MessageContext = new ServiceMessageContext(telemetry)
             {
                 MaxStringLength = configuration.MaxStringLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,

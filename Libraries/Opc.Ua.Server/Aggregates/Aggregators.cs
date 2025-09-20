@@ -40,7 +40,8 @@ namespace Opc.Ua.Server
         DateTime endTime,
         double processingInterval,
         bool stepped,
-        AggregateConfiguration configuration);
+        AggregateConfiguration configuration,
+        ITelemetryContext telemetry);
 
     /// <summary>
     /// The set of built-in aggregate factories.
@@ -329,7 +330,8 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
         {
             for (int ii = 0; ii < s_mappings.Length; ii++)
             {
@@ -343,7 +345,8 @@ namespace Opc.Ua.Server
                             endTime,
                             processingInterval,
                             stepped,
-                            configuration);
+                            configuration,
+                            telemetry);
                 }
             }
 

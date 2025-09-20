@@ -29,11 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
-using Opc.Ua.Security;
 
 namespace Opc.Ua.Client
 {
@@ -51,7 +46,8 @@ namespace Opc.Ua.Client
         {
             return DiscoverServersAsync(
                 configuration,
-                DefaultDiscoverTimeout).AsTask().GetAwaiter().GetResult();
+                DefaultDiscoverTimeout,
+                null).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -64,7 +60,8 @@ namespace Opc.Ua.Client
         {
             return DiscoverServersAsync(
                 configuration,
-                discoverTimeout).AsTask().GetAwaiter().GetResult();
+                discoverTimeout,
+                null).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -80,7 +77,8 @@ namespace Opc.Ua.Client
                 application,
                 connection,
                 useSecurity,
-                DefaultDiscoverTimeout).AsTask().GetAwaiter().GetResult();
+                DefaultDiscoverTimeout,
+                null).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -97,7 +95,8 @@ namespace Opc.Ua.Client
                 application,
                 connection,
                 useSecurity,
-                discoverTimeout).AsTask().GetAwaiter().GetResult();
+                discoverTimeout,
+                null).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -113,7 +112,8 @@ namespace Opc.Ua.Client
                 application,
                 discoveryUrl,
                 useSecurity,
-                DefaultDiscoverTimeout).AsTask().GetAwaiter().GetResult();
+                DefaultDiscoverTimeout,
+                null).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -130,7 +130,8 @@ namespace Opc.Ua.Client
                 application,
                 discoveryUrl,
                 useSecurity,
-                discoverTimeout).AsTask().GetAwaiter().GetResult();
+                discoverTimeout,
+                null).AsTask().GetAwaiter().GetResult();
         }
     }
 }

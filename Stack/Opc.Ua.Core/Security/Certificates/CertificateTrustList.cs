@@ -14,6 +14,7 @@ using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -49,7 +50,7 @@ namespace Opc.Ua
         [Obsolete("Use GetCertificatesAsync() instead.")]
         public Task<X509Certificate2Collection> GetCertificates()
         {
-            return GetCertificatesAsync();
+            return GetCertificatesAsync(null);
         }
 
         /// <summary>
@@ -57,6 +58,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public async Task<X509Certificate2Collection> GetCertificatesAsync(
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             var collection = new X509Certificate2Collection();
@@ -66,7 +68,7 @@ namespace Opc.Ua
                 ICertificateStore store = null;
                 try
                 {
-                    store = OpenStore();
+                    store = OpenStore(telemetry);
 
                     if (store == null)
                     {
@@ -79,7 +81,8 @@ namespace Opc.Ua
                 }
                 catch (Exception)
                 {
-                    Utils.LogError("Could not load certificates from store: {0}.", StorePath);
+                    ILogger<CertificateTrustList> logger = telemetry.CreateLogger<CertificateTrustList>();
+                    logger.LogError("Could not load certificates from store: {StorePath}.", StorePath);
                 }
                 finally
                 {
@@ -89,7 +92,7 @@ namespace Opc.Ua
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
             {
-                X509Certificate2 certificate = await trustedCertificate.FindAsync(ct: ct)
+                X509Certificate2 certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)

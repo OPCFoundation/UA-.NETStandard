@@ -39,6 +39,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         public ServerSystemContext(IServerInternal server)
+            : base(server.Telemetry)
         {
             OperationContext = null;
             NamespaceUris = server.NamespaceUris;
@@ -53,6 +54,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="context">The context.</param>
         public ServerSystemContext(IServerInternal server, OperationContext context)
+             : base(server.Telemetry)
         {
             OperationContext = context;
             NamespaceUris = server.NamespaceUris;
@@ -67,6 +69,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="session">The session.</param>
         public ServerSystemContext(IServerInternal server, ISession session)
+             : base(server.Telemetry)
         {
             OperationContext = null;
             SessionId = session.Id;

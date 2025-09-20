@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -39,11 +40,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId)
+        public DataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<DataChangeMonitoredItemQueue>();
             if (createDurable)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     "DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
                 throw new ArgumentException(
                     "DataChangeMonitoredItemQueue does not support durable Queues",
@@ -299,5 +301,10 @@ namespace Opc.Ua.Server
         /// the end of the buffer
         /// </summary>
         protected int m_end;
+
+        /// <summary>
+        /// A logger to use
+        /// </summary>
+        protected ILogger m_logger;
     }
 }

@@ -65,7 +65,7 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using var encoder = new JsonEncoder(s_messageContext, true);
+                using var encoder = new JsonEncoder(MessageContext, true);
                 encoder.EncodeMessage(encodeable);
                 encoder.Close();
             }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using var encoder = new XmlEncoder(s_messageContext);
+                using var encoder = new XmlEncoder(MessageContext);
                 encoder.EncodeMessage(encodeable);
                 encoder.Close();
             }
@@ -123,7 +123,7 @@ namespace Opc.Ua.Fuzzing
                         reader.MoveToContent();
                         string typeName = reader.LocalName;
                         string namespaceUri = reader.NamespaceURI;
-                        systemType = s_messageContext
+                        systemType = MessageContext
                             .Factory.EncodeableTypes.Where(entry =>
                                 entry.Value
                                     .Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/)
@@ -153,7 +153,7 @@ namespace Opc.Ua.Fuzzing
                     }
 
                     // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
-                    using var decoder = new XmlDecoder(reader, s_messageContext);
+                    using var decoder = new XmlDecoder(reader, MessageContext);
                     return decoder.DecodeMessage(systemType);
                 }
                 finally

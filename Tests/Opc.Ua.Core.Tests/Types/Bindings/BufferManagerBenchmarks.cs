@@ -202,7 +202,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolTooSmall = ArrayPool<byte>.Create(BufferSize, BucketSize);
             m_arrayPool = ArrayPool<byte>.Create(BufferSize + 1, BucketSize);
             m_arrayPoolShared = ArrayPool<byte>.Shared;
-            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize);
+            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize, null);
         }
 
         [OneTimeTearDown]
@@ -224,7 +224,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolTooSmall = ArrayPool<byte>.Create(BufferSize, BucketSize);
             m_arrayPool = ArrayPool<byte>.Create(BufferSize + 1, BucketSize);
             m_arrayPoolShared = ArrayPool<byte>.Shared;
-            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize);
+            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize, null);
         }
 
         /// <summary>

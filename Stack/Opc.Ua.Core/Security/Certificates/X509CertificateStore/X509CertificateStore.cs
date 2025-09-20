@@ -19,6 +19,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.X509StoreExtensions;
 
@@ -32,9 +33,10 @@ namespace Opc.Ua
         /// <summary>
         /// Create an instance of the certificate store.
         /// </summary>
-        public X509CertificateStore()
+        public X509CertificateStore(ITelemetryContext telemetry)
         {
             // defaults
+            m_logger = telemetry.CreateLogger<X509CertificateStore>();
             m_storeName = "My";
             m_storeLocation = StoreLocation.CurrentUser;
         }
@@ -173,9 +175,9 @@ namespace Opc.Ua
                         store.Add(certificate);
                     }
 
-                    Utils.LogCertificate(
-                        "Added certificate to X509Store {0}.",
-                        certificate,
+                    m_logger.LogInformation(
+                        "Added certificate {Certificate} to X509Store {Name}.",
+                        certificate.AsLogSafeString(),
                         store.Name);
                 }
             }
@@ -317,7 +319,7 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadOnly);
 
-                foreach (byte[] rawCrl in store.EnumerateCrls())
+                foreach (byte[] rawCrl in store.EnumerateCrls(m_logger))
                 {
                     try
                     {
@@ -326,7 +328,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Failed to parse CRL in store {0}.", store.Name);
+                        m_logger.LogError(e, "Failed to parse CRL in store {StoreName}.", store.Name);
                     }
                 }
             }
@@ -408,7 +410,7 @@ namespace Opc.Ua
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);
 
-            store.AddCrl(crl.RawData);
+            store.AddCrl(crl.RawData, m_logger);
         }
 
         /// <inheritdoc/>
@@ -426,7 +428,7 @@ namespace Opc.Ua
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);
 
-            return Task.FromResult(store.DeleteCrl(crl.RawData));
+            return Task.FromResult(store.DeleteCrl(crl.RawData, m_logger));
         }
 
         /// <inheritdoc/>
@@ -438,6 +440,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
+        private readonly ILogger m_logger;
         private string m_storeName;
         private StoreLocation m_storeLocation;
     }

@@ -1,5 +1,6 @@
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
@@ -17,12 +18,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //arrange
             const uint uriVersion = 1234;
             var namespaceTable = new NamespaceTable([Namespaces.OpcUa, "http://bar", "http://foo"]);
             const string expectedServerUri = "http://foobar";
             var serverUris = new StringTable([Namespaces.OpcUa, expectedServerUri]);
-            var context = new ServiceMessageContext
+            var context = new ServiceMessageContext(telemetry)
             {
                 NamespaceUris = namespaceTable,
                 ServerUris = serverUris

@@ -38,10 +38,10 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableRequestHeaderClientSessionFactory : TraceableSessionFactory
     {
-        /// <summary>
-        /// Object that creates instances of an Opc.Ua.Client.Session object with Activity Source.
-        /// </summary>
-        public static new readonly TraceableRequestHeaderClientSessionFactory Instance = new();
+        public TraceableRequestHeaderClientSessionFactory(ITelemetryContext telemetry)
+            : base(telemetry)
+        {
+        }
 
         /// <inheritdoc/>
         public override Session Create(
@@ -49,7 +49,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new TraceableRequestHeaderClientSession(channel, configuration, endpoint);
+            return new TraceableRequestHeaderClientSession(channel, configuration, endpoint, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -66,6 +66,7 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
+                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

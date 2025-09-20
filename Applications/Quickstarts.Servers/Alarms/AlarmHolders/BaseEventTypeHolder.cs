@@ -29,13 +29,15 @@
 
 using System;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
 {
-    public class BaseEventTypeHolder : AlarmHolder
+    public abstract class BaseEventTypeHolder : AlarmHolder
     {
         protected BaseEventTypeHolder(
+            ILogger logger,
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
@@ -44,7 +46,13 @@ namespace Alarms
             Type controllerType,
             int interval,
             bool optional)
-            : base(alarmNodeManager, parent, trigger, controllerType, interval)
+            : base(
+                logger,
+                alarmNodeManager,
+                parent,
+                trigger,
+                controllerType,
+                interval)
         {
             m_optional = optional;
         }

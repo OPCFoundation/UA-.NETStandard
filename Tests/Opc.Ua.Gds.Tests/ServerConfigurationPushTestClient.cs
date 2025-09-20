@@ -41,9 +41,10 @@ namespace Opc.Ua.Gds.Tests
         public ServerPushConfigurationClient PushClient { get; private set; }
         public static bool AutoAccept { get; set; }
 
-        public ServerConfigurationPushTestClient(bool autoAccept)
+        public ServerConfigurationPushTestClient(bool autoAccept, ITelemetryContext telemetry)
         {
             AutoAccept = autoAccept;
+            m_telemetry = telemetry;
         }
 
         public IUserIdentity AppUser { get; private set; }
@@ -54,7 +55,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            var application = new ApplicationInstance
+            var application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
@@ -129,7 +130,7 @@ namespace Opc.Ua.Gds.Tests
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 application.ApplicationConfiguration
                     .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration)
+            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration, m_telemetry)
             {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                     clientConfiguration.ServerUrl,
@@ -137,7 +138,7 @@ namespace Opc.Ua.Gds.Tests
             };
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
-                AppUser = new UserIdentity(new AnonymousIdentityToken());
+                AppUser = new UserIdentity();
             }
             else
             {
@@ -202,7 +203,10 @@ namespace Opc.Ua.Gds.Tests
             }
             await PushClient.DisconnectAsync().ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Config);
-            var discoveryClient = DiscoveryClient.Create(new Uri(PushClient.EndpointUrl), endpointConfiguration);
+            using var discoveryClient = DiscoveryClient.Create(
+                new Uri(PushClient.EndpointUrl),
+                endpointConfiguration,
+                m_telemetry);
             EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
             await discoveryClient.CloseAsync().ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;
@@ -222,6 +226,8 @@ namespace Opc.Ua.Gds.Tests
 
             await PushClient.ConnectAsync().ConfigureAwait(false);
         }
+
+        private readonly ITelemetryContext m_telemetry;
     }
 
     /// <summary>

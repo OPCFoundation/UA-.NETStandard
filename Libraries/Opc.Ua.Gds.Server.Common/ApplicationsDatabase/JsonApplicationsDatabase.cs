@@ -65,8 +65,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 if (File.Exists(fileName))
                 {
                     string json = File.ReadAllText(fileName);
-                    JsonApplicationsDatabase db = JsonConvert
-                        .DeserializeObject<JsonApplicationsDatabase>(json);
+                    JsonApplicationsDatabase db =
+                        JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
                     db.FileName = fileName;
                     return db;
                 }

@@ -85,6 +85,11 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The encodeable factory.</value>
         NodeStateFactory NodeStateFactory { get; }
+
+        /// <summary>
+        /// Telemetry context for logging and tracing in the system
+        /// </summary>
+        ITelemetryContext Telemetry { get; }
     }
 
     /// <summary>
@@ -109,8 +114,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
         /// </summary>
-        public SystemContext()
+        public SystemContext(ITelemetryContext telemetry)
         {
+            Telemetry = telemetry;
             NodeStateFactory = new NodeStateFactory();
         }
 
@@ -118,11 +124,16 @@ namespace Opc.Ua
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
         /// </summary>
         /// <param name="context">The context.</param>
-        public SystemContext(IOperationContext context)
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public SystemContext(IOperationContext context, ITelemetryContext telemetry)
         {
+            Telemetry = telemetry;
             NodeStateFactory = new NodeStateFactory();
             OperationContext = context;
         }
+
+        /// <inheritdoc/>
+        public ITelemetryContext Telemetry { get; }
 
         /// <summary>
         /// An application defined handle for the system.

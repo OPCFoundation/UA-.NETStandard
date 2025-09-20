@@ -32,7 +32,7 @@ using Opc.Ua;
 
 namespace Alarms
 {
-    internal class ExclusiveLevelHolder : ExclusiveLimitHolder
+    public class ExclusiveLevelHolder : ExclusiveLimitHolder
     {
         public ExclusiveLevelHolder(
             AlarmNodeManager alarmNodeManager,
@@ -46,6 +46,7 @@ namespace Alarms
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
             bool create = true)
             : base(
+                alarmNodeManager.Server.Telemetry.CreateLogger<ExclusiveLevelHolder>(),
                 alarmNodeManager,
                 parent,
                 trigger,

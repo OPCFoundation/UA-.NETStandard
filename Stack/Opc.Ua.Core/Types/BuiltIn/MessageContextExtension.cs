@@ -51,7 +51,7 @@ namespace Opc.Ua
                     return extension.MessageContext;
                 }
 
-                return ServiceMessageContext.ThreadContext;
+                return ServiceMessageContext.GlobalContext;
             }
         }
 
@@ -67,6 +67,19 @@ namespace Opc.Ua
         {
             MessageContextExtension previousContext = Current;
             Current = new MessageContextExtension(messageContext);
+
+            return new DisposableAction(() => Current = previousContext);
+        }
+
+        /// <summary>
+        /// Clone the current context as a new scope
+        /// </summary>
+        public static IDisposable SetScopedContext(ITelemetryContext telemetry)
+        {
+            MessageContextExtension previousContext = Current;
+
+            Current = new MessageContextExtension(
+                new ServiceMessageContext(CurrentContext, telemetry));
 
             return new DisposableAction(() => Current = previousContext);
         }

@@ -29,13 +29,15 @@
 
 using System;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
 {
-    public class DiscreteHolder : AlarmConditionTypeHolder
+    public abstract class DiscreteHolder : AlarmConditionTypeHolder
     {
-        public DiscreteHolder(
+        protected DiscreteHolder(
+            ILogger logger,
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
@@ -47,6 +49,7 @@ namespace Alarms
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
             bool create = true)
             : base(
+                logger,
                 alarmNodeManager,
                 parent,
                 trigger,
@@ -58,7 +61,7 @@ namespace Alarms
                 maxShelveTime,
                 false)
         {
-            Utils.LogTrace("{0} Discrete Constructor Optional = {1}", name, optional);
+            m_logger.LogTrace("{Name} Discrete Constructor Optional = {Optional}", name, optional);
             if (create)
             {
                 Initialize(ObjectTypes.DiscreteAlarmType, name, maxShelveTime);

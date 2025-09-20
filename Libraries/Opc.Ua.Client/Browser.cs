@@ -31,6 +31,7 @@ using System;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -51,9 +52,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates new instance of a browser and attaches it to a session.
         /// </summary>
-        public Browser(ISession session)
+        public Browser(ISession session, ITelemetryContext telemetry)
         {
+            m_telemetry = telemetry;
+
             Initialize();
+
             m_session = session;
         }
 
@@ -62,10 +66,18 @@ namespace Opc.Ua.Client
         /// </summary>
         public Browser(Browser template)
         {
+            if (template != null)
+            {
+                m_logger = template.m_logger;
+                m_telemetry = template.m_telemetry;
+            }
+
             Initialize();
 
             if (template != null)
             {
+                m_logger = template.m_logger;
+                m_telemetry = template.m_telemetry;
                 m_session = template.m_session;
                 m_view = template.m_view;
                 m_maxReferencesReturned = template.m_maxReferencesReturned;
@@ -93,6 +105,8 @@ namespace Opc.Ua.Client
             m_resultMask = (uint)BrowseResultMask.All;
             m_continueUntilDone = false;
             m_browseInProgress = false;
+
+            m_logger ??= Telemetry.CreateLogger<Browser>();
         }
 
         /// <summary>
@@ -105,6 +119,20 @@ namespace Opc.Ua.Client
             {
                 CheckBrowserState();
                 m_session = value;
+            }
+        }
+
+        /// <summary>
+        /// Enables owners to set the telemetry context
+        /// </summary>
+        public ITelemetryContext Telemetry
+        {
+            get => m_telemetry;
+            set
+            {
+                CheckBrowserState();
+                m_telemetry = value;
+                m_logger = value.CreateLogger(this);
             }
         }
 
@@ -334,7 +362,7 @@ namespace Opc.Ua.Client
                         }
                         else
                         {
-                            Utils.LogWarning(
+                            m_logger.LogWarning(
                                 "Browser: Continuation point exists, but the browse results are null/empty.");
                             break;
                         }
@@ -412,6 +440,8 @@ namespace Opc.Ua.Client
             return (results[0].References, results[0].ContinuationPoint);
         }
 
+        private ILogger m_logger;
+        private ITelemetryContext m_telemetry;
         private ISession m_session;
         private ViewDescription m_view;
         private uint m_maxReferencesReturned;

@@ -17,6 +17,7 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -55,9 +56,10 @@ namespace Opc.Ua
         /// </summary>
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
-            string filePath)
+            string filePath,
+            ILogger logger)
         {
-            return Load(configuration, filePath, false);
+            return Load(configuration, filePath, false, logger);
         }
 
         /// <summary>
@@ -66,9 +68,10 @@ namespace Opc.Ua
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
-            bool overrideConfiguration)
+            bool overrideConfiguration,
+            ILogger logger)
         {
-            ConfiguredEndpointCollection endpoints = Load(filePath);
+            ConfiguredEndpointCollection endpoints = Load(filePath, logger);
 
             endpoints.DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
@@ -87,13 +90,13 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(string filePath)
+        public static ConfiguredEndpointCollection Load(string filePath, ILogger logger)
         {
             // load from file.
             ConfiguredEndpointCollection endpoints;
             using (Stream stream = File.OpenRead(filePath))
             {
-                endpoints = Load(stream);
+                endpoints = Load(stream, logger);
             }
             endpoints.m_filepath = filePath;
 
@@ -179,7 +182,7 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a stream.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(Stream istrm)
+        public static ConfiguredEndpointCollection Load(Stream istrm, ILogger logger)
         {
             try
             {
@@ -202,8 +205,8 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(
-                    "Unexpected error loading ConfiguredEndpoints: {0}",
+                logger.LogError(
+                    "Unexpected error loading ConfiguredEndpoints: {Message}",
                     Redaction.Redact.Create(e));
                 throw;
             }
@@ -1041,7 +1044,7 @@ namespace Opc.Ua
         [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer()
         {
-            UpdateFromServerAsync()
+            UpdateFromServerAsync(null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1055,7 +1058,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri)
+            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri, null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1070,7 +1073,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri)
+            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri, null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1078,12 +1081,13 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public Task UpdateFromServerAsync(CancellationToken ct = default)
+        public Task UpdateFromServerAsync(ITelemetryContext telemetry, CancellationToken ct = default)
         {
             return UpdateFromServerAsync(
                 EndpointUrl,
                 m_description.SecurityMode,
                 m_description.SecurityPolicyUri,
+                telemetry,
                 ct);
         }
 
@@ -1094,9 +1098,10 @@ namespace Opc.Ua
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct);
+            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, telemetry, ct);
         }
 
         /// <summary>
@@ -1107,6 +1112,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             // get the a discovery url.
@@ -1116,11 +1122,11 @@ namespace Opc.Ua
             DiscoveryClient client;
             if (connection != null)
             {
-                client = DiscoveryClient.Create(connection, m_configuration);
+                client = DiscoveryClient.Create(connection, m_configuration, telemetry);
             }
             else
             {
-                client = DiscoveryClient.Create(discoveryUrl, m_configuration);
+                client = DiscoveryClient.Create(discoveryUrl, m_configuration, telemetry);
             }
 
             try

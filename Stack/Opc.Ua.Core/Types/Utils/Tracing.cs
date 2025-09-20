@@ -63,17 +63,7 @@ namespace Opc.Ua
 
         internal void RaiseTraceEvent(TraceEventArgs eventArgs)
         {
-            if (TraceEventHandler != null)
-            {
-                try
-                {
-                    TraceEventHandler(this, eventArgs);
-                }
-                catch (Exception ex)
-                {
-                    Utils.Trace(ex, "Exception invoking Trace Event Handler", true, null);
-                }
-            }
+            TraceEventHandler?.Invoke(this, eventArgs);
         }
     }
 }

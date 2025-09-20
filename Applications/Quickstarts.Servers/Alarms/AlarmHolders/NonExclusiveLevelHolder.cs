@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
 {
-    internal class NonExclusiveLevelHolder : NonExclusiveLimitHolder
+    public class NonExclusiveLevelHolder : NonExclusiveLimitHolder
     {
         public NonExclusiveLevelHolder(
             AlarmNodeManager alarmNodeManager,
@@ -46,6 +47,7 @@ namespace Alarms
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
             bool create = true)
             : base(
+                alarmNodeManager.Server.Telemetry.CreateLogger<NonExclusiveLevelHolder>(),
                 alarmNodeManager,
                 parent,
                 trigger,
@@ -74,8 +76,8 @@ namespace Alarms
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
-            Utils.LogTrace(
-                "NonExclusiveLevelHolder alarm typedefinition {0}",
+            m_logger.LogTrace(
+                "NonExclusiveLevelHolder alarm typedefinition {TypeDefinitionId}",
                 m_alarm.TypeDefinitionId);
         }
 

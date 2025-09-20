@@ -27,12 +27,14 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ITelemetryContext telemetry)
         {
             return Create(
                 configuration,
@@ -40,7 +42,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext);
+                messageContext,
+                telemetry);
         }
 
         /// <summary>
@@ -52,13 +55,15 @@ namespace Opc.Ua
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ITelemetryContext telemetry)
         {
             // create a UA binary channel.
             return CreateUaBinaryChannel(
@@ -67,7 +72,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext,
+                telemetry);
         }
 
         /// <summary>
@@ -80,6 +86,7 @@ namespace Opc.Ua
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
@@ -87,7 +94,8 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ITelemetryContext telemetry)
         {
             // create a UA binary channel.
             return CreateUaBinaryChannel(
@@ -97,7 +105,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext,
+                telemetry);
         }
     }
 }

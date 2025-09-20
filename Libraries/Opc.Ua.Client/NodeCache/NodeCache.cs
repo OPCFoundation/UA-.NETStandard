@@ -33,6 +33,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client
@@ -45,9 +46,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public NodeCache(ISession session)
+        public NodeCache(ISession session, ITelemetryContext telemetry)
         {
             m_session = session ?? throw new ArgumentNullException(nameof(session));
+            m_logger = telemetry.CreateLogger<NodeCache>();
             m_typeTree = new TypeTable(m_session.NamespaceUris);
             m_nodes = new NodeTable(m_session.NamespaceUris, m_session.ServerUris, m_typeTree);
             m_uaTypesLoaded = false;
@@ -126,8 +128,8 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(
-                    "Could not fetch node from server: NodeId={0}, Reason='{1}'.",
+                m_logger.LogError(
+                    "Could not fetch node from server: NodeId={NodeId}, Reason='{Error}'.",
                     nodeId,
                     Redact.Create(e));
                 // m_nodes[nodeId] = null;
@@ -191,7 +193,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch nodes from server: Reason='{0}'.", e.Message);
+                m_logger.LogError("Could not fetch nodes from server: Reason='{Error}'.", e.Message);
                 // m_nodes[nodeId] = null;
                 return nodes;
             }
@@ -209,7 +211,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    Utils.LogError(
+                    m_logger.LogError(
                         "Inconsistency fetching nodes from server. Not all nodes could be assigned.");
                     break;
                 }
@@ -413,8 +415,8 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(
-                    "Could not fetch references for valid node with NodeId = {0}. Error = {1}",
+                m_logger.LogError(
+                    "Could not fetch references for valid node with NodeId = {NodeId}. Error = {Error}",
                     nodeId,
                     Redact.Create(e));
             }
@@ -1264,6 +1266,7 @@ namespace Opc.Ua.Client
         }
 
         private readonly ReaderWriterLockSlim m_cacheLock = new();
+        private readonly ILogger m_logger;
         private ISession m_session;
         private readonly TypeTable m_typeTree;
         private readonly NodeTable m_nodes;

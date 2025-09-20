@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -239,7 +240,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
-            uint maxNotificationsPerPublish);
+            uint maxNotificationsPerPublish,
+            ILogger logger);
     }
 
     /// <summary>

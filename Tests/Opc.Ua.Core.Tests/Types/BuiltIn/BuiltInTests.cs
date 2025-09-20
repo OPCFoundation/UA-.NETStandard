@@ -30,8 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
@@ -50,6 +52,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         protected const int kRandomRepeats = 100;
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
+        protected ITelemetryContext Telemetry { get; private set; }
 
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -65,8 +68,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         protected void SetUp()
         {
             // ensure tests are reproducible, reset for every test
+            Telemetry = NUnitTelemetryContext.Create();
             RandomSource = new RandomSource(kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         [TearDown]
@@ -80,8 +84,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         protected void SetRepeatedRandomSeed()
         {
             int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
+            Telemetry = NUnitTelemetryContext.Create();
             RandomSource = new RandomSource(randomSeed);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         /// <summary>
@@ -89,8 +94,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRandomSeed(int randomSeed)
         {
+            Telemetry = NUnitTelemetryContext.Create();
             RandomSource = new RandomSource(randomSeed + kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         [DatapointSource]
@@ -103,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             .. Enum.GetValues(typeof(BuiltInType))
                 .Cast<BuiltInType>()
 #endif
-            .Where(b => b is > BuiltInType.Null and < BuiltInType.DataValue)
+                .Where(b => b is > BuiltInType.Null and < BuiltInType.DataValue)
         ];
 
         /// <summary>
@@ -299,11 +305,13 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 Namespaces.OpcUa,
                 new LocalizedText("The text", "en-us"),
                 new Exception("The inner exception."));
+            ILogger logger = Telemetry.CreateLogger<BuiltInTests>();
             var diagnosticInfo = new DiagnosticInfo(
                 serviceResult,
                 DiagnosticsMasks.All,
                 true,
-                stringTable);
+                stringTable,
+                logger);
             Assert.NotNull(diagnosticInfo);
             Assert.AreEqual(0, diagnosticInfo.SymbolicId);
             Assert.AreEqual(1, diagnosticInfo.NamespaceUri);
@@ -319,7 +327,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 serviceResult,
                 DiagnosticsMasks.All,
                 true,
-                stringTable);
+                stringTable,
+                logger);
             Assert.NotNull(diagnosticInfo);
             int depth = 0;
             DiagnosticInfo innerDiagnosticInfo = diagnosticInfo;

@@ -51,10 +51,10 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Create an instance of the certificate provider.
         /// </summary>
-        public CertificateTypesProvider(ApplicationConfiguration config)
+        public CertificateTypesProvider(ApplicationConfiguration config, ITelemetryContext telemetry)
         {
             m_securityConfiguration = config.SecurityConfiguration;
-            m_certificateValidator = new CertificateValidator();
+            m_certificateValidator = new CertificateValidator(telemetry);
             m_certificateChain
                 = new ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>>();
         }

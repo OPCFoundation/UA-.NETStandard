@@ -36,7 +36,9 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using Microsoft.Extensions.Logging;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
@@ -77,9 +79,14 @@ namespace Opc.Ua.Client.Tests
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
         public ExpandedNodeId[] TestSetDataSimulation { get; }
         public ExpandedNodeId[] TestSetHistory { get; }
+        public ITelemetryContext Telemetry { get; }
 
-        public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp)
+        private readonly ILogger<ClientTestFramework> m_logger;
+
+        public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp, ITelemetryContext telemetry = null)
         {
+            Telemetry = telemetry ?? NUnitTelemetryContext.Create();
+            m_logger = Telemetry.CreateLogger<ClientTestFramework>();
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
@@ -103,15 +110,13 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public virtual Task OneTimeSetUpAsync()
         {
-            return OneTimeSetUpAsync(null);
+            return OneTimeSetUpCoreAsync();
         }
 
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
-        /// <param name="writer">The test output writer.</param>
-        public virtual async Task OneTimeSetUpAsync(
-            TextWriter writer = null,
+        public virtual async Task OneTimeSetUpCoreAsync(
             bool securityNone = false,
             bool enableClientSideTracing = false,
             bool enableServerSideTracing = false,
@@ -119,7 +124,8 @@ namespace Opc.Ua.Client.Tests
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-            TestContext.Out.WriteLine("Using the Pki Root {0}", PkiRoot);
+
+            m_logger.LogInformation("Using the Pki Root {FilePath}", PkiRoot);
 
             // The parameters are read from the .runsettings file
             string customUrl = null;
@@ -128,7 +134,7 @@ namespace Opc.Ua.Client.Tests
                 customUrl = TestContext.Parameters["ServerUrl"];
                 if (customUrl?.StartsWith(UriScheme, StringComparison.Ordinal) == true)
                 {
-                    TestContext.Out.WriteLine("Using the external Server Url {0}", customUrl);
+                    m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
 
                     // load custom test sets
                     TestSetStatic = ReadCustomTestSet("TestSetStatic");
@@ -145,12 +151,11 @@ namespace Opc.Ua.Client.Tests
                 await CreateReferenceServerFixtureAsync(
                         enableServerSideTracing,
                         disableActivityLogging,
-                        securityNone,
-                        writer)
+                        securityNone)
                     .ConfigureAwait(false);
             }
 
-            ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging);
+            ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging, Telemetry);
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
@@ -199,13 +204,13 @@ namespace Opc.Ua.Client.Tests
         public virtual async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
-            bool securityNone,
-            TextWriter writer)
+            bool securityNone)
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging)
+                disableActivityLogging,
+                Telemetry)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
@@ -213,11 +218,6 @@ namespace Opc.Ua.Client.Tests
                 AllNodeManagers = true,
                 OperationLimits = true
             };
-
-            if (writer != null)
-            {
-                ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
-            }
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Tests
                 });
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+            ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
@@ -368,14 +368,6 @@ namespace Opc.Ua.Client.Tests
                     NUnit.Framework.Assert.Ignore(
                         $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
-            }
-            if (ServerFixture == null)
-            {
-                ClientFixture.SetTraceOutput(TestContext.Out);
-            }
-            else
-            {
-                ServerFixture.SetTraceOutput(TestContext.Out);
             }
         }
 
@@ -476,7 +468,7 @@ namespace Opc.Ua.Client.Tests
         public virtual void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
+            OneTimeSetUpCoreAsync().GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
             Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter()
                 .GetResult();

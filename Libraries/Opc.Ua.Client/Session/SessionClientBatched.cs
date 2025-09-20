@@ -42,8 +42,8 @@ namespace Opc.Ua
         /// <summary>
         /// Intializes the object with a channel and default operation limits.
         /// </summary>
-        public SessionClientBatched(ITransportChannel channel)
-            : base(channel)
+        public SessionClientBatched(ITransportChannel channel, ITelemetryContext telemetry)
+            : base(channel, telemetry)
         {
             m_operationLimits = new OperationLimits();
         }

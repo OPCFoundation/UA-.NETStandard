@@ -29,20 +29,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Mono.Options;
 using Opc.Ua;
-using Opc.Ua.Configuration;
 using Serilog;
 using Serilog.Events;
 using Serilog.Templates;
-using static Opc.Ua.Utils;
 #if NET5_0_OR_GREATER
 using Microsoft.Extensions.Configuration;
 #endif
@@ -50,64 +49,154 @@ using Microsoft.Extensions.Configuration;
 namespace Quickstarts
 {
     /// <summary>
-    /// The log output implementation of a TextWriter.
+    /// Simple console based telemetry
     /// </summary>
-    public class LogWriter : TextWriter
+    public sealed class ConsoleTelemetry : ITelemetryContext, IDisposable
     {
-        private readonly StringBuilder m_builder = new();
-
-        public override void Write(char value)
+        public ConsoleTelemetry(Action<ILoggingBuilder> configure = null)
         {
-            m_builder.Append(value);
+            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder =>
+                {
+                    builder.SetMinimumLevel(LogLevel.Information);
+                    configure?.Invoke(builder);
+                })
+                .AddSerilog(Log.Logger);
+
+            ActivitySource = new ActivitySource("Quickstarts", "1.0.0");
+
+            m_logger = LoggerFactory.CreateLogger("Main");
+
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
         }
 
-        public override void WriteLine(char value)
+        /// <inheritdoc/>
+        public ILoggerFactory LoggerFactory { get; internal set; }
+
+        /// <inheritdoc/>
+        public Meter CreateMeter()
         {
-            m_builder.Append(value);
-            LogInfo("{0}", m_builder.ToString());
-            m_builder.Clear();
+            return new Meter("Quickstarts", "1.0.0");
         }
 
-        public override void WriteLine()
+        /// <inheritdoc/>
+        public ActivitySource ActivitySource { get; }
+
+        /// <inheritdoc/>
+        public void Dispose()
         {
-            LogInfo("{0}", m_builder.ToString());
-            m_builder.Clear();
+            CreateMeter().Dispose();
+            ActivitySource.Dispose();
+            LoggerFactory.Dispose();
+
+            AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException -= Unobserved_TaskException;
         }
 
-        public override void WriteLine(string format, object arg0)
+        /// <summary>
+        /// Configure the logging providers.
+        /// </summary>
+        /// <remarks>
+        /// Replaces the Opc.Ua.Core default ILogger with a
+        /// Microsoft.Extension.Logger with a Serilog file, debug and console logger.
+        /// The debug logger is only enabled for debug builds.
+        /// The console logger is enabled by the logConsole flag at the consoleLogLevel.
+        /// The file logger uses the setting in the ApplicationConfiguration.
+        /// The Trace logLevel is chosen if required by the Tracemasks.
+        /// </remarks>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="context">The context name for the logger. </param>
+        /// <param name="logConsole">Enable logging to the console.</param>
+        /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.<
+        /// /param>
+        public void ConfigureLogging(
+            ApplicationConfiguration configuration,
+            string context,
+            bool logConsole,
+            LogLevel consoleLogLevel)
         {
-            m_builder.Append(format);
-            LogInfo(m_builder.ToString(), arg0);
-            m_builder.Clear();
+            LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich
+                .FromLogContext();
+
+            if (logConsole)
+            {
+                loggerConfiguration.WriteTo.Console(
+                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
+                    formatProvider: CultureInfo.InvariantCulture);
+            }
+#if DEBUG
+            else
+            {
+                loggerConfiguration.WriteTo.Debug(
+                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
+                    formatProvider: CultureInfo.InvariantCulture);
+            }
+#endif
+            LogLevel fileLevel = LogLevel.Information;
+
+            // switch for Trace/Verbose output
+            int traceMasks = configuration.TraceConfiguration.TraceMasks;
+            if ((traceMasks &
+                ~(
+                    Utils.TraceMasks.Information |
+                    Utils.TraceMasks.Error |
+                    Utils.TraceMasks.Security |
+                    Utils.TraceMasks.StartStop |
+                    Utils.TraceMasks.StackTrace
+                )) != 0)
+            {
+                fileLevel = LogLevel.Trace;
+            }
+
+            // add file logging if configured
+            string outputFilePath = configuration.TraceConfiguration.OutputFilePath;
+            if (!string.IsNullOrWhiteSpace(outputFilePath))
+            {
+                loggerConfiguration.WriteTo.File(
+                    new ExpressionTemplate(
+                        "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
+                    Utils.ReplaceSpecialFolderNames(outputFilePath),
+                    restrictedToMinimumLevel: (LogEventLevel)fileLevel,
+                    rollOnFileSizeLimit: true
+                );
+            }
+
+            // adjust minimum level
+            if (fileLevel < LogLevel.Information || consoleLogLevel < LogLevel.Information)
+            {
+                loggerConfiguration.MinimumLevel.Verbose();
+            }
+
+            // create the serilog logger
+            Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
+
+            // create the ILogger for Opc.Ua.Core
+            LoggerFactory = LoggerFactory.AddSerilog(serilogger);
+            m_logger = LoggerFactory.CreateLogger("Main");
         }
 
-        public override void WriteLine(string format, object arg0, object arg1)
+        private void CurrentDomain_UnhandledException(
+            object sender,
+            UnhandledExceptionEventArgs args)
         {
-            m_builder.Append(format);
-            LogInfo(m_builder.ToString(), arg0, arg1);
-            m_builder.Clear();
+            m_logger.LogCritical(
+                args.ExceptionObject as Exception,
+                "Unhandled Exception: (IsTerminating: {IsTerminating})",
+                args.IsTerminating);
         }
 
-        public override void WriteLine(string format, params object[] arg)
+        private void Unobserved_TaskException(
+            object sender,
+            UnobservedTaskExceptionEventArgs args)
         {
-            m_builder.Append(format);
-            LogInfo(m_builder.ToString(), arg);
-            m_builder.Clear();
+            m_logger.LogCritical(
+                args.Exception,
+                "Unobserved Task Exception (Observed: {Observed})",
+                args.Observed);
         }
 
-        public override void Write(string value)
-        {
-            m_builder.Append(value);
-        }
-
-        public override void WriteLine(string value)
-        {
-            m_builder.Append(value);
-            LogInfo("{0}", m_builder.ToString());
-            m_builder.Clear();
-        }
-
-        public override Encoding Encoding => Encoding.Default;
+        private Microsoft.Extensions.Logging.ILogger m_logger;
     }
 
     /// <summary>
@@ -168,55 +257,6 @@ namespace Quickstarts
     }
 
     /// <summary>
-    /// A dialog which asks for user input.
-    /// </summary>
-    public class ApplicationMessageDlg : IApplicationMessageDlg
-    {
-        private readonly TextWriter m_output;
-        private string m_message = string.Empty;
-        private bool m_ask;
-
-        public ApplicationMessageDlg(TextWriter output)
-        {
-            m_output = output;
-        }
-
-        public override void Message(string text, bool ask)
-        {
-            m_message = text;
-            m_ask = ask;
-        }
-
-        public override async Task<bool> ShowAsync()
-        {
-            if (m_ask)
-            {
-                var message = new StringBuilder(m_message);
-                message.Append(" (y/n, default y): ");
-                m_output.Write(message.ToString());
-
-                try
-                {
-                    ConsoleKeyInfo result = Console.ReadKey();
-                    m_output.WriteLine();
-                    return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r')
-                        .ConfigureAwait(false);
-                }
-                catch
-                {
-                    // intentionally fall through
-                }
-            }
-            else
-            {
-                m_output.WriteLine(m_message);
-            }
-
-            return await Task.FromResult(true).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
     /// Helper functions shared in various console applications.
     /// </summary>
     public static class ConsoleUtils
@@ -226,14 +266,15 @@ namespace Quickstarts
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
         public static string ProcessCommandLine(
-            TextWriter output,
             string[] args,
             Mono.Options.OptionSet options,
             ref bool showHelp,
             string environmentPrefix,
-            bool noExtraArgs = true
-        )
+            bool noExtraArgs = true,
+            TextWriter output = null)
         {
+            output ??= Console.Out;
+
 #if NET5_0_OR_GREATER
             // Convert environment settings to command line flags
             // because in some environments (e.g. docker cloud) it is
@@ -299,144 +340,6 @@ namespace Quickstarts
         }
 
         /// <summary>
-        /// Configure the logging providers.
-        /// </summary>
-        /// <remarks>
-        /// Replaces the Opc.Ua.Core default ILogger with a
-        /// Microsoft.Extension.Logger with a Serilog file, debug and console logger.
-        /// The debug logger is only enabled for debug builds.
-        /// The console logger is enabled by the logConsole flag at the consoleLogLevel.
-        /// The file logger uses the setting in the ApplicationConfiguration.
-        /// The Trace logLevel is chosen if required by the Tracemasks.
-        /// </remarks>
-        /// <param name="configuration">The application configuration.</param>
-        /// <param name="context">The context name for the logger. </param>
-        /// <param name="logConsole">Enable logging to the console.</param>
-        /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.<
-        /// /param>
-        public static void ConfigureLogging(
-            ApplicationConfiguration configuration,
-            string context,
-            bool logConsole,
-            LogLevel consoleLogLevel
-        )
-        {
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-            TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
-
-            LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich
-                .FromLogContext();
-
-            if (logConsole)
-            {
-                loggerConfiguration.WriteTo.Console(
-                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                    formatProvider: CultureInfo.InvariantCulture
-                );
-            }
-#if DEBUG
-            else
-            {
-                loggerConfiguration.WriteTo.Debug(
-                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                    formatProvider: CultureInfo.InvariantCulture
-                );
-            }
-#endif
-            LogLevel fileLevel = LogLevel.Information;
-
-            // switch for Trace/Verbose output
-            int traceMasks = configuration.TraceConfiguration.TraceMasks;
-            if (
-                (
-                    traceMasks &
-                    ~(
-                        TraceMasks.Information |
-                        TraceMasks.Error |
-                        TraceMasks.Security |
-                        TraceMasks.StartStop |
-                        TraceMasks.StackTrace
-                    )
-                ) != 0
-            )
-            {
-                fileLevel = LogLevel.Trace;
-            }
-
-            // add file logging if configured
-            string outputFilePath = configuration.TraceConfiguration.OutputFilePath;
-            if (!string.IsNullOrWhiteSpace(outputFilePath))
-            {
-                loggerConfiguration.WriteTo.File(
-                    new ExpressionTemplate(
-                        "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
-                    ReplaceSpecialFolderNames(outputFilePath),
-                    restrictedToMinimumLevel: (LogEventLevel)fileLevel,
-                    rollOnFileSizeLimit: true
-                );
-            }
-
-            // adjust minimum level
-            if (fileLevel < LogLevel.Information || consoleLogLevel < LogLevel.Information)
-            {
-                loggerConfiguration.MinimumLevel.Verbose();
-            }
-
-            // create the serilog logger
-            Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
-
-            // create the ILogger for Opc.Ua.Core
-            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory
-                .Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
-                .AddSerilog(serilogger)
-                .CreateLogger(context);
-
-            // set logger interface, disables TraceEvent
-            SetLogger(logger);
-        }
-
-        /// <summary>
-        /// Output log messages.
-        /// </summary>
-        public static void LogTest()
-        {
-            // print legacy logging output, for testing
-            Trace(TraceMasks.Error, "This is an Error message: {0}", TraceMasks.Error);
-            Trace(
-                TraceMasks.Information,
-                "This is a Information message: {0}",
-                TraceMasks.Information);
-            Trace(
-                TraceMasks.StackTrace,
-                "This is a StackTrace message: {0}",
-                TraceMasks.StackTrace);
-            Trace(TraceMasks.Service, "This is a Service message: {0}", TraceMasks.Service);
-            Trace(
-                TraceMasks.ServiceDetail,
-                "This is a ServiceDetail message: {0}",
-                TraceMasks.ServiceDetail);
-            Trace(TraceMasks.Operation, "This is a Operation message: {0}", TraceMasks.Operation);
-            Trace(
-                TraceMasks.OperationDetail,
-                "This is a OperationDetail message: {0}",
-                TraceMasks.OperationDetail);
-            Trace(TraceMasks.StartStop, "This is a StartStop message: {0}", TraceMasks.StartStop);
-            Trace(
-                TraceMasks.ExternalSystem,
-                "This is a ExternalSystem message: {0}",
-                TraceMasks.ExternalSystem);
-            Trace(TraceMasks.Security, "This is a Security message: {0}", TraceMasks.Security);
-
-            // print ILogger logging output
-            LogTrace("This is a Trace message: {0}", LogLevel.Trace);
-            LogDebug("This is a Debug message: {0}", LogLevel.Debug);
-            LogInfo("This is a Info message: {0}", LogLevel.Information);
-            LogWarning("This is a Warning message: {0}", LogLevel.Warning);
-            LogError("This is a Error message: {0}", LogLevel.Error);
-            LogCritical("This is a Critical message: {0}", LogLevel.Critical);
-        }
-
-        /// <summary>
         /// Create an event which is set if a user
         /// enters the Ctrl-C key combination.
         /// </summary>
@@ -457,23 +360,6 @@ namespace Quickstarts
                 // intentionally left blank
             }
             return quitEvent;
-        }
-
-        private static void CurrentDomain_UnhandledException(
-            object sender,
-            UnhandledExceptionEventArgs args)
-        {
-            LogCritical(
-                "Unhandled Exception: {0} IsTerminating: {1}",
-                args.ExceptionObject,
-                args.IsTerminating);
-        }
-
-        private static void Unobserved_TaskException(
-            object sender,
-            UnobservedTaskExceptionEventArgs args)
-        {
-            LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
         }
     }
 }

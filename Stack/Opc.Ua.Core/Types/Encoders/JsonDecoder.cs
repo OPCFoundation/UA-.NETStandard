@@ -17,6 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Opc.Ua
@@ -37,6 +38,7 @@ namespace Opc.Ua
         public bool UpdateNamespaceTable { get; set; }
 
         private JsonTextReader m_reader;
+        private readonly ILogger m_logger;
         private readonly Dictionary<string, object> m_root;
         private readonly Stack<object> m_stack;
         private ushort[] m_namespaceMappings;
@@ -62,9 +64,8 @@ namespace Opc.Ua
         /// <param name="context">The service message context to use.</param>
         public JsonDecoder(string json, IServiceMessageContext context)
         {
-            Initialize();
-
             Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             m_nestingLevel = 0;
             m_reader = new JsonTextReader(new StringReader(json));
             m_root = ReadObject();
@@ -80,22 +81,13 @@ namespace Opc.Ua
         /// <param name="context">The service message context to use.</param>
         public JsonDecoder(Type systemType, JsonTextReader reader, IServiceMessageContext context)
         {
-            Initialize();
-
             Context = context;
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             m_nestingLevel = 0;
             m_reader = reader;
             m_root = ReadObject();
             m_stack = new Stack<object>();
             m_stack.Push(m_root);
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_reader = null;
         }
 
         /// <summary>
@@ -1355,8 +1347,8 @@ namespace Opc.Ua
 
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
-                    Utils.LogWarning(
-                        "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                    m_logger.LogWarning(
+                        "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                         typeId);
                 }
                 else

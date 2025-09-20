@@ -42,25 +42,26 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// Create the cert store in a temp location.
         /// </summary>
-        public static TemporaryCertValidator Create(bool rejectedStore = false)
+        public static TemporaryCertValidator Create(ITelemetryContext telemetry, bool rejectedStore = false)
         {
-            return new TemporaryCertValidator(rejectedStore);
+            return new TemporaryCertValidator(telemetry, rejectedStore);
         }
 
         /// <summary>
         /// Ctor of the store, creates the random path name in a OS temp folder.
         /// </summary>
-        private TemporaryCertValidator(bool rejectedStore)
+        private TemporaryCertValidator(ITelemetryContext telemetry, bool rejectedStore)
         {
             // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
-            m_issuerStore = new DirectoryCertificateStore();
+            m_telemetry = telemetry;
+            m_issuerStore = new DirectoryCertificateStore(telemetry);
             m_issuerStore.Open(m_pkiRoot + "issuer", true);
-            m_trustedStore = new DirectoryCertificateStore();
+            m_trustedStore = new DirectoryCertificateStore(telemetry);
             m_trustedStore.Open(m_pkiRoot + "trusted", true);
             if (rejectedStore)
             {
-                m_rejectedStore = new DirectoryCertificateStore();
+                m_rejectedStore = new DirectoryCertificateStore(telemetry);
                 m_rejectedStore.Open(m_pkiRoot + "rejected", true);
             }
         }
@@ -135,7 +136,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         public CertificateValidator Update()
         {
-            var certValidator = new CertificateValidator();
+            var certValidator = new CertificateValidator(m_telemetry);
             var issuerTrustList = new CertificateTrustList
             {
                 StoreType = CertificateStoreType.Directory,
@@ -176,5 +177,6 @@ namespace Opc.Ua.Core.Tests
         private DirectoryCertificateStore m_trustedStore;
         private DirectoryCertificateStore m_rejectedStore;
         private readonly string m_pkiRoot;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

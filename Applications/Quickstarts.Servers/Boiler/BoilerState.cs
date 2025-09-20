@@ -30,12 +30,19 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Boiler
 {
     public partial class BoilerState
     {
+        protected override void Initialize(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<BoilerState>();
+            base.Initialize(telemetry);
+        }
+
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -283,10 +290,11 @@ namespace Boiler
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during boiler simulation.");
+                m_logger.LogError(e, "Unexpected error during boiler simulation.");
             }
         }
 
+        private ILogger m_logger;
         private ISystemContext m_simulationContext;
         private Timer m_simulationTimer;
         private Random m_random;

@@ -124,6 +124,9 @@ namespace Opc.Ua.Fuzzing
 
         private static void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            FuzzableCode.MessageContext = new ServiceMessageContext(telemetry);
+
             ParameterInfo[] parameters = fuzzableCode.MethodInfo.GetParameters();
             if (parameters.Length != 1)
             {

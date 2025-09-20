@@ -41,6 +41,7 @@ using EmbedIO;
 using EmbedIO.Actions;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 #if !ECC_SUPPORT
@@ -102,6 +103,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.Ignore("Creating the alternate certificates via Pfx is not supported on mac OS.");
             }
 #endif
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             const string crlName = "root.crl";
             m_webServerUrl = "http://127.0.0.1:9696/";
@@ -121,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_rootCrl = CertificateFactory.RevokeCertificate(m_rootCert, null, null);
 
             // create cert validator for test, add trusted root cert
-            m_validator = TemporaryCertValidator.Create();
+            m_validator = TemporaryCertValidator.Create(telemetry);
             await m_validator.TrustedStore.AddAsync(m_rootCert).ConfigureAwait(false);
             await m_validator.TrustedStore.AddCRLAsync(m_rootCrl).ConfigureAwait(false);
             m_certValidator = m_validator.Update();
@@ -325,6 +327,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [CancelAfter(10000)]
         public async Task VerifyLoopChainIsDetectedAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string rootSubject = "CN=Root";
             const string subCASubject = "CN=Sub";
             const string leafSubject = "CN=Leaf";
@@ -354,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetIssuer(subCACert)
                 .CreateForRSA();
             // validate cert chain
-            using (var validator = TemporaryCertValidator.Create())
+            using (var validator = TemporaryCertValidator.Create(telemetry))
             {
                 await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
@@ -367,7 +371,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 leafCert,
                 subCACert,
                 rootReverseCert };
-            using (var validator = TemporaryCertValidator.Create())
+            using (var validator = TemporaryCertValidator.Create(telemetry))
             {
                 CertificateValidator certValidator = validator.Update();
                 ServiceResultException result = NUnit.Framework.Assert
@@ -378,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // validate using cert chain in issuer and trusted store
-            using (var validator = TemporaryCertValidator.Create())
+            using (var validator = TemporaryCertValidator.Create(telemetry))
             {
                 await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);

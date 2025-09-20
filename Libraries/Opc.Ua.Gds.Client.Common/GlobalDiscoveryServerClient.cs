@@ -33,6 +33,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Gds.Client
@@ -47,17 +48,21 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="endpointUrl">The endpoint Url.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
+            ITelemetryContext telemetry,
             IUserIdentity adminUserIdentity = null,
             ISessionFactory sessionFactory = null)
         {
             Configuration = configuration;
             EndpointUrl = endpointUrl;
-            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<GlobalDiscoveryServerClient>();
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(telemetry);
             // preset admin
             AdminCredentials = adminUserIdentity;
         }
@@ -100,6 +105,8 @@ namespace Opc.Ua.Gds.Client
         /// The endpoint URL.
         /// </value>
         public string EndpointUrl { get; set; }
+
+        private readonly ITelemetryContext m_telemetry;
 
         /// <summary>
         /// Gets the endpoint.
@@ -183,7 +190,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration);
+                lds ??= new LocalDiscoveryServerClient(Configuration, m_telemetry);
 
                 (List<ServerOnNetwork> servers, DateTime _) = await lds.FindServersOnNetworkAsync(
                     0,
@@ -208,7 +215,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError(exception, "Unexpected error connecting to LDS");
+                m_logger.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return serverUrls;
@@ -243,7 +250,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration);
+                lds ??= new LocalDiscoveryServerClient(Configuration, m_telemetry);
 
                 (List<ServerOnNetwork> servers, DateTime _) = await lds.FindServersOnNetworkAsync(
                     0,
@@ -261,7 +268,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError(exception, "Unexpected error connecting to LDS");
+                m_logger.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return gdsUrls;
@@ -328,6 +335,7 @@ namespace Opc.Ua.Gds.Client
                             Configuration,
                             endpointUrl,
                             true,
+                            m_telemetry,
                             ct).ConfigureAwait(false);
                     var endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     var endpoint = new ConfiguredEndpoint(
@@ -451,7 +459,7 @@ namespace Opc.Ua.Gds.Client
 
         private void Session_SessionClosing(object sender, EventArgs e)
         {
-            Utils.LogInfo("The GDS Client session is closing.");
+            m_logger.LogInformation("The GDS Client session is closing.");
         }
 
         /// <summary>
@@ -1495,5 +1503,6 @@ namespace Opc.Ua.Gds.Client
 
         private ConfiguredEndpoint m_endpoint;
         private readonly ISessionFactory m_sessionFactory;
+        private readonly ILogger m_logger;
     }
 }

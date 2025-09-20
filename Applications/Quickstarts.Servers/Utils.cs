@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -76,7 +77,8 @@ namespace Quickstarts.Servers
                     {
                         if (ServiceResult.IsBad(result.StatusCode))
                         {
-                            Opc.Ua.Utils.LogError("Error calling method {0}.", result.StatusCode);
+                            ILogger<StandardServer> logger = server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
+                            logger.LogError("Error calling method with status code {StatusCode}.", result.StatusCode);
                         }
                     }
                     output.WriteLine("The Alarms for CTT mode are active.");
@@ -84,7 +86,8 @@ namespace Quickstarts.Servers
                 }
                 catch (Exception ex)
                 {
-                    Opc.Ua.Utils.LogError(ex, "Failed to start alarms for CTT.");
+                    ILogger<StandardServer> logger = server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
+                    logger.LogError(ex, "Failed to start alarms for CTT.");
                 }
             }
             output.WriteLine(

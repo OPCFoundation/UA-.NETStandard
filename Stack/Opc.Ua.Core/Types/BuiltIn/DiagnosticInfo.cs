@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -111,12 +112,14 @@ namespace Opc.Ua
         /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
+        /// <param name="logger">A contextual logger to log to</param>
         public DiagnosticInfo(
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
-            StringTable stringTable)
-            : this(result, diagnosticsMask, serviceLevel, stringTable, 0)
+            StringTable stringTable,
+            ILogger logger)
+            : this(result, diagnosticsMask, serviceLevel, stringTable, 0, logger)
         {
         }
 
@@ -129,12 +132,14 @@ namespace Opc.Ua
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
         /// <param name="depth">The recursion depth of the inner diagnostics field</param>
+        /// <param name="logger">A contextual logger to log to</param>
         private DiagnosticInfo(
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable,
-            int depth)
+            int depth,
+            ILogger logger)
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -145,7 +150,7 @@ namespace Opc.Ua
 
             diagnosticsMask = (DiagnosticsMasks)mask;
 
-            Initialize(result, diagnosticsMask, stringTable, depth);
+            Initialize(result, diagnosticsMask, stringTable, depth, logger);
         }
 
         /// <summary>
@@ -155,11 +160,13 @@ namespace Opc.Ua
         /// <param name="diagnosticsMask">A bitmask describing the type of diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings that may contain additional diagnostic data</param>
+        /// <param name="logger">A contextual logger to log to</param>
         public DiagnosticInfo(
             Exception exception,
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
-            StringTable stringTable)
+            StringTable stringTable,
+            ILogger logger)
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -170,7 +177,7 @@ namespace Opc.Ua
 
             diagnosticsMask = (DiagnosticsMasks)mask;
 
-            Initialize(new ServiceResult(exception), diagnosticsMask, stringTable, 0);
+            Initialize(new ServiceResult(exception), diagnosticsMask, stringTable, 0, logger);
         }
 
         /// <summary>
@@ -207,12 +214,14 @@ namespace Opc.Ua
         /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
         /// <param name="depth">The depth of the inner diagnostics property</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <exception cref="ArgumentNullException"><paramref name="stringTable"/> is <c>null</c>.</exception>
         private void Initialize(
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
             StringTable stringTable,
-            int depth)
+            int depth,
+            ILogger logger)
         {
             if (stringTable == null)
             {
@@ -295,12 +304,13 @@ namespace Opc.Ua
                             diagnosticsMask,
                             true,
                             stringTable,
-                            depth + 1);
+                            depth + 1,
+                            logger);
                     }
                     else
                     {
-                        Utils.LogWarning(
-                            "Inner diagnostics truncated. Max depth of {0} exceeded.",
+                        logger.LogWarning(
+                            "Inner diagnostics truncated. Max depth of {MaxInnerDepth} exceeded.",
                             MaxInnerDepth);
                     }
                 }

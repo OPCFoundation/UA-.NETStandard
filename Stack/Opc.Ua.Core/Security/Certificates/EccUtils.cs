@@ -14,6 +14,8 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
+#if ECC_SUPPORT
+using Microsoft.Extensions.Logging;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -25,6 +27,7 @@ using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
+#endif
 #endif
 
 namespace Opc.Ua
@@ -501,44 +504,74 @@ namespace Opc.Ua
     public class EncryptedSecret
     {
         /// <summary>
+        /// Create secret
+        /// </summary>
+        public EncryptedSecret(
+            IServiceMessageContext context,
+            string securityPolicyUri,
+            X509Certificate2Collection senderIssuerCertificates,
+            X509Certificate2 receiverCertificate,
+            Nonce receiverNonce,
+            X509Certificate2 senderCertificate,
+            Nonce senderNonce,
+            CertificateValidator validator = null,
+            bool doNotEncodeSenderCertificate = false)
+        {
+            SenderCertificate = senderCertificate;
+            SenderIssuerCertificates = senderIssuerCertificates;
+            DoNotEncodeSenderCertificate = doNotEncodeSenderCertificate;
+            SenderNonce = senderNonce;
+            ReceiverNonce = receiverNonce;
+            ReceiverCertificate = receiverCertificate;
+            Validator = validator;
+            SecurityPolicyUri = securityPolicyUri;
+            Context = context;
+        }
+
+        /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
-        public X509Certificate2 SenderCertificate { get; set; }
+        public X509Certificate2 SenderCertificate { get; private set; }
 
         /// <summary>
         /// Gets or sets the collection of X.509 certificates of the sender's issuer.
         /// </summary>
-        public X509Certificate2Collection SenderIssuerCertificates { get; set; }
+        public X509Certificate2Collection SenderIssuerCertificates { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the sender's certificate should not be encoded.
         /// </summary>
-        public bool DoNotEncodeSenderCertificate { get; set; }
+        public bool DoNotEncodeSenderCertificate { get; }
 
         /// <summary>
         /// Gets or sets the nonce of the sender.
         /// </summary>
-        public Nonce SenderNonce { get; set; }
+        public Nonce SenderNonce { get; private set; }
 
         /// <summary>
         /// Gets or sets the nonce of the receiver.
         /// </summary>
-        public Nonce ReceiverNonce { get; set; }
+        public Nonce ReceiverNonce { get; }
 
         /// <summary>
         /// Gets or sets the X.509 certificate of the receiver.
         /// </summary>
-        public X509Certificate2 ReceiverCertificate { get; set; }
+        public X509Certificate2 ReceiverCertificate { get; }
 
         /// <summary>
         /// Gets or sets the certificate validator.
         /// </summary>
-        public CertificateValidator Validator { get; set; }
+        public CertificateValidator Validator { get; }
 
         /// <summary>
         /// Gets or sets the security policy URI.
         /// </summary>
-        public string SecurityPolicyUri { get; set; }
+        public string SecurityPolicyUri { get; private set; }
+
+        /// <summary>
+        /// Service message context to use
+        /// </summary>
+        public IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Encrypts a secret using the specified nonce, encrypting key, and initialization vector (IV).
@@ -549,7 +582,7 @@ namespace Opc.Ua
         /// <param name="iv">The initialization vector to use for encryption.</param>
         /// <returns>The encrypted secret.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private static byte[] EncryptSecret(
+        private byte[] EncryptSecret(
             byte[] secret,
             byte[] nonce,
             byte[] encryptingKey,
@@ -565,7 +598,7 @@ namespace Opc.Ua
 #endif
             byte[] dataToEncrypt = null;
 
-            using (var encoder = new BinaryEncoder(ServiceMessageContext.GlobalContext))
+            using (var encoder = new BinaryEncoder(Context))
             {
                 encoder.WriteByteString(null, nonce);
                 encoder.WriteByteString(null, secret);
@@ -880,7 +913,7 @@ namespace Opc.Ua
 
             int signatureLength = EccUtils.GetSignatureLength(SenderCertificate);
 
-            using (var encoder = new BinaryEncoder(ServiceMessageContext.GlobalContext))
+            using (var encoder = new BinaryEncoder(Context))
             {
                 // write header.
                 encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
@@ -996,17 +1029,19 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="dataToDecrypt">The data to decrypt.</param>
         /// <param name="earliestTime">The earliest time allowed for the message signing time.</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The encrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
         private ArraySegment<byte> VerifyHeaderForEcc(
             ArraySegment<byte> dataToDecrypt,
-            DateTime earliestTime)
+            DateTime earliestTime,
+            ILogger logger)
         {
             using var decoder = new BinaryDecoder(
                 dataToDecrypt.Array,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count,
-                ServiceMessageContext.GlobalContext);
+                Context);
             NodeId typeId = decoder.ReadNodeId(null);
 
             if (typeId != DataTypeIds.EccEncryptedSecret)
@@ -1057,7 +1092,8 @@ namespace Opc.Ua
             else
             {
                 X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(
-                    senderCertificate);
+                    senderCertificate,
+                    logger);
 
                 SenderCertificate = senderCertificateChain[0];
                 SenderIssuerCertificates = [];
@@ -1152,6 +1188,7 @@ namespace Opc.Ua
         /// <param name="data">The data to decrypt.</param>
         /// <param name="offset">The offset of the data to decrypt.</param>
         /// <param name="count">The number of bytes to decrypt.</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The decrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
         public byte[] Decrypt(
@@ -1159,11 +1196,13 @@ namespace Opc.Ua
             byte[] expectedNonce,
             byte[] data,
             int offset,
-            int count)
+            int count,
+            ILogger logger)
         {
             ArraySegment<byte> dataToDecrypt = VerifyHeaderForEcc(
                 new ArraySegment<byte>(data, offset, count),
-                earliestTime);
+                earliestTime,
+                logger);
 
             CreateKeysForEcc(
                 SecurityPolicyUri,
@@ -1184,7 +1223,7 @@ namespace Opc.Ua
                 plainText.Array,
                 plainText.Offset,
                 plainText.Count,
-                ServiceMessageContext.GlobalContext);
+                Context);
             byte[] actualNonce = decoder.ReadByteString(null);
 
             if (expectedNonce != null && expectedNonce.Length > 0)

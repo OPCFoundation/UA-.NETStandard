@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -29,9 +30,8 @@ namespace Opc.Ua.Bindings
         public abstract string UriScheme { get; }
 
         /// <inheritdoc/>
-        public abstract ITransportListener Create();
+        public abstract ITransportListener Create(ITelemetryContext telemetry);
 
-        /// <inheritdoc/>
         /// <summary>
         /// Create a new service host for UA TCP.
         /// </summary>
@@ -60,6 +60,12 @@ namespace Opc.Ua.Bindings
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
             string computerName = Utils.GetHostName();
 
+            // create intermediate logger for just this call.
+            // This is needed because the binding always requires a default
+            // constructor construction. So the telemetry context is not available
+            // until we are here.
+            ILogger logger = serverBase.MessageContext.Telemetry.CreateLogger<TcpServiceHost>();
+
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
                 // UA TCP and HTTPS endpoints support multiple policies.
@@ -76,7 +82,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 _ = instanceCertificateTypesProvider.SendCertificateChain;
-                ITransportListener listener = Create();
+                ITransportListener listener = Create(serverBase.MessageContext.Telemetry);
                 if (listener != null)
                 {
                     var listenerEndpoints = new EndpointDescriptionCollection();
@@ -94,7 +100,8 @@ namespace Opc.Ua.Bindings
                             SecurityPolicyUri = policy.SecurityPolicyUri,
                             SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                                 policy.SecurityMode,
-                                policy.SecurityPolicyUri)
+                                policy.SecurityPolicyUri,
+                                logger)
                         };
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                             configuration,
@@ -118,14 +125,13 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Utils.LogError(
-                        "Failed to create endpoint {0} because the transport profile is unsupported.",
+                    logger.LogError(
+                        "Failed to create endpoint {Uri} because the transport profile is unsupported.",
                         Redaction.Redact.Create(uri));
                 }
             }
 
             hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
-
             return endpoints;
         }
     }

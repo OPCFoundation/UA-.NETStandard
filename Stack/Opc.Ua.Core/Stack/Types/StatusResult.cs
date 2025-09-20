@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using Microsoft.Extensions.Logging;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -35,7 +37,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the diagnostic mask if the object was initialize with a ServiceResult.
         /// </summary>
-        public void ApplyDiagnosticMasks(DiagnosticsMasks diagnosticMasks, StringTable stringTable)
+        public void ApplyDiagnosticMasks(DiagnosticsMasks diagnosticMasks, StringTable stringTable, ILogger logger)
         {
             if (m_result != null)
             {
@@ -44,7 +46,8 @@ namespace Opc.Ua
                     m_result,
                     diagnosticMasks,
                     false,
-                    stringTable);
+                    stringTable,
+                    logger);
             }
         }
 

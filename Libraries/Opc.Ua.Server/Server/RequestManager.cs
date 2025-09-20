@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -44,6 +45,7 @@ namespace Opc.Ua.Server
         public RequestManager(IServerInternal server)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<RequestManager>();
             m_requests = [];
             m_requestTimer = null;
         }
@@ -164,7 +166,8 @@ namespace Opc.Ua.Server
                         m_server.ReportAuditCancelEvent(
                             request.Session.Id,
                             requestHandle,
-                            StatusCodes.Good);
+                            StatusCodes.Good,
+                            m_logger);
                     }
                 }
             }
@@ -188,7 +191,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError(e, "Unexpected error reporting RequestCancelled event.");
+                            m_logger.LogError(e, "Unexpected error reporting RequestCancelled event.");
                         }
                     }
                 }
@@ -242,7 +245,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError(e, "Unexpected error reporting RequestCancelled event.");
+                            m_logger.LogError(e, "Unexpected error reporting RequestCancelled event.");
                         }
                     }
                 }
@@ -250,6 +253,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly Dictionary<uint, OperationContext> m_requests;
         private readonly Lock m_requestsLock = new();

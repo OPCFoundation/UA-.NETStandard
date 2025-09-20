@@ -17,6 +17,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 #if NET6_0_OR_GREATER
 using System.Buffers;
 #endif
@@ -31,7 +32,9 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
         /// </summary>
-        public BinaryDecoder(byte[] buffer, IServiceMessageContext context)
+        public BinaryDecoder(
+            byte[] buffer,
+            IServiceMessageContext context)
             : this(buffer, 0, buffer.Length, context)
         {
         }
@@ -39,7 +42,9 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a decoder that reads from an ArraySegment.
         /// </summary>
-        public BinaryDecoder(ArraySegment<byte> buffer, IServiceMessageContext context)
+        public BinaryDecoder(
+            ArraySegment<byte> buffer,
+            IServiceMessageContext context)
             : this(buffer.Array, buffer.Offset, buffer.Count, context)
         {
         }
@@ -47,31 +52,30 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
         /// </summary>
-        public BinaryDecoder(byte[] buffer, int start, int count, IServiceMessageContext context)
+        public BinaryDecoder(
+            byte[] buffer,
+            int start,
+            int count,
+            IServiceMessageContext context)
         {
+            m_logger = context.Telemetry.CreateLogger<BinaryDecoder>();
             var stream = new MemoryStream(buffer, start, count, false);
             m_reader = new BinaryReader(stream);
-            Initialize(context);
+            Context = context;
         }
 
         /// <summary>
         /// Creates a decoder that reads from a stream.
         /// </summary>
-        public BinaryDecoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        public BinaryDecoder(
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen = false)
         {
+            m_logger = context.Telemetry.CreateLogger<BinaryDecoder>();
             ValidateStreamRequirements(stream);
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
-            Initialize(context);
-        }
-
-        /// <summary>
-        /// Initializes the object.
-        /// </summary>
-        private void Initialize(IServiceMessageContext context)
-        {
             Context = context;
-            m_nestingLevel = 0;
-            m_encodeablesRecovered = 0;
         }
 
         /// <summary>
@@ -313,7 +317,7 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Binary;
 
         /// <inheritdoc/>
-        public IServiceMessageContext Context { get; private set; }
+        public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
@@ -1434,7 +1438,8 @@ namespace Opc.Ua
                     (_, int length) = Matrix.ValidateDimensions(
                         false,
                         dimensions,
-                        Context.MaxArrayLength);
+                        Context.MaxArrayLength,
+                        m_logger);
 
                     // read the elements
                     Array elements = null;
@@ -1794,7 +1799,7 @@ namespace Opc.Ua
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogError(ex, "Error reading array of XmlElement.");
+                            m_logger.LogError(ex, "Error reading array of XmlElement.");
                             values[ii] = null;
                         }
                     }
@@ -2002,8 +2007,8 @@ namespace Opc.Ua
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(extension.TypeId))
             {
-                Utils.LogWarning(
-                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                m_logger.LogWarning(
+                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                     typeId);
             }
 
@@ -2053,8 +2058,8 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
-                            "Could not decode known type {0} encoded as Xml. Error={1}, Value={2}",
+                        m_logger.LogError(
+                            "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
                             systemType.FullName,
                             e.Message,
                             element.OuterXml);
@@ -2148,9 +2153,9 @@ namespace Opc.Ua
                     else if (m_encodeablesRecovered == 0)
                     {
                         // log the error only once to avoid flooding the log.
-                        Utils.LogWarning(
+                        m_logger.LogWarning(
                             exception,
-                            "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
+                            "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
                             systemType.Name,
                             extension.TypeId);
@@ -2355,7 +2360,7 @@ namespace Opc.Ua
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogTrace(ex, "Error reading xml element for Variant.");
+                            m_logger.LogTrace(ex, "Error reading xml element for Variant.");
                             value = new Variant(StatusCodes.BadDecodingError);
                         }
                         break;
@@ -2692,5 +2697,6 @@ namespace Opc.Ua
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private uint m_encodeablesRecovered;
+        private readonly ILogger m_logger;
     }
 }

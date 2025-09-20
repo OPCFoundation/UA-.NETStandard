@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Gds.Tests
@@ -99,14 +100,15 @@ namespace Opc.Ua.Gds.Tests
         protected async Task OneTimeSetUpAsync()
         {
             // start GDS
-            m_server = await TestUtils.StartGDSAsync(true, m_storeType, TestContext.Out).ConfigureAwait(false);
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_server = await TestUtils.StartGDSAsync(true, m_telemetry, m_storeType).ConfigureAwait(false);
 
             // load client
-            m_gdsClient = new GlobalDiscoveryTestClient(true, m_storeType);
+            m_gdsClient = new GlobalDiscoveryTestClient(true, m_telemetry, m_storeType);
             await m_gdsClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
 
             // good applications test set
-            m_appTestDataGenerator = new ApplicationTestDataGenerator(1);
+            m_appTestDataGenerator = new ApplicationTestDataGenerator(1, m_telemetry);
             m_goodApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(
                 kGoodApplicationsTestCount,
                 false);
@@ -147,24 +149,12 @@ namespace Opc.Ua.Gds.Tests
         [SetUp]
         protected void SetUp()
         {
-            m_server.ResetLogFile();
-            //m_server.SetTraceOutput(TestContext.Out);
-            //m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
         }
 
         [TearDown]
         protected async Task TearDownAsync()
         {
             await DisconnectGDSAsync().ConfigureAwait(false);
-            try
-            {
-                TestContext.AddTestAttachment(
-                    m_server.GetLogFilePath(),
-                    "GDS Client and Server logs");
-            }
-            catch
-            {
-            }
         }
 
         /// <summary>
@@ -862,6 +852,8 @@ namespace Opc.Ua.Gds.Tests
         [Order(510)]
         public async Task FinishGoodNewKeyPairRequestsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             await ConnectGDSAsync(true).ConfigureAwait(false);
@@ -899,7 +891,8 @@ namespace Opc.Ua.Gds.Tests
                                     privateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
-                                    issuerCertificates);
+                                    issuerCertificates,
+                                    telemetry);
                             }
                             else
                             {
@@ -988,6 +981,8 @@ namespace Opc.Ua.Gds.Tests
         [Order(530)]
         public async Task FinishGoodSigningRequestsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             await ConnectGDSAsync(true).ConfigureAwait(false);
@@ -1024,7 +1019,8 @@ namespace Opc.Ua.Gds.Tests
                                     application.PrivateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
-                                    issuerCertificates);
+                                    issuerCertificates,
+                                    telemetry);
                             }
                             else
                             {
@@ -1095,7 +1091,10 @@ namespace Opc.Ua.Gds.Tests
             ApplicationTestData application = m_goodApplicationTestSet[0];
             Assert.Null(application.CertificateRequestId);
             // load csr with invalid app URI
-            string testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
+            string testCSR = Utils.GetAbsoluteFilePath(
+                "test.csr",
+                checkCurrentDirectory: true,
+                createAlways: false);
             byte[] certificateRequest = File.ReadAllBytes(testCSR);
             await NUnit.Framework.Assert.ThatAsync(
                 () => m_gdsClient.GDSClient.StartSigningRequestAsync(
@@ -1284,6 +1283,8 @@ namespace Opc.Ua.Gds.Tests
         [Order(631)]
         public async Task GoodSigningRequestAsSelfAdminAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
@@ -1370,7 +1371,8 @@ namespace Opc.Ua.Gds.Tests
                                 application.PrivateKey,
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
-                                issuerCertificates);
+                                issuerCertificates,
+                                telemetry);
                         }
                         else
                         {
@@ -1409,6 +1411,8 @@ namespace Opc.Ua.Gds.Tests
         [Order(632)]
         public async Task GoodKeyPairRequestAsSelfAdminAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
@@ -1484,7 +1488,8 @@ namespace Opc.Ua.Gds.Tests
                                 privateKey,
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
-                                issuerCertificates);
+                                issuerCertificates,
+                                telemetry);
                         }
                         else
                         {
@@ -1787,6 +1792,7 @@ namespace Opc.Ua.Gds.Tests
         private const int kGoodApplicationsTestCount = 10;
         private const int kInvalidApplicationsTestCount = 10;
         private ApplicationTestDataGenerator m_appTestDataGenerator;
+        private ITelemetryContext m_telemetry;
         private GlobalDiscoveryTestServer m_server;
         private GlobalDiscoveryTestClient m_gdsClient;
         private IList<ApplicationTestData> m_goodApplicationTestSet;

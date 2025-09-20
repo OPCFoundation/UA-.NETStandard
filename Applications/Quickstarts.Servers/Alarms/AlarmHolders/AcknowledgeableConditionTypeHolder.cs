@@ -29,15 +29,17 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
 {
     // Ignore all Optionals for Confirm, as it should be supported.  For this object, that means remove all Optional conditions
 
-    public class AcknowledgeableConditionTypeHolder : ConditionTypeHolder
+    public abstract class AcknowledgeableConditionTypeHolder : ConditionTypeHolder
     {
-        public AcknowledgeableConditionTypeHolder(
+        protected AcknowledgeableConditionTypeHolder(
+            ILogger logger,
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
@@ -48,6 +50,7 @@ namespace Alarms
             bool optional = true,
             bool create = true)
             : base(
+                logger,
                 alarmNodeManager,
                 parent,
                 trigger,

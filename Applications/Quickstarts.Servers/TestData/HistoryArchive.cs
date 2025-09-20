@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace TestData
@@ -39,6 +40,11 @@ namespace TestData
     /// </summary>
     internal class HistoryArchive : IDisposable
     {
+        public HistoryArchive(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<HistoryArchive>();
+        }
+
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -163,13 +169,14 @@ namespace TestData
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error updating history.");
+                m_logger.LogError(e, "Unexpected error updating history.");
             }
         }
 
         private readonly Lock m_lock = new();
         private Timer m_updateTimer;
         private Dictionary<NodeId, HistoryRecord> m_records;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

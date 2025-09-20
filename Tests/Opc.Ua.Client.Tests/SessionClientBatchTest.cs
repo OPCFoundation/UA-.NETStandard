@@ -32,8 +32,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
@@ -262,6 +264,9 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task BrowseAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+
             // Browse template
             const uint startingNode = Objects.RootFolder;
             var browseTemplate = new BrowseDescription
@@ -320,7 +325,8 @@ namespace Opc.Ua.Client.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticInfos,
                         continuationPoints,
-                        nextResponse.ResponseHeader.StringTable);
+                        nextResponse.ResponseHeader.StringTable,
+                        logger);
                     allResults.AddRange(browseNextResultCollection);
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                         browseNextResultCollection);
@@ -417,6 +423,9 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task TranslateBrowsePathsToNodeIdsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+
             var browsePaths = new BrowsePathCollection();
             var browsePath = new BrowsePath
             {
@@ -443,13 +452,17 @@ namespace Opc.Ua.Client.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 browsePaths,
-                response.ResponseHeader.StringTable);
+                response.ResponseHeader.StringTable,
+                logger);
             Assert.NotNull(response.ResponseHeader);
         }
 
         [Theory]
         public async Task HistoryReadAsync(bool eventDetails)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+
             // there are no historizing nodes, but create some real ones
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
                 Session.NamespaceUris);
@@ -478,12 +491,16 @@ namespace Opc.Ua.Client.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 response.DiagnosticInfos,
                 nodesToRead,
-                response.ResponseHeader.StringTable);
+                response.ResponseHeader.StringTable,
+                logger);
         }
 
         [Theory]
         public async Task HistoryUpdateAsync(bool eventDetails)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+
             // there are no historizing nodes, instead use some real nodes to test
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
                 Session.NamespaceUris);
@@ -525,7 +542,8 @@ namespace Opc.Ua.Client.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 response.DiagnosticInfos,
                 historyUpdateDetails,
-                response.ResponseHeader.StringTable);
+                response.ResponseHeader.StringTable,
+                logger);
         }
 
         private static ExtensionObject ReadRawModifiedDetails()

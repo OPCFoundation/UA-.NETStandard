@@ -14,11 +14,23 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
     public partial class AlarmConditionState
     {
+        /// <summary>
+        /// Create alarm condition
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="parent"></param>
+        public AlarmConditionState(ITelemetryContext telemetry, NodeState parent)
+            : this(parent)
+        {
+            m_logger = telemetry.CreateLogger<AlarmConditionState>();
+        }
+
         /// <summary>
         /// Called after a node is created.
         /// </summary>
@@ -742,7 +754,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error unshelving alarm.");
+                m_logger.LogError(e, "Unexpected error unshelving alarm.");
             }
         }
 
@@ -765,10 +777,11 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error updating UnshelveTime.");
+                m_logger.LogError(e, "Unexpected error updating UnshelveTime.");
             }
         }
 
+        private readonly ILogger m_logger;
         private bool m_oneShot;
         private Timer m_unshelveTimer;
         private Timer m_updateUnshelveTimer;

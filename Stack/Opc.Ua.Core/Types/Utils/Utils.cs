@@ -28,6 +28,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 #if !NETFRAMEWORK
 using Opc.Ua.Security.Certificates;
 #endif
@@ -199,507 +200,6 @@ namespace Opc.Ua
                 IsUriHttpsScheme(url);
         }
 
-#if DEBUG
-        private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
-#else
-        private static int s_traceOutput = (int)TraceOutput.FileOnly;
-#endif
-
-        private static string s_traceFileName = string.Empty;
-        private static readonly Lock s_traceFileLock = new();
-
-        /// <summary>
-        /// The possible trace output mechanisms.
-        /// </summary>
-        public enum TraceOutput
-        {
-            /// <summary>
-            /// No tracing
-            /// </summary>
-            Off = 0,
-
-            /// <summary>
-            /// Only write to file (if specified). Default for Release mode.
-            /// </summary>
-            FileOnly = 1,
-
-            /// <summary>
-            /// Write to debug trace listeners and a file (if specified). Default for Debug mode.
-            /// </summary>
-            DebugAndFile = 2
-        }
-
-        /// <summary>
-        /// The masks used to filter trace messages.
-        /// </summary>
-        public static class TraceMasks
-        {
-            /// <summary>
-            /// Do not output any messages.
-            /// </summary>
-            public const int None = 0x0;
-
-            /// <summary>
-            /// Output error messages.
-            /// </summary>
-            public const int Error = 0x1;
-
-            /// <summary>
-            /// Output informational messages.
-            /// </summary>
-            public const int Information = 0x2;
-
-            /// <summary>
-            /// Output stack traces.
-            /// </summary>
-            public const int StackTrace = 0x4;
-
-            /// <summary>
-            /// Output basic messages for service calls.
-            /// </summary>
-            public const int Service = 0x8;
-
-            /// <summary>
-            /// Output detailed messages for service calls.
-            /// </summary>
-            public const int ServiceDetail = 0x10;
-
-            /// <summary>
-            /// Output basic messages for each operation.
-            /// </summary>
-            public const int Operation = 0x20;
-
-            /// <summary>
-            /// Output detailed messages for each operation.
-            /// </summary>
-            public const int OperationDetail = 0x40;
-
-            /// <summary>
-            /// Output messages related to application initialization or shutdown
-            /// </summary>
-            public const int StartStop = 0x80;
-
-            /// <summary>
-            /// Output messages related to a call to an external system.
-            /// </summary>
-            public const int ExternalSystem = 0x100;
-
-            /// <summary>
-            /// Output messages related to security
-            /// </summary>
-            public const int Security = 0x200;
-
-            /// <summary>
-            /// Output all messages.
-            /// </summary>
-            public const int All = 0x3FF;
-        }
-
-        /// <summary>
-        /// Sets the output for tracing (thread safe).
-        /// </summary>
-        public static void SetTraceOutput(TraceOutput output)
-        {
-            lock (s_traceFileLock)
-            {
-                s_traceOutput = (int)output;
-            }
-        }
-
-        /// <summary>
-        /// Gets the current trace mask settings.
-        /// </summary>
-        public static int TraceMask { get; private set; }
-#if DEBUG
-            = TraceMasks.All;
-#else
-            = TraceMasks.None;
-#endif
-
-        /// <summary>
-        /// Sets the mask for tracing (thread safe).
-        /// </summary>
-        public static void SetTraceMask(int masks)
-        {
-            TraceMask = masks;
-        }
-
-        /// <summary>
-        /// Returns Tracing class instance for event attaching.
-        /// </summary>
-        public static Tracing Tracing => Tracing.Instance;
-
-        /// <summary>
-        /// Writes a trace statement.
-        /// </summary>
-        private static void TraceWriteLine(string message, params object[] args)
-        {
-            // null strings not supported.
-            if (string.IsNullOrEmpty(message))
-            {
-                return;
-            }
-
-            // format the message if format arguments provided.
-            string output = message;
-
-            if (args != null && args.Length > 0)
-            {
-                try
-                {
-                    output = string.Format(CultureInfo.InvariantCulture, message, args);
-                }
-                catch (Exception)
-                {
-                    output = message;
-                }
-            }
-
-            TraceWriteLine(output);
-        }
-
-        /// <summary>
-        /// Writes a trace statement.
-        /// </summary>
-        private static void TraceWriteLine(string output)
-        {
-            // write to the log file.
-            lock (s_traceFileLock)
-            {
-                // write to debug trace listeners.
-                if (s_traceOutput == (int)TraceOutput.DebugAndFile)
-                {
-                    Debug.WriteLine(output);
-                }
-
-                string traceFileName = s_traceFileName;
-
-                if (s_traceOutput != (int)TraceOutput.Off && !string.IsNullOrEmpty(traceFileName))
-                {
-                    try
-                    {
-                        var file = new FileInfo(traceFileName);
-
-                        // limit the file size
-                        bool truncated = false;
-
-                        if (file.Exists && file.Length > 10000000)
-                        {
-                            file.Delete();
-                            truncated = true;
-                        }
-
-                        using var writer = new StreamWriter(
-                            File.Open(
-                                file.FullName,
-                                FileMode.Append,
-                                FileAccess.Write,
-                                FileShare.Read));
-                        if (truncated)
-                        {
-                            writer.WriteLine("WARNING - LOG FILE TRUNCATED.");
-                        }
-
-                        writer.WriteLine(output);
-                        writer.Flush();
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.WriteLine("Could not write to trace file. Error={0}", e.Message);
-                        Debug.WriteLine("FilePath={1}", traceFileName);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Sets the path to the log file to use for tracing.
-        /// </summary>
-        public static void SetTraceLog(string filePath, bool deleteExisting)
-        {
-            // turn tracing on.
-            lock (s_traceFileLock)
-            {
-                // check if tracing is being turned off.
-                if (string.IsNullOrEmpty(filePath))
-                {
-                    s_traceFileName = null;
-                    return;
-                }
-
-                s_traceFileName = GetAbsoluteFilePath(filePath, true, false, true, true);
-
-                if (s_traceOutput == (int)TraceOutput.Off)
-                {
-                    s_traceOutput = (int)TraceOutput.FileOnly;
-                }
-
-                try
-                {
-                    var file = new FileInfo(s_traceFileName);
-
-                    if (deleteExisting && file.Exists)
-                    {
-                        file.Delete();
-                    }
-
-                    // write initial log message.
-                    TraceWriteLine(string.Empty);
-                    TraceWriteLine("{1} Logging started at {0}", DateTime.Now, new string('*', 25));
-                }
-                catch (Exception e)
-                {
-                    TraceWriteLine(e.Message);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Writes an informational message to the trace log.
-        /// </summary>
-        public static void Trace(string message)
-        {
-            LogInfo(message);
-        }
-
-        /// <summary>
-        /// Writes an informational message to the trace log.
-        /// </summary>
-        public static void Trace(string format, params object[] args)
-        {
-            LogInfo(format, args);
-        }
-
-        /// <summary>
-        /// Writes an informational message to the trace log.
-        /// </summary>
-        [Conditional("DEBUG")]
-        public static void TraceDebug(string format, params object[] args)
-        {
-            LogDebug(format, args);
-        }
-
-        /// <summary>
-        /// Writes an exception/error message to the trace log.
-        /// </summary>
-        public static void Trace(Exception e, string message)
-        {
-            LogError(e, message);
-        }
-
-        /// <summary>
-        /// Writes an exception/error message to the trace log.
-        /// </summary>
-        public static void Trace(Exception e, string format, params object[] args)
-        {
-            LogError(e, format, args);
-        }
-
-        /// <summary>
-        /// Create an exception/error message for a log.
-        /// </summary>
-        internal static StringBuilder TraceExceptionMessage(
-            Exception e,
-            string format,
-            params object[] args)
-        {
-            var message = new StringBuilder();
-
-            // format message.
-            if (args != null && args.Length > 0)
-            {
-                try
-                {
-                    message.AppendFormat(CultureInfo.InvariantCulture, format, args)
-                        .AppendLine();
-                }
-                catch (Exception)
-                {
-                    message.AppendLine(format);
-                }
-            }
-            else
-            {
-                message.AppendLine(format);
-            }
-
-            // append exception information.
-            if (e != null)
-            {
-                if (e is ServiceResultException sre)
-                {
-                    message.AppendFormat(
-                        CultureInfo.InvariantCulture,
-                        " {0} '{1}'",
-                        StatusCodes.GetBrowseName(sre.StatusCode),
-                        sre.Message);
-                }
-                else
-                {
-                    message.AppendFormat(
-                        CultureInfo.InvariantCulture,
-                        " {0} '{1}'",
-                        e.GetType().Name,
-                        e.Message);
-                }
-                message.AppendLine();
-
-                // append stack trace.
-                if ((TraceMask & TraceMasks.StackTrace) != 0)
-                {
-                    message.AppendLine()
-                        .AppendLine();
-                    string separator = new('=', 40);
-                    message.AppendLine(separator)
-                        .AppendLine(new ServiceResult(e).ToLongString())
-                        .AppendLine(separator);
-                }
-            }
-
-            return message;
-        }
-
-        /// <summary>
-        /// Writes an exception/error message to the trace log.
-        /// </summary>
-        public static void Trace(Exception e, string format, bool handled, params object[] args)
-        {
-            StringBuilder message = TraceExceptionMessage(e, format, args);
-
-            // trace message.
-            Trace(e, TraceMasks.Error, message.ToString(), handled, null);
-        }
-
-        /// <summary>
-        /// Writes a message to the trace log.
-        /// </summary>
-        public static void Trace(int traceMask, string format, params object[] args)
-        {
-            const int informationMask = TraceMasks.Information |
-                TraceMasks.StartStop |
-                TraceMasks.Security;
-            const int errorMask = TraceMasks.Error | TraceMasks.StackTrace;
-            if ((traceMask & errorMask) != 0)
-            {
-                LogError(traceMask, format, args);
-            }
-            else if ((traceMask & informationMask) != 0)
-            {
-                LogInfo(traceMask, format, args);
-            }
-            else
-            {
-                LogTrace(traceMask, format, args);
-            }
-        }
-
-        /// <summary>
-        /// Writes a message to the trace log.
-        /// </summary>
-        public static void Trace(int traceMask, string format, bool handled, params object[] args)
-        {
-            Trace(null, traceMask, format, handled, args);
-        }
-
-        /// <summary>
-        /// Writes a message to the trace log.
-        /// </summary>
-        /// <typeparam name="TState"></typeparam>
-        public static void Trace<TState>(
-            TState state,
-            Exception exception,
-            int traceMask,
-            Func<TState, Exception, string> formatter)
-        {
-            // do nothing if mask not enabled.
-            bool tracingEnabled = Tracing.IsEnabled();
-            bool traceMaskEnabled = (TraceMask & traceMask) != 0;
-            if (!traceMaskEnabled && !tracingEnabled)
-            {
-                return;
-            }
-
-            var message = new StringBuilder();
-            try
-            {
-                // append process and timestamp.
-                message.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "{0:d} {0:HH:mm:ss.fff} ",
-                    DateTime.UtcNow.ToLocalTime())
-                    .Append(formatter(state, exception));
-                if (exception != null)
-                {
-                    message.Append(TraceExceptionMessage(exception, string.Empty, null));
-                }
-            }
-            catch (Exception)
-            {
-                return;
-            }
-
-            string output = message.ToString();
-            if (tracingEnabled)
-            {
-                Tracing.Instance.RaiseTraceEvent(
-                    new TraceEventArgs(traceMask, output, string.Empty, exception, []));
-            }
-            if (traceMaskEnabled)
-            {
-                TraceWriteLine(output);
-            }
-        }
-
-        /// <summary>
-        /// Writes a message to the trace log.
-        /// </summary>
-        public static void Trace(
-            Exception e,
-            int traceMask,
-            string format,
-            bool handled,
-            params object[] args)
-        {
-            if (!handled)
-            {
-                Tracing.Instance
-                    .RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, e, args));
-            }
-
-            // do nothing if mask not enabled.
-            if ((TraceMask & traceMask) == 0)
-            {
-                return;
-            }
-
-            var message = new StringBuilder();
-
-            // append process and timestamp.
-            message.AppendFormat(
-                CultureInfo.InvariantCulture,
-                "{0:d} {0:HH:mm:ss.fff} ",
-                DateTime.UtcNow.ToLocalTime());
-
-            // format message.
-            if (args != null && args.Length > 0)
-            {
-                try
-                {
-                    message.AppendFormat(CultureInfo.InvariantCulture, format, args);
-                }
-                catch (Exception)
-                {
-                    message.Append(format);
-                }
-            }
-            else
-            {
-                message.Append(format);
-            }
-
-            TraceWriteLine(message.ToString());
-        }
-
         /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
@@ -796,8 +296,9 @@ namespace Opc.Ua
         /// Finds the file by search the common file folders and then bin directories in the source tree
         /// </summary>
         /// <param name="fileName">Name of the file.</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The path to the file. Null if not found.</returns>
-        public static string FindInstalledFile(string fileName)
+        public static string FindInstalledFile(string fileName, ILogger logger)
         {
             if (string.IsNullOrEmpty(fileName))
             {
@@ -818,7 +319,17 @@ namespace Opc.Ua
                     .Append(Path.DirectorySeparatorChar)
                     .Append(fileName);
 
-                path = GetAbsoluteFilePath(buffer.ToString(), false, false, false);
+                try
+                {
+                    path = GetAbsoluteFilePath(
+                        buffer.ToString(),
+                        checkCurrentDirectory: false,
+                        createAlways: false);
+                }
+                catch (Exception e)
+                {
+                    logger.LogTrace(e, "Could not find installed file: {FileName}", fileName);
+                }
 
                 if (path != null)
                 {
@@ -837,7 +348,10 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAbsoluteFilePath(string filePath)
         {
-            return GetAbsoluteFilePath(filePath, false, true, false);
+            return GetAbsoluteFilePath(
+                filePath,
+                checkCurrentDirectory: false,
+                createAlways: false);
         }
 
         /// <summary>
@@ -847,7 +361,6 @@ namespace Opc.Ua
         public static string GetAbsoluteFilePath(
             string filePath,
             bool checkCurrentDirectory,
-            bool throwOnError,
             bool createAlways,
             bool writable = false)
         {
@@ -869,7 +382,7 @@ namespace Opc.Ua
 
                     if (createAlways)
                     {
-                        return CreateFile(file, filePath, throwOnError);
+                        return CreateFile(file, filePath);
                     }
                 }
 
@@ -927,56 +440,37 @@ namespace Opc.Ua
 
                         if (createAlways && writable)
                         {
-                            return CreateFile(localFile, localFile.FullName, throwOnError);
+                            return CreateFile(localFile, localFile.FullName);
                         }
                     }
                 }
             }
 
             // file does not exist.
-            if (throwOnError)
-            {
-                var message = new StringBuilder();
-                message.AppendLine("File does not exist: {0}")
-                    .AppendLine("Current directory is: {1}");
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    message.ToString(),
-                    filePath,
-                    Directory.GetCurrentDirectory());
-            }
-
-            return null;
+            var message = new StringBuilder();
+            message.AppendLine("File does not exist: {0}")
+                .AppendLine("Current directory is: {1}");
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                message.ToString(),
+                filePath,
+                Directory.GetCurrentDirectory());
         }
 
         /// <summary>
         /// Creates an empty file.
         /// </summary>
-        private static string CreateFile(FileInfo file, string filePath, bool throwOnError)
+        private static string CreateFile(FileInfo file, string filePath)
         {
-            try
+            // create the directory as required.
+            if (!file.Directory.Exists)
             {
-                // create the directory as required.
-                if (!file.Directory.Exists)
-                {
-                    Directory.CreateDirectory(file.DirectoryName);
-                }
-
-                // open and close the file.
-                using Stream ostrm = file.Open(FileMode.CreateNew, FileAccess.ReadWrite);
-                return filePath;
+                Directory.CreateDirectory(file.DirectoryName);
             }
-            catch (Exception e)
-            {
-                LogError(e, "Could not create file: {0}", filePath);
 
-                if (throwOnError)
-                {
-                    throw;
-                }
-
-                return filePath;
-            }
+            // open and close the file.
+            using Stream ostrm = file.Open(FileMode.CreateNew, FileAccess.ReadWrite);
+            return filePath;
         }
 
         /// <summary>
@@ -1148,7 +642,7 @@ namespace Opc.Ua
 #if DEBUG
             catch (Exception e)
             {
-                LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
+                Debug.WriteLine("Error {0} disposing object: {1}", e, disposable.GetType().Name);
             }
 #else
             catch { }
@@ -2031,7 +1525,7 @@ namespace Opc.Ua
                 object clone = memberwiseCloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
-                    LogTrace("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
+                    Debug.WriteLine("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
@@ -2045,7 +1539,7 @@ namespace Opc.Ua
                 object clone = cloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
-                    LogTrace("Clone without ICloneable in class '{0}'", type.FullName);
+                    Debug.WriteLine("Clone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
@@ -2695,11 +2189,6 @@ namespace Opc.Ua
                     var serializer = new DataContractSerializer(typeof(T));
                     return (T)serializer.ReadObject(reader);
                 }
-                catch (Exception ex)
-                {
-                    LogError("Exception parsing extension: " + ex.Message);
-                    throw;
-                }
                 finally
                 {
                     reader.Dispose();
@@ -2996,6 +2485,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2 ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
+            ILogger logger,
             bool useAsnParser = false)
         {
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
@@ -3009,12 +2499,12 @@ namespace Opc.Ua
                 if (useAsnParser)
                 {
                     ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
-                    return CertificateFactory.Create(certBlob, true);
+                    return CertificateFactory.Create(certBlob, true, logger);
                 }
                 else
 #endif
                 {
-                    return CertificateFactory.Create(certificateData, true);
+                    return CertificateFactory.Create(certificateData, true, logger);
                 }
             }
             catch (Exception e)
@@ -3030,10 +2520,12 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2Collection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
+            ILogger logger,
             bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
@@ -3055,12 +2547,12 @@ namespace Opc.Ua
                     {
                         ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(
                             certificateData[offset..]);
-                        certificate = CertificateFactory.Create(certBlob, true);
+                        certificate = CertificateFactory.Create(certBlob, true, logger);
                     }
                     else
 #endif
                     {
-                        certificate = CertificateFactory.Create(certificateData[offset..], true);
+                        certificate = CertificateFactory.Create(certificateData[offset..], true, logger);
                     }
                 }
                 catch (Exception e)

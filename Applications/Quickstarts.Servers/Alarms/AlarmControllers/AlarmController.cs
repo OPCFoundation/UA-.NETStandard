@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
@@ -38,6 +39,7 @@ namespace Alarms
     public class AlarmController
     {
         private const int kDefaultCycleTime = 180;
+        protected ILogger m_logger;
         protected BaseDataVariableState m_variable;
         protected int m_value;
         protected bool m_increment = true;
@@ -51,8 +53,9 @@ namespace Alarms
         protected bool m_validLastMaxValue;
         protected int m_midpoint = AlarmDefines.NORMAL_START_VALUE;
 
-        public AlarmController(BaseDataVariableState variable, int interval, bool isBoolean)
+        public AlarmController(BaseDataVariableState variable, int interval, bool isBoolean, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<AlarmController>();
             m_variable = variable;
             m_interval = interval;
             m_isBoolean = isBoolean;
@@ -71,7 +74,7 @@ namespace Alarms
         {
             Stop();
 
-            Utils.LogInfo("Start the Alarms for {0} seconds!", seconds);
+            m_logger.LogInformation("Start the Alarms for {Duration} seconds!", seconds);
 
             m_validLastMaxValue = false;
 
@@ -83,7 +86,7 @@ namespace Alarms
 
         public virtual void Stop()
         {
-            Utils.LogInfo("Stop the Alarms!");
+            m_logger.LogInformation("Stop the Alarms!");
 
             m_value = m_midpoint;
             m_increment = true;
@@ -101,7 +104,7 @@ namespace Alarms
                 bool boolValue = false;
                 GetValue(ref value, ref boolValue);
 
-                Utils.LogInfo("AlarmController Update Value = {0}", value);
+                m_logger.LogInformation("AlarmController Update Value = {Value}", value);
 
                 if (m_isBoolean)
                 {
@@ -138,8 +141,8 @@ namespace Alarms
                 }
                 else
                 {
-                    Utils.LogError(
-                        "AlarmController Received out of range manual write of {0}",
+                    m_logger.LogError(
+                        "AlarmController Received out of range manual write of {Value}",
                         value);
                 }
             }
@@ -209,8 +212,8 @@ namespace Alarms
                 {
                     if (m_validLastMaxValue)
                     {
-                        Utils.LogInfo(
-                            "Cycle Time {0} Interval {1}",
+                        m_logger.LogInformation(
+                            "Cycle Time {CycleTime} Interval {Interval}",
                             DateTime.Now - m_lastMaxValue,
                             m_interval);
                     }
@@ -293,10 +296,10 @@ namespace Alarms
             double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) +
                 verticalShift;
 
-            Utils.LogTrace(
-                " Phase {0:0.00} Value {1} Sine {2:0.00}" +
-                " Offset Value {3:0.00} Span {4:0.00}" +
-                " Percentage of Range {5:0.00}",
+            m_logger.LogTrace(
+                " Phase {Phase:0.00} Value {Value} Sine {Sine:0.00}" +
+                " Offset Value {OffsetValue:0.00} Span {NormalSpan:0.00}" +
+                " Percentage of Range {PercentageOfRange:0.00}",
                 phase,
                 value,
                 calculated,

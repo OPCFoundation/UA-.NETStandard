@@ -203,7 +203,7 @@ namespace Opc.Ua
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
 
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -231,7 +231,7 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -258,7 +258,7 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromBinary(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -328,7 +328,7 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromXml(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -502,52 +502,53 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             NodeId typeDefinitionId)
         {
+            NodeState child;
             if (m_types != null &&
                 !NodeId.IsNull(typeDefinitionId) &&
                 m_types.TryGetValue(typeDefinitionId, out Type type))
             {
-                return Activator.CreateInstance(type, parent) as NodeState;
+                child = Activator.CreateInstance(type, parent) as NodeState;
             }
-
-            NodeState child;
-            switch (nodeClass)
+            else
             {
-                case NodeClass.Variable:
-                    if (context.TypeTable != null &&
-                        context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
-                    {
-                        child = new PropertyState(parent);
+                switch (nodeClass)
+                {
+                    case NodeClass.Variable:
+                        if (context.TypeTable != null &&
+                            context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
+                        {
+                            child = new PropertyState(parent);
+                            break;
+                        }
+
+                        child = new BaseDataVariableState(parent);
                         break;
-                    }
-
-                    child = new BaseDataVariableState(parent);
-                    break;
-                case NodeClass.Object:
-                    child = new BaseObjectState(parent);
-                    break;
-                case NodeClass.Method:
-                    child = new MethodState(parent);
-                    break;
-                case NodeClass.ReferenceType:
-                    child = new ReferenceTypeState();
-                    break;
-                case NodeClass.ObjectType:
-                    child = new BaseObjectTypeState();
-                    break;
-                case NodeClass.VariableType:
-                    child = new BaseDataVariableTypeState();
-                    break;
-                case NodeClass.DataType:
-                    child = new DataTypeState();
-                    break;
-                case NodeClass.View:
-                    child = new ViewState();
-                    break;
-                default:
-                    child = null;
-                    break;
+                    case NodeClass.Object:
+                        child = new BaseObjectState(parent);
+                        break;
+                    case NodeClass.Method:
+                        child = new MethodState(parent);
+                        break;
+                    case NodeClass.ReferenceType:
+                        child = new ReferenceTypeState();
+                        break;
+                    case NodeClass.ObjectType:
+                        child = new BaseObjectTypeState();
+                        break;
+                    case NodeClass.VariableType:
+                        child = new BaseDataVariableTypeState();
+                        break;
+                    case NodeClass.DataType:
+                        child = new DataTypeState();
+                        break;
+                    case NodeClass.View:
+                        child = new ViewState();
+                        break;
+                    default:
+                        child = null;
+                        break;
+                }
             }
-
             return child;
         }
 

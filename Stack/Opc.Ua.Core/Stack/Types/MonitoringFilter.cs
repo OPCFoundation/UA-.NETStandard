@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -240,7 +241,8 @@ namespace Opc.Ua
             /// </summary>
             public EventFilterResult ToEventFilterResult(
                 DiagnosticsMasks diagnosticsMasks,
-                StringTable stringTable)
+                StringTable stringTable,
+                ILogger logger)
             {
                 var result = new EventFilterResult();
 
@@ -256,7 +258,8 @@ namespace Opc.Ua
                                     clauseResult,
                                     diagnosticsMasks,
                                     false,
-                                    stringTable));
+                                    stringTable,
+                                    logger));
                         }
                         else
                         {
@@ -270,7 +273,8 @@ namespace Opc.Ua
                 {
                     result.WhereClauseResult = WhereClauseResult.ToContextFilterResult(
                         diagnosticsMasks,
-                        stringTable);
+                        stringTable,
+                        logger);
                 }
 
                 return result;

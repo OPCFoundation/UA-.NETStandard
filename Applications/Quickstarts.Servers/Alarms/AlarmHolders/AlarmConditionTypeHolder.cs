@@ -29,13 +29,15 @@
 
 using System;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
 {
-    public class AlarmConditionTypeHolder : AcknowledgeableConditionTypeHolder
+    public abstract class AlarmConditionTypeHolder : AcknowledgeableConditionTypeHolder
     {
-        public AlarmConditionTypeHolder(
+        protected AlarmConditionTypeHolder(
+            ILogger logger,
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
@@ -47,6 +49,7 @@ namespace Alarms
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
             bool create = true)
             : base(
+                logger,
                 alarmNodeManager,
                 parent,
                 trigger,
@@ -70,7 +73,7 @@ namespace Alarms
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            m_alarm ??= new AlarmConditionState(m_parent);
+            m_alarm ??= new AlarmConditionState(m_alarmNodeManager.Server.Telemetry, m_parent);
 
             AlarmConditionState alarm = GetAlarm();
 

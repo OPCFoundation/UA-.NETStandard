@@ -43,13 +43,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public static readonly DefaultSessionFactory Instance = new();
+        [Obsolete("Use new DefaultSessionFactory instead.")]
+        public static readonly DefaultSessionFactory Instance = new(null);
+
+        /// <inheritdoc/>
+        public ITelemetryContext Telemetry { get; init; }
 
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected DefaultSessionFactory()
+        public DefaultSessionFactory(ITelemetryContext telemetry)
         {
+            Telemetry = telemetry;
         }
 
         /// <inheritdoc/>
@@ -178,6 +183,7 @@ namespace Opc.Ua.Client
                             connection,
                             endpoint.Description.SecurityMode,
                             endpoint.Description.SecurityPolicyUri,
+                            Telemetry,
                             ct)
                         .ConfigureAwait(false);
                     updateBeforeConnect = false;
@@ -233,6 +239,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 updateBeforeConnect,
                 checkDomain,
+                Telemetry,
                 ct);
         }
 
@@ -289,7 +296,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new Session(channel, configuration, endpoint);
+            return new Session(channel, configuration, endpoint, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -306,6 +313,7 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
+                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

@@ -31,6 +31,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
@@ -48,6 +49,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         public const string OpcUa = "http://opcfoundation.org/UA/";
         public IServiceMessageContext Context;
+        public ITelemetryContext Telemetry;
 
         [DatapointSource]
         public Type[] TypeArray = [.. typeof(BaseObjectState).Assembly.GetExportedTypes()
@@ -56,7 +58,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            Context = new ServiceMessageContext();
+            Telemetry = NUnitTelemetryContext.Create();
+            Context = new ServiceMessageContext(Telemetry);
             NamespaceTable nameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             nameSpaceUris.GetIndexOrAppend(ApplicationUri);
@@ -75,10 +78,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Theory]
         public void ActivateNodeStateType(Type systemType)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
             Assert.False(testObject.Initialized);
-            var context = new SystemContext { NamespaceUris = Context.NamespaceUris };
+            var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
             Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
             testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
             testObject.Dispose();

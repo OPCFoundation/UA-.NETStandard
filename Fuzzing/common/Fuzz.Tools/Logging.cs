@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,20 +39,74 @@ using Serilog.Templates;
 
 namespace Opc.Ua.Fuzzing
 {
-    public static class Logging
+    /// <summary>
+    /// Simple console based telemetry
+    /// </summary>
+    public sealed class Logging : ITelemetryContext, IDisposable
     {
+        public Logging(Action<ILoggingBuilder> configure = null)
+        {
+            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder =>
+                {
+                    builder.SetMinimumLevel(LogLevel.Information);
+                    configure?.Invoke(builder);
+                })
+                .AddSerilog(Log.Logger);
+
+            ActivitySource = new ActivitySource("Fuzzing", "1.0.0");
+
+            m_logger = LoggerFactory.CreateLogger("Main");
+
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
+        }
+
+        /// <inheritdoc/>
+        public ILoggerFactory LoggerFactory { get; internal set; }
+
+        /// <inheritdoc/>
+        public Meter CreateMeter()
+        {
+            return new Meter("Fuzzing", "1.0.0");
+        }
+
+        /// <inheritdoc/>
+        public ActivitySource ActivitySource { get; }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            CreateMeter().Dispose();
+            ActivitySource.Dispose();
+            LoggerFactory.Dispose();
+
+            AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException -= Unobserved_TaskException;
+        }
+
         /// <summary>
-        /// Configure the serilog logging provider.
+        /// Configure the logging providers.
         /// </summary>
-        public static void Configure(
+        /// <remarks>
+        /// Replaces the Opc.Ua.Core default ILogger with a
+        /// Microsoft.Extension.Logger with a Serilog file, debug and console logger.
+        /// The debug logger is only enabled for debug builds.
+        /// The console logger is enabled by the logConsole flag at the consoleLogLevel.
+        /// The file logger uses the setting in the ApplicationConfiguration.
+        /// The Trace logLevel is chosen if required by the Tracemasks.
+        /// </remarks>
+        /// <param name="context">The context name for the logger. </param>
+        /// <param name="outputFilePath">The output file.</param>
+        /// <param name="logConsole">Enable logging to the console.</param>
+        /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.<
+        /// /param>
+        public void Configure(
             string context,
             string outputFilePath,
             bool logConsole,
             LogLevel consoleLogLevel)
         {
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-            TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
-
             LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich
                 .FromLogContext();
 
@@ -58,16 +114,14 @@ namespace Opc.Ua.Fuzzing
             {
                 loggerConfiguration.WriteTo.Console(
                     restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                    formatProvider: CultureInfo.InvariantCulture
-                );
+                    formatProvider: CultureInfo.InvariantCulture);
             }
 #if DEBUG
             else
             {
                 loggerConfiguration.WriteTo.Debug(
                     restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                    formatProvider: CultureInfo.InvariantCulture
-                );
+                    formatProvider: CultureInfo.InvariantCulture);
             }
 #endif
             const LogLevel fileLevel = LogLevel.Information;
@@ -84,37 +138,39 @@ namespace Opc.Ua.Fuzzing
                 );
             }
 
+            // adjust minimum level
+            if (fileLevel < LogLevel.Information || consoleLogLevel < LogLevel.Information)
+            {
+                loggerConfiguration.MinimumLevel.Verbose();
+            }
+
             // create the serilog logger
             Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 
             // create the ILogger for Opc.Ua.Core
-            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory
-                .Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
-                .AddSerilog(serilogger)
-                .CreateLogger(context);
-
-            // set logger interface, disables TraceEvent
-            Utils.SetLogger(logger);
+            LoggerFactory = LoggerFactory.AddSerilog(serilogger);
+            m_logger = LoggerFactory.CreateLogger("Main");
         }
 
-        private static void CurrentDomain_UnhandledException(
+        private void CurrentDomain_UnhandledException(
             object sender,
             UnhandledExceptionEventArgs args)
         {
-            Utils.LogCritical(
-                "Unhandled Exception: {0} IsTerminating: {1}",
+            m_logger.LogCritical(
+                "Unhandled Exception: {ExceptionObject} IsTerminating: {IsTerminating}",
                 args.ExceptionObject,
                 args.IsTerminating);
         }
 
-        private static void Unobserved_TaskException(
+        private void Unobserved_TaskException(
             object sender,
             UnobservedTaskExceptionEventArgs args)
         {
-            Utils.LogCritical(
-                "Unobserved Exception: {0} Observed: {1}",
-                args.Exception,
+            m_logger.LogCritical(args.Exception,
+                "Unobserved Exception: Observed: {Observed}",
                 args.Observed);
         }
+
+        private Microsoft.Extensions.Logging.ILogger m_logger;
     }
 }

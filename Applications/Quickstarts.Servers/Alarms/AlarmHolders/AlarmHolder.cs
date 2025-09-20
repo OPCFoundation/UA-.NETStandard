@@ -34,9 +34,10 @@ using Opc.Ua;
 
 namespace Alarms
 {
-    public class AlarmHolder
+    public abstract class AlarmHolder
     {
-        public AlarmHolder(
+        protected AlarmHolder(
+            ILogger logger,
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
@@ -44,6 +45,7 @@ namespace Alarms
             int interval)
         {
             m_alarmNodeManager = alarmNodeManager;
+            m_logger = logger;
             m_parent = parent;
             m_trigger = trigger.Source;
             m_alarmController = trigger.Controller;
@@ -170,8 +172,8 @@ namespace Alarms
             // Delayed events are expected events to be logged to file.
             while (m_delayedMessages.Count > 0)
             {
-                Utils.LogWarning(
-                    "Delayed:{0} Event Time: {1}",
+                m_logger.LogWarning(
+                    "Delayed:{Message} Event Time: {EventTime}",
                     m_delayedMessages[0],
                     m_alarm.Time.Value);
                 m_delayedMessages.RemoveAt(0);
@@ -190,9 +192,9 @@ namespace Alarms
 
         protected void LogMessage(LogLevel logLevel, string caller, string message)
         {
-            Utils.Log(
+            m_logger.Log(
                 logLevel,
-                "{0}: {1} EventId {2} {3}",
+                "{Caller}: {MapName} EventId {EventIdHex} {Message}",
                 caller,
                 m_mapName,
                 Utils.ToHexString(m_alarm.EventId.Value),
@@ -201,7 +203,7 @@ namespace Alarms
 
         public virtual void SetValue(string message = "")
         {
-            Utils.LogError("AlarmHolder.SetValue() - Should not be called");
+            m_logger.LogError("AlarmHolder.SetValue() - Should not be called");
         }
 
         public void Start(uint seconds)
@@ -218,13 +220,13 @@ namespace Alarms
 
         protected virtual bool UpdateShelving()
         {
-            Utils.LogError("AlarmHolder.UpdateShelving() - Should not be called");
+            m_logger.LogError("AlarmHolder.UpdateShelving() - Should not be called");
             return false;
         }
 
         protected virtual bool UpdateSuppression()
         {
-            Utils.LogError("AlarmHolder.UpdateSuppression() - Should not be called");
+            m_logger.LogError("AlarmHolder.UpdateSuppression() - Should not be called");
             return false;
         }
 
@@ -354,6 +356,7 @@ namespace Alarms
             return 0;
         }
 
+        protected ILogger m_logger;
         protected AlarmNodeManager m_alarmNodeManager;
         protected BaseEventState m_alarm;
         protected Type m_alarmControllerType;

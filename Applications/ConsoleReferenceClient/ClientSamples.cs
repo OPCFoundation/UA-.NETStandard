@@ -38,6 +38,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -66,12 +67,13 @@ namespace Quickstarts
         private const int kMaxSearchDepth = 128;
 
         public ClientSamples(
-            TextWriter output,
+            ITelemetryContext telemetry,
             Action<IList, IList> validateResponse,
             ManualResetEvent quitEvent = null,
             bool verbose = false)
         {
-            m_output = output;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ClientSamples>();
             m_validateResponse = validateResponse ?? ClientBase.ValidateResponse;
             m_quitEvent = quitEvent;
             m_verbose = verbose;
@@ -102,7 +104,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_output.WriteLine("Session not connected!");
+                m_logger.LogInformation("Session not connected!");
                 return;
             }
 
@@ -130,7 +132,7 @@ namespace Quickstarts
                 };
 
                 // Read the node attributes
-                m_output.WriteLine("Reading nodes...");
+                m_logger.LogInformation("Reading nodes...");
 
                 // Call Read Service
                 ReadResponse response = await session.ReadAsync(
@@ -149,23 +151,23 @@ namespace Quickstarts
                 // Display the results.
                 foreach (DataValue result in resultsValues)
                 {
-                    m_output.WriteLine(
-                        "Read Value = {0} , StatusCode = {1}",
+                    m_logger.LogInformation(
+                        "Read Value = {Value} , StatusCode = {StatusCode}",
                         result.Value,
                         result.StatusCode);
                 }
 
                 // Read Server NamespaceArray
-                m_output.WriteLine("Reading Value of NamespaceArray node...");
+                m_logger.LogInformation("Reading Value of NamespaceArray node...");
                 DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct)
                     .ConfigureAwait(false);
                 // Display the result
-                m_output.WriteLine($"NamespaceArray Value = {namespaceArray}");
+                m_logger.LogInformation("NamespaceArray Value = {NamespaceArray}", namespaceArray);
             }
             catch (Exception ex)
             {
                 // Log Error
-                m_output.WriteLine($"Read Nodes Error : {ex.Message}.");
+                m_logger.LogError(ex, "Read Nodes Error.");
             }
         }
 
@@ -176,7 +178,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_output.WriteLine("Session not connected!");
+                m_logger.LogInformation("Session not connected!");
                 return;
             }
 
@@ -213,7 +215,7 @@ namespace Quickstarts
                 nodesToWrite.Add(stringWriteVal);
 
                 // Write the node attributes
-                m_output.WriteLine("Writing nodes...");
+                m_logger.LogInformation("Writing nodes...");
 
                 // Call Write Service
                 WriteResponse response = await session.WriteAsync(
@@ -228,17 +230,17 @@ namespace Quickstarts
                 m_validateResponse(results, nodesToWrite);
 
                 // Display the results.
-                m_output.WriteLine("Write Results :");
+                m_logger.LogInformation("Write Results :");
 
                 foreach (StatusCode writeResult in results)
                 {
-                    m_output.WriteLine("     {0}", writeResult);
+                    m_logger.LogInformation("     {Result}", writeResult);
                 }
             }
             catch (Exception ex)
             {
                 // Log Error
-                m_output.WriteLine($"Write Nodes Error : {ex.Message}.");
+                m_logger.LogInformation(ex, "Write Nodes Error.");
             }
         }
 
@@ -249,14 +251,14 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_output.WriteLine("Session not connected!");
+                m_logger.LogInformation("Session not connected!");
                 return;
             }
 
             try
             {
                 // Create a Browser object
-                var browser = new Browser(session)
+                var browser = new Browser(session, m_telemetry)
                 {
                     // Set browse parameters
                     BrowseDirection = BrowseDirection.Forward,
@@ -268,17 +270,17 @@ namespace Quickstarts
                 NodeId nodeToBrowse = ObjectIds.Server;
 
                 // Call Browse service
-                m_output.WriteLine("Browsing {0} node...", nodeToBrowse);
+                m_logger.LogInformation("Browsing {Count} node...", nodeToBrowse);
                 ReferenceDescriptionCollection browseResults =
                     await browser.BrowseAsync(nodeToBrowse, ct).ConfigureAwait(false);
 
                 // Display the results
-                m_output.WriteLine("Browse returned {0} results:", browseResults.Count);
+                m_logger.LogInformation("Browse returned {Count} results:", browseResults.Count);
 
                 foreach (ReferenceDescription result in browseResults)
                 {
-                    m_output.WriteLine(
-                        "     DisplayName = {0}, NodeClass = {1}",
+                    m_logger.LogInformation(
+                        "     DisplayName = {DisplayName}, NodeClass = {NodeClass}",
                         result.DisplayName.Text,
                         result.NodeClass);
                 }
@@ -286,7 +288,7 @@ namespace Quickstarts
             catch (Exception ex)
             {
                 // Log Error
-                m_output.WriteLine($"Browse Error : {ex.Message}.");
+                m_logger.LogError(ex, "Browse Error.");
             }
         }
 
@@ -297,7 +299,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_output.WriteLine("Session not connected!");
+                m_logger.LogInformation("Session not connected!");
                 return;
             }
 
@@ -315,7 +317,7 @@ namespace Quickstarts
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
-                m_output.WriteLine("Calling UAMethod for node {0} ...", methodId);
+                m_logger.LogInformation("Calling UAMethod for method node id {NodeId} ...", methodId);
                 outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
@@ -323,18 +325,18 @@ namespace Quickstarts
                     inputArguments).ConfigureAwait(false);
 
                 // Display results
-                m_output.WriteLine(
-                    "Method call returned {0} output argument(s):",
+                m_logger.LogInformation(
+                    "Method call returned {Count} output argument(s):",
                     outputArguments.Count);
 
                 foreach (object outputArgument in outputArguments)
                 {
-                    m_output.WriteLine("     OutputValue = {0}", outputArgument.ToString());
+                    m_logger.LogInformation("     OutputValue = {Value}", outputArgument);
                 }
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("Method call error: {0}", ex.Message);
+                m_logger.LogError(ex, "Method call error");
             }
         }
 
@@ -348,7 +350,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_output.WriteLine("Session not connected!");
+                m_logger.LogInformation("Session not connected!");
                 return;
             }
 
@@ -366,7 +368,7 @@ namespace Quickstarts
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
-                m_output.WriteLine("Calling UAMethod for node {0} ...", methodId);
+                m_logger.LogInformation("Calling UAMethod for method node id {NodeId} ...", methodId);
                 outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
@@ -374,18 +376,18 @@ namespace Quickstarts
                     inputArguments).ConfigureAwait(false);
 
                 // Display results
-                m_output.WriteLine(
-                    "Method call returned {0} output argument(s):",
+                m_logger.LogInformation(
+                    "Method call returned {Count} output argument(s):",
                     outputArguments.Count);
 
                 foreach (object outputArgument in outputArguments)
                 {
-                    m_output.WriteLine("     OutputValue = {0}", outputArgument.ToString());
+                    m_logger.LogInformation("     OutputValue = {Value}", outputArgument);
                 }
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("Method call error: {0}", ex.Message);
+                m_logger.LogError(ex, "Method call error");
             }
         }
 
@@ -402,7 +404,7 @@ namespace Quickstarts
 
             if (session == null || !session.Connected)
             {
-                m_output.WriteLine("Session not connected!");
+                m_logger.LogInformation("Session not connected!");
                 return isDurable;
             }
 
@@ -435,8 +437,8 @@ namespace Quickstarts
 
                 // Create the subscription on Server side
                 await subscription.CreateAsync(ct).ConfigureAwait(false);
-                m_output.WriteLine(
-                    "New Subscription created with SubscriptionId = {0}, Sampling Interval {1}, Publishing Interval {2}.",
+                m_logger.LogInformation(
+                    "New Subscription created with SubscriptionId = {Id}, Sampling Interval {SamplingInterval}, Publishing Interval {PublishingInterval}.",
                     subscription.Id,
                     itemSamplingInterval,
                     subscriptionPublishingInterval);
@@ -449,14 +451,14 @@ namespace Quickstarts
                     {
                         isDurable = true;
 
-                        m_output.WriteLine(
-                            "Subscription {0} is now durable, Revised Lifetime {1} in hours.",
+                        m_logger.LogInformation(
+                            "Subscription {SubscriptionId} is now durable, Revised Lifetime {Lifetime} in hours.",
                             subscription.Id,
                             revisedLifetimeInHours);
                     }
                     else
                     {
-                        m_output.WriteLine("Subscription {0} failed durable call", subscription.Id);
+                        m_logger.LogInformation("Subscription {SubscriptionId} failed durable call", subscription.Id);
                     }
                 }
 
@@ -551,13 +553,13 @@ namespace Quickstarts
 
                 // Create the monitored items on Server side
                 await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
-                m_output.WriteLine(
-                    "MonitoredItems created for SubscriptionId = {0}.",
+                m_logger.LogInformation(
+                    "MonitoredItems created for SubscriptionId = {SubscriptionId}.",
                     subscription.Id);
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("Subscribe error: {0}", ex.Message);
+                m_logger.LogError(ex, "Subscribe error");
             }
 
             return isDurable;
@@ -609,13 +611,13 @@ namespace Quickstarts
             {
                 if (m_quitEvent?.WaitOne(0) == true)
                 {
-                    m_output.WriteLine("Browse aborted.");
+                    m_logger.LogInformation("Browse aborted.");
                     break;
                 }
 
                 searchDepth++;
-                Utils.LogInfo(
-                    "{0}: Find {1} references after {2}ms",
+                m_logger.LogInformation(
+                    "{Depth}: Find {Count} references after {Duration}ms",
                     searchDepth,
                     nodesToBrowse.Count,
                     stopwatch.ElapsedMilliseconds);
@@ -678,19 +680,19 @@ namespace Quickstarts
                 }
                 if (duplicates > 0)
                 {
-                    Utils.LogInfo("Find References {0} duplicate nodes were ignored", duplicates);
+                    m_logger.LogInformation("Find References {Count} duplicate nodes were ignored", duplicates);
                 }
                 if (leafNodes > 0)
                 {
-                    Utils.LogInfo("Find References {0} leaf nodes were ignored", leafNodes);
+                    m_logger.LogInformation("Find References {Count} leaf nodes were ignored", leafNodes);
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
 
             stopwatch.Stop();
 
-            m_output.WriteLine(
-                "FetchAllNodesNodeCache found {0} nodes in {1}ms",
+            m_logger.LogInformation(
+                "FetchAllNodesNodeCache found {Count} nodes in {Duration}ms",
                 nodeDictionary.Count,
                 stopwatch.ElapsedMilliseconds);
 
@@ -701,8 +703,8 @@ namespace Quickstarts
             {
                 foreach (INode node in result)
                 {
-                    m_output.WriteLine(
-                        "NodeId {0} {1} {2}",
+                    m_logger.LogInformation(
+                        "NodeId {NodeId} {NodeClass} {BrowseName}",
                         node.NodeId,
                         node.NodeClass,
                         node.BrowseName);
@@ -747,10 +749,12 @@ namespace Quickstarts
 
                 if (browseDescription.ResultMask != (uint)BrowseResultMask.All)
                 {
-                    Utils.LogWarning(
+                    m_logger.LogWarning(
                         "Setting the BrowseResultMask is not supported by the " +
-                        $"ManagedBrowse method. Using '{BrowseResultMask.All}' instead of " +
-                        $"the mask {browseDescription.ResultMask} for the result mask");
+                        "ManagedBrowse method. Using '{BrowseResultMask}' instead of " +
+                        "the mask {BrowseDescriptionResultMask} for the result mask",
+                        BrowseResultMask.All,
+                        browseDescription.ResultMask);
                 }
             }
 
@@ -771,8 +775,8 @@ namespace Quickstarts
             while (nodesToBrowse.Count != 0 && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
-                Utils.LogInfo(
-                    "{0}: Browse {1} nodes after {2}ms",
+                m_logger.LogInformation(
+                    "{Depth}: Browse {Count} nodes after {Duration}ms",
                     searchDepth,
                     nodesToBrowse.Count,
                     stopWatch.ElapsedMilliseconds);
@@ -783,7 +787,7 @@ namespace Quickstarts
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
                     {
-                        m_output.WriteLine("Browse aborted.");
+                        m_logger.LogInformation("Browse aborted.");
                         break;
                     }
 
@@ -818,7 +822,7 @@ namespace Quickstarts
                         // and cannot be influenced from the outside.
                         // if that's desired it would be necessary to provide
                         // an additional parameter to the method.
-                        m_output.WriteLine("Browse error: {0}", sre.Message);
+                        m_logger.LogError(sre, "Browse error");
                         throw;
                     }
                 } while (repeatBrowse);
@@ -855,8 +859,8 @@ namespace Quickstarts
 
                 if (duplicates > 0)
                 {
-                    Utils.LogInfo(
-                        "Managed Browse Result {0} duplicate nodes were ignored.",
+                    m_logger.LogInformation(
+                        "Managed Browse Result {Count} duplicate nodes were ignored.",
                         duplicates);
                 }
             }
@@ -867,8 +871,8 @@ namespace Quickstarts
 
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
-            m_output.WriteLine(
-                "ManagedBrowseFullAddressSpace found {0} references on server in {1}ms.",
+            m_logger.LogInformation(
+                "ManagedBrowseFullAddressSpace found {Count} references on server in {Duration}ms.",
                 result.Count,
                 stopWatch.ElapsedMilliseconds);
 
@@ -876,8 +880,8 @@ namespace Quickstarts
             {
                 foreach (ReferenceDescription reference in result)
                 {
-                    m_output.WriteLine(
-                        "NodeId {0} {1} {2}",
+                    m_logger.LogInformation(
+                        "NodeId {NodeId} {NodeClass} {BrowseName}",
                         reference.NodeId,
                         reference.NodeClass,
                         reference.BrowseName);
@@ -930,8 +934,8 @@ namespace Quickstarts
             while (browseDescriptionCollection.Count > 0 && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
-                Utils.LogInfo(
-                    "{0}: Browse {1} nodes after {2}ms",
+                m_logger.LogInformation(
+                    "{Depth}: Browse {Count} nodes after {Duration}ms",
                     searchDepth,
                     browseDescriptionCollection.Count,
                     stopWatch.ElapsedMilliseconds);
@@ -945,7 +949,7 @@ namespace Quickstarts
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
                     {
-                        m_output.WriteLine("Browse aborted.");
+                        m_logger.LogInformation("Browse aborted.");
                         break;
                     }
 
@@ -1008,7 +1012,7 @@ namespace Quickstarts
                         }
                         else
                         {
-                            m_output.WriteLine("Browse error: {0}", sre.Message);
+                            m_logger.LogError(sre, "Browse error.");
                             throw;
                         }
                     }
@@ -1031,10 +1035,10 @@ namespace Quickstarts
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
                     {
-                        m_output.WriteLine("Browse aborted.");
+                        m_logger.LogInformation("Browse aborted.");
                     }
 
-                    Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
+                    m_logger.LogInformation("BrowseNext {Count} continuation points.", continuationPoints.Count);
                     BrowseNextResponse browseNextResult = await uaClient
                         .Session.BrowseNextAsync(null, false, continuationPoints, ct)
                         .ConfigureAwait(false);
@@ -1074,7 +1078,7 @@ namespace Quickstarts
                 }
                 if (duplicates > 0)
                 {
-                    Utils.LogInfo("Browse Result {0} duplicate nodes were ignored.", duplicates);
+                    m_logger.LogInformation("Browse Result {Count} duplicate nodes were ignored.", duplicates);
                 }
                 browseDescriptionCollection.AddRange(
                     CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate));
@@ -1088,8 +1092,8 @@ namespace Quickstarts
             var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
-            m_output.WriteLine(
-                "BrowseFullAddressSpace found {0} references on server in {1}ms.",
+            m_logger.LogInformation(
+                "BrowseFullAddressSpace found {Count} references on server in {Duration}ms.",
                 referenceDescriptions.Count,
                 stopWatch.ElapsedMilliseconds);
 
@@ -1097,8 +1101,8 @@ namespace Quickstarts
             {
                 foreach (ReferenceDescription reference in result)
                 {
-                    m_output.WriteLine(
-                        "NodeId {0} {1} {2}",
+                    m_logger.LogInformation(
+                        "NodeId {NodeId} {NodeClass} {BrowseName}",
                         reference.NodeId,
                         reference.NodeClass,
                         reference.BrowseName);
@@ -1119,38 +1123,38 @@ namespace Quickstarts
             ISession session,
             CancellationToken ct = default)
         {
-            m_output.WriteLine("Load the server type system.");
+            m_logger.LogInformation("Load the server type system.");
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            var complexTypeSystem = new ComplexTypeSystem(session);
+            var complexTypeSystem = new ComplexTypeSystem(session, m_telemetry);
             await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
 
-            m_output.WriteLine(
-                "Loaded {0} types took {1}ms.",
+            m_logger.LogInformation(
+                "Loaded {Count} types took {Duration}ms.",
                 complexTypeSystem.GetDefinedTypes().Length,
                 stopWatch.ElapsedMilliseconds);
 
             if (m_verbose)
             {
-                m_output.WriteLine("Custom types defined for this session:");
+                m_logger.LogInformation("Custom types defined for this session:");
                 foreach (Type type in complexTypeSystem.GetDefinedTypes())
                 {
-                    m_output.WriteLine($"{type.Namespace}.{type.Name}");
+                    m_logger.LogInformation("{Namespace}.{TypeName}", type.Namespace, type.Name);
                 }
 
-                m_output.WriteLine(
-                    $"Loaded {complexTypeSystem.DataTypeSystem.Count} dictionaries:");
+                m_logger.LogInformation(
+                    "Loaded {Count} dictionaries:", complexTypeSystem.DataTypeSystem.Count);
                 foreach (KeyValuePair<NodeId, DataDictionary> dictionary in complexTypeSystem
                     .DataTypeSystem)
                 {
-                    m_output.WriteLine($" + {dictionary.Value.Name}");
+                    m_logger.LogInformation(" + {DictionaryName}", dictionary.Value.Name);
                     foreach (KeyValuePair<NodeId, QualifiedName> type in dictionary.Value.DataTypes)
                     {
-                        m_output.WriteLine($" -- {type.Key}:{type.Value}");
+                        m_logger.LogInformation(" -- {NodeId}:{BrowseName}", type.Key, type.Value);
                     }
                 }
             }
@@ -1210,7 +1214,7 @@ namespace Quickstarts
                         {
                             try
                             {
-                                m_output.WriteLine("Read {0}", variableId);
+                                m_logger.LogInformation("Read {NodeId}", variableId);
                                 DataValue value = await uaClient
                                     .Session.ReadValueAsync(variableId, ct)
                                     .ConfigureAwait(false);
@@ -1224,16 +1228,16 @@ namespace Quickstarts
                                         variableId.ToString(),
                                         value,
                                         JsonEncodingType.Compact);
-                                    m_output.WriteLine(valueString);
+                                    m_logger.LogInformation("{Value}", valueString);
                                 }
                                 else
                                 {
-                                    m_output.WriteLine("Error: {0}", value.StatusCode);
+                                    m_logger.LogInformation("Error: {StatusCode}", value.StatusCode);
                                 }
                             }
                             catch (ServiceResultException sre)
                             {
-                                m_output.WriteLine("Error: {0}", sre.Message);
+                                m_logger.LogError(sre, "Error");
                                 values.Add(new DataValue(sre.StatusCode));
                                 errors.Add(sre.Result);
                             }
@@ -1254,11 +1258,11 @@ namespace Quickstarts
                                     variableIds[ii].ToString(),
                                     value,
                                     JsonEncodingType.Compact);
-                                m_output.WriteLine(valueString);
+                                m_logger.LogInformation("{Value}", valueString);
                             }
                             else
                             {
-                                m_output.WriteLine("Error: {0}", value.StatusCode);
+                                m_logger.LogInformation("Error: {StatusCode}", value.StatusCode);
                             }
                             ii++;
                         }
@@ -1269,7 +1273,7 @@ namespace Quickstarts
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
                     .BadEncodingLimitsExceeded)
                 {
-                    m_output.WriteLine("Retry to read the values due to error: {0}", sre.Message);
+                    m_logger.LogInformation("Retry to read the values due to error: {Error}", sre.Message);
                     retrySingleRead = !retrySingleRead;
                 }
             } while (retrySingleRead);
@@ -1294,7 +1298,7 @@ namespace Quickstarts
         {
             if (uaClient.Session == null || !uaClient.Session.Connected)
             {
-                m_output.WriteLine("Session not connected!");
+                m_logger.LogInformation("Session not connected!");
                 return;
             }
 
@@ -1329,8 +1333,8 @@ namespace Quickstarts
 
                 // Create the subscription on Server side
                 await subscription.CreateAsync(ct).ConfigureAwait(false);
-                m_output.WriteLine(
-                    "New Subscription created with SubscriptionId = {0}.",
+                m_logger.LogInformation(
+                    "New Subscription created with SubscriptionId = {SubscriptionId}.",
                     subscription.Id);
 
                 // Create MonitoredItems for data changes
@@ -1355,14 +1359,14 @@ namespace Quickstarts
 
                 // Create the monitored items on Server side
                 await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
-                m_output.WriteLine(
-                    "MonitoredItems {0} created for SubscriptionId = {1}.",
+                m_logger.LogInformation(
+                    "MonitoredItems {Count} created for SubscriptionId = {SubscriptionId}.",
                     subscription.MonitoredItemCount,
                     subscription.Id);
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("Subscribe error: {0}", ex.Message);
+                m_logger.LogError(ex, "Subscribe error");
             }
         }
 
@@ -1416,15 +1420,15 @@ namespace Quickstarts
         {
             try
             {
-                m_output.WriteLine(
-                    "Keep Alive  : Id={0} PublishTime={1} SequenceNumber={2}.",
+                m_logger.LogInformation(
+                    "Keep Alive  : Id={SubscriptionId} PublishTime={PublishTime} SequenceNumber={SequenceNumber}.",
                     subscription.Id,
                     notification.PublishTime,
                     notification.SequenceNumber);
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("FastKeepAliveNotification error: {0}", ex.Message);
+                m_logger.LogError(ex, "FastKeepAliveNotification error");
             }
         }
 
@@ -1438,8 +1442,8 @@ namespace Quickstarts
         {
             try
             {
-                m_output.WriteLine(
-                    "Notification: Id={0} PublishTime={1} SequenceNumber={2} Items={3}.",
+                m_logger.LogInformation(
+                    "Notification: Id={SubscriptionId} PublishTime={PublishTime} SequenceNumber={SequenceNumber} Items={Count}.",
                     subscription.Id,
                     notification.PublishTime,
                     notification.SequenceNumber,
@@ -1447,7 +1451,7 @@ namespace Quickstarts
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("FastDataChangeNotification error: {0}", ex.Message);
+                m_logger.LogError(ex, "FastDataChangeNotification error");
             }
         }
 
@@ -1463,8 +1467,8 @@ namespace Quickstarts
                 // Log MonitoredItem Notification event
                 var notification = e.NotificationValue as MonitoredItemNotification;
                 DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
-                m_output.WriteLine(
-                    "Notification: {0} \"{1}\" and Value = {2} at [{3}].",
+                m_logger.LogInformation(
+                    "Notification: {SequenceNumber} \"{NodeId}\" and Value = {Value} at [{CurrentTime}].",
                     notification.Message.SequenceNumber,
                     monitoredItem.ResolvedNodeId,
                     notification.Value,
@@ -1472,7 +1476,7 @@ namespace Quickstarts
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
+                m_logger.LogError(ex, "OnMonitoredItemNotification error");
             }
         }
 
@@ -1514,31 +1518,30 @@ namespace Quickstarts
                                 TimeSpan timeSpan = currentTime - m_lastEventTime;
                                 m_lastEventTime = currentTime;
                                 m_processedEvents++;
-                                string timeBetweenEvents = string.Empty;
                                 if (m_processedEvents > 1)
                                 {
-                                    timeBetweenEvents =
-                                        ", time since last event = " +
-                                        timeSpan.Seconds.ToString(CultureInfo.InvariantCulture) +
-                                        " seconds";
+                                    m_logger.LogInformation(
+                                        "Event Received - total count = {Count}, time since last event = {TimeBetweenEvents} seconds",
+                                        m_processedEvents,
+                                        timeSpan.Seconds);
                                 }
-
-                                m_output.WriteLine(
-                                    "Event Received - total count = {0}{1}",
-                                    m_processedEvents.ToString(CultureInfo.InvariantCulture),
-                                    timeBetweenEvents);
+                                else
+                                {
+                                    m_logger.LogInformation(
+                                        "Event Received - total count = {Count}",
+                                        m_processedEvents);
+                                }
                             }
                             catch (Exception ex)
                             {
-                                m_output.WriteLine(
-                                    "Unexpected error retrieving Event Time Field Value: {0}",
-                                    ex.Message);
+                                m_logger.LogError(ex,
+                                    "Unexpected error retrieving Event Time Field Value");
                             }
                         }
 
-                        m_output.WriteLine(
-                            "\tField [{0}] \"{1}\" = [{2}]",
-                            entry.Key.ToString(CultureInfo.InvariantCulture),
+                        m_logger.LogInformation(
+                            "\tField [{Index}] \"{Name}\" = [{Value}]",
+                            entry.Key,
                             fieldName,
                             field.Value);
                     }
@@ -1546,7 +1549,7 @@ namespace Quickstarts
             }
             catch (Exception ex)
             {
-                m_output.WriteLine("OnMonitoredItemEventNotification error: {0}", ex.Message);
+                m_logger.LogError(ex, "OnMonitoredItemEventNotification error");
             }
         }
 
@@ -1614,7 +1617,8 @@ namespace Quickstarts
         }
 
         private readonly Action<IList, IList> m_validateResponse;
-        private readonly TextWriter m_output;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private readonly ManualResetEvent m_quitEvent;
         private readonly bool m_verbose;
         private readonly Dictionary<int, QualifiedNameCollection> m_desiredEventFields;

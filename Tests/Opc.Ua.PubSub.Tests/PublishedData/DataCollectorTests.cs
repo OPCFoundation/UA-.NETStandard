@@ -32,6 +32,7 @@ using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.PublishedData
@@ -48,8 +49,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate AddPublishedDataSet with null parameter.")]
         public void ValidateAddPublishedDataSetWithNullParameter()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
-            var dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
 
             //Assert
             NUnit.Framework.Assert
@@ -59,17 +62,17 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate AddPublishedDataSet.")]
         public void ValidateAddPublishedDataSet()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_configurationFileName,
-                true,
-                true,
-                false);
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configurationFile);
+                checkCurrentDirectory: true,
+                createAlways: false);
+            PubSubConfigurationDataType pubSubConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
 
-            var dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
             //Act
             dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets[0]);
             DataSet collectedDataSet = dataCollector.CollectData(
@@ -84,8 +87,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate RemovePublishedDataSet.")]
         public void ValidateRemovePublishedDataSet()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
-            var dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
             var publishedDataSet = new PublishedDataSetDataType { Name = "Name" };
             //Act
             dataCollector.AddPublishedDataSet(publishedDataSet);
@@ -101,8 +106,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate RemovePublishedDataSet with null parameter.")]
         public void ValidateRemovePublishedDataSetWithNullParameter()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
-            var dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
             //Assert
             NUnit.Framework.Assert
                 .Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
@@ -111,6 +118,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate CollectData from DataStore.")]
         public void ValidateCollectDataFromDataStore()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
             var dataStore = new UaPubSubDataStore();
             dataStore.WritePublishedDataItem(
@@ -130,7 +139,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 0,
                 new DataValue(new Variant(DateTime.MaxValue)));
 
-            var dataCollector = new DataCollector(dataStore);
+            var dataCollector = new DataCollector(dataStore, telemetry);
 
             var publishedDataSetSimple = new PublishedDataSetDataType { Name = "Simple" };
             // Define  publishedDataSetSimple.DataSetMetaData
@@ -222,9 +231,11 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate CollectData from ExtensionFields.")]
         public void ValidateCollectDataFromExtensionFields()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
             var dataStore = new UaPubSubDataStore();
-            var dataCollector = new DataCollector(dataStore);
+            var dataCollector = new DataCollector(dataStore, telemetry);
 
             var publishedDataSetSimple = new PublishedDataSetDataType { Name = "Simple" };
             // Define  publishedDataSetSimple.DataSetMetaData
@@ -322,8 +333,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate CollectData unknown dataset name.")]
         public void ValidateCollectDataUnknownDataSetName()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             //Arrange
-            var dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
             //Act
             DataSet collectedDataSet = dataCollector.CollectData(string.Empty);
             //Assert
@@ -335,8 +347,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(Description = "Validate CollectData null dataset name.")]
         public void ValidateCollectDataNullDataSetName()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             //Arrange
-            var dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
 
             //Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(

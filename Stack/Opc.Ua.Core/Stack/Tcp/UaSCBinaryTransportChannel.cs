@@ -13,6 +13,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -29,9 +30,14 @@ namespace Opc.Ua.Bindings
         /// Create a transport channel from a message socket factory.
         /// </summary>
         /// <param name="messageSocketFactory">The message socket factory.</param>
-        public UaSCUaBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
+        /// <param name="telemetry">Telemetry context to use</param>
+        public UaSCUaBinaryTransportChannel(
+            IMessageSocketFactory messageSocketFactory,
+            ITelemetryContext telemetry)
         {
             m_messageSocketFactory = messageSocketFactory;
+            m_telemetry = telemetry;
+            m_logger = m_telemetry.CreateLogger<UaSCUaBinaryTransportChannel>();
         }
 
         /// <summary>
@@ -113,7 +119,7 @@ namespace Opc.Ua.Bindings
         public void Initialize(Uri url, TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
-            Interlocked.Exchange(ref m_channel, CreateChannel());
+            Interlocked.Exchange(ref m_channel, CreateChannel(m_telemetry));
         }
 
         /// <summary>
@@ -127,7 +133,7 @@ namespace Opc.Ua.Bindings
             TransportChannelSettings settings)
         {
             SaveSettings(connection.EndpointUrl, settings);
-            Interlocked.Exchange(ref m_channel, CreateChannel(connection));
+            Interlocked.Exchange(ref m_channel, CreateChannel(m_telemetry, connection));
         }
 
         /// <summary>
@@ -194,7 +200,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void Reconnect(ITransportWaitingConnection connection)
         {
-            Utils.LogInfo("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            m_logger.LogInformation("TransportChannel RECONNECT: Reconnecting to {Url}.", m_url);
 
             lock (m_lock)
             {
@@ -206,7 +212,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     // reconnect.
-                    Interlocked.Exchange(ref m_channel, CreateChannel(connection));
+                    Interlocked.Exchange(ref m_channel, CreateChannel(m_telemetry, connection));
 
                     // begin connect operation.
                     IAsyncResult result = m_channel.BeginConnect(
@@ -228,7 +234,7 @@ namespace Opc.Ua.Bindings
                         catch (Exception e)
                         {
                             // do nothing.
-                            Utils.LogTrace(e, "Ignoring exception while closing transport channel during Reconnect.");
+                            m_logger.LogTrace(e, "Ignoring exception while closing transport channel during Reconnect.");
                         }
                         finally
                         {
@@ -366,7 +372,7 @@ namespace Opc.Ua.Bindings
 
             if (channel == null)
             {
-                channel = CreateChannel();
+                channel = CreateChannel(m_telemetry);
                 UaSCUaBinaryClientChannel currentChannel = Interlocked.CompareExchange(
                     ref m_channel,
                     channel,
@@ -430,40 +436,42 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
-            m_quotas = new ChannelQuotas
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            {
+                MaxArrayLength = configuration.MaxArrayLength,
+                MaxByteStringLength = configuration.MaxByteStringLength,
+                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
+                        configuration.MaxMessageSize),
+                MaxStringLength = configuration.MaxStringLength,
+                MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
+                NamespaceUris = m_settings.NamespaceUris,
+                ServerUris = new StringTable(),
+                Factory = m_settings.Factory
+            })
             {
                 MaxBufferSize = configuration.MaxBufferSize,
                 MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
                     configuration.MaxMessageSize),
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-                MessageContext = new ServiceMessageContext
-                {
-                    MaxArrayLength = configuration.MaxArrayLength,
-                    MaxByteStringLength = configuration.MaxByteStringLength,
-                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
-                        configuration.MaxMessageSize),
-                    MaxStringLength = configuration.MaxStringLength,
-                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
-                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                    NamespaceUris = m_settings.NamespaceUris,
-                    ServerUris = new StringTable(),
-                    Factory = m_settings.Factory
-                },
-
                 CertificateValidator = settings.CertificateValidator
             };
 
             // create the buffer manager.
-            m_bufferManager = new BufferManager("Client", settings.Configuration.MaxBufferSize);
+            m_bufferManager = new BufferManager(
+                "Client",
+                settings.Configuration.MaxBufferSize,
+                m_telemetry);
         }
 
         /// <summary>
         /// Opens the channel before sending the request.
         /// </summary>
+        /// <param name="telemetry">Telemetry context</param>
         /// <param name="connection">A reverse connection, null otherwise.</param>
         /// <exception cref="ArgumentException"></exception>
-        private UaSCUaBinaryClientChannel CreateChannel(
+        private UaSCUaBinaryClientChannel CreateChannel(ITelemetryContext telemetry,
             ITransportWaitingConnection connection = null)
         {
             IMessageSocket socket = null;
@@ -485,7 +493,8 @@ namespace Opc.Ua.Bindings
                 m_settings.ClientCertificate,
                 m_settings.ClientCertificateChain,
                 m_settings.ServerCertificate,
-                m_settings.Description);
+                m_settings.Description,
+                telemetry);
 
             // use socket for reverse connections, ignore otherwise
             if (socket != null)
@@ -504,6 +513,7 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private Uri m_url;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
@@ -511,5 +521,6 @@ namespace Opc.Ua.Bindings
         private UaSCUaBinaryClientChannel m_channel;
         private event ChannelTokenActivatedEventHandler m_OnTokenActivated;
         private readonly IMessageSocketFactory m_messageSocketFactory;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

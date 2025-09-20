@@ -62,5 +62,10 @@ namespace Opc.Ua
         /// The factory used to create encodeable objects.
         /// </summary>
         IEncodeableFactory Factory { get; }
+
+        /// <summary>
+        /// Telemetry context
+        /// </summary>
+        ITelemetryContext Telemetry { get; }
     }
 }

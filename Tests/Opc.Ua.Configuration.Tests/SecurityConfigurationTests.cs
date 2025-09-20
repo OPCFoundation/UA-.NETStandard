@@ -29,6 +29,7 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Configuration.Tests
 {
@@ -43,6 +44,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public void ValidConfgurationPasses()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var configuration = new SecurityConfiguration
             {
                 ApplicationCertificate = new CertificateIdentifier { RawData = [] },
@@ -50,13 +53,14 @@ namespace Opc.Ua.Configuration.Tests
                 TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
             };
 
-            configuration.Validate();
+            configuration.Validate(telemetry);
         }
 
         [TestCaseSource(nameof(GetInvalidConfigurations))]
         public void InvalidConfigurationThrows(SecurityConfiguration configuration)
         {
-            Assert.Throws<ServiceResultException>(configuration.Validate);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Assert.Throws<ServiceResultException>(() => configuration.Validate(telemetry));
         }
 
         private static IEnumerable<TestCaseData> GetInvalidConfigurations()

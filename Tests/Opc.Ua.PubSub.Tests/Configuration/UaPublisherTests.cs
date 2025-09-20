@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
@@ -54,6 +55,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
             s_publishTicks.Clear();
             var mockConnection = new Mock<IUaPubSubConnection>();
@@ -78,7 +81,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             };
 
             //Act
-            var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
+            var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType, telemetry);
             publisher.Start();
 
             //wait so many seconds
@@ -101,6 +104,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange
             s_publishTicks.Clear();
             var mockConnection = new Mock<IUaPubSubConnection>();
@@ -125,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             };
 
             //Act
-            var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
+            var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType, telemetry);
             publisher.Start();
 
             //wait so many seconds
@@ -158,7 +163,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         /// <param name="publishingInterval"></param>
         /// <param name="maxDeviation"></param>
         /// <param name="publishTimeInSeconds"></param>
-        private void AssertPublishTicks(IList<long> publishTicks,
+        private static void AssertPublishTicks(
+            List<long> publishTicks,
             double publishingInterval,
             double maxDeviation,
             int publishTimeInSeconds)

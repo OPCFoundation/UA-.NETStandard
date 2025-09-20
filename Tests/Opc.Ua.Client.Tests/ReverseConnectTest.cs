@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -53,11 +54,11 @@ namespace Opc.Ua.Client.Tests
         private Uri m_endpointUrl;
 
         [DatapointSource]
-        public static readonly ISessionFactory[] SessionFactories =
+        public static readonly TelemetryParameterizable<ISessionFactory>[] SessionFactories =
         [
-            TraceableSessionFactory.Instance,
-            TestableSessionFactory.Instance,
-            DefaultSessionFactory.Instance
+            TelemetryParameterizable.Create<ISessionFactory>(t => new TraceableSessionFactory(t)),
+            TelemetryParameterizable.Create<ISessionFactory>(t => new TestableSessionFactory(t)),
+            TelemetryParameterizable.Create<ISessionFactory>(t => new DefaultSessionFactory(t))
         ];
 
         /// <summary>
@@ -76,18 +77,18 @@ namespace Opc.Ua.Client.Tests
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer>
+            ServerFixture = new ServerFixture<ReferenceServer>(Telemetry)
             {
                 AutoAccept = true,
                 SecurityNone = true,
                 ReverseConnectTimeout = MaxTimeout,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
-            ReferenceServer = await ServerFixture.StartAsync(TestContext.Out, PkiRoot)
+            ReferenceServer = await ServerFixture.StartAsync(PkiRoot)
                 .ConfigureAwait(false);
 
             // create client
-            ClientFixture = new ClientFixture();
+            ClientFixture = new ClientFixture(telemetry: Telemetry);
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
             await ClientFixture.StartReverseConnectHostAsync().ConfigureAwait(false);
@@ -164,7 +165,8 @@ namespace Opc.Ua.Client.Tests
                 using var client = DiscoveryClient.Create(
                     config,
                     connection,
-                    endpointConfiguration);
+                    endpointConfiguration,
+                    Telemetry);
                 Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
@@ -191,14 +193,17 @@ namespace Opc.Ua.Client.Tests
                 config,
                 connection,
                 true,
-                MaxTimeout).ConfigureAwait(false);
+                MaxTimeout,
+                Telemetry).ConfigureAwait(false);
             Assert.NotNull(selectedEndpoint);
         }
 
         [Theory]
         [Order(300)]
-        public async Task ReverseConnectAsync(string securityPolicy, ISessionFactory sessionFactory)
+        public async Task ReverseConnectAsync(string securityPolicy, TelemetryParameterizable<ISessionFactory> sessionFactory)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // ensure endpoints are available
             await RequireEndpointsAsync().ConfigureAwait(false);
 
@@ -228,7 +233,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            ISession session = await sessionFactory
+            ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
                     connection,
@@ -237,7 +242,7 @@ namespace Opc.Ua.Client.Tests
                     false,
                     "Reverse Connect Client",
                     MaxTimeout,
-                    new UserIdentity(new AnonymousIdentityToken()),
+                    new UserIdentity(),
                     null)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
@@ -250,7 +255,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             // Browse
-            var clientTestServices = new ClientTestServices(session);
+            var clientTestServices = new ClientTestServices(session, telemetry);
             ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
                 .BrowseFullAddressSpaceWorker(
                     clientTestServices,
@@ -268,8 +273,10 @@ namespace Opc.Ua.Client.Tests
         public async Task ReverseConnect2Async(
             bool updateBeforeConnect,
             bool checkDomain,
-            ISessionFactory sessionFactory)
+            TelemetryParameterizable<ISessionFactory> sessionFactory)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
 
             // ensure endpoints are available
@@ -290,7 +297,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            ISession session = await sessionFactory
+            ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
                     ClientFixture.ReverseConnectManager,
@@ -299,7 +306,7 @@ namespace Opc.Ua.Client.Tests
                     checkDomain,
                     "Reverse Connect Client",
                     MaxTimeout,
-                    new UserIdentity(new AnonymousIdentityToken()),
+                    new UserIdentity(),
                     null)
                 .ConfigureAwait(false);
 
@@ -313,7 +320,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             // Browse
-            var clientTestServices = new ClientTestServices(session);
+            var clientTestServices = new ClientTestServices(session, telemetry);
             ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
                 .BrowseFullAddressSpaceWorker(
                     clientTestServices,

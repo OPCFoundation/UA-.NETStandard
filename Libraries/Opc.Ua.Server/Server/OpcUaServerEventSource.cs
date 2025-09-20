@@ -29,8 +29,6 @@
 
 using System;
 using System.Diagnostics.Tracing;
-using Microsoft.Extensions.Logging;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server
 {
@@ -60,122 +58,13 @@ namespace Opc.Ua.Server
         private const int kMonitoredItemReadyId = kSessionStateId + 1;
 
         /// <summary>
-        /// The server messages used in event messages.
-        /// </summary>
-        private const string kSendResponseMessage = "ChannelId {0}: SendResponse {1}";
-        private const string kServerCallMessage = "Server Call={0}, Id={1}";
-
-        private const string kSessionStateMessage
-            = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
-
-        private const string kMonitoredItemReadyMessage = "IsReadyToPublish[{0}] {1}";
-
-        /// <summary>
-        /// The Server ILogger event Ids used for event messages, when calling back to ILogger.
-        /// </summary>
-        private readonly EventId m_sendResponseEventId = new(
-            TraceMasks.ServiceDetail,
-            nameof(SendResponse));
-
-        private readonly EventId m_serverCallEventId = new(
-            TraceMasks.ServiceDetail,
-            nameof(ServerCall));
-
-        private readonly EventId m_sessionStateMessageEventId = new(
-            TraceMasks.Information,
-            nameof(SessionState));
-
-        private readonly EventId m_monitoredItemReadyEventId = new(
-            TraceMasks.OperationDetail,
-            nameof(MonitoredItemReady));
-
-        /// <summary>
-        /// The send response.
-        /// </summary>
-        [Event(kSendResponseId, Message = kSendResponseMessage, Level = EventLevel.Verbose)]
-        public void SendResponse(uint channelId, uint requestId)
-        {
-            if (IsEnabled())
-            {
-                WriteEvent(kSendResponseId, channelId, requestId);
-            }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
-                Logger.IsEnabled(LogLevel.Trace))
-            {
-                LogTrace(m_sendResponseEventId, kSendResponseMessage, channelId, requestId);
-            }
-        }
-
-        /// <summary>
         /// A server call message, called from ServerCallNative. Do not call directly..
         /// </summary>
-        [Event(kServerCallId, Message = kServerCallMessage, Level = EventLevel.Informational)]
-        public void ServerCall(string requestType, uint requestId)
-        {
-            WriteEvent(kServerCallId, requestType, requestId);
-        }
-
-        /// <summary>
-        /// The state of the session.
-        /// </summary>
-        [Event(kSessionStateId, Message = kSessionStateMessage, Level = EventLevel.Informational)]
-        public void SessionState(
-            string context,
-            string sessionId,
-            string sessionName,
-            string secureChannelId,
-            string identity)
-        {
-            if (IsEnabled())
-            {
-                WriteEvent(
-                    kSessionStateId,
-                    context,
-                    sessionId,
-                    sessionName,
-                    secureChannelId,
-                    identity);
-            }
-            else if (Logger.IsEnabled(LogLevel.Information))
-            {
-                LogInfo(
-                    m_sessionStateMessageEventId,
-                    kSessionStateMessage,
-                    context,
-                    sessionId,
-                    sessionName,
-                    secureChannelId,
-                    identity);
-            }
-        }
-
-        /// <summary>
-        /// The state of the server session.
-        /// </summary>
         [Event(
-            kMonitoredItemReadyId,
-            Message = kMonitoredItemReadyMessage,
-            Level = EventLevel.Verbose)]
-        public void MonitoredItemReady(uint id, string state)
-        {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    WriteEvent(kMonitoredItemReadyId, id, state);
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace(m_monitoredItemReadyEventId, kMonitoredItemReadyMessage, id, state);
-                }
-            }
-        }
-
-        /// <summary>
-        /// A server call message.
-        /// </summary>
-        [NonEvent]
-        public void ServerCallNative(RequestType requestType, uint requestId)
+            kServerCallId,
+            Message = "Server Call={0}, Id={1}",
+            Level = EventLevel.Informational)]
+        public void ServerCall(RequestType requestType, uint requestId)
         {
             string requestTypeString = Enum.GetName(
 #if !NET8_0_OR_GREATER
@@ -184,130 +73,43 @@ namespace Opc.Ua.Server
                 requestType);
             if (IsEnabled())
             {
-                ServerCall(requestTypeString, requestId);
-            }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
-                Logger.IsEnabled(LogLevel.Trace))
-            {
-                LogTrace(m_serverCallEventId, kServerCallMessage, requestTypeString, requestId);
+                WriteEvent(kServerCallId, requestTypeString, requestId);
             }
         }
 
         /// <summary>
-        /// Log a WriteValue.
+        /// The state of the session.
         /// </summary>
-        [NonEvent]
-        public void WriteValueRange(NodeId nodeId, Variant wrappedValue, string range)
+        [Event(
+            kSessionStateId,
+            Message = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}",
+            Level = EventLevel.Informational)]
+        public void SessionState(
+            string context,
+            string sessionId,
+            string sessionName,
+            string secureChannelId,
+            string identity)
         {
-            if ((TraceMask & TraceMasks.ServiceDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    //WriteEvent();
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace(
-                        TraceMasks.ServiceDetail,
-                        "WRITE: NodeId={0} Value={1} Range={2}",
-                        nodeId,
-                        wrappedValue,
-                        range);
-                }
-            }
+            WriteEvent(
+                kSessionStateId,
+                context,
+                sessionId,
+                sessionName,
+                secureChannelId,
+                identity);
         }
 
         /// <summary>
-        /// Log a ReadValue.
+        /// The state of the server session.
         /// </summary>
-        [NonEvent]
-        public void ReadValueRange(NodeId nodeId, Variant wrappedValue, string range)
+        [Event(
+            kMonitoredItemReadyId,
+            Message = "IsReadyToPublish[{0}] {1}",
+            Level = EventLevel.Verbose)]
+        public void MonitoredItemReady(uint id, string state)
         {
-            if ((TraceMask & TraceMasks.ServiceDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    //WriteEvent();
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace(
-                        TraceMasks.ServiceDetail,
-                        "READ: NodeId={0} Value={1} Range={2}",
-                        nodeId,
-                        wrappedValue,
-                        range);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Log a Queued Value.
-        /// </summary>
-        [NonEvent]
-        public void EnqueueValue(Variant wrappedValue)
-        {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    //WriteEvent();
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace("ENQUEUE VALUE: Value={0}", wrappedValue);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Log a Dequeued Value.
-        /// </summary>
-        [NonEvent]
-        public void DequeueValue(Variant wrappedValue, StatusCode statusCode)
-        {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    //WriteEvent();
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace(
-                        "DEQUEUE VALUE: Value={0} CODE={1}<{2:X8}> OVERFLOW={3}",
-                        wrappedValue,
-                        statusCode.Code,
-                        statusCode.Code,
-                        statusCode.Overflow);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Log a Queued Value.
-        /// </summary>
-        [NonEvent]
-        public void QueueValue(uint id, Variant wrappedValue, StatusCode statusCode)
-        {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    //WriteEvent();
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace(
-                        TraceMasks.OperationDetail,
-                        "QUEUE VALUE[{0}]: Value={1} CODE={2}<{3:X8}> OVERFLOW={4}",
-                        id,
-                        wrappedValue,
-                        statusCode.Code,
-                        statusCode.Code,
-                        statusCode.Overflow);
-                }
-            }
+            WriteEvent(kMonitoredItemReadyId, id, state);
         }
     }
 }
