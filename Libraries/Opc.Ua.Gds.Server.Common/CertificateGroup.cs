@@ -248,7 +248,11 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(application), "ApplicationNames is null");
             }
 
-            using X509Certificate2 signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty, ct: ct)
+            using X509Certificate2 signingKey = await LoadSigningKeyAsync(
+                Certificates[certificateType],
+                string.Empty,
+                m_telemetry,
+                ct)
                 .ConfigureAwait(false);
             X509Certificate2 certificate;
 
@@ -295,7 +299,7 @@ namespace Opc.Ua.Gds.Server
             X509Certificate2 certificate,
             CancellationToken ct = default)
         {
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, ct: ct)
+            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, m_telemetry, ct)
                 .ConfigureAwait(false);
 
             // Also update TrustedList CRL so registerd Applications can get the new CRL
@@ -408,7 +412,11 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
-                using X509Certificate2 signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty, ct: ct)
+                using X509Certificate2 signingKey = await LoadSigningKeyAsync(
+                    Certificates[certificateType],
+                    string.Empty,
+                    m_telemetry,
+                    ct)
                     .ConfigureAwait(false);
                 var subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
 
@@ -499,14 +507,14 @@ namespace Opc.Ua.Gds.Server
                 .CreateForRSA();
 #endif
 
-            await certificate.AddToStoreAsync(AuthoritiesStore, ct: ct).ConfigureAwait(false);
+            await certificate.AddToStoreAsync(AuthoritiesStore, password: null, m_telemetry, ct).ConfigureAwait(false);
 
             // save only public key
             Certificates[certificateType] = X509CertificateLoader.LoadCertificate(
                 certificate.RawData);
 
             // initialize revocation list
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, ct: ct)
+            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, m_telemetry, ct)
                 .ConfigureAwait(false);
 
             //Update TrustedList Store

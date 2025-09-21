@@ -624,7 +624,7 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
             serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
             serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(new MonitoredItemQueueFactory(serverMock.Object.Telemetry));
+                .Returns(new MonitoredItemQueueFactory(telemetry));
 
             var nodeMangerMock = new Mock<INodeManager>();
 

@@ -61,16 +61,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Create call with null path")]
         public void ValidateUaPubSubApplicationCreateNullFilePath()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             NUnit.Framework.Assert.Throws<ArgumentNullException>(
-                () => UaPubSubApplication.Create((string)null, null),
+                () => UaPubSubApplication.Create((string)null, telemetry),
                 "Calling Create with null parameter shall throw error");
         }
 
         [Test(Description = "Validate Create call with null PubSubConfigurationDataType")]
         public void ValidateUaPubSubApplicationCreateNullPubSubConfigurationDataType()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             NUnit.Framework.Assert.DoesNotThrow(
-                () => UaPubSubApplication.Create((PubSubConfigurationDataType)null, null),
+                () => UaPubSubApplication.Create((PubSubConfigurationDataType)null, telemetry),
                 "Calling Create with null parameter shall not throw error");
         }
 

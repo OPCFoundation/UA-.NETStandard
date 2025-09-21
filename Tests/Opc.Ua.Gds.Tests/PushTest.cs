@@ -1290,7 +1290,7 @@ namespace Opc.Ua.Gds.Tests
                     .SetCAConstraint()
                     .SetECCurve(curve.Value)
                     .CreateForECDsa()
-                    .AddToStoreAsync(certificateStoreIdentifier)
+                    .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)
                     .ConfigureAwait(false);
             }
             // RSA Certificate
@@ -1301,7 +1301,7 @@ namespace Opc.Ua.Gds.Tests
                     .CreateCertificate(null, null, subjectName, null)
                     .SetCAConstraint()
                     .CreateForRSA()
-                    .AddToStoreAsync(certificateStoreIdentifier)
+                    .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)
                     .ConfigureAwait(false);
 #if ECC_SUPPORT
             }
@@ -1309,7 +1309,7 @@ namespace Opc.Ua.Gds.Tests
 
             // initialize cert revocation list (CRL)
             X509CRL caCrl = await CertificateGroup
-                .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert)
+                .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert, null, m_telemetry)
                 .ConfigureAwait(false);
         }
 

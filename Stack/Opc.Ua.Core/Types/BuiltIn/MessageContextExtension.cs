@@ -79,7 +79,9 @@ namespace Opc.Ua
             MessageContextExtension previousContext = Current;
 
             Current = new MessageContextExtension(
-                new ServiceMessageContext(CurrentContext, telemetry));
+                previousContext == null ?
+                    new ServiceMessageContext(telemetry) :
+                    new ServiceMessageContext(previousContext.MessageContext, telemetry));
 
             return new DisposableAction(() => Current = previousContext);
         }

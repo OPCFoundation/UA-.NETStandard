@@ -248,11 +248,11 @@ namespace Opc.Ua.Server.Tests
             MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
 
             var serverMock = new Mock<IServerInternal>();
-            serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(new MonitoredItemQueueFactory(serverMock.Object.Telemetry));
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
             serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
-            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory)
+                .Returns(new MonitoredItemQueueFactory(telemetry));
 
             var nodeMangerMock = new Mock<INodeManager>();
 

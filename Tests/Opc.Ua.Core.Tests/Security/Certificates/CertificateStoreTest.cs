@@ -386,11 +386,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(30)]
         public void VerifyInvalidAppCertX509Store()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
             _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
                 appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
-                    "User\\UA_MachineDefault"));
+                    "User\\UA_MachineDefault",
+                    telemetry: telemetry));
         }
 
         /// <summary>
