@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests
                     for (int j = 0; j < idsPerTask; j++)
                     {
                         long before = Stopwatch.GetTimestamp();
-                        var id = idFactory.GetNextId();
+                        uint id = idFactory.GetNextId();
                         long after = Stopwatch.GetTimestamp();
                         generatedIds.Add((id, before, after));
                     }
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests
             const int totalIds = numIdTasks * idsPerTask;
             Assert.That(generatedIds.Count, Is.EqualTo(totalIds), "Incorrect total number of IDs generated.");
 
-            if (!resetEvents.Any())
+            if (resetEvents.IsEmpty)
             {
                 Assert.Warn("No reset events were captured, the test may not have exercised the concurrent reset logic.");
                 return;
@@ -157,32 +157,31 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < sortedResets.Count; i++)
             {
-                var currentReset = sortedResets[i];
+                (uint startValue, long beforeTimestamp, long afterTimestamp) = sortedResets[i];
 
                 // For each reset event, verify that all IDs generated *after* it
                 // are greater than the new start value.
                 var idsAfterReset = generatedIds
-                    .Where(g => g.BeforeTimestamp > currentReset.AfterTimestamp &&
-                    (i == sortedResets.Count - 1 || g.AfterTimestamp < sortedResets[i + 1].BeforeTimestamp))
+                    .Where(g => g.BeforeTimestamp > afterTimestamp &&
+                        (i == sortedResets.Count - 1 || g.AfterTimestamp < sortedResets[i + 1].BeforeTimestamp))
                     .OrderBy(g => g.Id)
                     .Select(g => g.Id)
                     .ToList();
 
                 if (idsAfterReset.Count != 0)
                 {
-
                     // Due to the nature of concurrent operations, some IDs might be generated
                     // after the reset timestamp but still use the old value. We find the first
                     // ID that respects the new start value and verify that all subsequent IDs do as well.
                     // Find the first ID that is greater than the start value.
-                    var firstValidIdIndex = idsAfterReset.FindIndex(id => id > currentReset.StartValue);
+                    int firstValidIdIndex = idsAfterReset.FindIndex(id => id > startValue);
 
                     // If a valid ID is found, all subsequent IDs must also be greater.
                     if (firstValidIdIndex != -1)
                     {
-                        var subsequentIds = idsAfterReset.Skip(firstValidIdIndex);
-                        Assert.That(subsequentIds.All(id => id > currentReset.StartValue), Is.True,
-                            $"An ID was generated that was not greater than the new start value {currentReset.StartValue} after a reset.");
+                        System.Collections.Generic.IEnumerable<uint> subsequentIds = idsAfterReset.Skip(firstValidIdIndex);
+                        Assert.That(subsequentIds.All(id => id > startValue), Is.True,
+                            $"An ID was generated that was not greater than the new start value {startValue} after a reset.");
 
                         Assert.That(subsequentIds.Distinct().Count(), Is.EqualTo(subsequentIds.Count()),
                        "Duplicate IDs were found in the set of IDs generated between resets.");
