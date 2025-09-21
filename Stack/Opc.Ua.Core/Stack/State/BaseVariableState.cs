@@ -403,7 +403,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        messageContext = MessageContextExtension.Current.MessageContext;
+                        messageContext = AmbientMessageContext.CurrentContext;
                     }
 
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)

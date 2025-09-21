@@ -58,12 +58,13 @@ namespace Opc.Ua
         /// <summary>
         /// The default context for the process (used only during XML serialization).
         /// </summary>
+        [Obsolete("Create a new root ServiceMessageContext or a copy of an existing one for a scope.")]
         public static ServiceMessageContext GlobalContext { get; } = new(null);
 
         /// <summary>
         /// The default context for the thread (used only during XML serialization).
         /// </summary>
-        [Obsolete("Use MessageContextExtension.Current")]
+        [Obsolete("Create a new root ServiceMessageContext or a copy of an existing one for a scope.")]
         public static ServiceMessageContext ThreadContext
         {
             get => GlobalContext;

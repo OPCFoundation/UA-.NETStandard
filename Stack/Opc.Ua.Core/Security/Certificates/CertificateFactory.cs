@@ -55,12 +55,12 @@ namespace Opc.Ua
         /// <param name="encodedData">The encoded data.</param>
         /// <param name="useCache">if set to <c>true</c> the copy of the certificate
         /// in the cache is used.</param>
-        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
         /// <returns>The certificate.</returns>
         public static X509Certificate2 Create(
             ReadOnlyMemory<byte> encodedData,
             bool useCache,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
 #if NET6_0_OR_GREATER
             X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
@@ -72,7 +72,7 @@ namespace Opc.Ua
 
             if (useCache)
             {
-                return Load(certificate, false, logger);
+                return Load(certificate, false, telemetry);
             }
             return certificate;
         }
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate to load.</param>
         /// <param name="ensurePrivateKeyAccessible">If true a key container is created
         /// for a certificate that must be deleted by calling Cleanup.</param>
-        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
         /// <returns>The cached certificate.</returns>
         /// <remarks>
         /// This function is necessary because all private keys used for cryptography
@@ -93,7 +93,7 @@ namespace Opc.Ua
         public static X509Certificate2 Load(
             X509Certificate2 certificate,
             bool ensurePrivateKeyAccessible,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             if (certificate == null)
             {
@@ -125,7 +125,8 @@ namespace Opc.Ua
                 if (ensurePrivateKeyAccessible &&
                     !X509Utils.VerifyKeyPair(certificate, certificate))
                 {
-                    logger?.LogWarning(
+                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
+                    logger.LogWarning(
                         "Trying to add certificate to cache with invalid private key.");
                     return null;
                 }
@@ -135,7 +136,8 @@ namespace Opc.Ua
 
                 if (s_certificates.Count > 100)
                 {
-                    logger?.LogWarning(
+                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
+                    logger.LogWarning(
                         "Certificate cache has {Count} certificates in it.",
                         s_certificates.Count);
                 }

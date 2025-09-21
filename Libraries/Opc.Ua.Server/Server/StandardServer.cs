@@ -364,7 +364,9 @@ namespace Opc.Ua.Server
                     try
                     {
                         X509Certificate2Collection clientCertificateChain
-                            = Utils.ParseCertificateChainBlob(clientCertificate, m_logger);
+                            = Utils.ParseCertificateChainBlob(
+                                clientCertificate,
+                                m_serverInternal.Telemetry);
                         parsedClientCertificate = clientCertificateChain[0];
 
                         if (clientCertificateChain.Count > 1)
@@ -720,7 +722,7 @@ namespace Opc.Ua.Server
                         ServiceResult result = SoftwareCertificate.Validate(
                             CertificateValidator,
                             signedCertificate.CertificateData,
-                            m_logger,
+                            m_serverInternal.Telemetry,
                             out SoftwareCertificate softwareCertificate);
 
                         if (ServiceResult.IsBad(result))

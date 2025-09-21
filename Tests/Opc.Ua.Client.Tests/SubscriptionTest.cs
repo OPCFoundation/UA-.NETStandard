@@ -587,7 +587,9 @@ namespace Opc.Ua.Client.Tests
 
             // read the session configuration
             var loadConfigurationStream = new MemoryStream(configStreamArray);
-            var sessionConfiguration = SessionConfiguration.Create(loadConfigurationStream);
+            var sessionConfiguration = SessionConfiguration.Create(
+                loadConfigurationStream,
+                Telemetry);
 
             // create the inactive channel
             ITransportChannel channel2 = await ClientFixture

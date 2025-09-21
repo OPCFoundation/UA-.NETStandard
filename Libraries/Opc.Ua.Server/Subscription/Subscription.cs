@@ -157,7 +157,9 @@ namespace Opc.Ua.Server
             m_sentMessages = storedSubscription.SentMessages;
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
-            m_savedOwnerIdentity = new UserIdentity(storedSubscription.UserIdentityToken, m_logger);
+            m_savedOwnerIdentity = new UserIdentity(
+                storedSubscription.UserIdentityToken,
+                m_server.Telemetry);
             m_sequenceNumber = storedSubscription.SequenceNumber;
             m_lastSentMessage = storedSubscription.LastSentMessage;
 

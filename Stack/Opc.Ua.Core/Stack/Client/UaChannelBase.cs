@@ -776,7 +776,7 @@ namespace Opc.Ua
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
                     description.ServerCertificate,
-                    telemetry.CreateLogger<UaChannelBase>());
+                    telemetry);
             }
 
             if (configuration != null)
@@ -877,7 +877,7 @@ namespace Opc.Ua
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
                     description.ServerCertificate,
-                    telemetry.CreateLogger<UaChannelBase>());
+                    telemetry);
             }
 
             if (configuration != null)

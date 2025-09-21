@@ -65,7 +65,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 checkCurrentDirectory: true,
                 createAlways: false);
             PubSubConfigurationDataType subscriberConfiguration =
-                UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, m_messageContext.Telemetry);
+                UaPubSubConfigurationHelper.LoadConfiguration(
+                    configurationFile,
+                    m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType

@@ -1172,7 +1172,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "{\"Identifier\":\"i=14802\"}}]}}}}},\"TypeId\":" +
                 "{\"Identifier\":\"i=14803\"}}]";
 
-            using IDisposable scope = MessageContextExtension.SetScopedContext(telemetry);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
             JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
 
             Assert.NotNull(NodeId.Null);

@@ -910,7 +910,7 @@ namespace Opc.Ua.Client.Tests
 
             // read the session configuration
             var loadStream = new MemoryStream(streamArray);
-            var sessionConfiguration = SessionConfiguration.Create(loadStream);
+            var sessionConfiguration = SessionConfiguration.Create(loadStream, Telemetry);
 
             // create the inactive channel
             ITransportChannel channel2 = await ClientFixture
@@ -1999,7 +1999,7 @@ namespace Opc.Ua.Client.Tests
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();
 
-                    var userIdentity = new UserIdentity(cert, logger);
+                    var userIdentity = new UserIdentity(cert, telemetry);
 
                     // the first channel determines the endpoint
                     ConfiguredEndpoint endpoint = await ClientFixture

@@ -298,7 +298,7 @@ namespace Quickstarts.ReferenceServer
                 VerifyX509IdentityToken(x509Token);
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(x509Token, m_logger),
+                    new UserIdentity(x509Token, MessageContext.Telemetry),
                     [Role.AuthenticatedUser]);
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
@@ -361,7 +361,8 @@ namespace Quickstarts.ReferenceServer
             // User with permission to configure server
             if (userName == "sysadmin" && password == "demo")
             {
-                return new SystemConfigurationIdentity(new UserIdentity(userNameToken, m_logger));
+                return new SystemConfigurationIdentity(
+                    new UserIdentity(userNameToken, MessageContext.Telemetry));
             }
 
             // standard users for CTT verification
@@ -383,7 +384,9 @@ namespace Quickstarts.ReferenceServer
                         LoadServerProperties().ProductUri,
                         new LocalizedText(info)));
             }
-            return new RoleBasedIdentity(new UserIdentity(userNameToken, m_logger), [Role.AuthenticatedUser]);
+            return new RoleBasedIdentity(
+                new UserIdentity(userNameToken, MessageContext.Telemetry),
+                [Role.AuthenticatedUser]);
         }
 
         /// <summary>
@@ -392,7 +395,7 @@ namespace Quickstarts.ReferenceServer
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            X509Certificate2 certificate = token.GetOrCreateCertificate(m_logger);
+            X509Certificate2 certificate = token.GetOrCreateCertificate(MessageContext.Telemetry);
             try
             {
                 if (m_userCertificateValidator != null)

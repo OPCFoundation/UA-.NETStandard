@@ -818,7 +818,7 @@ namespace Opc.Ua.Bindings
             {
                 senderCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
-                    m_logger);
+                    Telemetry);
 
                 try
                 {

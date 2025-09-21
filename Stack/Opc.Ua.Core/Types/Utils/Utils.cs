@@ -2142,13 +2142,15 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="extensions">The list of extensions to search.</param>
         /// <param name="elementName">Name of the element (use type name if null).</param>
+        /// <param name="telemetry"></param>
         /// <returns>
         /// The deserialized extension. Null if an error occurs.
         /// </returns>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
         public static T ParseExtension<T>(
             IList<XmlElement> extensions,
-            XmlQualifiedName elementName)
+            XmlQualifiedName elementName,
+            ITelemetryContext telemetry)
         {
             // check if nothing to search for.
             if (extensions == null || extensions.Count == 0)
@@ -2167,6 +2169,8 @@ namespace Opc.Ua
                     throw new ArgumentException(
                         "Type does not seem to support DataContract serialization");
             }
+
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
 
             // find the element.
             for (int ii = 0; ii < extensions.Count; ii++)
@@ -2205,6 +2209,7 @@ namespace Opc.Ua
         /// <param name="extensions">The list of extensions to update.</param>
         /// <param name="elementName">Name of the element (use type name if null).</param>
         /// <param name="value">The value.</param>
+        /// <param name="telemetry"></param>
         /// <remarks>
         /// Adds a new extension if the it does not already exist.
         /// Deletes the extension if the value is null.
@@ -2214,7 +2219,8 @@ namespace Opc.Ua
         public static void UpdateExtension<T>(
             ref XmlElementCollection extensions,
             XmlQualifiedName elementName,
-            object value)
+            object value,
+            ITelemetryContext telemetry)
         {
             var document = new XmlDocument();
 
@@ -2227,6 +2233,7 @@ namespace Opc.Ua
                     try
                     {
                         var serializer = new DataContractSerializer(typeof(T));
+                        using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                         serializer.WriteObject(writer, value);
                     }
                     finally
@@ -2485,7 +2492,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2 ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
-            ILogger logger,
+            ITelemetryContext telemetry,
             bool useAsnParser = false)
         {
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
@@ -2499,12 +2506,12 @@ namespace Opc.Ua
                 if (useAsnParser)
                 {
                     ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
-                    return CertificateFactory.Create(certBlob, true, logger);
+                    return CertificateFactory.Create(certBlob, true, telemetry);
                 }
                 else
 #endif
                 {
-                    return CertificateFactory.Create(certificateData, true, logger);
+                    return CertificateFactory.Create(certificateData, true, telemetry);
                 }
             }
             catch (Exception e)
@@ -2520,12 +2527,12 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
-        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2Collection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
-            ILogger logger,
+            ITelemetryContext telemetry,
             bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
@@ -2547,12 +2554,12 @@ namespace Opc.Ua
                     {
                         ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(
                             certificateData[offset..]);
-                        certificate = CertificateFactory.Create(certBlob, true, logger);
+                        certificate = CertificateFactory.Create(certBlob, true, telemetry);
                     }
                     else
 #endif
                     {
-                        certificate = CertificateFactory.Create(certificateData[offset..], true, logger);
+                        certificate = CertificateFactory.Create(certificateData[offset..], true, telemetry);
                     }
                 }
                 catch (Exception e)

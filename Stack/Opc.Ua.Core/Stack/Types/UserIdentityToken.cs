@@ -30,7 +30,6 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -46,7 +45,6 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -60,7 +58,7 @@ namespace Opc.Ua
         public virtual SignatureData Sign(
             byte[] dataToSign,
             string securityPolicyUri,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             return new SignatureData();
         }
@@ -72,7 +70,7 @@ namespace Opc.Ua
             byte[] dataToVerify,
             SignatureData signatureData,
             string securityPolicyUri,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             return true;
         }
@@ -123,7 +121,6 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -149,6 +146,7 @@ namespace Opc.Ua
             {
                 byte[] dataToEncrypt = Utils.Append(m_decryptedPassword, receiverNonce);
 
+                ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
                 EncryptedData encryptedData = SecurityPolicies.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
@@ -206,7 +204,6 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -235,6 +232,7 @@ namespace Opc.Ua
                     Algorithm = m_encryptionAlgorithm
                 };
 
+                ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
                 byte[] decryptedPassword = SecurityPolicies.Decrypt(
                     certificate,
                     securityPolicyUri,
@@ -289,7 +287,7 @@ namespace Opc.Ua
                     m_password,
                     0,
                     m_password.Length,
-                    logger);
+                    context.Telemetry);
 #else
                 throw new NotSupportedException("Platform does not support ECC curves");
 #endif
@@ -312,13 +310,13 @@ namespace Opc.Ua
         /// <summary>
         /// Get certificate with validation
         /// </summary>
-        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
         /// <returns></returns>
-        public X509Certificate2 GetOrCreateCertificate(ILogger logger)
+        public X509Certificate2 GetOrCreateCertificate(ITelemetryContext telemetry)
         {
             if (Certificate == null && m_certificateData != null)
             {
-                Certificate = CertificateFactory.Create(m_certificateData, true, logger);
+                Certificate = CertificateFactory.Create(m_certificateData, true, telemetry);
             }
             return Certificate;
         }
@@ -329,10 +327,10 @@ namespace Opc.Ua
         public override SignatureData Sign(
             byte[] dataToSign,
             string securityPolicyUri,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             X509Certificate2 certificate = Certificate ??
-                CertificateFactory.Create(m_certificateData, true, logger);
+                CertificateFactory.Create(m_certificateData, true, telemetry);
 
             SignatureData signatureData = SecurityPolicies.Sign(
                 certificate,
@@ -352,12 +350,12 @@ namespace Opc.Ua
             byte[] dataToVerify,
             SignatureData signatureData,
             string securityPolicyUri,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             try
             {
                 X509Certificate2 certificate = Certificate ??
-                    CertificateFactory.Create(m_certificateData, true, logger);
+                    CertificateFactory.Create(m_certificateData, true, telemetry);
 
                 bool valid = SecurityPolicies.Verify(
                     certificate,
@@ -428,7 +426,6 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            ILogger logger,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -445,6 +442,7 @@ namespace Opc.Ua
 
             byte[] dataToEncrypt = Utils.Append(DecryptedTokenData, receiverNonce);
 
+            ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityToken>();
             EncryptedData encryptedData = SecurityPolicies.Encrypt(
                 receiverCertificate,
                 securityPolicyUri,
@@ -464,7 +462,6 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            ILogger logger,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
@@ -484,6 +481,7 @@ namespace Opc.Ua
                 Algorithm = m_encryptionAlgorithm
             };
 
+            ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityToken>();
             byte[] decryptedTokenData = SecurityPolicies.Decrypt(
                 certificate,
                 securityPolicyUri,
@@ -517,7 +515,7 @@ namespace Opc.Ua
         public override SignatureData Sign(
             byte[] dataToSign,
             string securityPolicyUri,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             return null;
         }
@@ -529,7 +527,7 @@ namespace Opc.Ua
             byte[] dataToVerify,
             SignatureData signatureData,
             string securityPolicyUri,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             return true;
         }

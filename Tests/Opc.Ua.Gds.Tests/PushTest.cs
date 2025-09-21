@@ -1085,7 +1085,7 @@ namespace Opc.Ua.Gds.Tests
 
                     X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
                         m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate,
-                        logger);
+                        telemetry);
 
                     if (Utils.IsEqual(serverCertificate.RawData, certificateBlob))
                     {

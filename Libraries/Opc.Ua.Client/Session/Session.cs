@@ -1469,6 +1469,7 @@ namespace Opc.Ua.Client
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
                 using var writer = XmlWriter.Create(stream, settings);
                 var serializer = new DataContractSerializer(typeof(SessionConfiguration));
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
                 serializer.WriteObject(writer, sessionConfiguration);
             }
             return sessionConfiguration;
@@ -1491,6 +1492,7 @@ namespace Opc.Ua.Client
 
             using var writer = XmlWriter.Create(stream, settings);
             var serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
             serializer.WriteObject(writer, subscriptionList);
         }
 
@@ -1516,6 +1518,7 @@ namespace Opc.Ua.Client
 
             using var reader = XmlReader.Create(stream, settings);
             var serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
             var subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
             foreach (Subscription subscription in subscriptions)
             {
@@ -1650,7 +1653,7 @@ namespace Opc.Ua.Client
             {
                 X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
-                    m_logger);
+                    m_telemetry);
 
                 if (serverCertificateChain.Count > 0)
                 {
@@ -1830,7 +1833,7 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(
                     dataToSign,
                     tokenSecurityPolicyUri,
-                    m_logger);
+                    m_telemetry);
 
                 // encrypt token.
                 identityToken.Encrypt(
@@ -1838,7 +1841,6 @@ namespace Opc.Ua.Client
                     serverNonce,
                     m_userTokenSecurityPolicyUri,
                     MessageContext,
-                    m_logger,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
@@ -2033,7 +2035,7 @@ namespace Opc.Ua.Client
             SignatureData userTokenSignature = identityToken.Sign(
                 dataToSign,
                 tokenSecurityPolicyUri,
-                m_logger);
+                m_telemetry);
 
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
@@ -2043,7 +2045,6 @@ namespace Opc.Ua.Client
                 serverNonce,
                 m_userTokenSecurityPolicyUri,
                 MessageContext,
-                m_logger,
                 m_eccServerEphemeralKey,
                 m_instanceCertificate,
                 m_instanceCertificateChain,
@@ -6009,7 +6010,7 @@ namespace Opc.Ua.Client
                     X509Certificate2Collection serverCertificateChain =
                         Utils.ParseCertificateChainBlob(
                             m_endpoint.Description.ServerCertificate,
-                            m_logger);
+                            m_telemetry);
 
                     if (serverCertificateChain.Count > 0 &&
                         !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData))
@@ -6307,7 +6308,7 @@ namespace Opc.Ua.Client
             SignatureData userTokenSignature = identityToken.Sign(
                 dataToSign,
                 tokenSecurityPolicyUri,
-                m_logger);
+                m_telemetry);
 
             // encrypt token.
             identityToken.Encrypt(
@@ -6315,7 +6316,6 @@ namespace Opc.Ua.Client
                 m_serverNonce,
                 m_userTokenSecurityPolicyUri,
                 MessageContext,
-                m_logger,
                 m_eccServerEphemeralKey,
                 m_instanceCertificate,
                 m_instanceCertificateChain,
@@ -6494,7 +6494,7 @@ namespace Opc.Ua.Client
                 ServiceResult result = SoftwareCertificate.Validate(
                     validator,
                     signedCertificate.CertificateData,
-                    m_logger,
+                    m_telemetry,
                     out SoftwareCertificate softwareCertificate);
 
                 if (ServiceResult.IsBad(result))

@@ -57,9 +57,9 @@ namespace Opc.Ua
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
-            return Load(configuration, filePath, false, logger);
+            return Load(configuration, filePath, false, telemetry);
         }
 
         /// <summary>
@@ -69,9 +69,9 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             string filePath,
             bool overrideConfiguration,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
-            ConfiguredEndpointCollection endpoints = Load(filePath, logger);
+            ConfiguredEndpointCollection endpoints = Load(filePath, telemetry);
 
             endpoints.DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
@@ -90,13 +90,13 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(string filePath, ILogger logger)
+        public static ConfiguredEndpointCollection Load(string filePath, ITelemetryContext telemetry)
         {
             // load from file.
             ConfiguredEndpointCollection endpoints;
             using (Stream stream = File.OpenRead(filePath))
             {
-                endpoints = Load(stream, logger);
+                endpoints = Load(stream, telemetry);
             }
             endpoints.m_filepath = filePath;
 
@@ -182,11 +182,12 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a stream.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(Stream istrm, ILogger logger)
+        public static ConfiguredEndpointCollection Load(Stream istrm, ITelemetryContext telemetry)
         {
             try
             {
                 var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 var endpoints = serializer.ReadObject(istrm) as ConfiguredEndpointCollection;
 
                 if (endpoints != null)
@@ -205,6 +206,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
+                ILogger logger = telemetry.CreateLogger<ConfiguredEndpointCollection>();
                 logger.LogError(
                     "Unexpected error loading ConfiguredEndpoints: {Message}",
                     Redaction.Redact.Create(e));
@@ -1207,10 +1209,11 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
+        /// <param name="telemetry">The telemetry context.</param>
         /// <returns>The extension if found. Null otherwise.</returns>
-        public T ParseExtension<T>(XmlQualifiedName elementName)
+        public T ParseExtension<T>(XmlQualifiedName elementName, ITelemetryContext telemetry)
         {
-            return Utils.ParseExtension<T>(m_extensions, elementName);
+            return Utils.ParseExtension<T>(m_extensions, elementName, telemetry);
         }
 
         /// <summary>
@@ -1219,9 +1222,10 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
-        public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
+        /// <param name="telemetry">The telemetry context.</param>
+        public void UpdateExtension<T>(XmlQualifiedName elementName, object value, ITelemetryContext telemetry)
         {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
+            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, telemetry);
         }
 
         /// <summary>

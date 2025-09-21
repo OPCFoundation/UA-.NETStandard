@@ -55,6 +55,7 @@ namespace Opc.Ua
                 new StringReader(element.OuterXml),
                 Utils.DefaultXmlReaderSettings());
             var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
+            // using IDisposable scope = MessageContextExtension.SetScopedContext(telemetry);
             return serializer.ReadObject(reader) as ConfigurationLocation;
         }
     }
@@ -301,6 +302,7 @@ namespace Opc.Ua
             {
                 var serializer = new DataContractSerializer(systemType);
 
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
                 configuration.Initialize(telemetry);
 
@@ -499,6 +501,7 @@ namespace Opc.Ua
             try
             {
                 var serializer = new DataContractSerializer(systemType);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
                 configuration.Initialize(telemetry);
             }
@@ -573,6 +576,7 @@ namespace Opc.Ua
             using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
             using var writer = XmlWriter.Create(ostrm, settings);
             var serializer = new DataContractSerializer(GetType());
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             serializer.WriteObject(writer, this);
         }
 
@@ -756,7 +760,11 @@ namespace Opc.Ua
 
             if (!createAlways)
             {
-                return ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration, m_logger);
+                return ConfiguredEndpointCollection.Load(
+                    this,
+                    filePath,
+                    overrideConfiguration,
+                    m_telemetry);
             }
 
             var endpoints = new ConfiguredEndpointCollection(this);
@@ -766,7 +774,7 @@ namespace Opc.Ua
                     this,
                     filePath,
                     overrideConfiguration,
-                    m_logger);
+                    m_telemetry);
             }
             catch (Exception e)
             {
@@ -818,7 +826,7 @@ namespace Opc.Ua
         /// <returns>The extension if found. Null otherwise.</returns>
         public T ParseExtension<T>(XmlQualifiedName elementName)
         {
-            return Utils.ParseExtension<T>(m_extensions, elementName);
+            return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
         }
 
         /// <summary>
@@ -829,7 +837,7 @@ namespace Opc.Ua
         /// <param name="value">The value.</param>
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
         {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
+            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry);
         }
     }
 

@@ -211,7 +211,9 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken, m_logger), roles);
+                args.Identity = new GdsRoleBasedIdentity(
+                    new UserIdentity(userNameToken, MessageContext.Telemetry),
+                    roles);
                 return;
             }
 
@@ -228,7 +230,7 @@ namespace Opc.Ua.Gds.Server
                     args.Identity.DisplayName,
                     Role.AuthenticatedUser);
                 args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(x509Token, m_logger),
+                    new UserIdentity(x509Token, MessageContext.Telemetry),
                     [Role.AuthenticatedUser]);
                 return;
             }
@@ -298,7 +300,7 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            X509Certificate2 certificate = token.GetOrCreateCertificate(m_logger);
+            X509Certificate2 certificate = token.GetOrCreateCertificate(MessageContext.Telemetry);
             try
             {
                 CertificateValidator.Validate(certificate);

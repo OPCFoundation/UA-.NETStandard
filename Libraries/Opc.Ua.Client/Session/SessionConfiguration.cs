@@ -71,12 +71,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates the session configuration from a stream.
         /// </summary>
-        public static SessionConfiguration Create(Stream stream)
+        public static SessionConfiguration Create(Stream stream, ITelemetryContext telemetry)
         {
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             using var reader = XmlReader.Create(stream, settings);
             var serializer = new DataContractSerializer(typeof(SessionConfiguration));
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
             return (SessionConfiguration)serializer.ReadObject(reader);
         }
 

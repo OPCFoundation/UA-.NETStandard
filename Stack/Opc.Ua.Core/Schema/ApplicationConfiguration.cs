@@ -104,6 +104,7 @@ namespace Opc.Ua
         [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
+            m_telemetry = AmbientMessageContext.Telemetry;
             Initialize();
         }
 
@@ -2541,10 +2542,8 @@ namespace Opc.Ua
                     return;
                 }
 
-                // TODO: This bypasses any logging due to the NullLogger.Instance.
-                // We need a better way to deal with depersisting information and logging
-                // and also that does not require a logger to be passed around everywhere.
-                m_certificate = CertificateFactory.Create(value, true, NullLogger.Instance);
+                ITelemetryContext telemetry = AmbientMessageContext.Telemetry;
+                m_certificate = CertificateFactory.Create(value, true, telemetry);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 CertificateType = GetCertificateType(m_certificate);

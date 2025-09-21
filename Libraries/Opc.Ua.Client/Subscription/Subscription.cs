@@ -183,6 +183,7 @@ namespace Opc.Ua.Client
         protected void Initialize(StreamingContext context)
         {
             m_cache = new Lock();
+            m_telemetry = AmbientMessageContext.Telemetry;
             Initialize();
         }
 

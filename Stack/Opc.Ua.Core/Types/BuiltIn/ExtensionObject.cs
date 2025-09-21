@@ -680,7 +680,7 @@ namespace Opc.Ua
         {
             get
             {
-                IServiceMessageContext context = MessageContextExtension.CurrentContext;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
                 // must use the XML encoding id if encoding in an XML stream.
                 if (m_body is IEncodeable encodeable)
                 {
@@ -700,7 +700,7 @@ namespace Opc.Ua
             }
             set
             {
-                IServiceMessageContext context = MessageContextExtension.CurrentContext;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
                 TypeId = NodeId.ToExpandedNodeId(value, context.NamespaceUris);
             }
         }
@@ -717,7 +717,7 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                IServiceMessageContext context = MessageContextExtension.CurrentContext;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
                 using var encoder = new XmlEncoder(context);
                 // write body.
                 encoder.WriteExtensionObjectBody(m_body);
@@ -739,7 +739,7 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                IServiceMessageContext context = MessageContextExtension.CurrentContext;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
                 using var decoder = new XmlDecoder(value, context);
                 // read body.
                 Body = decoder.ReadExtensionObjectBody(TypeId);

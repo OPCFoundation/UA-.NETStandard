@@ -248,7 +248,6 @@ namespace Opc.Ua
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
-            ILogger<CertificateIdentifier> logger = telemetry.CreateLogger<CertificateIdentifier>();
             X509Certificate2 certificate = null;
 
             // check if the entire certificate has been specified.
@@ -281,6 +280,7 @@ namespace Opc.Ua
                 {
                     if (needPrivateKey && store.SupportsLoadPrivateKey)
                     {
+                        ILogger logger = telemetry.CreateLogger<CertificateIdentifier>();
                         logger.LogWarning(
                             "Loaded a certificate with private key from store {StoreType}. " +
                             "Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).",
@@ -294,7 +294,10 @@ namespace Opc.Ua
             // use the single instance in the certificate cache.
             if (needPrivateKey)
             {
-                certificate = m_certificate = CertificateFactory.Load(certificate, true, logger);
+                certificate = m_certificate = CertificateFactory.Load(
+                    certificate,
+                    true,
+                    telemetry);
             }
 
             return certificate;
@@ -741,7 +744,7 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of CertificateIdentifier objects.
     /// </summary>
-    public partial class CertificateIdentifierCollection : ICertificateStore, ICloneable
+    public partial class CertificateIdentifierCollection : ICloneable
     {
         /// <inheritdoc/>
         public virtual object Clone()
@@ -765,6 +768,35 @@ namespace Opc.Ua
             }
 
             return collection;
+        }
+    }
+
+    /// <summary>
+    /// Wraps a collection of certificate identifiers and exposes it as a certificate store.
+    /// </summary>
+    public class CertificateIdentifierCollectionStore : ICertificateStore
+    {
+        /// <summary>
+        /// Create an empty collection store.
+        /// </summary>
+        /// <param name="telemetry"></param>
+        public CertificateIdentifierCollectionStore(ITelemetryContext telemetry)
+        {
+            m_certificates = [];
+            m_telemetry = telemetry;
+        }
+
+        /// <summary>
+        /// Create a collection store from an existing collection.
+        /// </summary>
+        /// <param name="certificates"></param>
+        /// <param name="telemetry"></param>
+        public CertificateIdentifierCollectionStore(
+            CertificateIdentifierCollection certificates,
+            ITelemetryContext telemetry)
+        {
+            m_certificates = certificates;
+            m_telemetry = telemetry;
         }
 
         /// <summary>
@@ -816,9 +848,13 @@ namespace Opc.Ua
         {
             var collection = new X509Certificate2Collection();
 
-            for (int ii = 0; ii < Count; ii++)
+            for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].FindAsync(false, ct: ct)
+                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                    false,
+                    applicationUri: null,
+                    m_telemetry,
+                    ct: ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)
@@ -847,9 +883,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            for (int ii = 0; ii < Count; ii++)
+            for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 current = await this[ii].FindAsync(false, ct: ct)
+                X509Certificate2 current = await m_certificates[ii].FindAsync(
+                    false,
+                    applicationUri: null,
+                    m_telemetry,
+                    ct: ct)
                     .ConfigureAwait(false);
 
                 if (current != null && current.Thumbprint == certificate.Thumbprint)
@@ -862,7 +902,7 @@ namespace Opc.Ua
                 }
             }
 
-            Add(new CertificateIdentifier(certificate));
+            m_certificates.Add(new CertificateIdentifier(certificate));
         }
 
         /// <inheritdoc/>
@@ -873,14 +913,18 @@ namespace Opc.Ua
                 return false;
             }
 
-            for (int ii = 0; ii < Count; ii++)
+            for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].FindAsync(false, ct: ct)
+                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                    false,
+                    applicationUri: null,
+                    m_telemetry,
+                    ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
-                    RemoveAt(ii);
+                    m_certificates.RemoveAt(ii);
                     return true;
                 }
             }
@@ -898,9 +942,13 @@ namespace Opc.Ua
                 return null;
             }
 
-            for (int ii = 0; ii < Count; ii++)
+            for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].FindAsync(false, ct: ct)
+                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                    false,
+                    applicationUri: null,
+                    m_telemetry,
+                    ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
@@ -974,6 +1022,9 @@ namespace Opc.Ua
         {
             return Task.CompletedTask;
         }
+
+        private readonly CertificateIdentifierCollection m_certificates;
+        private readonly ITelemetryContext m_telemetry;
     }
 
     /// <summary>

@@ -115,7 +115,7 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
+                    using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                     result = JsonConvert.DeserializeObject(json, batch.GetType(), s_settings);
 
                     File.Delete(filePath);
@@ -153,7 +153,7 @@ namespace Quickstarts.Servers
             batch.CancelBatchPersist = cancellationTokenSource;
             try
             {
-                using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                 string result = JsonConvert.SerializeObject(batch, s_settings);
 
                 if (!Directory.Exists(s_storage_path))

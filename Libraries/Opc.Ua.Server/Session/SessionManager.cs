@@ -350,7 +350,7 @@ namespace Opc.Ua.Server
 
                 // parse the token manually if the identity is not provided.
                 identity ??= newIdentity != null
-                    ? new UserIdentity(newIdentity, m_logger)
+                    ? new UserIdentity(newIdentity, m_server.Telemetry)
                     : new UserIdentity();
 
                 // use the identity as the effectiveIdentity if not provided.

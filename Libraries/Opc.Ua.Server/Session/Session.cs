@@ -492,7 +492,9 @@ namespace Opc.Ua.Server
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
                         X509Certificate2Collection serverCertificateChain =
-                            Utils.ParseCertificateChainBlob(EndpointDescription.ServerCertificate, m_logger);
+                            Utils.ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate,
+                                m_server.Telemetry);
 
                         if (serverCertificateChain.Count > 1)
                         {
@@ -1013,7 +1015,7 @@ namespace Opc.Ua.Server
                     m_serverCertificate = CertificateFactory.Create(
                         EndpointDescription.ServerCertificate,
                         true,
-                        m_logger);
+                        m_server.Telemetry);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
@@ -1031,7 +1033,6 @@ namespace Opc.Ua.Server
                         m_serverNonce,
                         securityPolicyUri,
                         m_server.MessageContext,
-                        m_logger,
                         m_eccUserTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates);
@@ -1051,12 +1052,14 @@ namespace Opc.Ua.Server
                         m_serverCertificate.RawData,
                         m_serverNonce.Data);
 
-                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_logger))
+                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_server.Telemetry))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
                         X509Certificate2Collection serverCertificateChain =
-                            Utils.ParseCertificateChainBlob(EndpointDescription.ServerCertificate, m_logger);
+                            Utils.ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate,
+                                m_server.Telemetry);
 
                         if (serverCertificateChain.Count > 1)
                         {
@@ -1074,7 +1077,7 @@ namespace Opc.Ua.Server
                                 serverCertificateChainData,
                                 m_serverNonce.Data);
 
-                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_logger))
+                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_server.Telemetry))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,

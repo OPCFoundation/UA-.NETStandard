@@ -252,13 +252,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode));
 
             // Serialize/Encode a Variant succeeds with a context available
-            using (MessageContextExtension.SetScopedContext(localCtxt))
+            using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
                 _ = Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair);
             }
 
             // Serialize/Encode an ExtensionObject succeeds with a context available
-            using (MessageContextExtension.SetScopedContext(localCtxt))
+            using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
                 _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject);
             }

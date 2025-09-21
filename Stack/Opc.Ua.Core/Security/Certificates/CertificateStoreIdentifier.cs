@@ -182,7 +182,7 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(storeTypeName))
             {
-                return new CertificateIdentifierCollection();
+                return new CertificateIdentifierCollectionStore(telemetry);
             }
 
             ICertificateStore store;

@@ -1029,13 +1029,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="dataToDecrypt">The data to decrypt.</param>
         /// <param name="earliestTime">The earliest time allowed for the message signing time.</param>
-        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
         /// <returns>The encrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
         private ArraySegment<byte> VerifyHeaderForEcc(
             ArraySegment<byte> dataToDecrypt,
             DateTime earliestTime,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             using var decoder = new BinaryDecoder(
                 dataToDecrypt.Array,
@@ -1093,7 +1093,7 @@ namespace Opc.Ua
             {
                 X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(
                     senderCertificate,
-                    logger);
+                    telemetry);
 
                 SenderCertificate = senderCertificateChain[0];
                 SenderIssuerCertificates = [];
@@ -1188,7 +1188,7 @@ namespace Opc.Ua
         /// <param name="data">The data to decrypt.</param>
         /// <param name="offset">The offset of the data to decrypt.</param>
         /// <param name="count">The number of bytes to decrypt.</param>
-        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry"></param>
         /// <returns>The decrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
         public byte[] Decrypt(
@@ -1197,12 +1197,12 @@ namespace Opc.Ua
             byte[] data,
             int offset,
             int count,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             ArraySegment<byte> dataToDecrypt = VerifyHeaderForEcc(
                 new ArraySegment<byte>(data, offset, count),
                 earliestTime,
-                logger);
+                telemetry);
 
             CreateKeysForEcc(
                 SecurityPolicyUri,

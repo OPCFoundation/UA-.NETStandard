@@ -68,7 +68,7 @@ namespace Quickstarts.Servers
         {
             try
             {
-                using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                 string result = JsonConvert.SerializeObject(subscriptions, s_settings);
 
                 if (!Directory.Exists(s_storage_path))
@@ -101,7 +101,7 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    using IDisposable scope = MessageContextExtension.SetScopedContext(m_telemetry);
+                    using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                     List<IStoredSubscription> result =
                         JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
 

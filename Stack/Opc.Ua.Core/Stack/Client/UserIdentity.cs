@@ -64,7 +64,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
-        public UserIdentity(X509Certificate2 certificate, ILogger logger)
+        public UserIdentity(X509Certificate2 certificate, ITelemetryContext telemetry)
         {
             if (certificate == null)
             {
@@ -77,20 +77,20 @@ namespace Opc.Ua
                     "Cannot create User Identity with Certificate that does not have a private key");
             }
 
-            Initialize(certificate, logger);
+            Initialize(certificate, telemetry);
         }
 
         /// <summary>
         /// Initializes the object with a UA identity token.
         /// </summary>
         /// <param name="token">The user identity token.</param>
-        /// <param name="logger">A logger.</param>
-        public UserIdentity(UserIdentityToken token, ILogger logger)
+        /// <param name="telemetry"></param>
+        public UserIdentity(UserIdentityToken token, ITelemetryContext telemetry)
         {
             switch (token)
             {
                 case X509IdentityToken x509Token:
-                    Initialize(x509Token, logger);
+                    Initialize(x509Token, telemetry);
                     break;
                 case UserNameIdentityToken usernameToken:
                     Initialize(usernameToken);
@@ -133,7 +133,7 @@ namespace Opc.Ua
                     "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
             }
 
-            return new UserIdentity(certificate, logger ?? telemetry.CreateLogger<UserIdentity>());
+            return new UserIdentity(certificate, telemetry);
         }
 
         /// <summary>
@@ -234,7 +234,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="NotSupportedException"></exception>
-        private void Initialize(X509IdentityToken x509Token, ILogger logger)
+        private void Initialize(X509IdentityToken x509Token, ITelemetryContext telemetry)
         {
             Initialize();
 
@@ -250,7 +250,7 @@ namespace Opc.Ua
                 X509Certificate2 cert = CertificateFactory.Create(
                     x509Token.CertificateData,
                     true,
-                    logger ?? NullLogger.Instance);
+                    telemetry);
                 DisplayName = cert.Subject;
             }
         }
@@ -304,14 +304,14 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
-        private void Initialize(X509Certificate2 certificate, ILogger logger)
+        private void Initialize(X509Certificate2 certificate, ITelemetryContext telemetry)
         {
             var token = new X509IdentityToken
             {
                 CertificateData = certificate.RawData,
                 Certificate = certificate
             };
-            Initialize(token, logger);
+            Initialize(token, telemetry);
         }
 
         private UserIdentityToken m_token;

@@ -11,31 +11,33 @@
 */
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Uses to add the service message context to the operation context.
+    /// Used to add the service message context to the operation context.
+    /// IMPORTANT: DO NOT USE. This is a temporary measure to land
+    /// context during deserialization and will be deprecated in the
+    /// near future.
     /// </summary>
-    public class MessageContextExtension
+    [Experimental("UA_NETStandard_1")]
+    public class AmbientMessageContext
     {
         /// <summary>
         /// Initializes the object with the message context to use.
         /// </summary>
-        public MessageContextExtension(IServiceMessageContext messageContext)
+        private AmbientMessageContext(IServiceMessageContext messageContext)
         {
             MessageContext = messageContext;
         }
 
         /// <summary>
-        /// Returns the message context associated with the current operation context.
+        /// Returns an ambient telemetry context associated with the
+        /// current operation context.
         /// </summary>
-        public static MessageContextExtension Current
-        {
-            get => s_current.Value;
-            private set => s_current.Value = value;
-        }
+        public static ITelemetryContext Telemetry => s_current.Value?.MessageContext?.Telemetry;
 
         /// <summary>
         /// Returns the message context associated with the current operation context.
@@ -44,14 +46,20 @@ namespace Opc.Ua
         {
             get
             {
-                MessageContextExtension extension = Current;
+                AmbientMessageContext extension = s_current.Value;
 
-                if (extension != null)
+                if (extension == null)
                 {
-                    return extension.MessageContext;
+                    // Create a root context if none has been defined yet.
+                    // This root context will not have telemetry context
+                    // associated with it. All loggers etc will use the
+                    // default telemetry context
+                    var messageContext = new ServiceMessageContext(null);
+                    s_current.Value = new AmbientMessageContext(messageContext);
+                    return messageContext;
                 }
 
-                return ServiceMessageContext.GlobalContext;
+                return extension.MessageContext;
             }
         }
 
@@ -65,10 +73,12 @@ namespace Opc.Ua
         /// </summary>
         public static IDisposable SetScopedContext(IServiceMessageContext messageContext)
         {
-            MessageContextExtension previousContext = Current;
-            Current = new MessageContextExtension(messageContext);
+            AmbientMessageContext previousContext = s_current.Value;
 
-            return new DisposableAction(() => Current = previousContext);
+            s_current.Value = new AmbientMessageContext(messageContext);
+
+            // If no root context, use the message context passed as root
+            return new Restore(previousContext);
         }
 
         /// <summary>
@@ -76,35 +86,38 @@ namespace Opc.Ua
         /// </summary>
         public static IDisposable SetScopedContext(ITelemetryContext telemetry)
         {
-            MessageContextExtension previousContext = Current;
+            AmbientMessageContext previousContext = s_current.Value;
 
-            Current = new MessageContextExtension(
+            s_current.Value = new AmbientMessageContext(
                 previousContext == null ?
                     new ServiceMessageContext(telemetry) :
                     new ServiceMessageContext(previousContext.MessageContext, telemetry));
 
-            return new DisposableAction(() => Current = previousContext);
+            return new Restore(previousContext);
         }
 
         /// <summary>
-        /// Disposable wrapper for reseting the Current context to
+        /// Disposable wrapper for reseting the context to
         /// the previous value on exiting the using scope
         /// </summary>
-        private class DisposableAction : IDisposable
+        private sealed class Restore : IDisposable
         {
-            private readonly Action m_action;
+            private readonly AmbientMessageContext m_context;
 
-            public DisposableAction(Action action)
+            public Restore(AmbientMessageContext context)
             {
-                m_action = action;
+                m_context = context;
             }
 
             public void Dispose()
             {
-                m_action?.Invoke();
+                if (m_context != null)
+                {
+                    s_current.Value = m_context;
+                }
             }
         }
 
-        private static readonly AsyncLocal<MessageContextExtension> s_current = new();
+        private static readonly AsyncLocal<AmbientMessageContext> s_current = new();
     }
 }
