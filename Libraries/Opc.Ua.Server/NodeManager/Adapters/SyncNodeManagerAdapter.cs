@@ -208,7 +208,7 @@ namespace Opc.Ua.Server
             bool createDurable,
             MonitoredItemIdFactory monitoredItemIdFactory)
         {
-            m_nodeManager.CreateMonitoredItemsAsync(context, subscriptionId, publishingInterval, timestampsToReturn, 
+            m_nodeManager.CreateMonitoredItemsAsync(context, subscriptionId, publishingInterval, timestampsToReturn,
                 itemsToCreate, errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory)
                 .AsTask().GetAwaiter().GetResult();
         }

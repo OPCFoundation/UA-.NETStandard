@@ -521,6 +521,23 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
         public bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
+            return UnregisterNamespaceManager(namespaceUri, null, nodeManager);
+        }
+
+        /// <summary>
+        /// Unregisters the node manager as the node manager for Nodes in the specified namespace.
+        /// </summary>
+        /// <param name="namespaceUri">The URI of the namespace.</param>
+        /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
+        /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
+        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        public bool UnregisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)
+        {
+            return UnregisterNamespaceManager(namespaceUri, nodeManager, null);
+        }
+
+        private bool UnregisterNamespaceManager(string namespaceUri, IAsyncNodeManager asyncNodeManager, INodeManager nodeManager)
+        {
             if (string.IsNullOrEmpty(namespaceUri))
             {
                 throw new ArgumentNullException(nameof(namespaceUri));
@@ -547,7 +564,15 @@ namespace Opc.Ua.Server
                 }
                 var nodeManagers = readOnlyNodeManagers.ToList();
 
-                IAsyncNodeManager nodeManagerToRemove = nodeManagers.Find(manager => manager.SyncNodeManager == nodeManager);
+                IAsyncNodeManager nodeManagerToRemove;
+                if (nodeManager != null)
+                {
+                    nodeManagerToRemove = nodeManagers.Find(manager => manager.SyncNodeManager == nodeManager);
+                }
+                else
+                {
+                    nodeManagerToRemove = nodeManagers.Find(manager => manager == asyncNodeManager);
+                }
 
                 bool nodeManagerFound = nodeManagers.Remove(nodeManagerToRemove);
 
