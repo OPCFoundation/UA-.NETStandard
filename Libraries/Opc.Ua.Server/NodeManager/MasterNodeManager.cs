@@ -2690,7 +2690,7 @@ namespace Opc.Ua.Server
                     filterResults,
                     monitoredItems,
                     createDurable,
-                    ref m_lastMonitoredItemId);
+                    m_monitoredItemIdFactory);
 
                 // create items for data access.
                 foreach ((INodeManager nodeManager, _) in m_nodeManagers)
@@ -2705,7 +2705,7 @@ namespace Opc.Ua.Server
                         filterResults,
                         monitoredItems,
                         createDurable,
-                        ref m_lastMonitoredItemId);
+                        m_monitoredItemIdFactory);
                 }
 
                 // fill results for unknown nodes.
@@ -2732,7 +2732,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter)
+            MonitoredItemIdFactory monitoredItemIdFactory)
         {
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
@@ -2813,15 +2813,12 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // create a globally unique identifier.
-                    uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
-
                     IEventMonitoredItem monitoredItem = Server.EventManager.CreateMonitoredItem(
                         context,
                         nodeManager,
                         handle,
                         subscriptionId,
-                        monitoredItemId,
+                        monitoredItemIdFactory.GetNextId(),
                         timestampsToReturn,
                         publishingInterval,
                         itemToCreate,
@@ -2912,7 +2909,7 @@ namespace Opc.Ua.Server
                     savedOwnerIdentity);
             }
 
-            m_lastMonitoredItemId = itemsToRestore.Max(i => i.Id);
+            m_monitoredItemIdFactory.SetStartValue(itemsToRestore.Max(i => i.Id));
         }
 
         /// <summary>
@@ -4057,7 +4054,7 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly List<(INodeManager Sync, IAsyncNodeManager Async)> m_nodeManagers;
         private readonly ConcurrentDictionary<int, IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)>> m_namespaceManagers = [];
-        private long m_lastMonitoredItemId;
+        private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1, 1);
     }
@@ -4101,5 +4098,34 @@ namespace Opc.Ua.Server
         /// The target of the reference.
         /// </summary>
         public NodeId TargetId { get; }
+    }
+
+    /// <summary>
+    /// Represents a generator for unique monitored item ids.
+    /// Call next() to retrieve the next valid monitoredItemId.
+    /// </summary>
+    /// <remarks>This class provides a mechanism to generate sequential ids for monitored
+    /// items. It is designed to ensure thread-safe incrementation of the identifier.</remarks>
+    public class MonitoredItemIdFactory
+    {
+        /// <summary>
+        /// Initialize the MonitoredItemIdFactory with a new start value the ids start incrementing from.
+        /// </summary>
+        /// <param name="firstId"></param>
+        public void SetStartValue(uint firstId)
+        {
+            m_lastMonitoredItemId = firstId;
+        }
+
+        /// <summary>
+        /// Get the next unique monitored item id.
+        /// </summary>
+        /// <returns>an uint that can be used as an id for a monitored item</returns>
+        public uint GetNextId()
+        {
+            return Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
+        }
+
+        private long m_lastMonitoredItemId;
     }
 }
