@@ -52,6 +52,7 @@ namespace Opc.Ua.Server
         public StandardServer()
         {
             m_nodeManagerFactories = [];
+            m_asyncNodeManagerFactories = [];
         }
 
         /// <summary>
@@ -4156,7 +4157,14 @@ namespace Opc.Ua.Server
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
 
-            return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
+            var asyncNodeManagers = new List<IAsyncNodeManager>();
+
+            foreach (IAsyncNodeManagerFactory nodeManagerFactory in m_asyncNodeManagerFactories)
+            {
+                asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
+            }
+
+            return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
         /// <summary>
@@ -4251,6 +4259,12 @@ namespace Opc.Ua.Server
         public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
 
         /// <summary>
+        /// The async node manager factories that are used on startup of the server.
+        /// </summary>
+        public IEnumerable<IAsyncNodeManagerFactory> AsyncNodeManagerFactories
+            => m_asyncNodeManagerFactories;
+
+        /// <summary>
         /// Add a node manager factory which is used on server start
         /// to instantiate the node manager in the server.
         /// </summary>
@@ -4258,6 +4272,16 @@ namespace Opc.Ua.Server
         public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Add(nodeManagerFactory);
+        }
+
+        /// <summary>
+        /// Add a node manager factory which is used on server start
+        /// to instantiate the node manager in the server.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        public virtual void AddNodeManager(IAsyncNodeManagerFactory nodeManagerFactory)
+        {
+            m_asyncNodeManagerFactories.Add(nodeManagerFactory);
         }
 
         /// <summary>
@@ -4269,6 +4293,17 @@ namespace Opc.Ua.Server
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
+        }
+
+        /// <summary>
+        /// Remove a node manager factory from the list of node managers.
+        /// Does not remove a NodeManager from a running server,
+        /// only removes the factory before the server starts.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        public virtual void RemoveNodeManager(IAsyncNodeManagerFactory nodeManagerFactory)
+        {
+            m_asyncNodeManagerFactories.Remove(nodeManagerFactory);
         }
 
         /// <summary>
@@ -4304,5 +4339,6 @@ namespace Opc.Ua.Server
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
         private readonly List<INodeManagerFactory> m_nodeManagerFactories;
+        private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories;
     }
 }

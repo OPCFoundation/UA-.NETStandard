@@ -650,6 +650,28 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An interface to an object that creates a IAsyncNodeManager object.
+    /// </summary>
+    public interface IAsyncNodeManagerFactory
+    {
+        /// <summary>
+        /// The IAsyncNodeManager factory.
+        /// </summary>
+        /// <param name="server">The server instance.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// The namespace table of the NodeManager.
+        /// </summary>
+        StringCollection NamespacesUris { get; }
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// This interface is in active development and will be extended in future releases.
     /// Please use the sub interfaces to implement async support for specific service calls.
@@ -682,6 +704,14 @@ namespace Opc.Ua.Server
         /// <para>NodeManagers which depend on a custom partitioning scheme must return a null value.</para>
         /// </remarks>
         IEnumerable<string> NamespaceUris { get; }
+
+        /// <summary>
+        /// Shall never be null.
+        /// Allows access to synchronous methods for compatibility
+        /// If the NodeManager does not support synchronous calls natively use <see cref="SyncNodeManagerAdapter"/>
+        /// to wrap the async calls.
+        /// </summary>
+        INodeManager SyncNodeManager { get; }
 
         /// <summary>
         /// Creates the address space by loading any configuration information an connecting to an underlying system (if applicable).
