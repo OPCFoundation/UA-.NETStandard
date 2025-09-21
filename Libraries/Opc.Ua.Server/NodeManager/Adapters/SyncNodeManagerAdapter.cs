@@ -68,10 +68,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="nodeManager"/> is <c>null</c>.</exception>
         public SyncNodeManagerAdapter(IAsyncNodeManager nodeManager)
         {
-            m_nodeManager = nodeManager;
+            m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
         }
-
-        private readonly IAsyncNodeManager m_nodeManager;
 
         /// <inheritdoc/>
         public IEnumerable<string> NamespaceUris => throw new NotImplementedException();
@@ -79,43 +77,44 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            throw new NotImplementedException();
+            m_nodeManager.CreateAddressSpaceAsync(externalReferences).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void DeleteAddressSpace()
         {
-            throw new NotImplementedException();
+            m_nodeManager.DeleteAddressSpaceAsync().AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public object GetManagerHandle(NodeId nodeId)
         {
-            throw new NotImplementedException();
+            return m_nodeManager.GetManagerHandleAsync(nodeId).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void AddReferences(IDictionary<NodeId, IList<IReference>> references)
         {
-            throw new NotImplementedException();
+            m_nodeManager.AddReferencesAsync(references).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public ServiceResult DeleteReference(object sourceHandle, NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId, bool deleteBidirectional)
         {
-            throw new NotImplementedException();
+            return m_nodeManager.DeleteReferenceAsync(sourceHandle, referenceTypeId, isInverse, targetId, deleteBidirectional)
+                .AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public NodeMetadata GetNodeMetadata(OperationContext context, object targetHandle, BrowseResultMask resultMask)
         {
-            throw new NotImplementedException();
+            return m_nodeManager.GetNodeMetadataAsync(context, targetHandle, resultMask).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void Browse(OperationContext context, ref ContinuationPoint continuationPoint, IList<ReferenceDescription> references)
         {
-            throw new NotImplementedException();
+            continuationPoint = m_nodeManager.BrowseAsync(context, continuationPoint, references).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -126,13 +125,13 @@ namespace Opc.Ua.Server
             IList<ExpandedNodeId> targetIds,
             IList<NodeId> unresolvedTargetIds)
         {
-            throw new NotImplementedException();
+            m_nodeManager.TranslateBrowsePathAsync(context, sourceHandle, relativePath, targetIds, unresolvedTargetIds).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void Read(OperationContext context, double maxAge, IList<ReadValueId> nodesToRead, IList<DataValue> values, IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.ReadAsync(context, maxAge, nodesToRead, values, errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -145,13 +144,14 @@ namespace Opc.Ua.Server
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.HistoryReadAsync(context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors)
+                .AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void Write(OperationContext context, IList<WriteValue> nodesToWrite, IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.WriteAsync(context, nodesToWrite, errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -162,13 +162,13 @@ namespace Opc.Ua.Server
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.HistoryUpdateAsync(context, detailsType, nodesToUpdate, results, errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void Call(OperationContext context, IList<CallMethodRequest> methodsToCall, IList<CallMethodResult> results, IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.CallAsync(context, methodsToCall, results, errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -179,19 +179,20 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            throw new NotImplementedException();
+            return m_nodeManager.SubscribeToEventsAsync(context, sourceId, subscriptionId, monitoredItem, unsubscribe).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public ServiceResult SubscribeToAllEvents(OperationContext context, uint subscriptionId, IEventMonitoredItem monitoredItem, bool unsubscribe)
         {
-            throw new NotImplementedException();
+            return m_nodeManager.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, unsubscribe).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public ServiceResult ConditionRefresh(OperationContext context, IList<IEventMonitoredItem> monitoredItems)
         {
-            throw new NotImplementedException();
+            m_nodeManager.ConditionRefreshAsync(context, monitoredItems).AsTask().GetAwaiter().GetResult();
+            return ServiceResult.Good;
         }
 
         /// <inheritdoc/>
@@ -207,13 +208,15 @@ namespace Opc.Ua.Server
             bool createDurable,
             MonitoredItemIdFactory monitoredItemIdFactory)
         {
-            throw new NotImplementedException();
+            m_nodeManager.CreateMonitoredItemsAsync(context, subscriptionId, publishingInterval, timestampsToReturn, 
+                itemsToCreate, errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory)
+                .AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void RestoreMonitoredItems(IList<IStoredMonitoredItem> itemsToRestore, IList<IMonitoredItem> monitoredItems, IUserIdentity savedOwnerIdentity)
         {
-            throw new NotImplementedException();
+            m_nodeManager.RestoreMonitoredItemsAsync(itemsToRestore, monitoredItems, savedOwnerIdentity).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -225,7 +228,8 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.ModifyMonitoredItemsAsync(context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors)
+                .AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -235,7 +239,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.DeleteMonitoredItemsAsync(context, monitoredItems, processedItems, errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -246,7 +250,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.TransferMonitoredItemsAsync(context, sendInitialValues, monitoredItems, processedItems, errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -257,19 +261,19 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            throw new NotImplementedException();
+            m_nodeManager.SetMonitoringModeAsync(context, monitoringMode, monitoredItems, processedItems, errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public void SessionClosing(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
         {
-            throw new NotImplementedException();
+            m_nodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
         {
-            throw new NotImplementedException();
+            return m_nodeManager.IsNodeInViewAsync(context, viewId, nodeHandle).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -280,7 +284,10 @@ namespace Opc.Ua.Server
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
-            throw new NotImplementedException();
+            return m_nodeManager.GetPermissionMetadataAsync(context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly)
+                .AsTask().GetAwaiter().GetResult();
         }
+
+        private readonly IAsyncNodeManager m_nodeManager;
     }
 }
