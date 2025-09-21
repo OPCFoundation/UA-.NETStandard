@@ -1233,7 +1233,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter)
+            MonitoredItemIdFactory monitoredItemIdFactory)
         {
             if (context == null)
             {
@@ -1337,9 +1337,6 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    // create a globally unique identifier.
-                    uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
-
                     // limit the sampling rate for non-value attributes.
                     double minimumSamplingInterval = m_defaultMinimumSamplingInterval;
 
@@ -1366,7 +1363,7 @@ namespace Opc.Ua.Server
                             subscriptionId,
                             publishingInterval,
                             timestampsToReturn,
-                            monitoredItemId,
+                            monitoredItemIdFactory.GetNextId(),
                             node,
                             itemToCreate,
                             range,
