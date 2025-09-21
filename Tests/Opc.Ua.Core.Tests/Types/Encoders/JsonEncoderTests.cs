@@ -339,148 +339,183 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdInt),
-                $"{{\"Id\":{kNodeIdInt}}}",
+                $$"""{"Id":{{kNodeIdInt}}}""",
                 null,
-                $"\"i={kNodeIdInt}\"",
+                $"""
+                "i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdInt, 1),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}",
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};i={kNodeIdInt}\"",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":1}""",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdInt, kDemoServerIndex),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};i={kNodeIdInt}\"",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdInt, 88),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":88}""",
                 null,
-                $"\"ns=88;i={kNodeIdInt}\"",
+                $"""
+                "ns=88;i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId("ns=0;" + kNodeIdString),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
-                $"\"s={kNodeIdString}\"",
+                $"""
+                "s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId("s=" + kNodeIdString),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
-                $"\"s={kNodeIdString}\"",
+                $"""
+                "s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdString, 0),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
-                $"\"s={kNodeIdString}\"",
+                $"""
+                "s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdString, 1),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};s={kNodeIdString}\"",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":1}""",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdString, kDemoServerIndex),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};s={kNodeIdString}\"",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(kNodeIdString, 88),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":88}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":88}""",
                 null,
-                $"\"ns=88;s={kNodeIdString}\"",
+                $"""
+                "ns=88;s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_nodeIdGuid),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\"}}",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}"}""",
                 null,
-                $"\"g={s_nodeIdGuid}\"",
+                $"""
+                "g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_nodeIdGuid, 1),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":1}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};g={s_nodeIdGuid}\"",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":1}""",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_nodeIdGuid, kDemoServerIndex),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};g={s_nodeIdGuid}\"",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_nodeIdGuid, 88),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":88}}",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":88}""",
                 null,
-                $"\"ns=88;g={s_nodeIdGuid}\"",
+                $"""
+                "ns=88;g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_byteString),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\"}}",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}"}""",
                 null,
-                $"\"b={s_byteString64}\"",
+                $"""
+                "b={s_byteString64}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_byteString, 1),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":1}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};b={s_byteString64}\"",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":1}""",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};b={s_byteString64}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_byteString, kDemoServerIndex),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};b={s_byteString64}\"",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};b={s_byteString64}"
+                """,
                 null
             },
             {
                 BuiltInType.NodeId,
                 new NodeId(s_byteString, 88),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":88}""",
                 null,
-                $"\"ns=88;b={s_byteString64}\"",
+                $"""
+                "ns=88;b={s_byteString64}"
+                """,
                 null
             },
-            // TODO: add cases for serverIndex
             {
                 BuiltInType.ExpandedNodeId,
                 ExpandedNodeId.Null,
@@ -491,178 +526,232 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdInt),
-                $"{{\"Id\":{kNodeIdInt}}}",
+                $$"""{"Id":{{kNodeIdInt}}}""",
                 null,
-                $"\"i={kNodeIdInt}\"",
+                $"""
+                "i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdInt, 1),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}",
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};i={kNodeIdInt}\"",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":1}""",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdInt, kDemoServerIndex),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};i={kNodeIdInt}\"",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdInt, kDemoServer2),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}",
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}",
-                $"\"nsu={kDemoServer2};i={kNodeIdInt}\"",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":"{{kDemoServer2}}"}""",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":"{{kDemoServer2}}"}""",
+                $"""
+                "nsu={kDemoServer2};i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdInt, 88),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}",
+                $$"""{"Id":{{kNodeIdInt}},"Namespace":88}""",
                 null,
-                $"\"ns=88;i={kNodeIdInt}\"",
+                $"""
+                "ns=88;i={kNodeIdInt}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId("ns=0;" + kNodeIdString),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
-                $"\"s={kNodeIdString}\"",
+                $"""
+                "s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId("s=" + kNodeIdString),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
-                $"\"s={kNodeIdString}\"",
+                $"""
+                "s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdString, 0),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
-                $"\"s={kNodeIdString}\"",
+                $"""
+                "s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdString, 1),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};s={kNodeIdString}\"",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":1}""",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdString, kDemoServerIndex),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};s={kNodeIdString}\"",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdString, kDemoServer2),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"\"nsu={kDemoServer2};s={kNodeIdString}\"",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":"{{kDemoServer2}}"}""",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":"{{kDemoServer2}}"}""",
+                $"""
+                "nsu={kDemoServer2};s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdString, 88),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":88}}",
+                $$"""{"IdType":1,"Id":"{{kNodeIdString}}","Namespace":88}""",
                 null,
-                $"\"ns=88;s={kNodeIdString}\"",
+                $"""
+                "ns=88;s={kNodeIdString}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_nodeIdGuid),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\"}}",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}"}""",
                 null,
-                $"\"g={s_nodeIdGuid}\"",
+                $"""
+                "g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_nodeIdGuid, 1),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":1}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};g={s_nodeIdGuid}\"",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":1}""",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_nodeIdGuid, kDemoServerIndex),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};g={s_nodeIdGuid}\"",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_nodeIdGuid, kDemoServer2),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"\"nsu={kDemoServer2};g={s_nodeIdGuid}\"",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":"{{kDemoServer2}}"}""",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":"{{kDemoServer2}}"}""",
+                $"""
+                "nsu={kDemoServer2};g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_nodeIdGuid, 88),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":88}}",
+                $$"""{"IdType":2,"Id":"{{s_nodeIdGuid}}","Namespace":88}""",
                 null,
-                $"\"ns=88;g={s_nodeIdGuid}\"",
+                $"""
+                "ns=88;g={s_nodeIdGuid}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_byteString),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\"}}",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}"}""",
                 null,
-                $"\"b={s_byteString64}\"",
+                $"""
+                "b={s_byteString64}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_byteString, 1),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":1}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};b={s_byteString64}\"",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":1}""",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};b={s_byteString64}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_byteString, kDemoServerIndex),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};b={s_byteString64}\"",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":{{kDemoServerIndex}}}""",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};b={s_byteString64}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_byteString, kDemoServer2),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"\"nsu={kDemoServer2};b={s_byteString64}\"",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":"{{kDemoServer2}}"}""",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":"{{kDemoServer2}}"}""",
+                $"""
+                "nsu={kDemoServer2};b={s_byteString64}"
+                """,
                 null
             },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(s_byteString, 88),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}",
+                $$"""{"IdType":3,"Id":"{{s_byteString64}}","Namespace":88}""",
                 null,
-                $"\"ns=88;b={s_byteString64}\"",
+                $"""
+                "ns=88;b={s_byteString64}"
+                """,
                 null
+            },
+            {
+                BuiltInType.ExpandedNodeId,
+                new ExpandedNodeId(new NodeId("ns=33;s=StringIdentifier"), null, 23),
+                """{"IdType":1,"Id":"StringIdentifier","Namespace":33,"ServerUri": 23}""", // reversible
+                """{"IdType":1,"Id":"StringIdentifier","Namespace":33}""", // non-reversible == null == same as reversible
+                """
+                "svr=23;ns=33;s=StringIdentifier"
+                """, // compact
+                null // verbose - null == same as compact
             },
             { BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, "{}" },
             {
@@ -677,24 +766,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.StatusCode,
                 new StatusCode(StatusCodes.BadBoundNotFound),
                 $"{StatusCodes.BadBoundNotFound}",
-                $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}",
-                $"{{\"Code\":{StatusCodes.BadBoundNotFound}}}",
-                $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}""",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}}""",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}"""
             },
             {
                 BuiltInType.StatusCode,
                 new StatusCode(StatusCodes.BadCertificateInvalid),
                 $"{StatusCodes.BadCertificateInvalid}",
-                $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}",
-                $"{{\"Code\":{StatusCodes.BadCertificateInvalid}}}",
-                $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}"
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}""",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}}""",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}"""
             },
             {
                 BuiltInType.StatusCode,
                 new StatusCode(1234567),
                 "1234567", /*lang=json,strict*/
-                "{\"Code\":1234567}", /*lang=json,strict*/
-                "{\"Code\":1234567}",
+                """{"Code":1234567}""", /*lang=json,strict*/
+                """{"Code":1234567}""",
                 null
             },
             { BuiltInType.DiagnosticInfo, new DiagnosticInfo(), null, null, null, "{}" },
@@ -708,7 +797,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.DiagnosticInfo,
                 new DiagnosticInfo(1, 2, 3, 4, "AdditionalInfo"), /*lang=json,strict*/
-                "{\"SymbolicId\":1,\"NamespaceUri\":2,\"Locale\":3,\"LocalizedText\":4,\"AdditionalInfo\":\"AdditionalInfo\"}",
+                """{"SymbolicId":1,"NamespaceUri":2,"Locale":3,"LocalizedText":4,"AdditionalInfo":"AdditionalInfo"}""",
                 null
             },
             {
@@ -721,43 +810,53 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.QualifiedName,
                 new QualifiedName(kQualifiedName),
-                $"{{\"Name\":\"{kQualifiedName}\"}}",
+                $$"""{"Name":"{{kQualifiedName}}"}""",
                 null,
-                $"\"{kQualifiedName}\"",
+                $"""
+                "{kQualifiedName}"
+                """,
                 null
             },
             {
                 BuiltInType.QualifiedName,
                 new QualifiedName(kQualifiedName, 1),
-                $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":1}}",
-                $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":\"{kApplicationUri}\"}}",
-                $"\"nsu={kApplicationUri};{kQualifiedName}\"",
+                $$"""{"Name":"{{kQualifiedName}}","Uri":1}""",
+                $$"""{"Name":"{{kQualifiedName}}","Uri":"{{kApplicationUri}}"}""",
+                $"""
+                "nsu={kApplicationUri};{kQualifiedName}"
+                """,
                 null
             },
             {
                 BuiltInType.QualifiedName,
                 new QualifiedName(kQualifiedName, kDemoServerIndex),
-                $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":{kDemoServerIndex}}}",
-                $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":\"{kDemoServer}\"}}",
-                $"\"nsu={kDemoServer};{kQualifiedName}\"",
+                $$"""{"Name":"{{kQualifiedName}}","Uri":{{kDemoServerIndex}}}""",
+                $$"""{"Name":"{{kQualifiedName}}","Uri":"{{kDemoServer}}"}""",
+                $"""
+                "nsu={kDemoServer};{kQualifiedName}"
+                """,
                 null
             },
             { BuiltInType.LocalizedText, LocalizedText.Null, null, null, null, "{}" },
             {
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocalizedText),
-                $"{{\"Text\":\"{kLocalizedText}\"}}",
-                $"\"{kLocalizedText}\"",
-                $"{{\"Text\":\"{kLocalizedText}\"}}",
+                $$"""{"Text":"{{kLocalizedText}}"}""",
+                $"""
+                "{kLocalizedText}"
+                """,
+                $$"""{"Text":"{{kLocalizedText}}"}""",
                 null,
                 true
             },
             {
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocale, kLocalizedText),
-                $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}",
-                $"\"{kLocalizedText}\"",
-                $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}",
+                $$"""{"Text":"{{kLocalizedText}}","Locale":"{{kLocale}}"}""",
+                $"""
+                "{kLocalizedText}"
+                """,
+                $$"""{"Text":"{{kLocalizedText}}","Locale":"{{kLocale}}"}""",
                 null
             },
             { BuiltInType.ExtensionObject, ExtensionObject.Null, null, null, null, "{}" },
@@ -779,65 +878,69 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.Variant,
                 new Variant((sbyte)123),
-                $"{{\"Type\":{BuiltInType.SByte:d}, \"Body\":123}}",
+                $$"""{"Type":{{BuiltInType.SByte:d}}, "Body":123}""",
                 "123",
-                $"{{\"UaType\":{BuiltInType.SByte:d}, \"Value\":123}}",
+                $$"""{"UaType":{{BuiltInType.SByte:d}}, "Value":123}""",
                 null
             },
             {
                 BuiltInType.Variant,
                 new Variant((short)12345),
-                $"{{\"Type\":{BuiltInType.Int16:d}, \"Body\":12345}}",
+                $$"""{"Type":{{BuiltInType.Int16:d}}, "Body":12345}""",
                 "12345",
-                $"{{\"UaType\":{BuiltInType.Int16:d}, \"Value\":12345}}",
+                $$"""{"UaType":{{BuiltInType.Int16:d}}, "Value":12345}""",
                 null
             },
             {
                 BuiltInType.Variant,
                 new Variant(1234567),
-                $"{{\"Type\":{BuiltInType.Int32:d}, \"Body\":1234567}}",
+                $$"""{"Type":{{BuiltInType.Int32:d}}, "Body":1234567}""",
                 "1234567",
-                $"{{\"UaType\":{BuiltInType.Int32:d}, \"Value\":1234567}}",
+                $$"""{"UaType":{{BuiltInType.Int32:d}}, "Value":1234567}""",
                 null
             },
             {
                 BuiltInType.Variant,
                 new Variant((long)123456789),
-                $"{{\"Type\":{BuiltInType.Int64:d}, \"Body\":\"123456789\"}}",
-                "\"123456789\"",
-                $"{{\"UaType\":{BuiltInType.Int64:d}, \"Value\":\"123456789\"}}",
+                $$"""{"Type":{{BuiltInType.Int64:d}}, "Body":"123456789"}""",
+                """
+                "123456789"
+                """,
+                $$"""{"UaType":{{BuiltInType.Int64:d}}, "Value":"123456789"}""",
                 null
             },
             {
                 BuiltInType.Variant,
                 new Variant((byte)123),
-                $"{{\"Type\":{BuiltInType.Byte:d}, \"Body\":123}}",
+                $$"""{"Type":{{BuiltInType.Byte:d}}, "Body":123}""",
                 "123",
-                $"{{\"UaType\":{BuiltInType.Byte:d}, \"Value\":123}}",
+                $$"""{"UaType":{{BuiltInType.Byte:d}}, "Value":123}""",
                 null
             },
             {
                 BuiltInType.Variant,
                 new Variant((ushort)12345),
-                $"{{\"Type\":{BuiltInType.UInt16:d}, \"Body\":12345}}",
+                $$"""{"Type":{{BuiltInType.UInt16:d}}, "Body":12345}""",
                 "12345",
-                $"{{\"UaType\":{BuiltInType.UInt16:d}, \"Value\":12345}}",
+                $$"""{"UaType":{{BuiltInType.UInt16:d}}, "Value":12345}""",
                 null
             },
             {
                 BuiltInType.Variant,
                 new Variant((uint)1234567),
-                $"{{\"Type\":{BuiltInType.UInt32:d}, \"Body\":1234567}}",
+                $$"""{"Type":{{BuiltInType.UInt32:d}}, "Body":1234567}""",
                 "1234567",
-                $"{{\"UaType\":{BuiltInType.UInt32:d}, \"Value\":1234567}}",
+                $$"""{"UaType":{{BuiltInType.UInt32:d}}, "Value":1234567}""",
                 null
             },
             {
                 BuiltInType.Variant,
                 new Variant((ulong)123456789),
-                $"{{\"Type\":{BuiltInType.UInt64:d}, \"Body\":\"123456789\"}}",
-                "\"123456789\"",
-                $"{{\"UaType\":{BuiltInType.UInt64:d}, \"Value\":\"123456789\"}}",
+                $$"""{"Type":{{BuiltInType.UInt64:d}}, "Body":"123456789"}""",
+                """
+                "123456789"
+                """,
+                $$"""{"UaType":{{BuiltInType.UInt64:d}}, "Value":"123456789"}""",
                 null
             },
             { BuiltInType.DataValue, new DataValue(), "{}", null },
@@ -845,56 +948,72 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.DataValue,
                 new DataValue(StatusCodes.BadNotWritable),
-                $"{{\"StatusCode\":{StatusCodes.BadNotWritable}}}",
-                $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}}}",
-                $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}}}}}",
-                $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}}}"
+                $$"""{"StatusCode":{{StatusCodes.BadNotWritable}}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
             },
-            { BuiltInType.Enumeration, (TestEnumType)0, "0", "\"0\"" },
+            { BuiltInType.Enumeration, (TestEnumType)0, "0", """
+                "0"
+                """ },
             {
                 BuiltInType.Enumeration,
                 TestEnumType.Three,
                 TestEnumType.Three.ToString("d"),
-                $"\"{TestEnumType.Three}_{TestEnumType.Three:d}\""
+                $"""
+                "{TestEnumType.Three}_{TestEnumType.Three:d}"
+                """
             },
             {
                 BuiltInType.Enumeration,
                 TestEnumType.Ten,
                 $"{TestEnumType.Ten:d}",
-                $"\"{nameof(TestEnumType.Ten)}_{TestEnumType.Ten:d}\""
+                $"""
+                "{nameof(TestEnumType.Ten)}_{TestEnumType.Ten:d}"
+                """
             },
-            { BuiltInType.Enumeration, (TestEnumType)11, "11", "\"11\"" },
-            { BuiltInType.Enumeration, 1, "1", "\"1\"" },
+            { BuiltInType.Enumeration, (TestEnumType)11, "11", """
+                "11"
+                """ },
+            { BuiltInType.Enumeration, 1, "1", """
+                "1"
+                """ },
             {
                 BuiltInType.Enumeration,
                 (int)TestEnumType.Two,
                 TestEnumType.Two.ToString("d"),
-                $"\"{TestEnumType.Two:d}\""
+                $"""
+                "{TestEnumType.Two:d}"
+                """
             },
             {
                 BuiltInType.Enumeration,
                 (int)TestEnumType.Hundred,
                 $"{TestEnumType.Hundred:d}",
-                $"\"{TestEnumType.Hundred:d}\""
+                $"""
+                "{TestEnumType.Hundred:d}"
+                """
             },
-            { BuiltInType.Enumeration, 22, "22", "\"22\"" },
+            { BuiltInType.Enumeration, 22, "22", """
+                "22"
+                """ },
             // arrays
             {
                 BuiltInType.Enumeration,
                 s_testEnumArray,
                 "[1,2,100]",
-                "[\"One_1\",\"Two_2\",\"Hundred_100\"]" },
-            { BuiltInType.Enumeration, s_testInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]" },
+                """["One_1","Two_2","Hundred_100"]""" },
+            { BuiltInType.Enumeration, s_testInt32Array, "[2,3,10]", """["2","3","10"]""" },
             // IEncodeable
             {
                 BuiltInType.ExtensionObject,
                 s_testEncodeable,
                 /*lang=json,strict*/
-                "{\"Body\":{\"Foo\":\"bar_999\"}}",
+                """{"Body":{"Foo":"bar_999"}}""",
                 /*lang=json,strict*/
-                "{\"Foo\":\"bar_999\"}",
+                """{"Foo":"bar_999"}""",
                 /*lang=json,strict*/
-                "{\"Foo\":\"bar_999\"}",
+                """{"Foo":"bar_999"}""",
                 null
             }
         }.ToArray();
@@ -1225,11 +1344,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [TestCase(
             false, /*lang=json,strict*/
-            "{\"Foo\":\"bar_1\"}"
+            """{"Foo":"bar_1"}"""
         )]
         [TestCase(
             true, /*lang=json,strict*/
-            "[{\"Foo\":\"bar_1\"}]"
+            """[{"Foo":"bar_1"}]"""
         )]
         public void TestWriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
         {
@@ -1258,7 +1377,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestWriteSingleEncodeableWithName()
         {
             const string expected = /*lang=json,strict*/
-                "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
+                """{"bar_1":{"Foo":"bar_1"}}""";
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
@@ -1284,7 +1403,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestWriteSingleDynamicEncodeableWithName()
         {
             const string expected = /*lang=json,strict*/
-                "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
+                """{"bar_1":{"Foo":"bar_1"}}""";
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
@@ -1317,11 +1436,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestExtensionObjectWithDynamicEncodeable()
         {
             const string expectedJson = /*lang=json,strict*/
-                "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
+                """{"TypeId":{"IdType":1,"Id":"test_dyn2_typeid"},"Body":{"Foo":"bar_1","Foo2":"bar_2"}}""";
             string expectedXml =
-                "<uax:ExtensionObject xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                """<uax:ExtensionObject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">""" +
                 "  <uax:TypeId><uax:Identifier>s=test_dyn2_xmlencodingid</uax:Identifier></uax:TypeId>" +
-                "  <uax:Body><FooXml  xmlns=\"urn:dynamic_encoder_test\"><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>";
+                """  <uax:Body><FooXml  xmlns="urn:dynamic_encoder_test"><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>""";
             TestContext.Out.WriteLine("Expected XML:");
             expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
 
@@ -1447,7 +1566,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [TestCase(
             true, /*lang=json,strict*/
-            "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]"
+            """[{"Foo":"bar_1"},{"Foo":"bar_2"},{"Foo":"bar_3"}]"""
         )]
         public void TestWriteMultipleEncodeablesWithoutFieldNames(
             bool topLevelIsArray,
@@ -1487,7 +1606,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestWriteMultipleEncodeablesWithFieldNames()
         {
             const string expected = /*lang=json,strict*/
-                "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
+                """{"bar_1":{"Foo":"bar_1"},"bar_2":{"Foo":"bar_2"},"bar_3":{"Foo":"bar_3"}}""";
 
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
@@ -1528,7 +1647,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "array",
                 encodeables,
                 /*lang=json,strict*/
-                "{\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]}",
+                """{"array":[{"Foo":"bar_1"},{"Foo":"bar_2"},{"Foo":"bar_3"}]}""",
                 false);
         }
 
@@ -1537,11 +1656,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [TestCase(
             false, /*lang=json,strict*/
-            "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]"
+            """[{"Foo":"bar_1"},{"Foo":"bar_2"},{"Foo":"bar_3"}]"""
         )]
         [TestCase(
             true, /*lang=json,strict*/
-            "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]"
+            """[[{"Foo":"bar_1"},{"Foo":"bar_2"},{"Foo":"bar_3"}]]"""
         )]
         public void TestWriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
         {
@@ -1562,7 +1681,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 RunWriteEncodeableArrayTest(
                     "array",
                     encodeables,
-                    "[\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
+                    """["array":[{"Foo":"bar_1"},{"Foo":"bar_2"},{"Foo":"bar_3"}]]""",
                     true,
                     true));
         }
@@ -1579,7 +1698,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 null,
                 encodeables,
                 /*lang=json,strict*/
-                "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
+                """[[{"Foo":"bar_1"},{"Foo":"bar_2"},{"Foo":"bar_3"}]]""",
                 true);
         }
 
@@ -1587,16 +1706,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Test if field names and values are properly escaped.
         /// </summary>
         [TestCase(
-            "\"Hello\".\"World\"",
-            "\"Test\".\"Output\"",
+            """
+            "Hello"."World"
+            """,
+            """
+            "Test"."Output"
+            """,
             /*lang=json,strict*/
-            "{\"\\\"Hello\\\".\\\"World\\\"\":{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}}"
+            """{"\"Hello\".\"World\"":{"\"Hello\".\"World\"":"\"Test\".\"Output\""}}"""
         )]
         [TestCase(
             "\"Hello\".\"World\"\b\f\n\r\t\\",
             "\"Test\b\f\n\r\t\\\".\"Output\"",
             /*lang=json,strict*/
-            "{\"\\\"Hello\\\".\\\"World\\\"\\b\\f\\n\\r\\t\\\\\":{\"\\\"Hello\\\".\\\"World\\\"\\b\\f\\n\\r\\t\\\\\":\"\\\"Test\\b\\f\\n\\r\\t\\\\\\\".\\\"Output\\\"\"}}"
+            """{"\"Hello\".\"World\"\b\f\n\r\t\\":{"\"Hello\".\"World\"\b\f\n\r\t\\":"\"Test\b\f\n\r\t\\\".\"Output\""}}"""
         )]
         public void TestFieldValueEscapedEncodeable(string fieldname, string foo, string expected)
         {
@@ -1778,7 +1901,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.NotNull(resultO);
 
             TestContext.Out.WriteLine(
-                "Encoded: \"o\": {0} \"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\": {1}",
+                """Encoded: "o": {0} "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK": {1}""",
                 resultO,
                 resultString);
 

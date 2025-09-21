@@ -1481,9 +1481,9 @@ namespace Opc.Ua
                                 "ServerUri",
                                 uri,
                                 EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                            PopStructure();
                         }
 
+                        PopStructure();
                         return;
                     }
 

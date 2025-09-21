@@ -3702,7 +3702,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter)
+            MonitoredItemIdFactory monitoredItemIdFactory)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -3778,7 +3778,7 @@ namespace Opc.Ua.Server
                         timestampsToReturn,
                         itemToCreate,
                         createDurable,
-                        ref globalIdCounter,
+                        monitoredItemIdFactory,
                         out filterResult,
                         out monitoredItem);
                 }
@@ -3830,7 +3830,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
             bool createDurable,
-            ref long globalIdCounter,
+            MonitoredItemIdFactory monitoredItemId,
             out MonitoringFilterResult filterResult,
             out IMonitoredItem monitoredItem)
         {
@@ -3845,9 +3845,6 @@ namespace Opc.Ua.Server
             {
                 return StatusCodes.BadAttributeIdInvalid;
             }
-
-            // create a globally unique identifier.
-            uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
 
             // determine the sampling interval.
             double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
@@ -3912,7 +3909,7 @@ namespace Opc.Ua.Server
                     samplingInterval,
                     revisedQueueSize,
                     createDurable,
-                    monitoredItemId,
+                    monitoredItemId.GetNextId(),
                     AddNodeToComponentCache);
 
             monitoredItem = dataChangeMonitoredItem;

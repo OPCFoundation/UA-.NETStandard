@@ -443,7 +443,9 @@ namespace Opc.Ua.Client
                                 or StatusCodes.BadCommunicationError
                                 or StatusCodes.BadNotConnected
                                 or StatusCodes.BadRequestTimeout
-                                or StatusCodes.BadTimeout)
+                                or StatusCodes.BadTimeout
+                                or StatusCodes.BadNoCommunication
+                                or StatusCodes.BadConnectionClosed)
                         {
                             // check if reactivating is still an option.
                             int timeout =
