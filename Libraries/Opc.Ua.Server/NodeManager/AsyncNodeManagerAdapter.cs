@@ -53,8 +53,9 @@ namespace Opc.Ua.Server
         public INodeManager NodeManager { get; }
 
         /// <inheritdoc/>
-        public ValueTask AddReferencesAsync(IDictionary<NodeId, IList<IReference>> references,
-                                            CancellationToken cancellationToken = default)
+        public ValueTask AddReferencesAsync(
+            IDictionary<NodeId, IList<IReference>> references,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -68,10 +69,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<ContinuationPoint> BrowseAsync(OperationContext context,
-                                                        ContinuationPoint continuationPoint,
-                                                        IList<ReferenceDescription> references,
-                                                        CancellationToken cancellationToken = default)
+        public ValueTask<ContinuationPoint> BrowseAsync(
+            OperationContext context,
+            ContinuationPoint continuationPoint,
+            IList<ReferenceDescription> references,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IBrowseAsyncNodeManager asyncNodeManager)
             {
@@ -85,11 +87,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask CallAsync(OperationContext context,
-                                   IList<CallMethodRequest> methodsToCall,
-                                   IList<CallMethodResult> results,
-                                   IList<ServiceResult> errors,
-                                   CancellationToken cancellationToken = default)
+        public ValueTask CallAsync(
+            OperationContext context,
+            IList<CallMethodRequest> methodsToCall,
+            IList<CallMethodResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is ICallAsyncNodeManager asyncNodeManager)
             {
@@ -103,9 +106,10 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask ConditionRefreshAsync(OperationContext context,
-                                               IList<IEventMonitoredItem> monitoredItems,
-                                               CancellationToken cancellationToken = default)
+        public ValueTask ConditionRefreshAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IConditionRefreshAsyncNodeManager asyncNodeManager)
             {
@@ -119,8 +123,9 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask CreateAddressSpaceAsync(IDictionary<NodeId, IList<IReference>> externalReferences,
-                                                 CancellationToken cancellationToken = default)
+        public ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -209,12 +214,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<ServiceResult> DeleteReferenceAsync(object sourceHandle,
-                                                             NodeId referenceTypeId,
-                                                             bool isInverse,
-                                                             ExpandedNodeId targetId,
-                                                             bool deleteBidirectional,
-                                                             CancellationToken cancellationToken = default)
+        public ValueTask<ServiceResult> DeleteReferenceAsync(
+            object sourceHandle,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            bool deleteBidirectional,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -251,10 +257,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<NodeMetadata> GetNodeMetadataAsync(OperationContext context,
-                                                       object targetHandle,
-                                                       BrowseResultMask resultMask,
-                                                       CancellationToken cancellationToken = default)
+        public ValueTask<NodeMetadata> GetNodeMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -268,12 +275,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<NodeMetadata> GetPermissionMetadataAsync(OperationContext context,
-                                                                  object targetHandle,
-                                                                  BrowseResultMask resultMask,
-                                                                  Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
-                                                                  bool permissionsOnly,
-                                                                  CancellationToken cancellationToken = default)
+        public ValueTask<NodeMetadata> GetPermissionMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -300,14 +308,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask HistoryReadAsync(OperationContext context,
-                                          HistoryReadDetails details,
-                                          TimestampsToReturn timestampsToReturn,
-                                          bool releaseContinuationPoints,
-                                          IList<HistoryReadValueId> nodesToRead,
-                                          IList<HistoryReadResult> results,
-                                          IList<ServiceResult> errors,
-                                          CancellationToken cancellationToken = default)
+        public ValueTask HistoryReadAsync(
+            OperationContext context,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IHistoryReadAsyncNodeManager asyncNodeManager)
             {
@@ -328,12 +337,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask HistoryUpdateAsync(OperationContext context,
-                                            Type detailsType,
-                                            IList<HistoryUpdateDetails> nodesToUpdate,
-                                            IList<HistoryUpdateResult> results,
-                                            IList<ServiceResult> errors,
-                                            CancellationToken cancellationToken = default)
+        public ValueTask HistoryUpdateAsync(
+            OperationContext context,
+            Type detailsType,
+            IList<HistoryUpdateDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IHistoryUpdateAsyncNodeManager asyncNodeManager)
             {
@@ -352,10 +362,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<bool> IsNodeInViewAsync(OperationContext context,
-                                                 NodeId viewId,
-                                                 object nodeHandle,
-                                                 CancellationToken cancellationToken = default)
+        public ValueTask<bool> IsNodeInViewAsync(
+            OperationContext context,
+            NodeId viewId,
+            object nodeHandle,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -435,10 +446,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask SessionClosingAsync(OperationContext context,
-                                             NodeId sessionId,
-                                             bool deleteSubscriptions,
-                                             CancellationToken cancellationToken = default)
+        public ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -530,12 +542,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask TranslateBrowsePathAsync(OperationContext context,
-                                                  object sourceHandle,
-                                                  RelativePathElement relativePath,
-                                                  IList<ExpandedNodeId> targetIds,
-                                                  IList<NodeId> unresolvedTargetIds,
-                                                  CancellationToken cancellationToken = default)
+        public ValueTask TranslateBrowsePathAsync(
+            OperationContext context,
+            object sourceHandle,
+            RelativePathElement relativePath,
+            IList<ExpandedNodeId> targetIds,
+            IList<NodeId> unresolvedTargetIds,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is ITranslateBrowsePathAsyncNodeManager asyncNodeManager)
             {
@@ -549,10 +562,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask WriteAsync(OperationContext context,
-                                    IList<WriteValue> nodesToWrite,
-                                    IList<ServiceResult> errors,
-                                    CancellationToken cancellationToken = default)
+        public ValueTask WriteAsync(
+            OperationContext context,
+            IList<WriteValue> nodesToWrite,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (NodeManager is IWriteAsyncNodeManager asyncNodeManager)
             {
