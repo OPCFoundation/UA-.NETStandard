@@ -45,9 +45,34 @@ namespace Opc.Ua
     public sealed class DefaultTelemetry : ITelemetryContext
     {
         /// <inheritdoc/>
-        public ILoggerFactory LoggerFactory { get; } =
-            Microsoft.Extensions.Logging.LoggerFactory
-                .Create(builder => builder.AddProvider(Utils.LoggerProvider));
+        public ILoggerFactory LoggerFactory { get; }
+
+        /// <summary>
+        /// Create default telemetry
+        /// </summary>
+        public DefaultTelemetry()
+            : this(builder => builder.AddProvider(Utils.LoggerProvider))
+        {
+        }
+
+        /// <summary>
+        /// Create default telemetry
+        /// </summary>
+        private DefaultTelemetry(Action<ILoggingBuilder> configure)
+        {
+            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
+                .Create(configure);
+        }
+
+        /// <summary>
+        /// Create default telemetry
+        /// </summary>
+        /// <param name="configure"></param>
+        /// <returns></returns>
+        public ITelemetryContext Create(Action<ILoggingBuilder> configure)
+        {
+            return new DefaultTelemetry(configure);
+        }
 
         /// <inheritdoc/>
         public Meter CreateMeter()

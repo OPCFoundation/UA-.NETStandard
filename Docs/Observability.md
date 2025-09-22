@@ -224,6 +224,44 @@ These issues will be addressed over time by refactoring the code base to be depe
 
 - Use Github Copilot to make the changes in your codebase by pointing to this document.
 
+#### From Static Logger Management
+
+```csharp
+// OLD - No longer works
+Utils.SetLogger(myLogger);
+Utils.SetLogLevel(LogLevel.Information);
+
+// NEW - Use ITelemetryContext
+var telemetryContext = DefaultTelemetry.Create(builder => builder.AddConsole());
+var applicationInstance = new ApplicationInstance(telemetryContext);
+```
+
+#### From Static Logging Methods
+
+```csharp
+// OLD - Obsolete
+Utils.LogInformation("Connection established to {0}", endpoint);
+Utils.LogError(exception, "Failed to connect to {0}", endpoint);
+
+// NEW - Context-based logging
+var logger = telemetryContext.CreateLogger<MyClass>();
+logger.LogInformation("Connection established to {Endpoint}", endpoint);
+logger.LogError(exception, "Failed to connect to {Endpoint}", endpoint);
+```
+
+#### From Trace Methods
+
+```csharp
+// OLD - Obsolete
+Utils.Trace("Processing request {0}", id);
+Utils.Trace(TraceMasks.Information, "Request processed successfully");
+
+// NEW - Structured logging with context
+var logger = telemetryContext.CreateLogger<MyClass>();
+logger.LogInformation("Processing request {RequestId}", id);
+logger.LogInformation("Request processed successfully");
+```
+
 ## Non-exhaustive summary of breaking changes and deprecations as part of the implementation
 
 ### 1. Core Infrastructure Classes - Constructor Changes
