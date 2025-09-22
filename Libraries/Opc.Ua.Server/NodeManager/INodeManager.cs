@@ -557,6 +557,99 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An asynchronous version of the "SetMonitoringMode" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ISetMonitoringModeAsyncNodeManager
+    {
+        /// <summary>
+        /// Changes the monitoring mode for a set of monitored items.
+        /// </summary>
+        ValueTask SetMonitoringModeAsync(
+            OperationContext context,
+            MonitoringMode monitoringMode,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "TransferMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ITransferMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <remarks>
+        /// Queue initial values from monitored items in the node managers.
+        /// </remarks>
+        ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "DeleteMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IDeleteMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Deletes a set of monitored items.
+        /// </summary>
+        ValueTask DeleteMonitoredItemsAsync(
+            OperationContext context,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "ModifyMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IModifyMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Modifies a set of monitored items.
+        /// </summary>
+        ValueTask ModifyMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            IList<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterErrors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "CreateMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ICreateMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Creates a set of monitored items.
+        /// </summary>
+        ValueTask CreateMonitoredItemsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            IList<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterErrors,
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
+            MonitoredItemIdFactory monitoredItemIdFactory,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// This interface is in active development and will be extended in future releases.
     /// Please use the sub interfaces to implement async support for specific service calls.
@@ -570,7 +663,12 @@ namespace Opc.Ua.Server
         IHistoryUpdateAsyncNodeManager,
         IConditionRefreshAsyncNodeManager,
         ITranslateBrowsePathAsyncNodeManager,
-        IBrowseAsyncNodeManager
+        IBrowseAsyncNodeManager,
+        ISetMonitoringModeAsyncNodeManager,
+        ITransferMonitoredItemsAsyncNodeManager,
+        IDeleteMonitoredItemsAsyncNodeManager,
+        IModifyMonitoredItemsAsyncNodeManager,
+        ICreateMonitoredItemsAsyncNodeManager
     {
         /// <summary>
         /// Returns the NamespaceUris for the Nodes belonging to the NodeManager.
@@ -680,6 +778,44 @@ namespace Opc.Ua.Server
             BrowseResultMask resultMask,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Tells the NodeManager to report events from the specified notifier.
+        /// </summary>
+        /// <remarks>
+        /// This method may be called multiple times for the name monitoredItemId if the
+        /// context for that MonitoredItem changes (i.e. UserIdentity and/or Locales).
+        /// </remarks>
+        ValueTask<ServiceResult> SubscribeToEventsAsync(
+            OperationContext context,
+            object sourceId,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Tells the NodeManager to report events all events from all sources.
+        /// </summary>
+        /// <remarks>
+        /// This method may be called multiple times for the name monitoredItemId if the
+        /// context for that MonitoredItem changes (i.e. UserIdentity and/or Locales).
+        /// </remarks>
+        ValueTask<ServiceResult> SubscribeToAllEventsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Restore a set of monitored items after a restart.
+        /// </summary>
+        ValueTask RestoreMonitoredItemsAsync(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity,
             CancellationToken cancellationToken = default);
     }
 

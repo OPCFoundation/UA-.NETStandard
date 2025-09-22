@@ -139,6 +139,49 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask CreateMonitoredItemsAsync(OperationContext context,
+                                                   uint subscriptionId,
+                                                   double publishingInterval,
+                                                   TimestampsToReturn timestampsToReturn,
+                                                   IList<MonitoredItemCreateRequest> itemsToCreate,
+                                                   IList<ServiceResult> errors,
+                                                   IList<MonitoringFilterResult> filterErrors,
+                                                   IList<IMonitoredItem> monitoredItems,
+                                                   bool createDurable,
+                                                   MonitoredItemIdFactory monitoredItemIdFactory,
+                                                   CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is ICreateMonitoredItemsAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.CreateMonitoredItemsAsync(context,
+                                                                  subscriptionId,
+                                                                  publishingInterval,
+                                                                  timestampsToReturn,
+                                                                  itemsToCreate,
+                                                                  errors,
+                                                                  filterErrors,
+                                                                  monitoredItems,
+                                                                  createDurable,
+                                                                  monitoredItemIdFactory,
+                                                                  cancellationToken);
+            }
+
+            NodeManager.CreateMonitoredItems(context,
+                                              subscriptionId,
+                                              publishingInterval,
+                                              timestampsToReturn,
+                                              itemsToCreate,
+                                              errors,
+                                              filterErrors,
+                                              monitoredItems,
+                                              createDurable,
+                                              monitoredItemIdFactory);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
             if (NodeManager is IAsyncNodeManager asyncNodeManager)
@@ -147,6 +190,24 @@ namespace Opc.Ua.Server
             }
 
             NodeManager.DeleteAddressSpace();
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DeleteMonitoredItemsAsync(OperationContext context,
+                                                   IList<IMonitoredItem> monitoredItems,
+                                                   IList<bool> processedItems,
+                                                   IList<ServiceResult> errors,
+                                                   CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is IDeleteMonitoredItemsAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.DeleteMonitoredItemsAsync(context, monitoredItems, processedItems, errors, cancellationToken);
+            }
+
+            NodeManager.DeleteMonitoredItems(context, monitoredItems, processedItems, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -322,13 +383,39 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask ReadAsync(
-            OperationContext context,
-            double maxAge,
-            IList<ReadValueId> nodesToRead,
-            IList<DataValue> values,
-            IList<ServiceResult> errors,
-            CancellationToken cancellationToken = default)
+        public ValueTask ModifyMonitoredItemsAsync(OperationContext context,
+                                                   TimestampsToReturn timestampsToReturn,
+                                                   IList<IMonitoredItem> monitoredItems,
+                                                   IList<MonitoredItemModifyRequest> itemsToModify,
+                                                   IList<ServiceResult> errors,
+                                                   IList<MonitoringFilterResult> filterErrors,
+                                                   CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is IModifyMonitoredItemsAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.ModifyMonitoredItemsAsync(
+                    context,
+                    timestampsToReturn,
+                    monitoredItems,
+                    itemsToModify,
+                    errors,
+                    filterErrors,
+                    cancellationToken);
+            }
+
+            NodeManager.ModifyMonitoredItems(context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReadAsync(OperationContext context,
+                                   double maxAge,
+                                   IList<ReadValueId> nodesToRead,
+                                   IList<DataValue> values,
+                                   IList<ServiceResult> errors,
+                                   CancellationToken cancellationToken = default)
         {
             if (NodeManager is IReadAsyncNodeManager asyncNodeManager)
             {
@@ -336,6 +423,23 @@ namespace Opc.Ua.Server
             }
 
             NodeManager.Read(context, maxAge, nodesToRead, values, errors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask RestoreMonitoredItemsAsync(IList<IStoredMonitoredItem> itemsToRestore,
+                                                    IList<IMonitoredItem> monitoredItems,
+                                                    IUserIdentity savedOwnerIdentity,
+                                                    CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.RestoreMonitoredItemsAsync(itemsToRestore, monitoredItems, savedOwnerIdentity, cancellationToken);
+            }
+
+            NodeManager.RestoreMonitoredItems(itemsToRestore, monitoredItems, savedOwnerIdentity);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -357,6 +461,81 @@ namespace Opc.Ua.Server
             {
                 nodeManager2.SessionClosing(context, sessionId, deleteSubscriptions);
             }
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetMonitoringModeAsync(OperationContext context,
+                                                MonitoringMode monitoringMode,
+                                                IList<IMonitoredItem> monitoredItems,
+                                                IList<bool> processedItems,
+                                                IList<ServiceResult> errors,
+                                                CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is ISetMonitoringModeAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.SetMonitoringModeAsync(context, monitoringMode, monitoredItems, processedItems, errors, cancellationToken);
+            }
+
+            NodeManager.SetMonitoringMode(context, monitoringMode, monitoredItems, processedItems, errors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> SubscribeToAllEventsAsync(OperationContext context,
+                                                                  uint subscriptionId,
+                                                                  IEventMonitoredItem monitoredItem,
+                                                                  bool unsubscribe,
+                                                                  CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+            }
+
+            ServiceResult result = NodeManager.SubscribeToAllEvents(context, subscriptionId, monitoredItem, unsubscribe);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return new ValueTask<ServiceResult>(result);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> SubscribeToEventsAsync(OperationContext context,
+                                                               object sourceId,
+                                                               uint subscriptionId,
+                                                               IEventMonitoredItem monitoredItem,
+                                                               bool unsubscribe,
+                                                               CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.SubscribeToEventsAsync(context, sourceId, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+            }
+
+            ServiceResult result = NodeManager.SubscribeToEvents(context, sourceId, subscriptionId, monitoredItem, unsubscribe);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return new ValueTask<ServiceResult>(result);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask TransferMonitoredItemsAsync(OperationContext context,
+                                                     bool sendInitialValues,
+                                                     IList<IMonitoredItem> monitoredItems,
+                                                     IList<bool> processedItems,
+                                                     IList<ServiceResult> errors,
+                                                     CancellationToken cancellationToken = default)
+        {
+            if (NodeManager is ITransferMonitoredItemsAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.TransferMonitoredItemsAsync(context, sendInitialValues, monitoredItems, processedItems, errors, cancellationToken);
+            }
+
+            NodeManager.TransferMonitoredItems(context, sendInitialValues, monitoredItems, processedItems, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
