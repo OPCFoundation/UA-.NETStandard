@@ -2680,22 +2680,7 @@ namespace Opc.Ua.Server
             if (validItems)
             {
                 // create items for event filters.
-                CreateMonitoredItemsForEvents(
-                    context,
-                    subscriptionId,
-                    publishingInterval,
-                    timestampsToReturn,
-                    itemsToCreate,
-                    errors,
-                    filterResults,
-                    monitoredItems,
-                    createDurable,
-                    m_monitoredItemIdFactory);
-
-                // create items for data access.
-                foreach ((INodeManager nodeManager, _) in m_nodeManagers)
-                {
-                    nodeManager.CreateMonitoredItems(
+                await CreateMonitoredItemsForEventsAsync(
                         context,
                         subscriptionId,
                         publishingInterval,
@@ -2705,7 +2690,26 @@ namespace Opc.Ua.Server
                         filterResults,
                         monitoredItems,
                         createDurable,
-                        m_monitoredItemIdFactory);
+                        m_monitoredItemIdFactory,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // create items for data access.
+                foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
+                {
+                    await nodeManager.CreateMonitoredItemsAsync(
+                            context,
+                            subscriptionId,
+                            publishingInterval,
+                            timestampsToReturn,
+                            itemsToCreate,
+                            errors,
+                            filterResults,
+                            monitoredItems,
+                            createDurable,
+                            m_monitoredItemIdFactory,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 // fill results for unknown nodes.
@@ -2722,7 +2726,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Create monitored items for event subscriptions.
         /// </summary>
-        private void CreateMonitoredItemsForEvents(
+        private async ValueTask CreateMonitoredItemsForEventsAsync(
             OperationContext context,
             uint subscriptionId,
             double publishingInterval,
@@ -2732,7 +2736,8 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            MonitoredItemIdFactory monitoredItemIdFactory)
+            MonitoredItemIdFactory monitoredItemIdFactory,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
@@ -2828,15 +2833,17 @@ namespace Opc.Ua.Server
                     // subscribe to all node managers.
                     if (itemToCreate.ItemToMonitor.NodeId == Objects.Server)
                     {
-                        foreach ((INodeManager manager, _) in m_nodeManagers)
+                        foreach ((_, IAsyncNodeManager manager) in m_nodeManagers)
                         {
                             try
                             {
-                                manager.SubscribeToAllEvents(
+                                await manager.SubscribeToAllEventsAsync(
                                     context,
                                     subscriptionId,
                                     monitoredItem,
-                                    false);
+                                    false,
+                                    cancellationToken)
+                                    .ConfigureAwait(false);
                             }
                             catch (Exception e)
                             {
@@ -2881,6 +2888,23 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IUserIdentity savedOwnerIdentity)
         {
+            RestoreMonitoredItemsAsync(
+                itemsToRestore,
+                monitoredItems,
+                savedOwnerIdentity).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Restore a set of monitored items after a Server Restart.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public virtual async ValueTask RestoreMonitoredItemsAsync(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity,
+            CancellationToken cancellationToken = default)
+        {
             if (itemsToRestore == null)
             {
                 throw new ArgumentNullException(nameof(itemsToRestore));
@@ -2898,15 +2922,18 @@ namespace Opc.Ua.Server
             }
 
             // create items for event filters.
-            RestoreMonitoredItemsForEvents(itemsToRestore, monitoredItems);
+            await RestoreMonitoredItemsForEventsAsync(itemsToRestore, monitoredItems, cancellationToken)
+                .ConfigureAwait(false);
 
             // create items for data access.
-            foreach ((INodeManager nodeManager, _) in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.RestoreMonitoredItems(
-                    itemsToRestore,
-                    monitoredItems,
-                    savedOwnerIdentity);
+                await nodeManager.RestoreMonitoredItemsAsync(
+                        itemsToRestore,
+                        monitoredItems,
+                        savedOwnerIdentity,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             m_monitoredItemIdFactory.SetStartValue(itemsToRestore.Max(i => i.Id));
@@ -2915,9 +2942,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore monitored items for event subscriptions.
         /// </summary>
-        private void RestoreMonitoredItemsForEvents(
+        private async ValueTask RestoreMonitoredItemsForEventsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
-            IList<IMonitoredItem> monitoredItems)
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < itemsToRestore.Count; ii++)
             {
@@ -2949,15 +2977,17 @@ namespace Opc.Ua.Server
                     // subscribe to all node managers.
                     if (item.NodeId == Objects.Server)
                     {
-                        foreach ((INodeManager manager, _) in m_nodeManagers)
+                        foreach ((_, IAsyncNodeManager manager) in m_nodeManagers)
                         {
                             try
                             {
-                                manager.SubscribeToAllEvents(
-                                    new OperationContext(monitoredItem),
-                                    monitoredItem.SubscriptionId,
-                                    monitoredItem,
-                                    false);
+                                await manager.SubscribeToAllEventsAsync(
+                                        new OperationContext(monitoredItem),
+                                        monitoredItem.SubscriptionId,
+                                        monitoredItem,
+                                        false,
+                                        cancellationToken)
+                                    .ConfigureAwait(false);
                             }
                             catch (Exception e)
                             {
@@ -3002,6 +3032,29 @@ namespace Opc.Ua.Server
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults)
+        {
+            ModifyMonitoredItemsAsync(
+                context,
+                timestampsToReturn,
+                monitoredItems,
+                itemsToModify,
+                errors,
+                filterResults).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Modifies a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask ModifyMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            IList<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -3062,24 +3115,28 @@ namespace Opc.Ua.Server
             if (validItems)
             {
                 // modify items for event filters.
-                ModifyMonitoredItemsForEvents(
-                    context,
-                    timestampsToReturn,
-                    monitoredItems,
-                    itemsToModify,
-                    errors,
-                    filterResults);
-
-                // let each node manager figure out which items it owns.
-                foreach ((INodeManager nodeManager, _) in m_nodeManagers)
-                {
-                    nodeManager.ModifyMonitoredItems(
+                await ModifyMonitoredItemsForEventsAsync(
                         context,
                         timestampsToReturn,
                         monitoredItems,
                         itemsToModify,
                         errors,
-                        filterResults);
+                        filterResults,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // let each node manager figure out which items it owns.
+                foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
+                {
+                    await nodeManager.ModifyMonitoredItemsAsync(
+                            context,
+                            timestampsToReturn,
+                            monitoredItems,
+                            itemsToModify,
+                            errors,
+                            filterResults,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 // update results.
@@ -3096,13 +3153,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modify monitored items for event subscriptions.
         /// </summary>
-        private void ModifyMonitoredItemsForEvents(
+        private async ValueTask ModifyMonitoredItemsForEventsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults)
+            IList<MonitoringFilterResult> filterResults,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
@@ -3155,13 +3213,15 @@ namespace Opc.Ua.Server
                 // subscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    foreach ((INodeManager manager, _) in m_nodeManagers)
+                    foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
                     {
-                        manager.SubscribeToAllEvents(
-                            context,
-                            monitoredItem.SubscriptionId,
-                            monitoredItem,
-                            false);
+                        await nodeManager.SubscribeToAllEventsAsync(
+                                context,
+                                monitoredItem.SubscriptionId,
+                                monitoredItem,
+                                false,
+                                cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 // only subscribe to the node manager that owns the node.
@@ -3189,6 +3249,24 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors)
         {
+            TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -3214,14 +3292,16 @@ namespace Opc.Ua.Server
             }
 
             // call each node manager.
-            foreach ((INodeManager nodeManager, _) in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.TransferMonitoredItems(
-                    context,
-                    sendInitialValues,
-                    monitoredItems,
-                    processedItems,
-                    errors);
+                await nodeManager.TransferMonitoredItemsAsync(
+                        context,
+                        sendInitialValues,
+                        monitoredItems,
+                        processedItems,
+                        errors,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -3234,6 +3314,24 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             IList<IMonitoredItem> itemsToDelete,
             IList<ServiceResult> errors)
+        {
+            DeleteMonitoredItemsAsync(
+                context,
+                subscriptionId,
+                itemsToDelete,
+                errors).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Deletes a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask DeleteMonitoredItemsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            IList<IMonitoredItem> itemsToDelete,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -3258,17 +3356,25 @@ namespace Opc.Ua.Server
             }
 
             // delete items for event filters.
-            DeleteMonitoredItemsForEvents(
-                context,
-                subscriptionId,
-                itemsToDelete,
-                processedItems,
-                errors);
+            await DeleteMonitoredItemsForEventsAsync(
+                    context,
+                    subscriptionId,
+                    itemsToDelete,
+                    processedItems,
+                    errors,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             // call each node manager.
-            foreach ((INodeManager nodeManager, _) in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.DeleteMonitoredItems(context, itemsToDelete, processedItems, errors);
+                await nodeManager.DeleteMonitoredItemsAsync(
+                        context,
+                        itemsToDelete,
+                        processedItems,
+                        errors,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // fill results for unknown nodes.
@@ -3284,12 +3390,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Delete monitored items for event subscriptions.
         /// </summary>
-        private void DeleteMonitoredItemsForEvents(
+        private async ValueTask DeleteMonitoredItemsForEventsAsync(
             OperationContext context,
             uint subscriptionId,
             IList<IMonitoredItem> monitoredItems,
             List<bool> processedItems,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -3305,9 +3412,15 @@ namespace Opc.Ua.Server
                 // unsubscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    foreach ((INodeManager manager, _) in m_nodeManagers)
+                    foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
                     {
-                        manager.SubscribeToAllEvents(context, subscriptionId, monitoredItem, true);
+                        await nodeManager.SubscribeToAllEventsAsync(
+                                context,
+                                subscriptionId,
+                                monitoredItem,
+                                true,
+                                cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 // only unsubscribe to the node manager that owns the node.
@@ -3338,6 +3451,24 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             IList<IMonitoredItem> itemsToModify,
             IList<ServiceResult> errors)
+        {
+            SetMonitoringModeAsync(
+                context,
+                monitoringMode,
+                itemsToModify,
+                errors).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Changes the monitoring mode for a set of items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask SetMonitoringModeAsync(
+            OperationContext context,
+            MonitoringMode monitoringMode,
+            IList<IMonitoredItem> itemsToModify,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -3370,14 +3501,16 @@ namespace Opc.Ua.Server
                 processedItems,
                 errors);
 
-            foreach ((INodeManager nodeManager, _) in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.SetMonitoringMode(
-                    context,
-                    monitoringMode,
-                    itemsToModify,
-                    processedItems,
-                    errors);
+                await nodeManager.SetMonitoringModeAsync(
+                        context,
+                        monitoringMode,
+                        itemsToModify,
+                        processedItems,
+                        errors,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // fill results for unknown nodes.
