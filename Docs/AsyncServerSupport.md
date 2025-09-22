@@ -42,3 +42,9 @@ In order to support the TAP pattern, the following changes have been made to the
 
 - The Server already allows to register fully async NodeManagers, which implement the `IAsyncNodeManager` interface. To register a fully async Nodemanager use `StandardServer.RegisterNodeManager(IAsyncNodeManagerFactory)`.
   For compatibility reasons the IAsyncNodeManager has a property `SyncNodeManager`, this needs to be implemented by passing your IAsyncNodeManager to the `SyncNodeManagerAdapter`.
+
+## Async Method call
+
+Support for async method callbacks is already implemented by `CustomNodeManager2` to enable the support just add `IAsyncNodeManager` to your NodeManager implementation.
+All generated code already has support for Async Methods e.g. `UpdateCertificateMethodState.OnCallAsync`. If the NodeManager implements `IAsyncNodeManager` the async callback is used automatically.
+If a generic Method handler shall be used the `MethodState.OnCallMethod2Async` handler shall be used.
