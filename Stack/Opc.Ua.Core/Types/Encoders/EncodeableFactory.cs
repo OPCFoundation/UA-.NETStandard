@@ -13,15 +13,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {
@@ -259,7 +256,6 @@ namespace Opc.Ua
 
             // only needed while adding assembly types
             unboundTypeIds.Clear();
-
         }
 
         /// <summary>

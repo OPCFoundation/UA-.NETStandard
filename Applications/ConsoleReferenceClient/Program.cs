@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;

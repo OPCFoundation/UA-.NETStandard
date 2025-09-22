@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;

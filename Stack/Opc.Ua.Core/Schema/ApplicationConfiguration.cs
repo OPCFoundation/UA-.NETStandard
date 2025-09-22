@@ -15,7 +15,6 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security;
 

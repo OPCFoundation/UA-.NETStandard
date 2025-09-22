@@ -33,7 +33,6 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 #nullable enable
 

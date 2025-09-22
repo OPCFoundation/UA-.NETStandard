@@ -3,7 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="BenchmarkDotNet" Version="0.15.2" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.3" />
     <PackageVersion Include="BitFaster.Caching" Version="2.5.4" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
@@ -26,7 +26,7 @@
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="MQTTnet" Version="5.0.1.1416" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.7.115" />
-    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="NUnit" Version="4.4.0" />
     <PackageVersion Include="NUnit.Console" Version="3.20.1" />
     <PackageVersion Include="NUnit3TestAdapter" Version="5.1.0" />

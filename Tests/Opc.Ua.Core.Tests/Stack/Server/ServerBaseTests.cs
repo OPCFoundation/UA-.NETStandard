@@ -29,7 +29,6 @@
 
 using System;
 using System.Linq;
-using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;

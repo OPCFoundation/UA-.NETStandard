@@ -34,7 +34,6 @@ using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;

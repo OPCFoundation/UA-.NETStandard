@@ -37,10 +37,10 @@ and clients with different logging mechanism.
 
 The new and more flexible observability design introduced in 1.4.378 deprecates and in part removes the previous
 model with the intend of supporting dependency injection, structured logging and OpenTelemetry based [observability
-(metrics, traces and logs)](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/). `ITelemetryContext`
+(metrics, traces and logs)](https://learn.microsoft.com/dotnet/core/diagnostics/). `ITelemetryContext`
 standardizes how logging, tracing and metrics are accessed, removes prior limitations of a singleton logger,
 and aligns the stack with current .NET and OpenTelemetry practices. The logger design follows common
-[guidance for library authors](https://learn.microsoft.com/en-us/dotnet/core/extensions/logging-library-authors).
+[guidance for library authors](https://learn.microsoft.com/dotnet/core/extensions/logging-library-authors).
 
 The `ITelemetryContext` interface provides access to the `ILoggerFactory`, `Activity` sources and acts as a `Meter`
 factory (the latter two are used to create OpenTelemetry compliant traces and metrics).
@@ -75,7 +75,7 @@ A `Meter` is created when a component needs instruments. It is owned by the call
 longer needed.
 
 The `LoggerFactory` is long lived and allows creation of typed `ILogger` instances which are maintained by the
-caller. Documentation can be found [here](https://learn.microsoft.com/en-us/dotnet/core/extensions/logging).
+caller. [Documentation can be found here](https://learn.microsoft.com/dotnet/core/extensions/logging).
 
 In addition there are several extension methods to simplify usage of telemetry context:
 
@@ -126,7 +126,7 @@ A caller can be assured that the returned logger, meter or activity is never nul
 Example usage:
 
 ```csharp
-// Obtain telemetry context 
+// Obtain telemetry context
 ITelemetryContext telemetry = xxxxx.Telemetry;
 
 // Logging
@@ -142,7 +142,7 @@ using var activity = telemetry.StartActivity("ConnectSession");
 
 // Metrics
 using var meter = telemetry.CreateMeter();
-var connectCounter = meter.CreateCounter<long>("opcua.client.session.connects");
+var connectCounter = meter.CreateCounter<long>("my.app.connects");
 connectCounter.Add(1);
 ```
 
@@ -200,6 +200,8 @@ The ambient model is marked as `Experimental` at this point and should not be us
 These issues will be addressed over time by refactoring the code base to be dependency injection friendly.
 
 ### Migrating
+
+#### Important context - read first
 
 - Breaking Changes to be aware of upfront. While affecting public signatures, the API can be considered internal
   so it is not expected that these affect current code paths.
@@ -270,7 +272,7 @@ logger.LogInformation("Request processed successfully");
 
 **File:** `Stack/Opc.Ua.Core/Types/Utils/ServiceMessageContext.cs`
 
-- **REMOVED:** `public ServiceMessageContext()` - Parameterless constructor used by stack only.
+- **REMOVED:** `public ServiceMessageContext()` - Parameter-less constructor used by stack only.
 
 - **ADDED:** `public ServiceMessageContext(ITelemetryContext telemetry)` - Now requires telemetry context
 - **ADDED:** `public ServiceMessageContext(IServiceMessageContext context, ITelemetryContext telemetry)` - Copy constructor with telemetry
@@ -279,7 +281,7 @@ logger.LogInformation("Request processed successfully");
 
 **File:** `Stack/Opc.Ua.Core/Types/Encoders/EncodeableFactory.cs`
 
-- **REMOVED:** `public EncodeableFactory()` - Parameterless constructor used by stack only.
+- **REMOVED:** `public EncodeableFactory()` - Parameter-less constructor used by stack only.
 - **ADDED:** `public EncodeableFactory(ITelemetryContext telemetry)` - Now requires telemetry context
 - **ADDED:** `public EncodeableFactory(IEncodeableFactory factory, ITelemetryContext telemetry)` - Copy constructor with telemetry
 
@@ -627,4 +629,3 @@ in future versions:
 - `public static void Log(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)`
 - `public static void Log(int traceMask, string format, params object[] args)`
 - `public static void Log(int traceMask, string format, bool handled, params object[] args)`
-

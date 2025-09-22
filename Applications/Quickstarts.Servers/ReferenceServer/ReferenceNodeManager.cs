@@ -4532,7 +4532,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            var parentTypeInfo = TypeInfo.Construct(parent.Value);
+            TypeInfo parentTypeInfo = TypeInfo.Construct(parent.Value);
             Range parentRange = GetAnalogRange(parentTypeInfo.BuiltInType);
             if (parentRange.High < newRange.High || parentRange.Low > newRange.Low)
             {

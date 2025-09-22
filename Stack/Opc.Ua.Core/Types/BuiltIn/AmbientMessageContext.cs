@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// near future.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
-    public class AmbientMessageContext
+    public sealed class AmbientMessageContext
     {
         /// <summary>
         /// Initializes the object with the message context to use.

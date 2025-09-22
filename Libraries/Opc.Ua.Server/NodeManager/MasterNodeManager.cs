@@ -2094,7 +2094,6 @@ namespace Opc.Ua.Server
             {
                 foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-
                     await asyncNodeManager.HistoryReadAsync(
                          context,
                         details,

@@ -18,7 +18,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {

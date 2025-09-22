@@ -20,7 +20,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua
 {

@@ -65,7 +65,7 @@ namespace Opc.Ua.Gds.Server.Database
                 .ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
             {
                 throw new ArgumentException(
-                    application.ApplicationType.ToString() + " is not a valid ApplicationType.",
+                    application.ApplicationType + " is not a valid ApplicationType.",
                     nameof(application));
             }
 
