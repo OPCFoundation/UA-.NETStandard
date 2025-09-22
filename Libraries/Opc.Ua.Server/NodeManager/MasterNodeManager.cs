@@ -598,12 +598,44 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
         {
-            (object handle, IAsyncNodeManager nodeManager) result =
-                GetManagerHandleAsync(nodeId).AsTask().GetAwaiter().GetResult();
+            object handle;
+            nodeManager = null;
 
-            nodeManager = result.nodeManager.SyncNodeManager;
+            // null node ids have no manager.
+            if (NodeId.IsNull(nodeId))
+            {
+                return null;
+            }
 
-            return result.handle;
+            // use the namespace index to select the node manager.
+            int index = nodeId.NamespaceIndex;
+
+            // check if node managers are registered - use the core node manager if unknown.
+            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager> nodeManagers))
+            {
+                handle = m_nodeManagers[1].SyncNodeManager.GetManagerHandle(nodeId);
+
+                if (handle != null)
+                {
+                    nodeManager = m_nodeManagers[1].SyncNodeManager;
+                    return handle;
+                }
+                return null;
+            }
+
+            foreach (IAsyncNodeManager asyncNodeManager in nodeManagers)
+            {
+                handle = asyncNodeManager.SyncNodeManager.GetManagerHandle(nodeId);
+
+                if (handle != null)
+                {
+                    nodeManager = asyncNodeManager.SyncNodeManager;
+                    return handle;
+                }
+            }
+
+            // node not recognized.
+            return null;
         }
 
         /// <summary>
