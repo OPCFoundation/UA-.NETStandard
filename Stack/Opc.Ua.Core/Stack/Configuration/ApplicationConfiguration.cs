@@ -193,7 +193,7 @@ namespace Opc.Ua
             string sectionName,
             ApplicationType applicationType)
         {
-            return LoadAsync(sectionName, applicationType, Utils.NullLogger.Instance, null);
+            return LoadAsync(sectionName, applicationType, Utils.Null.Logger, null);
         }
 
         /// <summary>
@@ -236,7 +236,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType)
         {
-            return LoadAsync(sectionName, applicationType, systemType, Utils.NullLogger.Instance, null);
+            return LoadAsync(sectionName, applicationType, systemType, Utils.Null.Logger, null);
         }
 
         /// <summary>

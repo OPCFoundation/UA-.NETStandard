@@ -183,7 +183,7 @@ namespace Opc.Ua.Client
             NodeClass = NodeClass.Variable;
 
             // Creates a default logger even if telemetry is null
-            m_logger ??= Utils.NullLogger.Instance;
+            m_logger ??= Utils.Null.Logger;
         }
 
         /// <summary>
@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Client
         private bool m_discardOldest;
         private static uint s_globalClientHandle;
         private Subscription m_subscription;
-        private ILogger m_logger = Utils.NullLogger.Instance;
+        private ILogger m_logger = Utils.Null.Logger;
         private Lock m_cache = new();
         private MonitoredItemDataCache m_dataCache;
         private MonitoredItemEventCache m_eventCache;

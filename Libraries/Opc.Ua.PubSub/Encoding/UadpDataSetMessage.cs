@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Constructor for <see cref="UadpDataSetMessage"/>
         /// </summary>
-        public UadpDataSetMessage(ILogger logger)
+        public UadpDataSetMessage(ILogger logger = null)
             : this(null, logger)
         {
         }
@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Constructor for <see cref="UadpDataSetMessage"/>
         /// </summary>
-        public UadpDataSetMessage(DataSet dataSet, ILogger logger)
+        public UadpDataSetMessage(DataSet dataSet, ILogger logger = null)
             : base(logger)
         {
             // If this bit is set to false, the rest of this DataSetMessage is considered invalid, and shall not be processed by the Subscriber.

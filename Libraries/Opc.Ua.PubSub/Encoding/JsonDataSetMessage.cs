@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
-        public JsonDataSetMessage(ILogger logger)
+        public JsonDataSetMessage(ILogger logger = null)
             : this(null, logger)
         {
         }
@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
-        public JsonDataSetMessage(DataSet dataSet, ILogger logger)
+        public JsonDataSetMessage(DataSet dataSet, ILogger logger = null)
             : base(logger)
         {
             DataSet = dataSet;

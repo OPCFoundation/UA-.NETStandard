@@ -172,7 +172,7 @@ namespace Opc.Ua.Client
                 url,
                 endpoints,
                 useSecurity,
-                telemetry.CreateLogger<DiscoveryClient>());
+                telemetry);
         }
 
         /// <summary>
@@ -233,7 +233,7 @@ namespace Opc.Ua.Client
                 url,
                 endpoints,
                 useSecurity,
-                telemetry.CreateLogger<DiscoveryClient>());
+                telemetry);
 
             Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
             if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
@@ -258,7 +258,7 @@ namespace Opc.Ua.Client
             Uri url,
             EndpointDescriptionCollection endpoints,
             bool useSecurity,
-            ILogger logger)
+            ITelemetryContext telemetry)
         {
             EndpointDescription selectedEndpoint = null;
 
@@ -305,6 +305,8 @@ namespace Opc.Ua.Client
 
                     // pick the first available endpoint by default.
                     selectedEndpoint ??= endpoint;
+
+                    ILogger logger = telemetry.CreateLogger<DiscoveryClient>();
 
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
                     if (SecuredApplication.CalculateSecurityLevel(

@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         protected UaDataSetMessage(ILogger logger)
         {
-            m_logger = logger;
+            m_logger = logger ?? Utils.Fallback.Logger;
             DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
             MetaDataVersion = new ConfigurationVersionDataType

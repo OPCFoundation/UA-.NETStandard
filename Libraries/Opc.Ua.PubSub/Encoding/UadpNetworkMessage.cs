@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Encoding
         public UadpNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<UadpDataSetMessage> uadpDataSetMessages,
-            ILogger logger)
+            ILogger logger = null)
             : base(
                 writerGroupConfiguration,
                 uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [],
@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Encoding
         public UadpNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             DataSetMetaDataType metadata,
-            ILogger logger)
+            ILogger logger = null)
             : base(writerGroupConfiguration, metadata, logger)
         {
             UADPVersion = kUadpVersion;
@@ -104,7 +104,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="UadpNetworkMessage"/> as a DiscoveryRequest of specified type
         /// </summary>
-        public UadpNetworkMessage(UADPNetworkMessageDiscoveryType discoveryType, ILogger logger)
+        public UadpNetworkMessage(
+            UADPNetworkMessageDiscoveryType discoveryType,
+            ILogger logger = null)
             : base(null, [], logger)
         {
             UADPVersion = kUadpVersion;
@@ -123,7 +125,7 @@ namespace Opc.Ua.PubSub.Encoding
         public UadpNetworkMessage(
             EndpointDescription[] publisherEndpoints,
             StatusCode publisherProvidesEndpoints,
-            ILogger logger)
+            ILogger logger = null)
             : base(null, [], logger)
         {
             UADPVersion = kUadpVersion;
@@ -146,7 +148,7 @@ namespace Opc.Ua.PubSub.Encoding
             ushort[] writerIds,
             WriterGroupDataType writerConfig,
             StatusCode[] streamStatusCodes,
-            ILogger logger)
+            ILogger logger = null)
             : base(null, [], logger)
         {
             UADPVersion = kUadpVersion;

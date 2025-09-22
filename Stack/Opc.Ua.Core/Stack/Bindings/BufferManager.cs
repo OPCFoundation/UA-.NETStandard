@@ -123,7 +123,7 @@ namespace Opc.Ua.Bindings
                     ? ArrayPool<byte>.Shared
                     : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
-            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(m_logger, maxBufferSize);
+            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize, m_logger);
         }
 
         /// <summary>
@@ -364,9 +364,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the suggested max rent size for data in the buffers.
         /// </summary>
-        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="maxBufferSize">The max buffer size configured.</param>
-        private static int DetermineSuggestedBufferSize(ILogger logger, int maxBufferSize)
+        /// <param name="logger">A contextual logger to log to</param>
+        private static int DetermineSuggestedBufferSize(int maxBufferSize, ILogger logger)
         {
             int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
             int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);

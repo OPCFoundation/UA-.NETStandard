@@ -502,7 +502,9 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Constructs a MqttClientProtocolConfiguration from given keyValuePairs
         /// </summary>
-        public MqttClientProtocolConfiguration(KeyValuePairCollection connectionProperties, ILogger logger)
+        public MqttClientProtocolConfiguration(
+            KeyValuePairCollection connectionProperties,
+            ILogger logger)
         {
             UserName = new SecureString();
             QualifiedName qUserName = nameof(EnumMqttClientConfigurationParameters.UserName);

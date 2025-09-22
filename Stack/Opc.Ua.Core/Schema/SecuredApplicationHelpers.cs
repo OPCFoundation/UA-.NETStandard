@@ -325,7 +325,10 @@ namespace Opc.Ua.Security
         /// Invalid and none is discouraged
         /// Just signing is always weaker than any use of encryption
         /// </summary>
-        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri, ILogger logger)
+        public static byte CalculateSecurityLevel(
+            MessageSecurityMode mode,
+            string policyUri,
+            ILogger logger)
         {
             if ((mode != MessageSecurityMode.Sign && mode != MessageSecurityMode.SignAndEncrypt) ||
                 policyUri == null)

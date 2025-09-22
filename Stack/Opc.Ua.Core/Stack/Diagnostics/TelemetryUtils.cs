@@ -29,7 +29,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 
 #nullable enable
@@ -42,15 +41,32 @@ namespace Opc.Ua
     public static partial class Utils
     {
         /// <summary>
+        /// Fallback logger
+        /// </summary>
+        public static class Fallback
+        {
+            /// <summary>
+            /// Get an instance of the fallback logger. In debug builds
+            /// the null logger is returned which emits debug checks on usage.
+            /// </summary>
+            public static ILogger Logger =>
+#if DEBUG
+                Null.Logger;
+#else
+                LoggerProvider.CreateLogger(nameof(Fallback));
+#endif
+        }
+
+        /// <summary>
         /// Typed null logger
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public sealed class NullLogger<T> : NullLogger, ILogger<T>
+        public sealed class Null<T> : Null, ILogger<T>
         {
             /// <summary>
             /// Get instance to a typed null logger
             /// </summary>
-            public static new ILogger<T> Instance { get; } = new NullLogger<T>();
+            public static new ILogger<T> Logger { get; } = new Null<T>();
         }
 
         /// <summary>
@@ -58,12 +74,12 @@ namespace Opc.Ua
         /// it will ensure that no null reference exception occurrs in classes
         /// that initialize a logger field.
         /// </summary>
-        public class NullLogger : ILogger
+        public class Null : ILogger
         {
             /// <summary>
             /// Get an instance to the null logger
             /// </summary>
-            public static ILogger Instance { get; } = new NullLogger();
+            public static ILogger Logger { get; } = new Null();
 
             /// <inheritdoc/>
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull

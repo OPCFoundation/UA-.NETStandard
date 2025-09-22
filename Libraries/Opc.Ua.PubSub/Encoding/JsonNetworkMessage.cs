@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/>
         /// </summary>
-        public JsonNetworkMessage(ILogger logger)
+        public JsonNetworkMessage(ILogger logger = null)
             : this(null, [], logger)
         {
         }
@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Encoding
         public JsonNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<JsonDataSetMessage> jsonDataSetMessages,
-            ILogger logger)
+            ILogger logger = null)
             : base(
                 writerGroupConfiguration,
                 jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [],
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Encoding
         public JsonNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             DataSetMetaDataType metadata,
-            ILogger logger)
+            ILogger logger = null)
             : base(writerGroupConfiguration, metadata, logger)
         {
             MessageId = Guid.NewGuid().ToString();

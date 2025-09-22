@@ -56,7 +56,7 @@ namespace Opc.Ua
             m_callback = callback;
             AsyncState = callbackData;
             m_deadline = DateTime.MinValue;
-            m_logger = logger ?? Utils.NullLogger.Instance;
+            m_logger = logger ?? Utils.Null.Logger;
             m_cts = cts;
 
             if (timeout > 0)

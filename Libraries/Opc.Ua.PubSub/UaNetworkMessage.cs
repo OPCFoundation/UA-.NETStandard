@@ -70,12 +70,12 @@ namespace Opc.Ua.PubSub
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<UaDataSetMessage> uaDataSetMessages,
-            ILogger logger)
+            ILogger logger = null)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
             m_metadata = null;
-            m_logger = logger;
+            m_logger = logger ?? Utils.Fallback.Logger;
         }
 
         /// <summary>
@@ -84,12 +84,12 @@ namespace Opc.Ua.PubSub
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             DataSetMetaDataType metadata,
-            ILogger logger)
+            ILogger logger = null)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = [];
             m_metadata = metadata;
-            m_logger = logger;
+            m_logger = logger ?? Utils.Fallback.Logger;
         }
 
         /// <summary>

@@ -175,9 +175,9 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
-
             base.OnServerStarting(configuration);
+
+            m_logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
 
             // it is up to the application to decide how to validate user identity tokens.
             // this function creates validator for X509 identity tokens.
