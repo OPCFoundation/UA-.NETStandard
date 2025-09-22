@@ -180,6 +180,15 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use ReverseConnectManager(ITelemetryContext) instead.")]
+        public ReverseConnectManager()
+            : this(null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public ReverseConnectManager(ITelemetryContext telemetry)

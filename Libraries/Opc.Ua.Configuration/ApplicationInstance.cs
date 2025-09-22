@@ -48,6 +48,24 @@ namespace Opc.Ua.Configuration
     public class ApplicationInstance
     {
         /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use ApplicationInstance(ITelemetryContext) instead.")]
+        public ApplicationInstance()
+            : this((ITelemetryContext)null)
+        {
+        }
+
+        /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use ApplicationInstance(ApplicationConfiguration, ITelemetryContext) instead.")]
+        public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
+            : this(applicationConfiguration, (ITelemetryContext)null)
+        {
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
         public ApplicationInstance(ITelemetryContext telemetry)

@@ -48,6 +48,15 @@ namespace Opc.Ua.Client
         public static new readonly TraceableSessionFactory Instance = new(null);
 
         /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use TraceableSessionFactory(ITelemetryContext) instead.")]
+        public TraceableSessionFactory()
+            : this(null)
+        {
+        }
+
+        /// <summary>
         /// Force use of the default instance.
         /// </summary>
         public TraceableSessionFactory(ITelemetryContext telemetry)

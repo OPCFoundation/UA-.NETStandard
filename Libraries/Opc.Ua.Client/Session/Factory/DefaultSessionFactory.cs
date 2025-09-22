@@ -50,6 +50,15 @@ namespace Opc.Ua.Client
         public ITelemetryContext Telemetry { get; init; }
 
         /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
+        public DefaultSessionFactory()
+            : this(null)
+        {
+        }
+
+        /// <summary>
         /// Force use of the default instance.
         /// </summary>
         public DefaultSessionFactory(ITelemetryContext telemetry)

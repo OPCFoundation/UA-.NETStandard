@@ -90,7 +90,9 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(string filePath, ITelemetryContext telemetry)
+        public static ConfiguredEndpointCollection Load(
+            string filePath,
+            ITelemetryContext telemetry)
         {
             // load from file.
             ConfiguredEndpointCollection endpoints;
@@ -182,7 +184,9 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a stream.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(Stream istrm, ITelemetryContext telemetry)
+        public static ConfiguredEndpointCollection Load(
+            Stream istrm,
+            ITelemetryContext telemetry)
         {
             try
             {

@@ -549,11 +549,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Obsolete version of CalculateSecurityLevel that does not take a logger.
+        /// </summary>
+        [Obsolete("Use CalculateSecurityLevel(MessageSecurityMode mode, string policyUri, ILogger logger) instead.")]
+        public static byte CalculateSecurityLevel(
+            MessageSecurityMode mode,
+            string policyUri)
+        {
+            return SecuredApplication.CalculateSecurityLevel(mode, policyUri);
+        }
+
+        /// <summary>
         /// Calculates the security level, given the security mode and policy
         /// Invalid and none is discouraged
         /// Just signing is always weaker than any use of encryption
         /// </summary>
-        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri, ILogger logger)
+        public static byte CalculateSecurityLevel(
+            MessageSecurityMode mode,
+            string policyUri,
+            ILogger logger)
         {
             return SecuredApplication.CalculateSecurityLevel(mode, policyUri, logger);
         }

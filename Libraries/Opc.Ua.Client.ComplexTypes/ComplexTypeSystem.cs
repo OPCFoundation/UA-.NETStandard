@@ -65,10 +65,28 @@ namespace Opc.Ua.Client.ComplexTypes
             => m_complexTypeResolver.DataTypeSystem;
 
         /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use ComplexTypeSystem(ISession, ITelemetryContext) instead.")]
+        public ComplexTypeSystem(ISession session)
+            : this(session, (ITelemetryContext)null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the type system with a session to load the custom types.
         /// </summary>
         public ComplexTypeSystem(ISession session, ITelemetryContext telemetry)
             : this(session, new ComplexTypeBuilderFactory(), telemetry)
+        {
+        }
+
+        /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use ComplexTypeSystem(IComplexTypeResolver, ITelemetryContext) instead.")]
+        public ComplexTypeSystem(IComplexTypeResolver complexTypeResolver)
+            : this(complexTypeResolver, (ITelemetryContext)null)
         {
         }
 
@@ -83,6 +101,17 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use ComplexTypeSystem(IComplexTypeResolver, ITelemetryContext) instead.")]
+        public ComplexTypeSystem(
+            ISession session,
+            IComplexTypeFactory complexTypeBuilderFactory)
+            : this(session, complexTypeBuilderFactory, (ITelemetryContext)null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the type system with a session to load the custom types
         /// and a customized type builder factory
         /// </summary>
@@ -91,6 +120,17 @@ namespace Opc.Ua.Client.ComplexTypes
             IComplexTypeFactory complexTypeBuilderFactory,
             ITelemetryContext telemetry)
             : this(new NodeCacheResolver(session, telemetry), complexTypeBuilderFactory, telemetry)
+        {
+        }
+
+        /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use ComplexTypeSystem(IComplexTypeResolver, IComplexTypeFactory, ITelemetryContext) instead.")]
+        public ComplexTypeSystem(
+            IComplexTypeResolver complexTypeResolver,
+            IComplexTypeFactory complexTypeBuilderFactory)
+            : this(complexTypeResolver, complexTypeBuilderFactory, null)
         {
         }
 

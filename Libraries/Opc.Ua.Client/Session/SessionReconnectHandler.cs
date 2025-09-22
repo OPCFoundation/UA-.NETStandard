@@ -87,6 +87,15 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]
+        public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
+            : this((ITelemetryContext)null, reconnectAbort, maxReconnectPeriod)
+        {
+        }
+
+        /// <summary>
         /// Create a reconnect handler.
         /// </summary>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
@@ -95,7 +104,10 @@ namespace Opc.Ua.Client
         ///     The upper limit for the reconnect period after exponential backoff.
         ///     -1 (default) indicates that no exponential backoff should be used.
         /// </param>
-        public SessionReconnectHandler(ITelemetryContext telemetry, bool reconnectAbort = false, int maxReconnectPeriod = -1)
+        public SessionReconnectHandler(
+            ITelemetryContext telemetry,
+            bool reconnectAbort = false,
+            int maxReconnectPeriod = -1)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<SessionReconnectHandler>();

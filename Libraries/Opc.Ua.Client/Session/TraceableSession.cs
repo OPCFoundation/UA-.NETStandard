@@ -42,6 +42,15 @@ namespace Opc.Ua.Client
     public class TraceableSession : ISession
     {
         /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use TraceableSession(ITelemetryContext) instead.")]
+        public TraceableSession(ISession session)
+            : this(session, null)
+        {
+        }
+
+        /// <summary>
         /// Initializes a new instance of the class.
         /// </summary>
         public TraceableSession(ISession session, ITelemetryContext telemetry)
