@@ -1756,7 +1756,7 @@ namespace Opc.Ua.Bindings
 
         private Uri m_url;
         private Uri m_via;
-        private long m_lastRequestId;
+        private uint m_lastRequestId;
         private readonly ConcurrentDictionary<uint, WriteOperation> m_requests;
         private WriteOperation m_handshakeOperation;
         private ChannelToken m_requestedToken;

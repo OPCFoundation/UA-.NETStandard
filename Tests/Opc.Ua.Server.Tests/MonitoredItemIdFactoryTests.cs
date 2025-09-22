@@ -189,5 +189,61 @@ namespace Opc.Ua.Server.Tests
                 }
             }
         }
+
+        /// <summary>
+        /// Verifies that no duplicate IDs are generated when wraparound occurs,
+        /// by initializing with a value close to uint.MaxValue and generating enough IDs
+        /// to force wraparound. Tests multiple iterations to ensure consistent behavior.
+        /// </summary>
+        [Test]
+        public async Task GetNextId_WithWraparound_ShouldNotReturnDuplicateIdsAsync()
+        {
+            const int iterations = 10;
+            const int idsToGenerate = 1000; // Enough to force wraparound
+            var idFactory = new MonitoredItemIdFactory();
+
+            for (int iteration = 0; iteration < iterations; iteration++)
+            {
+                // Arrange
+                var generatedIds = new ConcurrentBag<uint>();
+
+                // Start close to uint.MaxValue to force wraparound quickly
+                const uint startValue = uint.MaxValue - 500;
+                idFactory.SetStartValue(startValue);
+
+                const int numTasks = 10;
+                const int idsPerTask = idsToGenerate / numTasks;
+                var tasks = new Task[numTasks];
+                var startEvent = new ManualResetEventSlim(false);
+
+                // Act
+                for (int i = 0; i < numTasks; i++)
+                {
+                    tasks[i] = Task.Run(() =>
+                    {
+                        startEvent.Wait();
+                        for (int j = 0; j < idsPerTask; j++)
+                        {
+                            generatedIds.Add(idFactory.GetNextId());
+                        }
+                    });
+                }
+
+                startEvent.Set();
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+
+                // Assert
+                const int totalIds = numTasks * idsPerTask;
+                Assert.That(generatedIds.Count, Is.EqualTo(totalIds),
+                    $"Iteration {iteration + 1}: Incorrect total number of IDs generated.");
+
+                var distinctIds = generatedIds.Distinct().ToList();
+                Assert.That(distinctIds.Count, Is.EqualTo(totalIds),
+                    $"Iteration {iteration + 1}: Duplicate IDs were generated during wraparound.");
+
+                Assert.That(generatedIds.All(id => id != 0), Is.True,
+                    $"Iteration {iteration + 1}: An ID of 0 was generated, which is invalid.");
+            }
+        }
     }
 }

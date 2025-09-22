@@ -99,7 +99,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The sequence number
         /// </summary>
-        long SequenceNumber { get; set; }
+        uint SequenceNumber { get; set; }
 
         /// <summary>
         /// The user identity of the subscription

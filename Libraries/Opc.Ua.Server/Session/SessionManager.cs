@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
                 .MaxHistoryContinuationPoints;
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
-            m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
+            m_lastSessionId = BitConverter.ToUInt32(Nonce.CreateRandomNonceData(sizeof(uint)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -637,7 +637,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly NodeIdDictionary<ISession> m_sessions;
-        private long m_lastSessionId;
+        private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;
 
         private readonly int m_minSessionTimeout;

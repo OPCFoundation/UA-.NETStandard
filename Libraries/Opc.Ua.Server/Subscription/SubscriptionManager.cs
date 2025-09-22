@@ -76,8 +76,8 @@ namespace Opc.Ua.Server
             m_subscriptions = [];
             m_publishQueues = [];
             m_statusMessages = [];
-            m_lastSubscriptionId = BitConverter.ToInt64(
-                Nonce.CreateRandomNonceData(sizeof(long)),
+            m_lastSubscriptionId = BitConverter.ToUInt32(
+                Nonce.CreateRandomNonceData(sizeof(uint)),
                 0);
 
             // create a event to signal shutdown.
@@ -2320,7 +2320,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private long m_lastSubscriptionId;
+        private uint m_lastSubscriptionId;
         private readonly IServerInternal m_server;
         private readonly double m_minPublishingInterval;
         private readonly double m_maxPublishingInterval;
