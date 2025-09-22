@@ -113,8 +113,11 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItemQueue dataValueQueue,
             bool discardOldest,
             double samplingInterval,
+            ITelemetryContext telemetry,
             Action discardedValueHandler = null)
         {
+            m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
+
             m_dataValueQueue = dataValueQueue;
             m_monitoredItemId = dataValueQueue.QueueSize;
             m_discardOldest = discardOldest;

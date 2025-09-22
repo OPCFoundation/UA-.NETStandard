@@ -44,7 +44,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="logger">A contextual logger to log to</param>
-        public static void ReportCertificateDeliveredAuditEvent(
+        internal static void ReportCertificateDeliveredAuditEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
             NodeId objectId,
@@ -104,7 +104,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         /// <param name="certificateTypeId">the certificate type id</param>
         /// <param name="logger">A contextual logger to log to</param>
         /// <param name="exception">The exception resulted after executing the StartNewKeyPairRequest StartNewSigningRequest method. If null, the operation was successfull.</param>
-        public static void ReportCertificateRequestedAuditEvent(
+        internal static void ReportCertificateRequestedAuditEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
             NodeId objectId,
@@ -193,7 +193,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="logger">A contextual logger to log to</param>
-        public static void ReportApplicationRegistrationChangedAuditEvent(
+        internal static void ReportApplicationRegistrationChangedAuditEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
             NodeId objectId,

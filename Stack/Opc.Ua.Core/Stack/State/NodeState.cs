@@ -90,7 +90,7 @@ namespace Opc.Ua
         /// Allows a subclass to consume the telemetry context to create loggers or any other observability
         /// instruments. This method is called by all Initialize overloads. However, it is possible that it
         /// is not called if any of them does not call their base implementation.  Therefore it is advised
-        /// to always initialize a logger using the NullLogger.Instance to avoid Null reference exceptions.
+        /// to always initialize a logger using the Utils.NullLogger.Instance to avoid Null reference exceptions.
         /// </summary>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         protected virtual void Initialize(ITelemetryContext telemetry)

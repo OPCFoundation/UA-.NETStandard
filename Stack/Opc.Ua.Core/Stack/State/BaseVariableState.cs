@@ -2029,7 +2029,7 @@ namespace Opc.Ua
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
-        private ILogger m_logger = NullLogger.Instance;
+        private ILogger m_logger = Utils.NullLogger.Instance;
         private static readonly char[] s_commaSeparator = [','];
     }
 

@@ -1997,6 +1997,7 @@ namespace Opc.Ua.Server
                                 restoredQueue,
                                 m_discardOldest,
                                 m_samplingInterval,
+                                m_server.Telemetry,
                                 QueueOverflowHandler);
                         }
                         else

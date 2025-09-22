@@ -1182,7 +1182,7 @@ namespace Opc.Ua
         /// Logger for this and the inherited classes
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; } = NullLogger.Instance;
+        protected ILogger m_logger { get; } = Utils.NullLogger.Instance;
 #pragma warning restore IDE1006 // Naming Styles
 
         private IServiceHostBase m_host;

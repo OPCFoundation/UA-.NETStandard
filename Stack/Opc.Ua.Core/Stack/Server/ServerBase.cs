@@ -1656,7 +1656,7 @@ namespace Opc.Ua
         /// deriving from this class.
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; private set; } = NullLogger.Instance;
+        protected ILogger m_logger { get; private set; } = Utils.NullLogger.Instance;
 #pragma warning restore IDE1006 // Naming Styles
 
         private IServiceMessageContext m_messageContext;

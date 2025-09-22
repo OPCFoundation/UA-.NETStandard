@@ -178,7 +178,8 @@ namespace Opc.Ua.Sample
                     m_queue = new DataChangeQueueHandler(
                         queue,
                         storedMonitoredItem.DiscardOldest,
-                        storedMonitoredItem.SamplingInterval);
+                        storedMonitoredItem.SamplingInterval,
+                        source.Server.Telemetry);
                 }
                 else
                 {

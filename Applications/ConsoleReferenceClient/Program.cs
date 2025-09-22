@@ -264,7 +264,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
             ReverseConnectManager reverseConnectManager = null;
             using var telemetry = new ConsoleTelemetry();
-            ILogger logger = NullLogger.Instance;
+            ILogger logger = Utils.NullLogger.Instance;
             try
             {
                 // parse command line and set options
