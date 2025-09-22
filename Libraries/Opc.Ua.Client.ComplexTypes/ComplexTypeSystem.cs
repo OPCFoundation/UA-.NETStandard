@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ComplexTypeSystem(
             ISession session,
             IComplexTypeFactory complexTypeBuilderFactory)
-            : this(session, complexTypeBuilderFactory, (ITelemetryContext)null)
+            : this(session, complexTypeBuilderFactory, null)
         {
         }
 

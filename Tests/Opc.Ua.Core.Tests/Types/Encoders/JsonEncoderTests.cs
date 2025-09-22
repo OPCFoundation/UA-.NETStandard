@@ -746,7 +746,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(new NodeId("ns=33;s=StringIdentifier"), null, 23),
+                /*lang=json,strict*/
                 """{"IdType":1,"Id":"StringIdentifier","Namespace":33,"ServerUri": 23}""", // reversible
+                /*lang=json,strict*/
                 """{"IdType":1,"Id":"StringIdentifier","Namespace":33}""", // non-reversible == null == same as reversible
                 """
                 "svr=23;ns=33;s=StringIdentifier"

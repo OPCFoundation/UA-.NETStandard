@@ -117,7 +117,7 @@ namespace Opc.Ua.Server
             // build NamespaceManagersDictionary from local dictionary.
             foreach (KeyValuePair<int, List<(INodeManager Sync, IAsyncNodeManager Async)>> namespaceManager in namespaceManagers)
             {
-                m_namespaceManagers.TryAdd(namespaceManager.Key, namespaceManager.Value.AsReadOnly());
+                NamespaceManagers.TryAdd(namespaceManager.Key, namespaceManager.Value.AsReadOnly());
             }
         }
 
@@ -448,7 +448,7 @@ namespace Opc.Ua.Server
             m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
-                m_namespaceManagers.AddOrUpdate(
+                NamespaceManagers.AddOrUpdate(
                     index,
                     [nodeManagerTuple],
                     (key, existingNodeManagers) =>
@@ -495,7 +495,7 @@ namespace Opc.Ua.Server
             m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
-                if (!m_namespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<(INodeManager, IAsyncNodeManager)> readOnlyNodeManagers))
+                if (!NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<(INodeManager, IAsyncNodeManager)> readOnlyNodeManagers))
                 {
                     return false;
                 }
@@ -507,11 +507,11 @@ namespace Opc.Ua.Server
 
                 if (nodeManagers.Count == 0)
                 {
-                    m_namespaceManagers.TryRemove(namespaceIndex, out _);
+                    NamespaceManagers.TryRemove(namespaceIndex, out _);
                 }
                 else
                 {
-                    m_namespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
+                    NamespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
                 }
 
                 return nodeManagerFound;
@@ -571,7 +571,7 @@ namespace Opc.Ua.Server
             int index = nodeId.NamespaceIndex;
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (!m_namespaceManagers.TryGetValue(index, out IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)> nodeManagers))
+            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)> nodeManagers))
             {
                 if (sync)
                 {
@@ -3582,7 +3582,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace managers being managed
         /// </summary>
-        internal ConcurrentDictionary<int, IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)>> NamespaceManagers => m_namespaceManagers;
+        internal ConcurrentDictionary<int, IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)>> NamespaceManagers { get; } = [];
 
         /// <summary>
         /// Validates a monitoring attributes parameter.
@@ -4204,7 +4204,6 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly List<(INodeManager Sync, IAsyncNodeManager Async)> m_nodeManagers;
-        private readonly ConcurrentDictionary<int, IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)>> m_namespaceManagers = [];
         private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1, 1);

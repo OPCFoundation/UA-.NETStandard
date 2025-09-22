@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_uaPublisherApplication;
         private UdpPubSubConnection m_udpPublisherConnection;
-        private IServiceMessageContext m_messageContext;
+        private ServiceMessageContext m_messageContext;
         private ManualResetEvent m_shutdownEvent;
 
         /// <summary>

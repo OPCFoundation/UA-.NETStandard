@@ -39,7 +39,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -1966,7 +1965,6 @@ namespace Opc.Ua.Client.Tests
                 string securityPolicy)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger logger = telemetry.CreateLogger<ClientTest>();
 
             var eccCurveHashPairs = new ECCurveHashPairCollection
             {

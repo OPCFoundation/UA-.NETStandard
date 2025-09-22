@@ -1423,7 +1423,7 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private MonitoredItem CreateDurableMonitoredItem(
+        private static MonitoredItem CreateDurableMonitoredItem(
             IMonitoredItemQueueFactory factory,
             ITelemetryContext telemetry,
             bool events = false,

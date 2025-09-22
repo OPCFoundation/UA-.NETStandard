@@ -61,7 +61,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         [Obsolete("Use ApplicationInstance(ApplicationConfiguration, ITelemetryContext) instead.")]
         public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
-            : this(applicationConfiguration, (ITelemetryContext)null)
+            : this(applicationConfiguration, null)
         {
         }
 

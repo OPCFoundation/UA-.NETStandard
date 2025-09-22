@@ -15,7 +15,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 #if ECC_SUPPORT
-using Microsoft.Extensions.Logging;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;

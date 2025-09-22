@@ -23,7 +23,11 @@ namespace Opc.Ua
     /// This class contains functions used to evaluate a ContentFilter and report the
     /// results of the evaluation.
     /// </summary>
-    public sealed partial class FilterEvaluator
+    public sealed
+#if NET8_0_OR_GREATER
+        partial
+#endif
+        class FilterEvaluator
     {
         private readonly ContentFilter m_filter;
         private readonly FilterContext m_context;

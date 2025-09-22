@@ -91,7 +91,7 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]
         public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
-            : this((ITelemetryContext)null, reconnectAbort, maxReconnectPeriod)
+            : this(null, reconnectAbort, maxReconnectPeriod)
         {
         }
 
