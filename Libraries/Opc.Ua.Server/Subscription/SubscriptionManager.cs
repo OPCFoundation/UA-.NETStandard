@@ -78,8 +78,8 @@ namespace Opc.Ua.Server
             m_subscriptions = [];
             m_publishQueues = [];
             m_statusMessages = [];
-            m_lastSubscriptionId = BitConverter.ToInt64(
-                Nonce.CreateRandomNonceData(sizeof(long)),
+            m_lastSubscriptionId = BitConverter.ToUInt32(
+                Nonce.CreateRandomNonceData(sizeof(uint)),
                 0);
 
             // create a event to signal shutdown.

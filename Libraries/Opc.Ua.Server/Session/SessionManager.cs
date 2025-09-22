@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
                 .MaxHistoryContinuationPoints;
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
-            m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
+            m_lastSessionId = BitConverter.ToUInt32(Nonce.CreateRandomNonceData(sizeof(uint)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);

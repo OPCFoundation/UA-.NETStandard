@@ -240,8 +240,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 NetworkMessageContentMask = (uint)(
                     UadpNetworkMessageContentMask.PublisherId |
                     UadpNetworkMessageContentMask.GroupHeader |
-                    UadpNetworkMessageContentMask.PayloadHeader // needed to be able to decode the DataSetWriterId
-                    | UadpNetworkMessageContentMask.WriterGroupId |
+                    // needed to be able to decode the DataSetWriterId
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
                     UadpNetworkMessageContentMask.GroupVersion |
                     UadpNetworkMessageContentMask.NetworkMessageNumber |
                     UadpNetworkMessageContentMask.SequenceNumber
