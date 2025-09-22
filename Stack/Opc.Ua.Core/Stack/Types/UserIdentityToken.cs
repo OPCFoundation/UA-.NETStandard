@@ -310,7 +310,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get certificate with validation
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns></returns>
         public X509Certificate2 GetOrCreateCertificate(ITelemetryContext telemetry)
         {

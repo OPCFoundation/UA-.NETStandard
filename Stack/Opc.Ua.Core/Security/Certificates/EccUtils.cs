@@ -1029,7 +1029,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="dataToDecrypt">The data to decrypt.</param>
         /// <param name="earliestTime">The earliest time allowed for the message signing time.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The encrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
         private ArraySegment<byte> VerifyHeaderForEcc(
@@ -1188,7 +1188,7 @@ namespace Opc.Ua
         /// <param name="data">The data to decrypt.</param>
         /// <param name="offset">The offset of the data to decrypt.</param>
         /// <param name="count">The number of bytes to decrypt.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The decrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
         public byte[] Decrypt(

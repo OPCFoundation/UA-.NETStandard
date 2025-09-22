@@ -779,7 +779,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create an empty collection store.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public CertificateIdentifierCollectionStore(ITelemetryContext telemetry)
         {
             m_certificates = [];
@@ -790,7 +790,7 @@ namespace Opc.Ua
         /// Create a collection store from an existing collection.
         /// </summary>
         /// <param name="certificates"></param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public CertificateIdentifierCollectionStore(
             CertificateIdentifierCollection certificates,
             ITelemetryContext telemetry)

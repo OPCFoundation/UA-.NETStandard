@@ -640,7 +640,7 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
-        private long m_lastSessionId;
+        private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;
 
         private readonly int m_minSessionTimeout;

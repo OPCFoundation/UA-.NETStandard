@@ -3656,7 +3656,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly NodeTable m_nodes;
-        private long m_lastId;
+        private uint m_lastId;
         private readonly SamplingGroupManager m_samplingGroupManager;
         private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_monitoredItems;
         private readonly double m_defaultMinimumSamplingInterval;

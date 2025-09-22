@@ -2325,7 +2325,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private long m_lastSubscriptionId;
+        private uint m_lastSubscriptionId;
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly double m_minPublishingInterval;

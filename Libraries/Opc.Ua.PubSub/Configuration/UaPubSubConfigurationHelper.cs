@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="pubSubConfiguration">The configuration object that shall be saved in the file.</param>
         /// <param name="filePath">The file path from where the configuration shall be saved.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public static void SaveConfiguration(
             PubSubConfigurationDataType pubSubConfiguration,
             string filePath,
@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// Load a <see cref="PubSubConfigurationDataType"/> instance from and XML File
         /// </summary>
         /// <param name="filePath">The file path from where the configuration shall be loaded.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <exception cref="ServiceResultException"></exception>
         public static PubSubConfigurationDataType LoadConfiguration(
             string filePath,

@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// Create a copy of the provided context
         /// </summary>
         /// <param name="context"></param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public ServiceMessageContext(IServiceMessageContext context, ITelemetryContext telemetry)
         {
             Telemetry = context.Telemetry ?? telemetry;

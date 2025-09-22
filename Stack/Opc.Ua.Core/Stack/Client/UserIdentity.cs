@@ -84,7 +84,7 @@ namespace Opc.Ua
         /// Initializes the object with a UA identity token.
         /// </summary>
         /// <param name="token">The user identity token.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public UserIdentity(UserIdentityToken token, ITelemetryContext telemetry)
         {
             switch (token)

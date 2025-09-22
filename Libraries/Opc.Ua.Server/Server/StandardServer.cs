@@ -3627,7 +3627,8 @@ namespace Opc.Ua.Server
                     m_serverInternal.SetNodeManager(masterNodeManager);
 
                     // put the node manager into a state that allows it to be used by other objects.
-                    masterNodeManager.Startup();
+                    masterNodeManager.StartupAsync()
+                        .AsTask().GetAwaiter().GetResult();
 
                     // create the manager responsible for handling events.
                     m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateEventManager.");
@@ -3834,7 +3835,8 @@ namespace Opc.Ua.Server
                             -= SessionChannelKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
-                        m_serverInternal.NodeManager.Shutdown();
+                        m_serverInternal.NodeManager.ShutdownAsync()
+                            .AsTask().GetAwaiter().GetResult();
                     }
                 }
             }

@@ -457,7 +457,7 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             bool deleteSubscriptions)
         {
-            NodeManager.SessionClosing(context, sessionId, deleteSubscriptions);
+            NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions).AsTask().GetAwaiter().GetResult();
             SubscriptionManager.SessionClosing(context, sessionId, deleteSubscriptions);
             SessionManager.CloseSession(sessionId);
         }

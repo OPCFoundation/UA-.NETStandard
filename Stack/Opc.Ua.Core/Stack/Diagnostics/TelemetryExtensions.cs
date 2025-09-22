@@ -31,8 +31,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using System.IO;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
@@ -49,7 +47,7 @@ namespace Opc.Ua
         /// Get a logger factory from a context with or without logger factory
         /// Returns the default logger factory if none is provided.
         /// </summary>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="telemetry">The telemetry context to use</param>
         /// <returns></returns>
         public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? telemetry)
         {
@@ -61,7 +59,7 @@ namespace Opc.Ua
         /// Create a logger from a logger factory
         /// </summary>
         /// <typeparam name="TContext"></typeparam>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="telemetry">The telemetry context to use</param>
         /// <returns></returns>
         public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? telemetry)
         {
@@ -72,8 +70,8 @@ namespace Opc.Ua
         /// Create a logger from a logger factory
         /// </summary>
         /// <typeparam name="TContext"></typeparam>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <param name="context">A context to infer the </param>
+        /// <param name="telemetry">The telemetry context to use</param>
+        /// <param name="context">A context to infer the category name from</param>
         /// <returns></returns>
         public static ILogger CreateLogger<TContext>(this ITelemetryContext? telemetry, TContext context)
         {
@@ -83,8 +81,8 @@ namespace Opc.Ua
         /// <summary>
         /// Create a logger from a logger factory
         /// </summary>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <param name="categoryName"></param>
+        /// <param name="telemetry">The telemetry context to use</param>
+        /// <param name="categoryName">The category to create the logger for</param>
         /// <returns></returns>
         public static ILogger CreateLogger(this ITelemetryContext? telemetry, string categoryName)
         {
@@ -94,7 +92,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get meter instance or a default one.
         /// </summary>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="telemetry">The telemetry context to use</param>
         /// <returns></returns>
         public static Meter CreateMeter(this ITelemetryContext? telemetry)
         {
@@ -105,7 +103,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get activity source
         /// </summary>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="telemetry">The telemetry context to use</param>
         /// <returns></returns>
         public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
         {
@@ -116,9 +114,9 @@ namespace Opc.Ua
         /// <summary>
         /// Start activity
         /// </summary>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <param name="name"></param>
-        /// <param name="kind"></param>
+        /// <param name="telemetry">The telemetry context to use</param>
+        /// <param name="name">The name of the caller</param>
+        /// <param name="kind">The activity kind</param>
         /// <returns></returns>
         public static Activity? StartActivity(this ITelemetryContext? telemetry,
             [CallerMemberName] string name = "", ActivityKind kind = ActivityKind.Internal)
@@ -126,81 +124,99 @@ namespace Opc.Ua
             return telemetry.GetActivitySource().StartActivity(name, kind);
         }
 
+        private static readonly Lazy<DefaultTelemetry> s_default =
+            new(() => new DefaultTelemetry(), true);
+
         /// <summary>
         /// Perform a debug check to help analyze null telemetry anywhere and helping
         /// us to weed out areas that need telemetry plumbed through.
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use</param>
         [Conditional("DEBUG")]
         private static void DebugCheck(ITelemetryContext? telemetry)
         {
-            if (telemetry == null)
-            {
-                var stackTrace = new StackTrace(true);
-                StackLog.Instance.Collect(stackTrace);
-            }
-        }
-
-        private static readonly Lazy<DefaultTelemetry> s_default =
-            new(() => new DefaultTelemetry(), true);
-    }
-
-    /// <summary>
-    /// Helper to dump stack traces.
-    /// </summary>
-    internal sealed class StackLog
-    {
-        public static readonly StackLog Instance = new(false);
-
-        /// <summary>
-        /// Create stack log
-        /// </summary>
-        /// <param name="justLog"></param>
-        /// <param name="fileName"></param>
-        public StackLog(bool justLog, string? fileName = null)
-        {
-            if (justLog)
-            {
-                return;
-            }
-            // Find the folder with the solution files
-            string path = Environment.CurrentDirectory;
-            while (System.IO.Directory.GetFiles(path, "*.slnx").Length == 0)
-            {
-                DirectoryInfo? parent = System.IO.Directory.GetParent(path);
-                if (parent == null)
-                {
-                    break;
-                }
-                path = parent.FullName;
-            }
-            m_fileName = System.IO.Path.Combine(
-                path ?? string.Empty,
-                fileName ?? "stacktraces.log");
+            DebugLog.Instance.CollectIf(telemetry == null);
         }
 
         /// <summary>
-        /// Collect the stack trace if it has not already been reported.
+        /// Helper to dump stack traces. This is a useful in debug builds
+        /// to help identify places where telemetry is not emitted because
+        /// the Telemetry context is not passed to a class or method.
         /// </summary>
-        /// <param name="trace"></param>
-        public void Collect(StackTrace trace)
+        private sealed class DebugLog
         {
-            string str = trace.ToString();
-            if (m_reported.TryAdd(str, true))
+            public static readonly DebugLog Instance = new(
+#if STACKLOG_TO_FILE
+                false
+#else
+                true
+#endif
+            );
+
+            /// <summary>
+            /// Create stack log
+            /// </summary>
+            /// <param name="justLog"></param>
+            /// <param name="fileName"></param>
+            public DebugLog(bool justLog, string? fileName = null)
             {
-                if (m_fileName == null)
+                if (justLog)
                 {
-                    Debug.WriteLine(str);
                     return;
                 }
-                lock (m_reported)
+                // Find the folder with the solution files
+                string path = Environment.CurrentDirectory;
+                while (System.IO.Directory.GetFiles(path, "*.slnx").Length == 0)
                 {
-                    System.IO.File.AppendAllText(m_fileName, str + "\n\n");
+                    System.IO.DirectoryInfo? parent = System.IO.Directory.GetParent(path);
+                    if (parent == null)
+                    {
+                        break;
+                    }
+                    path = parent.FullName;
+                }
+                m_fileName = System.IO.Path.Combine(
+                    path ?? string.Empty,
+                    fileName ?? "stacktraces.log");
+            }
+
+            /// <summary>
+            /// Collect the stack trace if it has not already been reported.
+            /// </summary>
+            public void CollectIf(bool condition)
+            {
+                if (!condition)
+                {
+                    return;
+                }
+
+                string traceString = new StackTrace(true).ToString();
+
+                if (m_reported.TryAdd(traceString, true))
+                {
+                    // Filter out tests where this is allowed
+                    if (traceString.Contains(
+                        "<ReEncodeComplexTypeScopedContext>",
+                        StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    if (m_fileName == null)
+                    {
+                        Debug.WriteLine(traceString);
+                        return;
+                    }
+
+                    lock (m_reported)
+                    {
+                        System.IO.File.AppendAllText(m_fileName, traceString + "\n\n");
+                    }
                 }
             }
-        }
 
-        private readonly ConcurrentDictionary<string, bool> m_reported = new();
-        private readonly string? m_fileName;
+            private readonly ConcurrentDictionary<string, bool> m_reported = new();
+            private readonly string? m_fileName;
+        }
     }
 }

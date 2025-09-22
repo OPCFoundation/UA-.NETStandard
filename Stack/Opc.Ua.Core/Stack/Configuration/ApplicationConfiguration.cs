@@ -203,7 +203,7 @@ namespace Opc.Ua
         /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="logger">A contextual logger to log to</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
@@ -247,7 +247,7 @@ namespace Opc.Ua
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <param name="logger">A contextual logger to log to</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
@@ -288,7 +288,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="file">The file.</param>
         /// <param name="systemType">Type of the system.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>Application configuration</returns>
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         /// <exception cref="ServiceResultException"></exception>
@@ -351,7 +351,7 @@ namespace Opc.Ua
         /// <param name="file">The file.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
@@ -397,7 +397,7 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
@@ -481,7 +481,7 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>

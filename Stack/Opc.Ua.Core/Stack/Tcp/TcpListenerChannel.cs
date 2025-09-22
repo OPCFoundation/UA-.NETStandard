@@ -585,7 +585,7 @@ namespace Opc.Ua.Bindings
 
         private readonly ILogger m_logger;
         private bool m_responseRequired;
-        private long m_lastTokenId;
+        private uint m_lastTokenId;
     }
 
     /// <summary>

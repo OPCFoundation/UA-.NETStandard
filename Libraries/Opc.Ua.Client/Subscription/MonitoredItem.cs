@@ -760,7 +760,7 @@ namespace Opc.Ua.Client
         public void SetTransferResult(uint clientHandle)
         {
             // ensure the global counter is not duplicating future handle ids
-            Utils.LowerLimitIdentifier(ref s_globalClientHandle, clientHandle);
+            Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, clientHandle);
             ClientHandle = clientHandle;
             Status.SetTransferResult(this);
             AttributesModified = false;
@@ -1101,7 +1101,7 @@ namespace Opc.Ua.Client
         private MonitoringFilter m_filter;
         private uint m_queueSize;
         private bool m_discardOldest;
-        private static long s_globalClientHandle;
+        private static uint s_globalClientHandle;
         private Subscription m_subscription;
         private ILogger m_logger = NullLogger.Instance;
         private Lock m_cache = new();

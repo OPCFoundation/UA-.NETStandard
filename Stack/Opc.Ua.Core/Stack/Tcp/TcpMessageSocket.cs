@@ -214,7 +214,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a socket factory
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public TcpMessageSocketFactory(ITelemetryContext telemetry)
         {
             m_telemetry = telemetry;

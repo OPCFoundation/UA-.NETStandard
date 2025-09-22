@@ -70,7 +70,7 @@ namespace Opc.Ua.Server
             SetNamespaces(namespaceUris);
 
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
-            m_lastUsedId = DateTime.UtcNow.Ticks & 0x7FFFFFFF;
+            m_lastUsedId = (uint)DateTime.UtcNow.Ticks & 0x7FFFFFFF;
             m_sessions = [];
             m_subscriptions = [];
             DiagnosticsEnabled = true;

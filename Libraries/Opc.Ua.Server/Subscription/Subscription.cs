@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
                 MonitoredItemCount = 0,
                 DisabledMonitoredItemCount = 0,
                 MonitoringQueueOverflowCount = 0,
-                NextSequenceNumber = (uint)m_sequenceNumber
+                NextSequenceNumber = m_sequenceNumber
             };
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(session);
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
                 MonitoredItemCount = 0,
                 DisabledMonitoredItemCount = 0,
                 MonitoringQueueOverflowCount = 0,
-                NextSequenceNumber = (uint)m_sequenceNumber
+                NextSequenceNumber = m_sequenceNumber
             };
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy();
@@ -785,7 +785,7 @@ namespace Opc.Ua.Server
 
                 message = new NotificationMessage
                 {
-                    SequenceNumber = (uint)m_sequenceNumber,
+                    SequenceNumber = m_sequenceNumber,
                     PublishTime = DateTime.UtcNow
                 };
 
@@ -793,7 +793,7 @@ namespace Opc.Ua.Server
 
                 lock (DiagnosticsWriteLock)
                 {
-                    Diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                    Diagnostics.NextSequenceNumber = m_sequenceNumber;
                 }
 
                 var notification = new StatusChangeNotification { Status = StatusCodes.BadTimeout };
@@ -814,7 +814,7 @@ namespace Opc.Ua.Server
             {
                 message = new NotificationMessage
                 {
-                    SequenceNumber = (uint)m_sequenceNumber,
+                    SequenceNumber = m_sequenceNumber,
                     PublishTime = DateTime.UtcNow
                 };
 
@@ -822,7 +822,7 @@ namespace Opc.Ua.Server
 
                 lock (DiagnosticsWriteLock)
                 {
-                    Diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                    Diagnostics.NextSequenceNumber = m_sequenceNumber;
                 }
 
                 var notification = new StatusChangeNotification
@@ -1015,7 +1015,7 @@ namespace Opc.Ua.Server
                 var message = new NotificationMessage
                 {
                     // use the sequence number for the next message.
-                    SequenceNumber = (uint)m_sequenceNumber,
+                    SequenceNumber = m_sequenceNumber,
                     PublishTime = DateTime.UtcNow
                 };
 
@@ -1106,7 +1106,7 @@ namespace Opc.Ua.Server
 
             var message = new NotificationMessage
             {
-                SequenceNumber = (uint)m_sequenceNumber,
+                SequenceNumber = m_sequenceNumber,
                 PublishTime = DateTime.UtcNow
             };
 
@@ -1114,7 +1114,7 @@ namespace Opc.Ua.Server
 
             lock (DiagnosticsWriteLock)
             {
-                Diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                Diagnostics.NextSequenceNumber = m_sequenceNumber;
             }
 
             // add events.
@@ -2720,7 +2720,7 @@ namespace Opc.Ua.Server
         private bool m_waitingForPublish;
         private readonly List<NotificationMessage> m_sentMessages;
         private int m_lastSentMessage;
-        private long m_sequenceNumber;
+        private uint m_sequenceNumber;
         private readonly uint m_maxMessageCount;
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;

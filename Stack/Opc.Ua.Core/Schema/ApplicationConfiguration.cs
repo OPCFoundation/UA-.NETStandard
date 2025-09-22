@@ -89,7 +89,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initialize telemetry context - after loading
         /// </summary>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         internal void Initialize(ITelemetryContext telemetry)
         {
             m_telemetry = telemetry;

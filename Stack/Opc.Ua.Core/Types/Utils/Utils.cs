@@ -1057,29 +1057,38 @@ namespace Opc.Ua
         /// Sets the identifier to a lower limit if smaller. Thread safe.
         /// </summary>
         /// <returns>Returns the new value.</returns>
-        public static uint LowerLimitIdentifier(ref long identifier, uint lowerLimit)
+        public static uint SetIdentifierToAtLeast(ref uint identifier, uint lowerLimit)
         {
-            long value;
-            long exchangedValue;
+            uint value;
+            uint exchangedValue;
             do
             {
-                value = Interlocked.Read(ref identifier);
+                value = identifier;
                 exchangedValue = value;
                 if (value < lowerLimit)
                 {
-                    exchangedValue = Interlocked.CompareExchange(ref identifier, lowerLimit, value);
+                    ref int id = ref Unsafe.As<uint, int>(ref identifier);
+                    exchangedValue = (uint)Interlocked.CompareExchange(ref id, (int)lowerLimit, (int)value);
                 }
             } while (exchangedValue != value);
-            return (uint)Interlocked.Read(ref identifier);
+            return value;
         }
 
         /// <summary>
-        /// Increments a identifier (wraps around if max exceeded).
+        /// Sets the identifier to a new start value. Thread safe.
         /// </summary>
-        public static uint IncrementIdentifier(ref long identifier)
+        /// <returns>Returns the new value.</returns>
+        public static uint SetIdentifier(ref uint identifier, uint newIdentifier)
         {
-            Interlocked.CompareExchange(ref identifier, 0, uint.MaxValue);
-            return (uint)Interlocked.Increment(ref identifier);
+            uint value;
+            uint exchangedValue;
+            do
+            {
+                value = identifier;
+                ref int id = ref Unsafe.As<uint, int>(ref identifier);
+                exchangedValue = (uint)Interlocked.CompareExchange(ref id, (int)newIdentifier, (int)value);
+            } while (exchangedValue != value);
+            return value;
         }
 
         /// <summary>
@@ -2163,7 +2172,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="extensions">The list of extensions to search.</param>
         /// <param name="elementName">Name of the element (use type name if null).</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>
         /// The deserialized extension. Null if an error occurs.
         /// </returns>
@@ -2230,7 +2239,7 @@ namespace Opc.Ua
         /// <param name="extensions">The list of extensions to update.</param>
         /// <param name="elementName">Name of the element (use type name if null).</param>
         /// <param name="value">The value.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <remarks>
         /// Adds a new extension if the it does not already exist.
         /// Deletes the extension if the value is null.
@@ -2548,7 +2557,7 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
-        /// <param name="telemetry"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2Collection ParseCertificateChainBlob(
