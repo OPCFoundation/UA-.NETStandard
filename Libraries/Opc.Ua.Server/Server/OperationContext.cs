@@ -275,6 +275,6 @@ namespace Opc.Ua.Server
         public string AuditEntryId { get; }
 
         private long m_operationStatus;
-        private static long s_lastRequestId;
+        private static uint s_lastRequestId;
     }
 }

@@ -578,7 +578,7 @@ namespace Opc.Ua.Bindings
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent { get; private set; }
 
         private bool m_responseRequired;
-        private long m_lastTokenId;
+        private uint m_lastTokenId;
     }
 
     /// <summary>

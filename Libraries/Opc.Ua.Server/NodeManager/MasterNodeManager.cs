@@ -4247,7 +4247,7 @@ namespace Opc.Ua.Server
         /// <param name="firstId"></param>
         public void SetStartValue(uint firstId)
         {
-            m_lastMonitoredItemId = firstId;
+            Utils.SetIdentifier(ref m_lastMonitoredItemId, firstId);
         }
 
         /// <summary>
@@ -4259,6 +4259,6 @@ namespace Opc.Ua.Server
             return Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
         }
 
-        private long m_lastMonitoredItemId;
+        private uint m_lastMonitoredItemId;
     }
 }

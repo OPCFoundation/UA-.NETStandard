@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
@@ -1562,38 +1563,67 @@ namespace Opc.Ua
         /// Sets the identifier to a lower limit if smaller. Thread safe.
         /// </summary>
         /// <returns>Returns the new value.</returns>
-        public static uint LowerLimitIdentifier(ref long identifier, uint lowerLimit)
+        public static uint SetIdentifierToAtLeast(ref uint identifier, uint lowerLimit)
         {
-            long value;
-            long exchangedValue;
+            uint value;
+            uint exchangedValue;
             do
             {
-                value = Interlocked.Read(ref identifier);
+                value = identifier;
                 exchangedValue = value;
                 if (value < lowerLimit)
                 {
-                    exchangedValue = Interlocked.CompareExchange(ref identifier, lowerLimit, value);
+                    ref int id = ref Unsafe.As<uint, int>(ref identifier);
+                    exchangedValue = (uint)Interlocked.CompareExchange(ref id, (int)lowerLimit, (int)value);
                 }
             } while (exchangedValue != value);
-            return (uint)Interlocked.Read(ref identifier);
+            return value;
         }
 
         /// <summary>
-        /// Increments a identifier (wraps around if max exceeded).
+        /// Sets the identifier to a new start value. Thread safe.
         /// </summary>
-        public static uint IncrementIdentifier(ref long identifier)
+        /// <returns>Returns the new value.</returns>
+        public static uint SetIdentifier(ref uint identifier, uint newIdentifier)
         {
-            Interlocked.CompareExchange(ref identifier, 0, uint.MaxValue);
-            return (uint)Interlocked.Increment(ref identifier);
+            uint value;
+            uint exchangedValue;
+            do
+            {
+                value = identifier;
+                ref int id = ref Unsafe.As<uint, int>(ref identifier);
+                exchangedValue = (uint)Interlocked.CompareExchange(ref id, (int)newIdentifier, (int)value);
+            } while (exchangedValue != value);
+            return value;
         }
 
         /// <summary>
-        /// Increments a identifier (wraps around if max exceeded).
+        /// Increments a identifier (prohibits 0).
+        /// </summary>
+        public static uint IncrementIdentifier(ref uint identifier)
+        {
+            ref int id = ref Unsafe.As<uint, int>(ref identifier);
+            uint result;
+            do
+            {
+                result = (uint)Interlocked.Increment(ref id);
+            }
+            while (result == 0);
+            return result;
+        }
+
+        /// <summary>
+        /// Increments a identifier (prohibits 0).
         /// </summary>
         public static int IncrementIdentifier(ref int identifier)
         {
-            Interlocked.CompareExchange(ref identifier, 0, int.MaxValue);
-            return Interlocked.Increment(ref identifier);
+            int result;
+            do
+            {
+                result = Interlocked.Increment(ref identifier);
+            }
+            while (result == 0);
+            return result;
         }
 
         /// <summary>
