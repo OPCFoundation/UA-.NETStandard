@@ -1,4 +1,4 @@
-# Support of the the TAP (Task Asynchronous Pattern) for server operations
+# Support of the TAP (Task Asynchronous Pattern) for server operations
 
 The OPC UA .NET Standard stack has supported asynchronous operations for a long time. The asynchronous operations are based on the IAsyncResult pattern, which is also called the APM (Asynchronous Programming Model) or the Begin/End pattern. This pattern was introduced with .NET Framework 1.0 and is still supported in .NET 8.0.
 
@@ -9,7 +9,7 @@ In the future APM support will be deprecated, as it was never implemented for No
 Starting with 1.5.378 the server library allows users to also implement Task based NodeManagers.
 Implementing the TAP allows to improve the scalability of the server, as the TAP is significantly more efficient in terms of resource usage and performance.
 
-In in order to support the TAP pattern, the following changes have been made to the server library:
+In order to support the TAP pattern, the following changes have been made to the server library:
 
 - Introduce a Task based `RequestQueue`
 - Introduce a Task based `TransportListenerCallback`

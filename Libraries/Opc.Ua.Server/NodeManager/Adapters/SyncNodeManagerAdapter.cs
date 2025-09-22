@@ -72,7 +72,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IEnumerable<string> NamespaceUris => throw new NotImplementedException();
+        public IEnumerable<string> NamespaceUris => m_nodeManager.NamespaceUris;
 
         /// <inheritdoc/>
         public void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
