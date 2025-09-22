@@ -2147,7 +2147,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly ushort m_namespaceIndex;
-        private long m_lastUsedId;
+        private uint m_lastUsedId;
         private Timer m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
         private bool m_doScanBusy;

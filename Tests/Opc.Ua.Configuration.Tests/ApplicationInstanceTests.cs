@@ -553,9 +553,11 @@ namespace Opc.Ua.Configuration.Tests
             {
                 Assert.NotNull(testCert);
                 Assert.True(testCert.HasPrivateKey);
-                testCert.AddToStore(
+                await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
-                    applicationCertificate.StorePath);
+                    applicationCertificate.StorePath,
+                    password: null,
+                    telemetry).ConfigureAwait(false);
                 publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
             }
 
@@ -650,7 +652,7 @@ namespace Opc.Ua.Configuration.Tests
                 using X509Certificate2 issuerCert = testCerts[1];
                 Assert.NotNull(issuerCert);
                 Assert.False(issuerCert.HasPrivateKey);
-                issuerCert.AddToStore(
+                await issuerCert.AddToStoreAsync(
                     applicationInstance
                         .ApplicationConfiguration
                         .SecurityConfiguration
@@ -660,7 +662,9 @@ namespace Opc.Ua.Configuration.Tests
                         .ApplicationConfiguration
                         .SecurityConfiguration
                         .TrustedIssuerCertificates
-                        .StorePath);
+                        .StorePath,
+                    password: null,
+                    telemetry).ConfigureAwait(false);
             }
 
             X509Certificate2 publicKey = null;
@@ -668,9 +672,11 @@ namespace Opc.Ua.Configuration.Tests
             {
                 Assert.NotNull(testCert);
                 Assert.True(testCert.HasPrivateKey);
-                testCert.AddToStore(
+                await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
-                    applicationCertificate.StorePath);
+                    applicationCertificate.StorePath,
+                    password: null,
+                    telemetry).ConfigureAwait(false);
                 publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
             }
 

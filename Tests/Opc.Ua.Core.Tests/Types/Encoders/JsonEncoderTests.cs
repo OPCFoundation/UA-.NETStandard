@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_telemetry = null;
+            m_telemetry = new DefaultTelemetry();
             m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
@@ -1952,7 +1952,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ServiceMessageContext()
         {
-            _ = new ServiceMessageContext(null);
+            _ = new ServiceMessageContext(m_telemetry);
         }
 
         /// <summary>

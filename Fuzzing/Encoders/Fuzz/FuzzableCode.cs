@@ -35,7 +35,7 @@ namespace Opc.Ua.Fuzzing
 {
     public static partial class FuzzableCode
     {
-        public static ServiceMessageContext MessageContext { get; set; } = new ServiceMessageContext(null);
+        public static ServiceMessageContext MessageContext { get; set; }
 
         /// <summary>
         /// Print information about the fuzzer target.

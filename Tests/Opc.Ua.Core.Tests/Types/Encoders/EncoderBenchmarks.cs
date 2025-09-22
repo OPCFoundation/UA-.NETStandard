@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_bufferManager = new BufferManager(
                 nameof(BinaryEncoder),
                 StreamBufferSize,
-                null);
+                m_telemetry);
         }
 
         public virtual void OneTimeTearDown()
@@ -149,14 +149,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public virtual void GlobalSetup()
         {
             // for validating benchmark tests
-            m_telemetry = null;
+            m_telemetry = new DefaultTelemetry();
             m_context = new ServiceMessageContext(m_telemetry);
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(
                 nameof(BinaryEncoder),
                 StreamBufferSize,
-                null);
+                m_telemetry);
         }
 
         /// <summary>

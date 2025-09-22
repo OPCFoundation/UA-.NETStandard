@@ -32,6 +32,7 @@ using System.Threading;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Bindings
 {
@@ -202,7 +203,8 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolTooSmall = ArrayPool<byte>.Create(BufferSize, BucketSize);
             m_arrayPool = ArrayPool<byte>.Create(BufferSize + 1, BucketSize);
             m_arrayPoolShared = ArrayPool<byte>.Shared;
-            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize, null);
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize, m_telemetry);
         }
 
         [OneTimeTearDown]
@@ -211,6 +213,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolTooSmall = null;
             m_arrayPool = null;
             m_arrayPoolShared = null;
+            m_telemetry = null;
             m_bufferManager = null;
         }
 
@@ -224,7 +227,8 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolTooSmall = ArrayPool<byte>.Create(BufferSize, BucketSize);
             m_arrayPool = ArrayPool<byte>.Create(BufferSize + 1, BucketSize);
             m_arrayPoolShared = ArrayPool<byte>.Shared;
-            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize, null);
+            m_telemetry = new DefaultTelemetry();
+            m_bufferManager = new BufferManager(nameof(BufferManager), BufferSize, m_telemetry);
         }
 
         /// <summary>
@@ -236,6 +240,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolTooSmall = null;
             m_arrayPool = null;
             m_arrayPoolShared = null;
+            m_telemetry = null;
             m_bufferManager = null;
         }
 
@@ -243,6 +248,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         private ArrayPool<byte> m_arrayPoolTooSmall;
         private ArrayPool<byte> m_arrayPool;
         private ArrayPool<byte> m_arrayPoolShared;
+        private ITelemetryContext m_telemetry;
         private BufferManager m_bufferManager;
         private readonly int m_maxBufferSize = 1234;
         private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new();

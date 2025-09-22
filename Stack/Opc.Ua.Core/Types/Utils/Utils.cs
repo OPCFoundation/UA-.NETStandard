@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
@@ -1082,12 +1083,32 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Increments a identifier (wraps around if max exceeded).
+        /// Increments a identifier (prohibits 0).
+        /// </summary>
+        public static uint IncrementIdentifier(ref uint identifier)
+        {
+            ref int id = ref Unsafe.As<uint, int>(ref identifier);
+            uint result;
+            do
+            {
+                result = (uint)Interlocked.Increment(ref id);
+            }
+            while (result == 0);
+            return result;
+        }
+
+        /// <summary>
+        /// Increments a identifier (prohibits 0).
         /// </summary>
         public static int IncrementIdentifier(ref int identifier)
         {
-            Interlocked.CompareExchange(ref identifier, 0, int.MaxValue);
-            return Interlocked.Increment(ref identifier);
+            int result;
+            do
+            {
+                result = Interlocked.Increment(ref identifier);
+            }
+            while (result == 0);
+            return result;
         }
 
         /// <summary>

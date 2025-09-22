@@ -49,11 +49,9 @@ namespace Opc.Ua.Gds.Tests
                 m_path + "/authorities",
                 configuration);
             NUnit.Framework.Assert.That(
-                () =>
-                    certificateGroup.CreateCACertificateAsync(
-                        "This is not the ValidSubjectName for my CertificateGroup",
-                        certificateGroup.CertificateTypes[0]
-                    ),
+                () => certificateGroup.CreateCACertificateAsync(
+                    "This is not the ValidSubjectName for my CertificateGroup",
+                    certificateGroup.CertificateTypes[0]),
                 Throws.TypeOf<ArgumentException>());
             NUnit.Framework.Assert.That(
                 () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null),
@@ -94,7 +92,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicatioConfiguration = new ApplicationConfiguration
+            var applicatioConfiguration = new ApplicationConfiguration(telemetry)
             {
                 SecurityConfiguration = new SecurityConfiguration()
             };

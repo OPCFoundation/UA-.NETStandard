@@ -1683,7 +1683,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             NUnit.Framework.Assert.DoesNotThrow(() =>
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-                var appConfig = new ApplicationConfiguration
+                var appConfig = new ApplicationConfiguration(telemetry)
                 {
                     CertificateValidator = new CertificateValidator(telemetry)
                 };
