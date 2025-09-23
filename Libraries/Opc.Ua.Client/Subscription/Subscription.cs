@@ -2293,7 +2293,8 @@ namespace Opc.Ua.Client
                         else if (ii.Value.Message != null && !ii.Value.Processed)
                         {
                             m_logger.LogDebug(
-                                "Subscription {SubscriptionId}: Delayed message with sequence number {SequenceNumber}, expected sequence number is {ExpectedSequenceNumber}.",
+                                "Subscription {SubscriptionId}: Delayed message with sequence number {SequenceNumber}, " +
+                                "expected sequence number is {ExpectedSequenceNumber}.",
                                 Id,
                                 ii.Value.SequenceNumber,
                                 m_lastSequenceNumberProcessed + 1);
