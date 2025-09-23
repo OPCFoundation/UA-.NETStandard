@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -399,14 +400,25 @@ namespace Opc.Ua
                     }
                 }
 
-                collection = collection.Find(X509FindType.FindBySubjectName, subjectName, false);
+                var simpleNameMatches = collection.Find(X509FindType.FindBySubjectName, subjectName, false)
+                    .Cast<X509Certificate2>()
+                    .Where(cert => string.Equals(
+                        cert.GetNameInfo(X509NameType.SimpleName, forIssuer:false),
+                        subjectName,
+                        StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
 
-                foreach (X509Certificate2 certificate in collection)
+                if (simpleNameMatches.Length > 0)
                 {
-                    if (ValidateCertificateType(certificate, certificateType) &&
-                        (!needPrivateKey || certificate.HasPrivateKey))
+                    collection = [.. simpleNameMatches];
+
+                    foreach (X509Certificate2 certificate in collection)
                     {
-                        return certificate;
+                        if (ValidateCertificateType(certificate, certificateType) &&
+                            (!needPrivateKey || certificate.HasPrivateKey))
+                        {
+                            return certificate;
+                        }
                     }
                 }
             }
