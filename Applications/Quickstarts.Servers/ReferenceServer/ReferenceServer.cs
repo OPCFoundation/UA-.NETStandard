@@ -91,8 +91,14 @@ namespace Quickstarts.ReferenceServer
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
 
-            // create master node manager.
-            return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
+            var asyncNodeManagers = new List<IAsyncNodeManager>();
+
+            foreach (IAsyncNodeManagerFactory nodeManagerFactory in AsyncNodeManagerFactories)
+            {
+                asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
+            }
+
+            return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
