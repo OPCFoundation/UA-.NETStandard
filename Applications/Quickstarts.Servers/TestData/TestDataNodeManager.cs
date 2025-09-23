@@ -868,7 +868,7 @@ namespace TestData
         private ushort m_namespaceIndex;
         private ushort m_typeNamespaceIndex;
         private readonly TestDataSystem m_system;
-        private long m_lastUsedId;
+        private uint m_lastUsedId;
 #if CONDITION_SAMPLES
         private Timer m_systemStatusTimer;
         private TestSystemConditionState m_systemStatusCondition;

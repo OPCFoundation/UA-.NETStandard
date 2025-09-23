@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; set; }
 
         /// <inheritdoc/>
-        public long SequenceNumber { get; set; }
+        public uint SequenceNumber { get; set; }
 
         /// <inheritdoc/>
         public List<NotificationMessage> SentMessages { get; set; }
