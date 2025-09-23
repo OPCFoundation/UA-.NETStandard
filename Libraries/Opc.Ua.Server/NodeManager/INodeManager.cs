@@ -290,7 +290,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter);
+            MonitoredItemIdFactory monitoredItemIdFactory);
 
         /// <summary>
         /// Restore a set of monitored items after a restart.
@@ -557,6 +557,99 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An asynchronous version of the "SetMonitoringMode" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ISetMonitoringModeAsyncNodeManager
+    {
+        /// <summary>
+        /// Changes the monitoring mode for a set of monitored items.
+        /// </summary>
+        ValueTask SetMonitoringModeAsync(
+            OperationContext context,
+            MonitoringMode monitoringMode,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "TransferMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ITransferMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <remarks>
+        /// Queue initial values from monitored items in the node managers.
+        /// </remarks>
+        ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "DeleteMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IDeleteMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Deletes a set of monitored items.
+        /// </summary>
+        ValueTask DeleteMonitoredItemsAsync(
+            OperationContext context,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "ModifyMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IModifyMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Modifies a set of monitored items.
+        /// </summary>
+        ValueTask ModifyMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            IList<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterErrors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "CreateMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ICreateMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Creates a set of monitored items.
+        /// </summary>
+        ValueTask CreateMonitoredItemsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            IList<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterErrors,
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
+            MonitoredItemIdFactory monitoredItemIdFactory,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// This interface is in active development and will be extended in future releases.
     /// Please use the sub interfaces to implement async support for specific service calls.
@@ -570,7 +663,161 @@ namespace Opc.Ua.Server
         IHistoryUpdateAsyncNodeManager,
         IConditionRefreshAsyncNodeManager,
         ITranslateBrowsePathAsyncNodeManager,
-        IBrowseAsyncNodeManager;
+        IBrowseAsyncNodeManager,
+        ISetMonitoringModeAsyncNodeManager,
+        ITransferMonitoredItemsAsyncNodeManager,
+        IDeleteMonitoredItemsAsyncNodeManager,
+        IModifyMonitoredItemsAsyncNodeManager,
+        ICreateMonitoredItemsAsyncNodeManager
+    {
+        /// <summary>
+        /// Returns the NamespaceUris for the Nodes belonging to the NodeManager.
+        /// </summary>
+        /// <remarks>
+        /// <para>By default the MasterNodeManager uses the namespaceIndex to determine who owns an Node.</para>
+        /// <para>
+        /// Servers that do not wish to partition their address space this way must provide their own
+        /// implementation of MasterNodeManager.GetManagerHandle().
+        /// </para>
+        /// <para>NodeManagers which depend on a custom partitioning scheme must return a null value.</para>
+        /// </remarks>
+        IEnumerable<string> NamespaceUris { get; }
+
+        /// <summary>
+        /// Creates the address space by loading any configuration information an connecting to an underlying system (if applicable).
+        /// </summary>
+        /// <returns>A table of references that need to be added to other node managers.</returns>
+        /// <remarks>
+        /// A node manager owns a set of nodes. These nodes may be known in advance or they may be stored in an
+        /// external system are retrived on demand. These nodes may have two way references to nodes that are owned
+        /// by other node managers. In these cases, the node managers only manage one half of those references. The
+        /// other half of the reference should be returned to the MasterNodeManager.
+        /// </remarks>
+        ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the metadata associated with the node.
+        /// </summary>
+        /// <remarks>
+        /// Returns null if the node does not exist.
+        /// </remarks>
+        ValueTask<NodeMetadata> GetNodeMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes the address by releasing all resources and disconnecting from any underlying system.
+        /// </summary>
+        ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns an opaque handle identifying to the node to the node manager.
+        /// </summary>
+        /// <returns>A node handle, null if the node manager does not recognize the node id.</returns>
+        /// <remarks>
+        /// The method must not block by querying an underlying system. If the node manager wraps an
+        /// underlying system then it must check to see if it recognizes the syntax of the node id.
+        /// The handle in this case may simply be a partially parsed version of the node id.
+        /// </remarks>
+        ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds references to the node manager.
+        /// </summary>
+        /// <remarks>
+        /// The node manager checks the dictionary for nodes that it owns and ensures the associated references exist.
+        /// </remarks>
+        ValueTask AddReferencesAsync(
+            IDictionary<NodeId, IList<IReference>> references,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes a reference.
+        /// </summary>
+        ValueTask<ServiceResult> DeleteReferenceAsync(
+            object sourceHandle,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            bool deleteBidirectional,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Called when the session is closed.
+        /// </summary>
+        ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns true if the node is in the view.
+        /// </summary>
+        ValueTask<bool> IsNodeInViewAsync(
+            OperationContext context,
+            NodeId viewId,
+            object nodeHandle,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the metadata needed for validating permissions, associated with the node with
+        /// the option to optimize services by using a cache.
+        /// </summary>
+        /// <remarks>
+        /// Returns null if the node does not exist.
+        /// It should return null in case the implementation wishes to handover the task to the parent INodeManager.GetNodeMetadata
+        /// </remarks>
+        ValueTask<NodeMetadata> GetPermissionMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Tells the NodeManager to report events from the specified notifier.
+        /// </summary>
+        /// <remarks>
+        /// This method may be called multiple times for the name monitoredItemId if the
+        /// context for that MonitoredItem changes (i.e. UserIdentity and/or Locales).
+        /// </remarks>
+        ValueTask<ServiceResult> SubscribeToEventsAsync(
+            OperationContext context,
+            object sourceId,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Tells the NodeManager to report events all events from all sources.
+        /// </summary>
+        /// <remarks>
+        /// This method may be called multiple times for the name monitoredItemId if the
+        /// context for that MonitoredItem changes (i.e. UserIdentity and/or Locales).
+        /// </remarks>
+        ValueTask<ServiceResult> SubscribeToAllEventsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Restore a set of monitored items after a restart.
+        /// </summary>
+        ValueTask RestoreMonitoredItemsAsync(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity,
+            CancellationToken cancellationToken = default);
+    }
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.
