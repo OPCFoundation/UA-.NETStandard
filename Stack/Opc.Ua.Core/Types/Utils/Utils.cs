@@ -15,6 +15,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -291,57 +292,6 @@ namespace Opc.Ua
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
-        }
-
-        /// <summary>
-        /// Finds the file by search the common file folders and then bin directories in the source tree
-        /// </summary>
-        /// <param name="fileName">Name of the file.</param>
-        /// <param name="logger">A contextual logger to log to</param>
-        /// <returns>The path to the file. Null if not found.</returns>
-        public static string FindInstalledFile(string fileName, ILogger logger)
-        {
-            if (string.IsNullOrEmpty(fileName))
-            {
-                return null;
-            }
-
-            string path = null;
-
-            // check source tree.
-            var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
-
-            while (directory != null)
-            {
-                var buffer = new StringBuilder();
-                buffer.Append(directory.FullName)
-                    .Append(Path.DirectorySeparatorChar)
-                    .Append("Bin")
-                    .Append(Path.DirectorySeparatorChar)
-                    .Append(fileName);
-
-                try
-                {
-                    path = GetAbsoluteFilePath(
-                        buffer.ToString(),
-                        checkCurrentDirectory: false,
-                        createAlways: false);
-                }
-                catch (Exception e)
-                {
-                    logger.LogTrace(e, "Could not find installed file: {FileName}", fileName);
-                }
-
-                if (path != null)
-                {
-                    break;
-                }
-
-                directory = directory.Parent;
-            }
-
-            // return what was found.
-            return path;
         }
 
         /// <summary>

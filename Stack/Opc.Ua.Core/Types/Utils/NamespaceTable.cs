@@ -27,6 +27,7 @@ namespace Opc.Ua
         public StringTable()
         {
             m_strings = [];
+
 #if DEBUG
             InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
@@ -38,6 +39,7 @@ namespace Opc.Ua
         public StringTable(bool shared)
         {
             m_strings = [];
+
 #if DEBUG
             m_shared = shared;
             InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
@@ -62,6 +64,7 @@ namespace Opc.Ua
         public StringTable(IEnumerable<string> strings)
         {
             Update(strings);
+
 #if DEBUG
             InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif

@@ -54,7 +54,6 @@ namespace Opc.Ua
                 new StringReader(element.OuterXml),
                 Utils.DefaultXmlReaderSettings());
             var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
-            // using IDisposable scope = MessageContextExtension.SetScopedContext(telemetry);
             return serializer.ReadObject(reader) as ConfigurationLocation;
         }
     }

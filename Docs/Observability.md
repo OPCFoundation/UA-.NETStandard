@@ -291,6 +291,14 @@ logger.LogInformation("Request processed successfully");
 
 - **ADDED:** `public ApplicationConfiguration(ITelemetryContext telemetry)` - New constructor with telemetry context
 
+**File:** `Stack\Opc.Ua.Core\Stack\Types\ContentFilter.cs`
+
+- **REMOVED:** `public ContentFilter.Evaluate(...)` - Moved to new `FilterEvaluator` class which requires telemetry context
+- **ADDED:** `FilterEvaluator` class that encapsulates a filter evaluation operation with result returned as `Result` property.
+
+Various other methods in Content filter were modified to pass telemetry context or logger, but those are used mostly internally
+to the stack.
+
 ### 2. Interface Changes
 
 #### `IServiceMessageContext`

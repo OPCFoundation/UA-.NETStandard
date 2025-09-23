@@ -11,9 +11,13 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Xml;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -651,6 +655,126 @@ namespace Opc.Ua
         public static void Log(int traceMask, string format, bool handled, params object[] args)
         {
             Log(null, traceMask, format, handled, args);
+        }
+
+        /// <summary>
+        /// Creates a X509 certificate object from the DER encoded bytes.
+        /// </summary>
+        [Obsolete("Use ParseCertificateBlob with telemetry context.")]
+        public static X509Certificate2 ParseCertificateBlob(
+            ReadOnlyMemory<byte> certificateData,
+            bool useAsnParser = false)
+        {
+            return ParseCertificateBlob(certificateData, null, useAsnParser);
+        }
+
+        /// <summary>
+        /// Creates a X509 certificate collection object from the DER encoded bytes.
+        /// </summary>
+        [Obsolete("Use ParseCertificateChainBlobs with telemetry context.")]
+        public static X509Certificate2Collection ParseCertificateChainBlob(
+            ReadOnlyMemory<byte> certificateData,
+            bool useAsnParser = false)
+        {
+            return ParseCertificateChainBlob(certificateData, null, useAsnParser);
+        }
+
+        /// <summary>
+        /// Looks for an extension with the specified type and uses the DataContractSerializer to serializes its replacement.
+        /// </summary>
+        /// <typeparam name="T">The type of extension.</typeparam>
+        [Obsolete("Use UpdateExtension with telemetry context.")]
+        public static void UpdateExtension<T>(
+            ref XmlElementCollection extensions,
+            XmlQualifiedName elementName,
+            object value)
+        {
+            UpdateExtension<T>(ref extensions, elementName, value, null);
+        }
+
+        /// <summary>
+        /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
+        /// </summary>
+        /// <typeparam name="T">The type of extension.</typeparam>
+        [Obsolete("Use ParseExtension with telemetry context.")]
+        public static T ParseExtension<T>(
+            IList<XmlElement> extensions,
+            XmlQualifiedName elementName)
+        {
+            return ParseExtension<T>(extensions, elementName, null);
+        }
+
+        /// <summary>
+        /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
+        /// </summary>
+        [Obsolete("Catch exceptions from GetAbsoluteFilePath and handle !throwOnError")]
+        public static string GetAbsoluteFilePath(
+            string filePath,
+            bool checkCurrentDirectory,
+            bool throwOnError,
+            bool createAlways,
+            bool writable = false)
+        {
+            try
+            {
+                return GetAbsoluteFilePath(filePath, checkCurrentDirectory, createAlways, writable);
+            }
+            catch (Exception e) when (!throwOnError)
+            {
+                Fallback.Logger.LogError(e, "Could not get absolute path for {FileName}", filePath);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Finds the file by search the common file folders and then bin directories in the source tree
+        /// </summary>
+        /// <param name="fileName">Name of the file.</param>
+        /// <returns>The path to the file. Null if not found.</returns>
+        [Obsolete("Not used in stack")]
+        public static string FindInstalledFile(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                return null;
+            }
+
+            string path = null;
+
+            // check source tree.
+            var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+
+            while (directory != null)
+            {
+                var buffer = new StringBuilder();
+                buffer.Append(directory.FullName)
+                    .Append(Path.DirectorySeparatorChar)
+                    .Append("Bin")
+                    .Append(Path.DirectorySeparatorChar)
+                    .Append(fileName);
+
+                try
+                {
+                    path = GetAbsoluteFilePath(
+                        buffer.ToString(),
+                        checkCurrentDirectory: false,
+                        createAlways: false);
+                }
+                catch (Exception e)
+                {
+                    Fallback.Logger.LogTrace(e, "Could not find installed file: {FileName}", fileName);
+                }
+
+                if (path != null)
+                {
+                    break;
+                }
+
+                directory = directory.Parent;
+            }
+
+            // return what was found.
+            return path;
         }
 
         /// <summary>
