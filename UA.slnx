@@ -72,7 +72,6 @@
     <File Path=".azurepipelines/ci.yml" />
     <File Path=".azurepipelines/get-matrix.ps1" />
     <File Path=".azurepipelines/get-root.ps1" />
-    <File Path=".azurepipelines/get-version.ps1" />
     <File Path=".azurepipelines/preview.yml" />
     <File Path=".azurepipelines/set-version.ps1" />
     <File Path=".azurepipelines/signlistDebug.txt" />

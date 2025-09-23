@@ -1903,22 +1903,6 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                switch (value.Encoding)
-                {
-                    case ExtensionObjectEncoding.Binary:
-                        _ = encodeable.BinaryEncodingId;
-                        break;
-                    case ExtensionObjectEncoding.Xml:
-                        _ = encodeable.XmlEncodingId;
-                        break;
-                    default:
-                        _ = encodeable.TypeId;
-                        break;
-                }
-            }
-
-            if (encodeable != null)
-            {
                 WriteEncodeable("Body", encodeable, null);
             }
             else if (value.Body is JObject json)
