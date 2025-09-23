@@ -365,7 +365,7 @@ namespace Opc.Ua.Client.Tests
                 .Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
         }
 
@@ -1629,7 +1629,7 @@ namespace Opc.Ua.Client.Tests
                     subscriptionIds,
                     true);
 
-               await transferSession.CloseAsync().ConfigureAwait(false);
+                await transferSession.CloseAsync().ConfigureAwait(false);
             }
             finally
             {

@@ -1487,9 +1487,9 @@ namespace Opc.Ua
                                 "ServerUri",
                                 uri,
                                 EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                            PopStructure();
                         }
 
+                        PopStructure();
                         return;
                     }
 
@@ -3840,7 +3840,7 @@ namespace Opc.Ua
                     {
                         m_writer.Write(kComma);
                     }
-                    WriteVariantContents(copy, new TypeInfo(typeInfo.BuiltInType, 1));
+                    WriteVariantContents(copy, TypeInfo.CreateArray(typeInfo.BuiltInType));
                     index += arrayLen;
                 }
                 else

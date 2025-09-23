@@ -11,6 +11,8 @@
 */
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -41,15 +43,9 @@ namespace Opc.Ua
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        IAsyncResult BeginInvokeService(
+        Task<InvokeServiceResponseMessage> InvokeServiceAsync(
             InvokeServiceMessage request,
-            AsyncCallback callback,
-            object asyncState);
-
-        /// <summary>
-        /// The method used to retrieve the results of a InvokeService service request.
-        /// </summary>
-        InvokeServiceResponseMessage EndInvokeService(IAsyncResult result);
+            CancellationToken cancellationToken);
     }
 #endif
 }

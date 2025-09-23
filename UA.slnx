@@ -1,0 +1,103 @@
+<Solution>
+  <Folder Name="/Applications/">
+    <Project Path="Applications/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
+    <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
+    <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
+    <Project Path="Applications/ConsoleReferencePublisher/ConsoleReferencePublisher.csproj" />
+    <Project Path="Applications/ConsoleReferenceSubscriber/ConsoleReferenceSubscriber.csproj" />
+  </Folder>
+  <Folder Name="/Fuzzing/">
+    <File Path="Fuzzing/Fuzzing.md" />
+  </Folder>
+  <Folder Name="/Fuzzing/common/" />
+  <Folder Name="/Fuzzing/common/Fuzz.Tools/">
+    <File Path="Fuzzing/common/Fuzz.Tools/Playback.cs" />
+    <File Path="Fuzzing/common/Fuzz.Tools/Program.cs" />
+    <File Path="Fuzzing/common/Fuzz.Tools/Testcases.cs" />
+  </Folder>
+  <Folder Name="/Fuzzing/common/Fuzz/">
+    <File Path="Fuzzing/common/Fuzz/FuzzMethods.cs" />
+    <File Path="Fuzzing/common/Fuzz/Program.cs" />
+  </Folder>
+  <Folder Name="/Fuzzing/dictionaries/">
+    <File Path="Fuzzing/dictionaries/json.dict" />
+    <File Path="Fuzzing/dictionaries/xml.dict" />
+  </Folder>
+  <Folder Name="/Fuzzing/Encoders/">
+    <Project Path="Fuzzing/Encoders/Fuzz.Tests/Opc.Ua.Encoders.Fuzz.Tests.csproj" />
+    <Project Path="Fuzzing/Encoders/Fuzz.Tools/Encoders.Fuzz.Tools.csproj" />
+    <Project Path="Fuzzing/Encoders/Fuzz/Encoders.Fuzz.csproj" />
+  </Folder>
+  <Folder Name="/Fuzzing/scripts/">
+    <File Path="Fuzzing/scripts/fuzz-afl.ps1" />
+    <File Path="Fuzzing/scripts/fuzz-libfuzzer.ps1" />
+    <File Path="Fuzzing/scripts/install.sh" />
+    <File Path="Fuzzing/scripts/readme.txt" />
+  </Folder>
+  <Folder Name="/Libraries/">
+    <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
+    <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
+    <Project Path="Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
+    <Project Path="Libraries/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
+    <Project Path="Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
+    <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
+    <Project Path="Libraries/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
+    <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".dockerignore" />
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="azure-pipelines-preview.yml" />
+    <File Path="azure-pipelines.yml" />
+    <File Path="common.props" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+    <File Path="targets.props" />
+    <File Path="Tests/benchmarks.cmd" />
+    <File Path="Tests/codecoverage.cmd" />
+    <File Path="Tests/codecoverage.sh" />
+    <File Path="Tests/coverlet.runsettings.xml" />
+    <File Path="version.json" />
+    <File Path="version.props" />
+  </Folder>
+  <Folder Name="/Solution Items/actions/">
+    <File Path=".github/workflows/buildandtest.yml" />
+    <File Path=".github/workflows/codeql-analysis.yml" />
+    <File Path=".github/workflows/docker-image.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/azurepipelines/">
+    <File Path=".azurepipelines/ci.yml" />
+    <File Path=".azurepipelines/get-matrix.ps1" />
+    <File Path=".azurepipelines/get-root.ps1" />
+    <File Path=".azurepipelines/get-version.ps1" />
+    <File Path=".azurepipelines/preview.yml" />
+    <File Path=".azurepipelines/set-version.ps1" />
+    <File Path=".azurepipelines/signlistDebug.txt" />
+    <File Path=".azurepipelines/signlistRelease.txt" />
+    <File Path=".azurepipelines/sln.yml" />
+    <File Path=".azurepipelines/test.yml" />
+    <File Path=".azurepipelines/testcc.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/nuget/">
+    <File Path="nuget/Opc.Ua.Client.ComplexTypes.Symbols.nuspec" />
+    <File Path="nuget/Opc.Ua.nuspec" />
+    <File Path="nuget/Opc.Ua.Symbols.nuspec" />
+  </Folder>
+  <Folder Name="/Stack/">
+    <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
+    <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -74,8 +75,8 @@ namespace Opc.Ua.Server
             }
 
             // need to build a table of NamespaceIndexes and their NodeManagers.
-            List<INodeManager> registeredManagers;
-            var namespaceManagers = new Dictionary<int, List<INodeManager>>
+            List<(INodeManager Sync, IAsyncNodeManager Async)> registeredManagers;
+            var namespaceManagers = new Dictionary<int, List<(INodeManager Sync, IAsyncNodeManager Async)>>
             {
                 [0] = [],
                 [1] = registeredManagers = []
@@ -92,8 +93,8 @@ namespace Opc.Ua.Server
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
-            m_nodeManagers.Add(
-                new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex));
+            var coreNodeManager = new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex);
+            m_nodeManagers.Add((coreNodeManager, coreNodeManager.ToAsyncNodeManager()));
 
             // register core node manager for default UA namespace.
             namespaceManagers[0].Add(m_nodeManagers[1]);
@@ -108,17 +109,12 @@ namespace Opc.Ua.Server
                 {
                     RegisterNodeManager(nodeManager, registeredManagers, namespaceManagers);
                 }
+            }
 
-                // build table from dictionary.
-                NamespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
-
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
-                {
-                    if (namespaceManagers.TryGetValue(ii, out registeredManagers))
-                    {
-                        NamespaceManagers[ii] = [.. registeredManagers];
-                    }
-                }
+            // build NamespaceManagersDictionary from local dictionary.
+            foreach (KeyValuePair<int, List<(INodeManager Sync, IAsyncNodeManager Async)>> namespaceManager in namespaceManagers)
+            {
+                m_namespaceManagers.TryAdd(namespaceManager.Key, namespaceManager.Value.AsReadOnly());
             }
         }
 
@@ -127,10 +123,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RegisterNodeManager(
             INodeManager nodeManager,
-            List<INodeManager> registeredManagers,
-            Dictionary<int, List<INodeManager>> namespaceManagers)
+            List<(INodeManager Sync, IAsyncNodeManager Async)> registeredManagers,
+            Dictionary<int, List<(INodeManager Sync, IAsyncNodeManager Async)>> namespaceManagers)
         {
-            m_nodeManagers.Add(nodeManager);
+            (INodeManager nodeManager, IAsyncNodeManager) nodeManagerTuple = (nodeManager, nodeManager.ToAsyncNodeManager());
+            m_nodeManagers.Add(nodeManagerTuple);
 
             // ensure the NamespaceUris supported by the NodeManager are in the Server's NamespaceTable.
             if (nodeManager.NamespaceUris != null)
@@ -151,7 +148,7 @@ namespace Opc.Ua.Server
                         namespaceManagers[index] = registeredManagers = [];
                     }
 
-                    registeredManagers.Add(nodeManager);
+                    registeredManagers.Add(nodeManagerTuple);
                 }
             }
         }
@@ -172,15 +169,16 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<INodeManager> nodeManagers = null;
+                Utils.SilentDispose(m_namespaceManagersSemaphoreSlim);
 
-                lock (m_lock)
-                {
-                    nodeManagers = [.. m_nodeManagers];
-                    m_nodeManagers.Clear();
-                }
+                m_startupShutdownSemaphoreSlim.Wait();
 
-                foreach (INodeManager nodeManager in nodeManagers)
+                List<(INodeManager Sync, IAsyncNodeManager Async)> nodeManagers = [.. m_nodeManagers];
+                m_nodeManagers.Clear();
+
+                Utils.SilentDispose(m_startupShutdownSemaphoreSlim);
+
+                foreach ((INodeManager nodeManager, _) in nodeManagers)
                 {
                     Utils.SilentDispose(nodeManager);
                 }
@@ -270,26 +268,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        public CoreNodeManager CoreNodeManager => m_nodeManagers[1] as CoreNodeManager;
+        public CoreNodeManager CoreNodeManager => m_nodeManagers[1].Sync as CoreNodeManager;
 
         /// <summary>
         /// Returns the diagnostics node manager.
         /// </summary>
         public DiagnosticsNodeManager DiagnosticsNodeManager
-            => m_nodeManagers[0] as DiagnosticsNodeManager;
+            => m_nodeManagers[0].Sync as DiagnosticsNodeManager;
 
         /// <summary>
         /// Returns the configuration node manager.
         /// </summary>
         public ConfigurationNodeManager ConfigurationNodeManager
-            => m_nodeManagers[0] as ConfigurationNodeManager;
+            => m_nodeManagers[0].Sync as ConfigurationNodeManager;
 
         /// <summary>
         /// Creates the node managers and start them
         /// </summary>
-        public virtual void Startup()
+        public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 Utils.LogInfo(
                     Utils.TraceMasks.StartStop,
@@ -299,91 +298,104 @@ namespace Opc.Ua.Server
                 // create the address spaces.
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
 
-                for (int ii = 0; ii < m_nodeManagers.Count; ii++)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-                    INodeManager nodeManager = m_nodeManagers[ii];
-
                     try
                     {
-                        nodeManager.CreateAddressSpace(externalReferences);
+                        await asyncNodeManager.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
                         Utils.LogError(
                             e,
-                            "Unexpected error creating address space for NodeManager #{0}.",
-                            ii);
+                            "Unexpected error creating address space for NodeManager ={0}.",
+                            asyncNodeManager);
                         throw;
                     }
                 }
 
                 // update external references.
-                for (int ii = 0; ii < m_nodeManagers.Count; ii++)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-                    INodeManager nodeManager = m_nodeManagers[ii];
-
                     try
                     {
-                        nodeManager.AddReferences(externalReferences);
+                        await asyncNodeManager.AddReferencesAsync(externalReferences, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
                         Utils.LogError(
                             e,
-                            "Unexpected error adding references for NodeManager #{0}.",
-                            ii);
+                            "Unexpected error adding references for NodeManager ={0}.",
+                            asyncNodeManager);
                         throw;
                     }
                 }
+            }
+            finally
+            {
+                m_startupShutdownSemaphoreSlim.Release();
             }
         }
 
         /// <summary>
         /// Signals that a session is closing.
         /// </summary>
-        public virtual void SessionClosing(
+        public virtual async ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
-            bool deleteSubscriptions)
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                for (int ii = 0; ii < m_nodeManagers.Count; ii++)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-                    if (m_nodeManagers[ii] is INodeManager2 nodeManager)
+                    try
                     {
-                        try
-                        {
-                            nodeManager.SessionClosing(context, sessionId, deleteSubscriptions);
-                        }
-                        catch (Exception e)
-                        {
-                            Utils.LogError(
-                                e,
-                                "Unexpected error closing session for NodeManager #{0}.",
-                                ii);
-                        }
+                        await asyncNodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(
+                            e,
+                            "Unexpected error closing session for NodeManager ={0}.",
+                            asyncNodeManager);
                     }
                 }
+            }
+            finally
+            {
+                m_startupShutdownSemaphoreSlim.Release();
             }
         }
 
         /// <summary>
         /// Shuts down the node managers.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual async ValueTask ShutdownAsync()
         {
-            lock (m_lock)
+            await m_startupShutdownSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+
+            try
             {
                 Utils.LogInfo(
                     Utils.TraceMasks.StartStop,
                     "MasterNodeManager.Shutdown - NodeManagers={0}",
                     m_nodeManagers.Count);
 
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
                 {
-                    nodeManager.DeleteAddressSpace();
+                    await nodeManager.DeleteAddressSpaceAsync()
+                        .ConfigureAwait(false);
                 }
+            }
+            finally
+            {
+                m_startupShutdownSemaphoreSlim.Release();
             }
         }
 
@@ -428,44 +440,26 @@ namespace Opc.Ua.Server
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
             var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
-            m_readWriterLockSlim.EnterWriteLock();
+            (INodeManager nodeManager, IAsyncNodeManager) nodeManagerTuple = (nodeManager, nodeManager.ToAsyncNodeManager());
+
+            m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
-                // copy existing values.
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
-                {
-                    if (NamespaceManagers.Length >= ii)
-                    {
-                        namespaceManagers[ii] = NamespaceManagers[ii];
-                    }
-                }
+                m_namespaceManagers.AddOrUpdate(
+                    index,
+                    [nodeManagerTuple],
+                    (key, existingNodeManagers) =>
+                        {
+                            var nodeManagers = existingNodeManagers.ToList();
 
-                // allocate a new array for the index being updated.
-                INodeManager[] registeredManagers = namespaceManagers[index];
+                            nodeManagers.Add(nodeManagerTuple);
 
-                if (registeredManagers == null)
-                {
-                    registeredManagers = new INodeManager[1];
-                }
-                else
-                {
-                    registeredManagers = new INodeManager[registeredManagers.Length + 1];
-                    Array.Copy(
-                        namespaceManagers[index],
-                        registeredManagers,
-                        namespaceManagers[index].Length);
-                }
-
-                // add new node manager to the end of the list.
-                registeredManagers[^1] = nodeManager;
-                namespaceManagers[index] = registeredManagers;
-
-                // replace the table.
-                NamespaceManagers = namespaceManagers;
+                            return nodeManagers.AsReadOnly();
+                        });
             }
             finally
             {
-                m_readWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersSemaphoreSlim.Release();
             }
         }
 
@@ -495,65 +489,33 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // look up the node manager in the registered node managers for the namespace.
-            int nodeManagerIndex = Array.IndexOf(NamespaceManagers[namespaceIndex], nodeManager);
-            if (nodeManagerIndex < 0)
-            {
-                return false;
-            }
-
-            // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
-            var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
-
-            m_readWriterLockSlim.EnterWriteLock();
+            m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
-                // copy existing values.
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
+                if (!m_namespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<(INodeManager, IAsyncNodeManager)> readOnlyNodeManagers))
                 {
-                    if (NamespaceManagers.Length >= ii)
-                    {
-                        namespaceManagers[ii] = NamespaceManagers[ii];
-                    }
+                    return false;
+                }
+                var nodeManagers = readOnlyNodeManagers.ToList();
+
+                (INodeManager, IAsyncNodeManager) nodeManagerToRemove = nodeManagers.Find(tuple => tuple.Item1 == nodeManager);
+
+                bool nodeManagerFound = nodeManagers.Remove(nodeManagerToRemove);
+
+                if (nodeManagers.Count == 0)
+                {
+                    m_namespaceManagers.TryRemove(namespaceIndex, out _);
+                }
+                else
+                {
+                    m_namespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
                 }
 
-                // allocate a new smaller array to support element removal for the index being updated.
-                var registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length -
-                    1];
-
-                // begin by populating the new array with existing elements up to the target index.
-                if (nodeManagerIndex > 0)
-                {
-                    Array.Copy(
-                        namespaceManagers[namespaceIndex],
-                        0,
-                        registeredManagers,
-                        0,
-                        nodeManagerIndex);
-                }
-
-                // finish by populating the new array with existing elements after the target index.
-                if (nodeManagerIndex < namespaceManagers[namespaceIndex].Length - 1)
-                {
-                    Array.Copy(
-                        namespaceManagers[namespaceIndex],
-                        nodeManagerIndex + 1,
-                        registeredManagers,
-                        nodeManagerIndex,
-                        namespaceManagers[namespaceIndex].Length - nodeManagerIndex - 1);
-                }
-
-                // update the array for the target index.
-                namespaceManagers[namespaceIndex] = registeredManagers;
-
-                // replace the table.
-                NamespaceManagers = namespaceManagers;
-
-                return true;
+                return nodeManagerFound;
             }
             finally
             {
-                m_readWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersSemaphoreSlim.Release();
             }
         }
 
@@ -562,56 +524,89 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
         {
-            nodeManager = null;
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (object handle, (INodeManager Sync, IAsyncNodeManager Async) nodeManager) result =
+                GetManagerHandleInternalAsync(nodeId, sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+
+            nodeManager = result.nodeManager.Sync;
+
+            return result.handle;
+        }
+
+        /// <summary>
+        /// Returns node handle and its node manager.
+        /// </summary>
+        public virtual async ValueTask<(object handle, IAsyncNodeManager nodeManager)>
+            GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+        {
+            (object handle, (INodeManager Sync, IAsyncNodeManager Async) nodeManager) =
+                await GetManagerHandleInternalAsync(nodeId, sync: false, cancellationToken)
+                    .ConfigureAwait(false);
+
+            return (handle, nodeManager.Async);
+        }
+
+        /// <summary>
+        /// Returns node handle and its node manager.
+        /// </summary>
+        public virtual async ValueTask<(object handle, (INodeManager Sync, IAsyncNodeManager Async) nodeManager)>
+            GetManagerHandleInternalAsync(
+            NodeId nodeId,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             object handle;
 
             // null node ids have no manager.
             if (NodeId.IsNull(nodeId))
             {
-                return null;
+                return (null, (null, null));
             }
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
 
-            m_readWriterLockSlim.EnterReadLock();
-            try
+            // check if node managers are registered - use the core node manager if unknown.
+            if (!m_namespaceManagers.TryGetValue(index, out IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)> nodeManagers))
             {
-                // check if node managers are registered - use the core node manager if unknown.
-                if (index >= NamespaceManagers.Length || NamespaceManagers[index] == null)
+                if (sync)
                 {
-                    handle = m_nodeManagers[1].GetManagerHandle(nodeId);
-
-                    if (handle != null)
-                    {
-                        nodeManager = m_nodeManagers[1];
-                        return handle;
-                    }
-
-                    return null;
+                    handle = m_nodeManagers[1].Sync.GetManagerHandle(nodeId);
+                }
+                else
+                {
+                    handle = await m_nodeManagers[1].Async.GetManagerHandleAsync(nodeId, cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
-                // check each of the registered node managers.
-                INodeManager[] nodeManagers = NamespaceManagers[index];
-
-                for (int ii = 0; ii < nodeManagers.Length; ii++)
+                if (handle != null)
                 {
-                    handle = nodeManagers[ii].GetManagerHandle(nodeId);
-
-                    if (handle != null)
-                    {
-                        nodeManager = nodeManagers[ii];
-                        return handle;
-                    }
+                    return (handle, m_nodeManagers[1]);
                 }
+                return (null, (null, null));
             }
-            finally
+
+            foreach ((INodeManager syncNodeManager, IAsyncNodeManager asyncNodeManager) in nodeManagers)
             {
-                m_readWriterLockSlim.ExitReadLock();
+                if (sync)
+                {
+                    handle = syncNodeManager.GetManagerHandle(nodeId);
+                }
+                else
+                {
+                    handle = await asyncNodeManager.GetManagerHandleAsync(nodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                if (handle != null)
+                {
+                    return (handle, (syncNodeManager, asyncNodeManager));
+                }
             }
 
             // node not recognized.
-            return null;
+            return (null, (null, null));
         }
 
         /// <summary>
@@ -619,15 +614,27 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void AddReferences(NodeId sourceId, IList<IReference> references)
         {
+            AddReferencesAsync(sourceId, references).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Adds the references to the target.
+        /// </summary>
+        public virtual async ValueTask AddReferencesAsync(NodeId sourceId,
+                                                          IList<IReference> references,
+                                                          CancellationToken cancellationToken = default)
+        {
             // find source node.
-            object sourceHandle = GetManagerHandle(sourceId, out INodeManager nodeManager);
+            (object sourceHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(sourceId, cancellationToken)
+                .ConfigureAwait(false);
             if (sourceHandle == null)
             {
                 return;
             }
 
             var map = new Dictionary<NodeId, IList<IReference>> { { sourceId, references } };
-            nodeManager.AddReferences(map);
+            await nodeManager.AddReferencesAsync(map, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -635,12 +642,23 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void DeleteReferences(NodeId targetId, IList<IReference> references)
         {
+            DeleteReferencesAsync(targetId, references).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Deletes the references to the target.
+        /// </summary>
+        public virtual async ValueTask DeleteReferencesAsync(NodeId targetId,
+                                                             IList<IReference> references,
+                                                             CancellationToken cancellationToken = default)
+        {
             foreach (ReferenceNode reference in references.OfType<ReferenceNode>())
             {
                 var sourceId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
 
                 // find source node.
-                object sourceHandle = GetManagerHandle(sourceId, out INodeManager nodeManager);
+                (object sourceHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(sourceId, cancellationToken)
+                .ConfigureAwait(false);
 
                 if (sourceHandle == null)
                 {
@@ -648,12 +666,14 @@ namespace Opc.Ua.Server
                 }
 
                 // delete the reference.
-                nodeManager.DeleteReference(
-                    sourceHandle,
-                    reference.ReferenceTypeId,
-                    !reference.IsInverse,
-                    targetId,
-                    false);
+                await nodeManager.DeleteReferenceAsync(
+                        sourceHandle,
+                        reference.ReferenceTypeId,
+                        !reference.IsInverse,
+                        targetId,
+                        false,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -662,14 +682,23 @@ namespace Opc.Ua.Server
         /// </summary>
         public void RemoveReferences(List<LocalReference> referencesToRemove)
         {
+            RemoveReferencesAsync(referencesToRemove).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Deletes the specified references.
+        /// </summary>
+        public async ValueTask RemoveReferencesAsync(List<LocalReference> referencesToRemove, CancellationToken cancellationToken = default)
+        {
             for (int ii = 0; ii < referencesToRemove.Count; ii++)
             {
                 LocalReference reference = referencesToRemove[ii];
 
                 // find source node.
-                object sourceHandle = GetManagerHandle(
-                    reference.SourceId,
-                    out INodeManager nodeManager);
+                (object sourceHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(
+                        reference.SourceId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (sourceHandle == null)
                 {
@@ -677,12 +706,14 @@ namespace Opc.Ua.Server
                 }
 
                 // delete the reference.
-                nodeManager.DeleteReference(
-                    sourceHandle,
-                    reference.ReferenceTypeId,
-                    reference.IsInverse,
-                    reference.TargetId,
-                    false);
+                await nodeManager.DeleteReferenceAsync(
+                        sourceHandle,
+                        reference.ReferenceTypeId,
+                        reference.IsInverse,
+                        reference.TargetId,
+                        false,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -771,14 +802,30 @@ namespace Opc.Ua.Server
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+            (results, diagnosticInfos) = TranslateBrowsePathsToNodeIdsAsync(
+                context,
+                browsePaths).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Translates a start node id plus a relative paths into a node id.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            TranslateBrowsePathsToNodeIdsAsync(
+            OperationContext context,
+            BrowsePathCollection browsePaths,
+            CancellationToken cancellationToken = default)
+        {
             if (browsePaths == null)
             {
                 throw new ArgumentNullException(nameof(browsePaths));
             }
 
             bool diagnosticsExist = false;
-            results = new BrowsePathResultCollection(browsePaths.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
+            var results = new BrowsePathResultCollection(browsePaths.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
@@ -798,7 +845,8 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = TranslateBrowsePath(context, browsePath, result);
+                    error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -841,6 +889,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -887,18 +937,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates a browse path.
         /// </summary>
-        protected ServiceResult TranslateBrowsePath(
+        protected async ValueTask<ServiceResult> TranslateBrowsePathAsync(
             OperationContext context,
             BrowsePath browsePath,
-            BrowsePathResult result)
+            BrowsePathResult result,
+            CancellationToken cancellationToken)
         {
             Debug.Assert(browsePath != null);
             Debug.Assert(result != null);
 
             // check for valid start node.
-            object sourceHandle = GetManagerHandle(
+            (object sourceHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(
                 browsePath.StartingNode,
-                out INodeManager nodeManager);
+                cancellationToken)
+                .ConfigureAwait(false);
 
             if (sourceHandle == null)
             {
@@ -928,24 +980,29 @@ namespace Opc.Ua.Server
                     element.IncludeSubtypes = true;
                 }
             }
+
             // validate access rights and role permissions
-            ServiceResult serviceResult = ValidatePermissions(
-                context,
-                nodeManager,
-                sourceHandle,
-                PermissionType.Browse,
-                null,
-                true);
+            ServiceResult serviceResult = await ValidatePermissionsAsync(
+                    context,
+                    nodeManager,
+                    sourceHandle,
+                    PermissionType.Browse,
+                    null,
+                    true,
+                    cancellationToken)
+                .ConfigureAwait(false);
             if (ServiceResult.IsGood(serviceResult))
             {
                 // translate path only if validation is passing
-                TranslateBrowsePath(
+                await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     result.Targets,
-                    0);
+                    0,
+                    cancellationToken)
+                .ConfigureAwait(false);
             }
 
             return serviceResult;
@@ -955,13 +1012,14 @@ namespace Opc.Ua.Server
         /// Recursively processes the elements in the RelativePath starting at the specified index.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void TranslateBrowsePath(
+        private async ValueTask TranslateBrowsePathAsync(
             OperationContext context,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object sourceHandle,
             RelativePath relativePath,
             BrowsePathTargetCollection targets,
-            int index)
+            int index,
+            CancellationToken cancellationToken)
         {
             Debug.Assert(nodeManager != null);
             Debug.Assert(sourceHandle != null);
@@ -994,12 +1052,14 @@ namespace Opc.Ua.Server
 
             try
             {
-                nodeManager.TranslateBrowsePath(
+                await nodeManager.TranslateBrowsePathAsync(
                     context,
                     sourceHandle,
                     element,
                     targetIds,
-                    externalTargetIds);
+                    externalTargetIds,
+                    cancellationToken)
+                .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1013,12 +1073,14 @@ namespace Opc.Ua.Server
                 // get the browse name from another node manager.
                 var description = new ReferenceDescription();
 
-                UpdateReferenceDescription(
-                    context,
-                    externalTargetIds[ii],
-                    NodeClass.Unspecified,
-                    BrowseResultMask.BrowseName,
-                    description);
+                await UpdateReferenceDescriptionAsync(
+                        context,
+                        externalTargetIds[ii],
+                        NodeClass.Unspecified,
+                        BrowseResultMask.BrowseName,
+                        description,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 // add to list if target name matches.
                 if (description.BrowseName == element.TargetName)
@@ -1047,16 +1109,21 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < targetIds.Count; ii++)
                 {
                     // Check the role permissions for target nodes
-                    object targetHandle = GetManagerHandle(
-                        ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris),
-                        out INodeManager targetNodeManager);
+                    (object targetHandle, IAsyncNodeManager targetNodeManager) =
+                        await GetManagerHandleAsync(
+                            ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris),
+                            cancellationToken)
+                        .ConfigureAwait(false);
 
                     if (targetHandle != null && targetNodeManager != null)
                     {
-                        NodeMetadata nodeMetadata = targetNodeManager.GetNodeMetadata(
+                        NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
                             context,
                             targetHandle,
-                            BrowseResultMask.All);
+                            BrowseResultMask.All,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+
                         ServiceResult serviceResult = ValidateRolePermissions(
                             context,
                             nodeMetadata,
@@ -1100,7 +1167,8 @@ namespace Opc.Ua.Server
                 }
 
                 // check for valid start node.
-                sourceHandle = GetManagerHandle((NodeId)targetId, out nodeManager);
+                (sourceHandle, nodeManager) = await GetManagerHandleAsync((NodeId)targetId, cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (sourceHandle == null)
                 {
@@ -1108,13 +1176,15 @@ namespace Opc.Ua.Server
                 }
 
                 // recursively follow hops.
-                TranslateBrowsePath(
+                await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     targets,
-                    index + 1);
+                    index + 1,
+                    cancellationToken)
+                .ConfigureAwait(false);
             }
         }
 
@@ -1131,6 +1201,25 @@ namespace Opc.Ua.Server
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+            (results, diagnosticInfos) = BrowseAsync(
+                context,
+                view,
+                maxReferencesPerNode,
+                nodesToBrowse).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Returns the set of references that meet the filter criteria.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
+            OperationContext context,
+            ViewDescription view,
+            uint maxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken cancellationToken = default)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1143,14 +1232,21 @@ namespace Opc.Ua.Server
 
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
-                object viewHandle =
-                    GetManagerHandle(view.ViewId, out INodeManager viewManager)
-                    ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
+                (object viewHandle, IAsyncNodeManager viewManager) =
+                    await GetManagerHandleAsync(view.ViewId, cancellationToken)
+                    .ConfigureAwait(false);
 
-                NodeMetadata metadata = viewManager.GetNodeMetadata(
-                    context,
-                    viewHandle,
-                    BrowseResultMask.NodeClass);
+                if (viewHandle == null || viewManager == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
+                }
+
+                NodeMetadata metadata = await viewManager.GetNodeMetadataAsync(
+                        context,
+                        viewHandle,
+                        BrowseResultMask.NodeClass,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (metadata == null || metadata.NodeClass != NodeClass.View)
                 {
@@ -1158,13 +1254,15 @@ namespace Opc.Ua.Server
                 }
 
                 // validate access rights and role permissions
-                ServiceResult validationResult = ValidatePermissions(
-                    context,
-                    viewManager,
-                    viewHandle,
-                    PermissionType.Browse,
-                    null,
-                    true);
+                ServiceResult validationResult = await ValidatePermissionsAsync(
+                        context,
+                        viewManager,
+                        viewHandle,
+                        PermissionType.Browse,
+                        null,
+                        true,
+                        cancellationToken)
+                    .ConfigureAwait(false);
                 if (ServiceResult.IsBad(validationResult))
                 {
                     throw new ServiceResultException(validationResult);
@@ -1173,8 +1271,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowseResultCollection(nodesToBrowse.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
+            var results = new BrowseResultCollection(nodesToBrowse.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
 
             uint continuationPointsAssigned = 0;
 
@@ -1210,13 +1308,14 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = Browse(
+                    error = await BrowseAsync(
                         context,
                         view,
                         maxReferencesPerNode,
                         continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
                         nodeToBrowse,
-                        result);
+                        result,
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1251,6 +1350,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -1307,6 +1408,24 @@ namespace Opc.Ua.Server
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+            (results, diagnosticInfos) = BrowseNextAsync(
+                context,
+                releaseContinuationPoints,
+                continuationPoints).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Continues a browse operation that was previously halted.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            BrowseNextAsync(
+                OperationContext context,
+                bool releaseContinuationPoints,
+                ByteStringCollection continuationPoints,
+                CancellationToken cancellationToken = default)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1318,14 +1437,14 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowseResultCollection(continuationPoints.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(continuationPoints.Count);
+            var results = new BrowseResultCollection(continuationPoints.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
 
             for (int ii = 0; ii < continuationPoints.Count; ii++)
             {
-                ContinuationPoint cp = null;
+                ContinuationPoint cp;
 
                 // check if request has timed out or been canceled.
                 if (StatusCode.IsBad(context.OperationStatus))
@@ -1352,13 +1471,15 @@ namespace Opc.Ua.Server
                 // validate access rights and role permissions
                 if (cp != null)
                 {
-                    ServiceResult validationResult = ValidatePermissions(
-                        context,
-                        cp.Manager,
-                        cp.NodeToBrowse,
-                        PermissionType.Browse,
-                        null,
-                        true);
+                    ServiceResult validationResult = await ValidatePermissionsAsync(
+                            context,
+                            cp.Manager,
+                            cp.NodeToBrowse,
+                            PermissionType.Browse,
+                            null,
+                            true,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                     if (ServiceResult.IsBad(validationResult))
                     {
                         var badResult = new BrowseResult { StatusCode = validationResult.Code };
@@ -1397,11 +1518,13 @@ namespace Opc.Ua.Server
                     {
                         ReferenceDescriptionCollection references = result.References;
 
-                        error = FetchReferences(
-                            context,
-                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
-                            ref cp,
-                            ref references);
+                        (error, cp, references) = await FetchReferencesAsync(
+                                context,
+                                continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                                cp,
+                                references,
+                                cancellationToken)
+                            .ConfigureAwait(false);
 
                         result.References = references;
                     }
@@ -1446,25 +1569,29 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
-        protected ServiceResult Browse(
+        protected async ValueTask<ServiceResult> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
             bool assignContinuationPoint,
             BrowseDescription nodeToBrowse,
-            BrowseResult result)
+            BrowseResult result,
+            CancellationToken cancellationToken = default)
         {
             Debug.Assert(context != null);
             Debug.Assert(nodeToBrowse != null);
             Debug.Assert(result != null);
 
             // find node manager that owns the node.
-            object handle = GetManagerHandle(nodeToBrowse.NodeId, out INodeManager nodeManager);
+            (object handle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(nodeToBrowse.NodeId, cancellationToken)
+                .ConfigureAwait(false);
 
             if (handle == null)
             {
@@ -1483,13 +1610,15 @@ namespace Opc.Ua.Server
             }
 
             // validate access rights and role permissions
-            ServiceResult validationResult = ValidatePermissions(
-                context,
-                nodeManager,
-                handle,
-                PermissionType.Browse,
-                null,
-                true);
+            ServiceResult validationResult = await ValidatePermissionsAsync(
+                    context,
+                    nodeManager,
+                    handle,
+                    PermissionType.Browse,
+                    null,
+                    true,
+                    cancellationToken)
+                .ConfigureAwait(false);
             if (ServiceResult.IsBad(validationResult))
             {
                 return validationResult;
@@ -1520,11 +1649,17 @@ namespace Opc.Ua.Server
 
             // loop until browse is complete or max results.
             ReferenceDescriptionCollection references = result.References;
-            ServiceResult error = FetchReferences(
-                context,
-                assignContinuationPoint,
-                ref cp,
-                ref references);
+
+            ServiceResult error;
+
+            (error, cp, references) = await FetchReferencesAsync(
+               context,
+               assignContinuationPoint,
+               cp,
+               references,
+               cancellationToken)
+               .ConfigureAwait(false);
+
             result.References = references;
 
             // save continuation point.
@@ -1541,25 +1676,30 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loops until browse is complete for max results reached.
         /// </summary>
-        protected ServiceResult FetchReferences(
-            OperationContext context,
-            bool assignContinuationPoint,
-            ref ContinuationPoint cp,
-            ref ReferenceDescriptionCollection references)
+        protected async ValueTask<(
+            ServiceResult serviceResult,
+            ContinuationPoint cp,
+            ReferenceDescriptionCollection references
+            )> FetchReferencesAsync(
+                OperationContext context,
+                bool assignContinuationPoint,
+                ContinuationPoint cp,
+                ReferenceDescriptionCollection references,
+                CancellationToken cancellationToken = default)
         {
             Debug.Assert(context != null);
             Debug.Assert(cp != null);
             Debug.Assert(references != null);
 
-            INodeManager nodeManager = cp.Manager;
+            IAsyncNodeManager nodeManager = cp.Manager;
             var nodeClassMask = (NodeClass)cp.NodeClassMask;
             BrowseResultMask resultMask = cp.ResultMask;
 
             // loop until browse is complete or max results.
             while (cp != null)
             {
-                // fetch next batch.
-                nodeManager.Browse(context, ref cp, references);
+                cp = await nodeManager.BrowseAsync(context, cp, references, cancellationToken)
+                    .ConfigureAwait(false);
 
                 var referencesToKeep = new ReferenceDescriptionCollection(references.Count);
 
@@ -1578,12 +1718,14 @@ namespace Opc.Ua.Server
                         }
 
                         // update the description.
-                        bool include = UpdateReferenceDescription(
-                            context,
-                            (NodeId)reference.NodeId,
-                            nodeClassMask,
-                            resultMask,
-                            reference);
+                        bool include = await UpdateReferenceDescriptionAsync(
+                                context,
+                                (NodeId)reference.NodeId,
+                                nodeClassMask,
+                                resultMask,
+                                reference,
+                                cancellationToken)
+                            .ConfigureAwait(false);
 
                         if (!include)
                         {
@@ -1603,7 +1745,7 @@ namespace Opc.Ua.Server
                 {
                     if (!assignContinuationPoint)
                     {
-                        return StatusCodes.BadNoContinuationPoints;
+                        return (StatusCodes.BadNoContinuationPoints, cp, references);
                     }
 
                     cp.Id = Guid.NewGuid();
@@ -1613,19 +1755,20 @@ namespace Opc.Ua.Server
             }
 
             // all is good.
-            return ServiceResult.Good;
+            return (ServiceResult.Good, cp, references);
         }
 
         /// <summary>
         /// Updates the reference description with the node attributes.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="targetId"/> is <c>null</c>.</exception>
-        private bool UpdateReferenceDescription(
+        private async ValueTask<bool> UpdateReferenceDescriptionAsync(
             OperationContext context,
             NodeId targetId,
             NodeClass nodeClassMask,
             BrowseResultMask resultMask,
-            ReferenceDescription description)
+            ReferenceDescription description,
+            CancellationToken cancellationToken = default)
         {
             if (targetId == null)
             {
@@ -1638,7 +1781,8 @@ namespace Opc.Ua.Server
             }
 
             // find node manager that owns the node.
-            object handle = GetManagerHandle(targetId, out INodeManager nodeManager);
+            (object handle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(targetId, cancellationToken)
+                .ConfigureAwait(false);
 
             // dangling reference - nothing more to do.
             if (handle == null)
@@ -1647,7 +1791,8 @@ namespace Opc.Ua.Server
             }
 
             // fetch the node attributes.
-            NodeMetadata metadata = nodeManager.GetNodeMetadata(context, handle, resultMask);
+            NodeMetadata metadata = await nodeManager.GetNodeMetadataAsync(context, handle, resultMask, cancellationToken)
+                .ConfigureAwait(false);
 
             if (metadata == null)
             {
@@ -1689,6 +1834,25 @@ namespace Opc.Ua.Server
             out DataValueCollection values,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+            (values, diagnosticInfos) = ReadAsync(
+                context,
+                maxAge,
+                timestampsToReturn,
+                nodesToRead).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Reads a set of nodes.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken cancellationToken = default)
+        {
             if (nodesToRead == null)
             {
                 throw new ArgumentNullException(nameof(nodesToRead));
@@ -1705,8 +1869,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            values = new DataValueCollection(nodesToRead.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var values = new DataValueCollection(nodesToRead.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
 
             // create empty list of errors.
             var errors = new List<ServiceResult>(values.Count);
@@ -1735,10 +1899,13 @@ namespace Opc.Ua.Server
                 diagnosticInfos.Add(null);
 
                 // pre-validate and pre-parse parameter.
-                errors[ii] = ValidateReadRequest(
+                errors[ii] = await ValidateReadRequestAsync(
                     context,
                     nodesToRead[ii],
-                    uniqueNodesReadAttributes);
+                    uniqueNodesReadAttributes,
+                    false,
+                    cancellationToken)
+                    .ConfigureAwait(false);
 
                 // return error status.
                 if (ServiceResult.IsBad(errors[ii]))
@@ -1756,16 +1923,15 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                for (int ii = 0; ii < m_nodeManagers.Count; ii++)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-#if VERBOSE
-                    Utils.LogTrace(
-                        (int)Utils.TraceMasks.ServiceDetail,
-                        "MasterNodeManager.Read - Calling NodeManager {0} of {1}",
-                        ii,
-                        m_nodeManagers.Count);
-#endif
-                    m_nodeManagers[ii].Read(context, maxAge, nodesToRead, values, errors);
+                    await asyncNodeManager.ReadAsync(
+                        context,
+                        maxAge,
+                        nodesToRead,
+                        values,
+                        errors,
+                        cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -1814,6 +1980,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (values, diagnosticInfos);
         }
 
         /// <summary>
@@ -1829,6 +1997,26 @@ namespace Opc.Ua.Server
             out HistoryReadResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+            (results, diagnosticInfos) = HistoryReadAsync(
+                context,
+                historyReadDetails,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodesToRead).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Reads the history of a set of items.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
+            OperationContext context,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            CancellationToken cancellationToken = default)
+        {
             // validate history details parameter.
             if (ExtensionObject.IsNull(historyReadDetails))
             {
@@ -1842,8 +2030,8 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            results = new HistoryReadResultCollection(nodesToRead.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var results = new HistoryReadResultCollection(nodesToRead.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -1861,7 +2049,8 @@ namespace Opc.Ua.Server
                 DiagnosticInfo diagnosticInfo = null;
 
                 // pre-validate and pre-parse parameter.
-                errors[ii] = ValidateHistoryReadRequest(context, nodesToRead[ii]);
+                errors[ii] = await ValidateHistoryReadRequestAsync(context, nodesToRead[ii], cancellationToken)
+                    .ConfigureAwait(false);
 
                 // return error status.
                 if (ServiceResult.IsBad(errors[ii]))
@@ -1893,16 +2082,17 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-                    nodeManager.HistoryRead(
-                        context,
+                    await asyncNodeManager.HistoryReadAsync(
+                         context,
                         details,
                         timestampsToReturn,
                         releaseContinuationPoints,
                         nodesToRead,
                         results,
-                        errors);
+                        errors,
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1940,6 +2130,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -1951,6 +2143,21 @@ namespace Opc.Ua.Server
             WriteValueCollection nodesToWrite,
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+            (results, diagnosticInfos) = WriteAsync(
+                context,
+                nodesToWrite
+                ).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Writes a set of values.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
+            OperationContext context,
+            WriteValueCollection nodesToWrite,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -1965,8 +2172,8 @@ namespace Opc.Ua.Server
             int count = nodesToWrite.Count;
 
             bool diagnosticsExist = false;
-            results = new StatusCodeCollection(count);
-            diagnosticInfos = new DiagnosticInfoCollection(count);
+            var results = new StatusCodeCollection(count);
+            var diagnosticInfos = new DiagnosticInfoCollection(count);
 
             // add placeholder for each result.
             bool validItems = false;
@@ -1977,7 +2184,8 @@ namespace Opc.Ua.Server
                 DiagnosticInfo diagnosticInfo = null;
 
                 // pre-validate and pre-parse parameter. Validate also access rights and role permissions
-                ServiceResult error = ValidateWriteRequest(context, nodesToWrite[ii]);
+                ServiceResult error = await ValidateWriteRequestAsync(context, nodesToWrite[ii], cancellationToken)
+                    .ConfigureAwait(false);
 
                 // return error status.
                 if (ServiceResult.IsBad(error))
@@ -2009,9 +2217,13 @@ namespace Opc.Ua.Server
                 var errors = new List<ServiceResult>(count);
                 errors.AddRange(new ServiceResult[count]);
 
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-                    nodeManager.Write(context, nodesToWrite, errors);
+                    await asyncNodeManager.WriteAsync(
+                        context,
+                        nodesToWrite,
+                        errors,
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 for (int ii = 0; ii < nodesToWrite.Count; ii++)
@@ -2045,6 +2257,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -2055,6 +2269,20 @@ namespace Opc.Ua.Server
             ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+            (results, diagnosticInfos) = HistoryUpdateAsync(
+                context,
+                historyUpdateDetails).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Updates the history for a set of nodes.
+        /// </summary>
+        public virtual async ValueTask<(HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            HistoryUpdateAsync(
+                OperationContext context,
+                ExtensionObjectCollection historyUpdateDetails,
+                CancellationToken cancellationToken = default)
         {
             Type detailsType = null;
             var nodesToUpdate = new List<HistoryUpdateDetails>();
@@ -2075,8 +2303,8 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToUpdate.Count);
+            var results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToUpdate.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -2102,7 +2330,8 @@ namespace Opc.Ua.Server
                 // pre-validate and pre-parse parameter.
                 else
                 {
-                    error = ValidateHistoryUpdateRequest(context, nodesToUpdate[ii]);
+                    error = await ValidateHistoryUpdateRequestAsync(context, nodesToUpdate[ii], cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 // return error status.
@@ -2132,9 +2361,15 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-                    nodeManager.HistoryUpdate(context, detailsType, nodesToUpdate, results, errors);
+                    await asyncNodeManager.HistoryUpdateAsync(
+                        context,
+                        detailsType,
+                        nodesToUpdate,
+                        results,
+                        errors,
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 for (int ii = 0; ii < nodesToUpdate.Count; ii++)
@@ -2172,21 +2407,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
-        }
 
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
-        public virtual ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> CallAsync(
-            OperationContext context,
-            CallMethodRequestCollection methodsToCall,
-            CancellationToken cancellationToken = default)
-        {
-            return CallInternalAsync(
-                context,
-                methodsToCall,
-                sync: false,
-                cancellationToken);
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -2198,10 +2420,9 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            (results, diagnosticInfos) = CallInternalAsync(
+            (results, diagnosticInfos) = CallAsync(
                 context,
-                methodsToCall,
-                sync: true).Result;
+                methodsToCall).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -2209,13 +2430,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
-        public virtual async ValueTask<(
-            CallMethodResultCollection results,
-            DiagnosticInfoCollection diagnosticInfos
-            )> CallInternalAsync(
+        public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            CallAsync(
                 OperationContext context,
                 CallMethodRequestCollection methodsToCall,
-                bool sync,
                 CancellationToken cancellationToken = default)
         {
             if (context == null)
@@ -2274,37 +2492,14 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
                 {
-                    if (nodeManager is IAsyncNodeManager asyncNodeManager)
-                    {
-                        // call async node manager
-                        if (sync)
-                        {
-                            Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
-                                nodeManager);
-                            asyncNodeManager.CallAsync(
-                                context,
-                                methodsToCall,
-                                results,
-                                errors,
-                                cancellationToken).AsTask().GetAwaiter().GetResult();
-                        }
-                        else
-                        {
-                            await asyncNodeManager.CallAsync(
-                                context,
-                                methodsToCall,
-                                results,
-                                errors,
-                                cancellationToken).ConfigureAwait(false);
-                        }
-                    }
-                    else
-                    {
-                        nodeManager.Call(context, methodsToCall, results, errors);
-                    }
+                    await asyncNodeManager.CallAsync(
+                        context,
+                        methodsToCall,
+                        results,
+                        errors,
+                        cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -2346,21 +2541,35 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Handles condition refresh request.
+        /// Calls a method defined on an object.
         /// </summary>
         public virtual void ConditionRefresh(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems)
         {
-            foreach (INodeManager nodeManager in m_nodeManagers)
+            ConditionRefreshAsync(
+                context,
+                monitoredItems).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Handles condition refresh request.
+        /// </summary>
+        public virtual async ValueTask ConditionRefreshAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            foreach ((_, IAsyncNodeManager asyncNodeManager) in m_nodeManagers)
             {
                 try
                 {
-                    nodeManager.ConditionRefresh(context, monitoredItems);
+                    await asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error calling ConditionRefresh on NodeManager.");
+                    Utils.LogError(e, "Error calling ConditionRefreshAsync on AsyncNodeManager.");
                 }
             }
         }
@@ -2381,6 +2590,36 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable)
+        {
+            CreateMonitoredItemsAsync(
+                context,
+                subscriptionId,
+                publishingInterval,
+                timestampsToReturn,
+                itemsToCreate,
+                errors,
+                filterResults,
+                monitoredItems,
+                createDurable).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask CreateMonitoredItemsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            IList<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -2423,7 +2662,8 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
                 // validate request parameters.
-                errors[ii] = ValidateMonitoredItemCreateRequest(context, itemsToCreate[ii]);
+                errors[ii] = await ValidateMonitoredItemCreateRequestAsync(context, itemsToCreate[ii], cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (ServiceResult.IsBad(errors[ii]))
                 {
@@ -2440,22 +2680,7 @@ namespace Opc.Ua.Server
             if (validItems)
             {
                 // create items for event filters.
-                CreateMonitoredItemsForEvents(
-                    context,
-                    subscriptionId,
-                    publishingInterval,
-                    timestampsToReturn,
-                    itemsToCreate,
-                    errors,
-                    filterResults,
-                    monitoredItems,
-                    createDurable,
-                    ref m_lastMonitoredItemId);
-
-                // create items for data access.
-                foreach (INodeManager nodeManager in m_nodeManagers)
-                {
-                    nodeManager.CreateMonitoredItems(
+                await CreateMonitoredItemsForEventsAsync(
                         context,
                         subscriptionId,
                         publishingInterval,
@@ -2465,7 +2690,26 @@ namespace Opc.Ua.Server
                         filterResults,
                         monitoredItems,
                         createDurable,
-                        ref m_lastMonitoredItemId);
+                        m_monitoredItemIdFactory,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // create items for data access.
+                foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
+                {
+                    await nodeManager.CreateMonitoredItemsAsync(
+                            context,
+                            subscriptionId,
+                            publishingInterval,
+                            timestampsToReturn,
+                            itemsToCreate,
+                            errors,
+                            filterResults,
+                            monitoredItems,
+                            createDurable,
+                            m_monitoredItemIdFactory,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 // fill results for unknown nodes.
@@ -2482,7 +2726,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Create monitored items for event subscriptions.
         /// </summary>
-        private void CreateMonitoredItemsForEvents(
+        private async ValueTask CreateMonitoredItemsForEventsAsync(
             OperationContext context,
             uint subscriptionId,
             double publishingInterval,
@@ -2492,7 +2736,8 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter)
+            MonitoredItemIdFactory monitoredItemIdFactory,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
@@ -2573,15 +2818,12 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // create a globally unique identifier.
-                    uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
-
                     IEventMonitoredItem monitoredItem = Server.EventManager.CreateMonitoredItem(
                         context,
                         nodeManager,
                         handle,
                         subscriptionId,
-                        monitoredItemId,
+                        monitoredItemIdFactory.GetNextId(),
                         timestampsToReturn,
                         publishingInterval,
                         itemToCreate,
@@ -2591,15 +2833,17 @@ namespace Opc.Ua.Server
                     // subscribe to all node managers.
                     if (itemToCreate.ItemToMonitor.NodeId == Objects.Server)
                     {
-                        foreach (INodeManager manager in m_nodeManagers)
+                        foreach ((_, IAsyncNodeManager manager) in m_nodeManagers)
                         {
                             try
                             {
-                                manager.SubscribeToAllEvents(
+                                await manager.SubscribeToAllEventsAsync(
                                     context,
                                     subscriptionId,
                                     monitoredItem,
-                                    false);
+                                    false,
+                                    cancellationToken)
+                                    .ConfigureAwait(false);
                             }
                             catch (Exception e)
                             {
@@ -2644,6 +2888,23 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IUserIdentity savedOwnerIdentity)
         {
+            RestoreMonitoredItemsAsync(
+                itemsToRestore,
+                monitoredItems,
+                savedOwnerIdentity).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Restore a set of monitored items after a Server Restart.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public virtual async ValueTask RestoreMonitoredItemsAsync(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity,
+            CancellationToken cancellationToken = default)
+        {
             if (itemsToRestore == null)
             {
                 throw new ArgumentNullException(nameof(itemsToRestore));
@@ -2661,26 +2922,30 @@ namespace Opc.Ua.Server
             }
 
             // create items for event filters.
-            RestoreMonitoredItemsForEvents(itemsToRestore, monitoredItems);
+            await RestoreMonitoredItemsForEventsAsync(itemsToRestore, monitoredItems, cancellationToken)
+                .ConfigureAwait(false);
 
             // create items for data access.
-            foreach (INodeManager nodeManager in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.RestoreMonitoredItems(
-                    itemsToRestore,
-                    monitoredItems,
-                    savedOwnerIdentity);
+                await nodeManager.RestoreMonitoredItemsAsync(
+                        itemsToRestore,
+                        monitoredItems,
+                        savedOwnerIdentity,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            m_lastMonitoredItemId = itemsToRestore.Max(i => i.Id);
+            m_monitoredItemIdFactory.SetStartValue(itemsToRestore.Max(i => i.Id));
         }
 
         /// <summary>
         /// Restore monitored items for event subscriptions.
         /// </summary>
-        private void RestoreMonitoredItemsForEvents(
+        private async ValueTask RestoreMonitoredItemsForEventsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
-            IList<IMonitoredItem> monitoredItems)
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < itemsToRestore.Count; ii++)
             {
@@ -2712,15 +2977,17 @@ namespace Opc.Ua.Server
                     // subscribe to all node managers.
                     if (item.NodeId == Objects.Server)
                     {
-                        foreach (INodeManager manager in m_nodeManagers)
+                        foreach ((_, IAsyncNodeManager manager) in m_nodeManagers)
                         {
                             try
                             {
-                                manager.SubscribeToAllEvents(
-                                    new OperationContext(monitoredItem),
-                                    monitoredItem.SubscriptionId,
-                                    monitoredItem,
-                                    false);
+                                await manager.SubscribeToAllEventsAsync(
+                                        new OperationContext(monitoredItem),
+                                        monitoredItem.SubscriptionId,
+                                        monitoredItem,
+                                        false,
+                                        cancellationToken)
+                                    .ConfigureAwait(false);
                             }
                             catch (Exception e)
                             {
@@ -2765,6 +3032,29 @@ namespace Opc.Ua.Server
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults)
+        {
+            ModifyMonitoredItemsAsync(
+                context,
+                timestampsToReturn,
+                monitoredItems,
+                itemsToModify,
+                errors,
+                filterResults).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Modifies a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask ModifyMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            IList<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -2825,24 +3115,28 @@ namespace Opc.Ua.Server
             if (validItems)
             {
                 // modify items for event filters.
-                ModifyMonitoredItemsForEvents(
-                    context,
-                    timestampsToReturn,
-                    monitoredItems,
-                    itemsToModify,
-                    errors,
-                    filterResults);
-
-                // let each node manager figure out which items it owns.
-                foreach (INodeManager nodeManager in m_nodeManagers)
-                {
-                    nodeManager.ModifyMonitoredItems(
+                await ModifyMonitoredItemsForEventsAsync(
                         context,
                         timestampsToReturn,
                         monitoredItems,
                         itemsToModify,
                         errors,
-                        filterResults);
+                        filterResults,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // let each node manager figure out which items it owns.
+                foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
+                {
+                    await nodeManager.ModifyMonitoredItemsAsync(
+                            context,
+                            timestampsToReturn,
+                            monitoredItems,
+                            itemsToModify,
+                            errors,
+                            filterResults,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 // update results.
@@ -2859,13 +3153,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modify monitored items for event subscriptions.
         /// </summary>
-        private void ModifyMonitoredItemsForEvents(
+        private async ValueTask ModifyMonitoredItemsForEventsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults)
+            IList<MonitoringFilterResult> filterResults,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
@@ -2918,13 +3213,15 @@ namespace Opc.Ua.Server
                 // subscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    foreach (INodeManager manager in m_nodeManagers)
+                    foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
                     {
-                        manager.SubscribeToAllEvents(
-                            context,
-                            monitoredItem.SubscriptionId,
-                            monitoredItem,
-                            false);
+                        await nodeManager.SubscribeToAllEventsAsync(
+                                context,
+                                monitoredItem.SubscriptionId,
+                                monitoredItem,
+                                false,
+                                cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 // only subscribe to the node manager that owns the node.
@@ -2952,6 +3249,24 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors)
         {
+            TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -2977,14 +3292,16 @@ namespace Opc.Ua.Server
             }
 
             // call each node manager.
-            foreach (INodeManager nodeManager in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.TransferMonitoredItems(
-                    context,
-                    sendInitialValues,
-                    monitoredItems,
-                    processedItems,
-                    errors);
+                await nodeManager.TransferMonitoredItemsAsync(
+                        context,
+                        sendInitialValues,
+                        monitoredItems,
+                        processedItems,
+                        errors,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -2997,6 +3314,24 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             IList<IMonitoredItem> itemsToDelete,
             IList<ServiceResult> errors)
+        {
+            DeleteMonitoredItemsAsync(
+                context,
+                subscriptionId,
+                itemsToDelete,
+                errors).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Deletes a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask DeleteMonitoredItemsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            IList<IMonitoredItem> itemsToDelete,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -3021,17 +3356,25 @@ namespace Opc.Ua.Server
             }
 
             // delete items for event filters.
-            DeleteMonitoredItemsForEvents(
-                context,
-                subscriptionId,
-                itemsToDelete,
-                processedItems,
-                errors);
+            await DeleteMonitoredItemsForEventsAsync(
+                    context,
+                    subscriptionId,
+                    itemsToDelete,
+                    processedItems,
+                    errors,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             // call each node manager.
-            foreach (INodeManager nodeManager in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.DeleteMonitoredItems(context, itemsToDelete, processedItems, errors);
+                await nodeManager.DeleteMonitoredItemsAsync(
+                        context,
+                        itemsToDelete,
+                        processedItems,
+                        errors,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // fill results for unknown nodes.
@@ -3047,12 +3390,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Delete monitored items for event subscriptions.
         /// </summary>
-        private void DeleteMonitoredItemsForEvents(
+        private async ValueTask DeleteMonitoredItemsForEventsAsync(
             OperationContext context,
             uint subscriptionId,
             IList<IMonitoredItem> monitoredItems,
             List<bool> processedItems,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -3068,9 +3412,15 @@ namespace Opc.Ua.Server
                 // unsubscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    foreach (INodeManager manager in m_nodeManagers)
+                    foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
                     {
-                        manager.SubscribeToAllEvents(context, subscriptionId, monitoredItem, true);
+                        await nodeManager.SubscribeToAllEventsAsync(
+                                context,
+                                subscriptionId,
+                                monitoredItem,
+                                true,
+                                cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 // only unsubscribe to the node manager that owns the node.
@@ -3101,6 +3451,24 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             IList<IMonitoredItem> itemsToModify,
             IList<ServiceResult> errors)
+        {
+            SetMonitoringModeAsync(
+                context,
+                monitoringMode,
+                itemsToModify,
+                errors).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Changes the monitoring mode for a set of items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask SetMonitoringModeAsync(
+            OperationContext context,
+            MonitoringMode monitoringMode,
+            IList<IMonitoredItem> itemsToModify,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -3133,14 +3501,16 @@ namespace Opc.Ua.Server
                 processedItems,
                 errors);
 
-            foreach (INodeManager nodeManager in m_nodeManagers)
+            foreach ((_, IAsyncNodeManager nodeManager) in m_nodeManagers)
             {
-                nodeManager.SetMonitoringMode(
-                    context,
-                    monitoringMode,
-                    itemsToModify,
-                    processedItems,
-                    errors);
+                await nodeManager.SetMonitoringModeAsync(
+                        context,
+                        monitoringMode,
+                        itemsToModify,
+                        processedItems,
+                        errors,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // fill results for unknown nodes.
@@ -3190,12 +3560,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node managers being managed.
         /// </summary>
-        public IList<INodeManager> NodeManagers => m_nodeManagers;
+        public IReadOnlyList<INodeManager> NodeManagers => m_nodeManagers.ConvertAll(m => m.Sync);
 
         /// <summary>
         /// The namespace managers being managed
         /// </summary>
-        internal INodeManager[][] NamespaceManagers { get; private set; }
+        internal ConcurrentDictionary<int, IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)>> NamespaceManagers => m_namespaceManagers;
 
         /// <summary>
         /// Validates a monitoring attributes parameter.
@@ -3246,9 +3616,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates a monitored item create request parameter.
         /// </summary>
-        protected ServiceResult ValidateMonitoredItemCreateRequest(
+        protected async ValueTask<ServiceResult> ValidateMonitoredItemCreateRequestAsync(
             OperationContext operationContext,
-            MonitoredItemCreateRequest item)
+            MonitoredItemCreateRequest item,
+            CancellationToken cancellationToken = default)
         {
             // check for null structure.
             if (item == null)
@@ -3257,11 +3628,13 @@ namespace Opc.Ua.Server
             }
 
             // validate read value id component. Validate also access rights and permissions
-            ServiceResult error = ValidateReadRequest(
-                operationContext,
-                item.ItemToMonitor,
-                null,
-                true);
+            ServiceResult error = await ValidateReadRequestAsync(
+                    operationContext,
+                    item.ItemToMonitor,
+                    null,
+                    true,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             if (ServiceResult.IsBad(error))
             {
@@ -3378,11 +3751,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates a Read or MonitoredItemCreate request. It validates also access rights and role permissions
         /// </summary>
-        protected ServiceResult ValidateReadRequest(
+        protected async ValueTask<ServiceResult> ValidateReadRequestAsync(
             OperationContext operationContext,
             ReadValueId readValueId,
             Dictionary<NodeId, List<object>> uniqueNodesReadAttributes = null,
-            bool permissionsOnly = false)
+            bool permissionsOnly = false,
+            CancellationToken cancellationToken = default)
         {
             ServiceResult serviceResult = ReadValueId.Validate(readValueId);
 
@@ -3400,12 +3774,14 @@ namespace Opc.Ua.Server
                 }
 
                 // check access rights and role permissions
-                serviceResult = ValidatePermissions(
-                    operationContext,
-                    readValueId.NodeId,
-                    requestedPermission,
-                    uniqueNodesReadAttributes,
-                    permissionsOnly);
+                serviceResult = await ValidatePermissionsAsync(
+                        operationContext,
+                        readValueId.NodeId,
+                        requestedPermission,
+                        uniqueNodesReadAttributes,
+                        permissionsOnly,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
             return serviceResult;
         }
@@ -3413,9 +3789,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates a Write request. It validates also access rights and role permissions
         /// </summary>
-        protected ServiceResult ValidateWriteRequest(
+        protected async ValueTask<ServiceResult> ValidateWriteRequestAsync(
             OperationContext operationContext,
-            WriteValue writeValue)
+            WriteValue writeValue,
+            CancellationToken cancellationToken = default)
         {
             ServiceResult serviceResult = WriteValue.Validate(writeValue);
 
@@ -3436,12 +3813,14 @@ namespace Opc.Ua.Server
                 }
 
                 // check access rights and permissions
-                serviceResult = ValidatePermissions(
-                    operationContext,
-                    writeValue.NodeId,
-                    requestedPermission,
-                    null,
-                    true);
+                serviceResult = await ValidatePermissionsAsync(
+                        operationContext,
+                        writeValue.NodeId,
+                        requestedPermission,
+                        null,
+                        true,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
             return serviceResult;
         }
@@ -3449,21 +3828,24 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates a HistoryRead request. It validates also access rights and role permissions
         /// </summary>
-        protected ServiceResult ValidateHistoryReadRequest(
+        protected async ValueTask<ServiceResult> ValidateHistoryReadRequestAsync(
             OperationContext operationContext,
-            HistoryReadValueId historyReadValueId)
+            HistoryReadValueId historyReadValueId,
+            CancellationToken cancellationToken = default)
         {
             ServiceResult serviceResult = HistoryReadValueId.Validate(historyReadValueId);
 
             if (ServiceResult.IsGood(serviceResult))
             {
                 // check access rights and permissions
-                serviceResult = ValidatePermissions(
-                    operationContext,
-                    historyReadValueId.NodeId,
-                    PermissionType.ReadHistory,
-                    null,
-                    true);
+                serviceResult = await ValidatePermissionsAsync(
+                        operationContext,
+                        historyReadValueId.NodeId,
+                        PermissionType.ReadHistory,
+                        null,
+                        true,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
             return serviceResult;
         }
@@ -3471,9 +3853,10 @@ namespace Opc.Ua.Server
         /// <summary>
         ///  Validates a HistoryUpdate request. It validates also access rights and role permissions
         /// </summary>
-        protected ServiceResult ValidateHistoryUpdateRequest(
+        protected async ValueTask<ServiceResult> ValidateHistoryUpdateRequestAsync(
             OperationContext operationContext,
-            HistoryUpdateDetails historyUpdateDetails)
+            HistoryUpdateDetails historyUpdateDetails,
+            CancellationToken cancellationToken = default)
         {
             ServiceResult serviceResult = HistoryUpdateDetails.Validate(historyUpdateDetails);
 
@@ -3482,12 +3865,13 @@ namespace Opc.Ua.Server
                 // check access rights and permissions
                 PermissionType requiredPermission = DetermineHistoryAccessPermission(
                     historyUpdateDetails);
-                serviceResult = ValidatePermissions(
+                serviceResult = await ValidatePermissionsAsync(
                     operationContext,
                     historyUpdateDetails.NodeId,
                     requiredPermission,
                     null,
-                    true);
+                    true,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             return serviceResult;
@@ -3502,26 +3886,31 @@ namespace Opc.Ua.Server
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
         /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
+        /// <param name="cancellationToken">The Cancellation Token</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted
         /// or a bad status code describing the validation process failure </returns>
-        protected ServiceResult ValidatePermissions(
+        protected async ValueTask<ServiceResult> ValidatePermissionsAsync(
             OperationContext context,
             NodeId nodeId,
             PermissionType requestedPermision,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
-            bool permissionsOnly = false)
+            bool permissionsOnly = false,
+            CancellationToken cancellationToken = default)
         {
             if (context.Session != null)
             {
-                object nodeHandle = GetManagerHandle(nodeId, out INodeManager nodeManager);
+                (object nodeHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(nodeId, cancellationToken)
+                    .ConfigureAwait(false);
 
-                return ValidatePermissions(
-                    context,
-                    nodeManager,
-                    nodeHandle,
-                    requestedPermision,
-                    uniqueNodesServiceAttributes,
-                    permissionsOnly);
+                return await ValidatePermissionsAsync(
+                        context,
+                        nodeManager,
+                        nodeHandle,
+                        requestedPermision,
+                        uniqueNodesServiceAttributes,
+                        permissionsOnly,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
             return StatusCodes.Good;
         }
@@ -3536,39 +3925,41 @@ namespace Opc.Ua.Server
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
         /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
+        /// <param name="cancellationToken">The Cancellation Token</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted
         /// or a bad status code describing the validation process failure </returns>
-        protected ServiceResult ValidatePermissions(
+        protected async ValueTask<ServiceResult> ValidatePermissionsAsync(
             OperationContext context,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object nodeHandle,
             PermissionType requestedPermision,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
-            bool permissionsOnly = false)
+            bool permissionsOnly = false,
+            CancellationToken cancellationToken = default)
         {
             ServiceResult serviceResult = StatusCodes.Good;
 
             // check if validation is necessary
             if (context.Session != null && nodeManager != null && nodeHandle != null)
             {
-                NodeMetadata nodeMetadata = null;
                 // First attempt to retrieve just the Permission metadata with or without cache optimization
-                // If it happens that nodemanager does not fully implement INodeManager2.GetPermissionMetadata or not INodeManager2,
-                // fallback to INodeManager.GetNodeMetadata
-                if (nodeManager is INodeManager2 nodeManager2)
-                {
-                    nodeMetadata = nodeManager2.GetPermissionMetadata(
+                // If it happens that nodemanager does not fully implement GetPermissionMetadata,
+                // fallback to GetNodeMetadataAsync
+                NodeMetadata nodeMetadata = await nodeManager.GetPermissionMetadataAsync(context,
+                            nodeHandle,
+                            BrowseResultMask.NodeClass,
+                            uniqueNodesServiceAttributes,
+                            permissionsOnly,
+                            cancellationToken)
+                    .ConfigureAwait(false);
+
+                // If not INodeManager2 or GetPermissionMetadata() returns null.
+                nodeMetadata ??= await nodeManager.GetNodeMetadataAsync(
                         context,
                         nodeHandle,
                         BrowseResultMask.NodeClass,
-                        uniqueNodesServiceAttributes,
-                        permissionsOnly);
-                }
-                // If not INodeManager2 or GetPermissionMetadata() returns null.
-                nodeMetadata ??= nodeManager.GetNodeMetadata(
-                    context,
-                    nodeHandle,
-                    BrowseResultMask.NodeClass);
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (nodeMetadata != null)
                 {
@@ -3793,11 +4184,12 @@ namespace Opc.Ua.Server
                 nodeMetadata.NodeId);
         }
 
-        private readonly Lock m_lock = new();
-        private readonly List<INodeManager> m_nodeManagers;
-        private long m_lastMonitoredItemId;
+        private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
+        private readonly List<(INodeManager Sync, IAsyncNodeManager Async)> m_nodeManagers;
+        private readonly ConcurrentDictionary<int, IReadOnlyList<(INodeManager Sync, IAsyncNodeManager Async)>> m_namespaceManagers = [];
+        private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
         private readonly uint m_maxContinuationPointsPerBrowse;
-        private readonly ReaderWriterLockSlim m_readWriterLockSlim = new();
+        private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1, 1);
     }
 
     /// <summary>
@@ -3839,5 +4231,34 @@ namespace Opc.Ua.Server
         /// The target of the reference.
         /// </summary>
         public NodeId TargetId { get; }
+    }
+
+    /// <summary>
+    /// Represents a generator for unique monitored item ids.
+    /// Call next() to retrieve the next valid monitoredItemId.
+    /// </summary>
+    /// <remarks>This class provides a mechanism to generate sequential ids for monitored
+    /// items. It is designed to ensure thread-safe incrementation of the identifier.</remarks>
+    public class MonitoredItemIdFactory
+    {
+        /// <summary>
+        /// Initialize the MonitoredItemIdFactory with a new start value the ids start incrementing from.
+        /// </summary>
+        /// <param name="firstId"></param>
+        public void SetStartValue(uint firstId)
+        {
+            m_lastMonitoredItemId = firstId;
+        }
+
+        /// <summary>
+        /// Get the next unique monitored item id.
+        /// </summary>
+        /// <returns>an uint that can be used as an id for a monitored item</returns>
+        public uint GetNextId()
+        {
+            return Utils.IncrementIdentifier(ref m_lastMonitoredItemId);
+        }
+
+        private long m_lastMonitoredItemId;
     }
 }

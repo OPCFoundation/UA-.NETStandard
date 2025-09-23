@@ -96,6 +96,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Constructs a Variant
+        /// </summary>
+        /// <param name="value">The value to store.</param>
+        /// <param name="typeInfo">The type information for the value.</param>
+        public Variant(Array value, TypeInfo typeInfo)
+        {
+            m_value = null;
+            TypeInfo = typeInfo;
+            SetArray(value, typeInfo);
+        }
+
+        /// <summary>
         /// Initializes the object with an object value.
         /// </summary>
         /// <remarks>
@@ -107,6 +119,16 @@ namespace Opc.Ua
             m_value = null;
             TypeInfo = TypeInfo.Construct(value);
             Set(value, TypeInfo);
+        }
+
+        /// <summary>
+        /// Initializes the variant with an Array value and the type information.
+        /// </summary>
+        public Variant(Array value)
+        {
+            m_value = value;
+            TypeInfo = TypeInfo.Construct(value);
+            SetArray(value, TypeInfo);
         }
 
         /// <summary>
@@ -2536,9 +2558,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">The capacity to constrain the collection to</param>
         public VariantCollection(int capacity)
             : base(capacity)

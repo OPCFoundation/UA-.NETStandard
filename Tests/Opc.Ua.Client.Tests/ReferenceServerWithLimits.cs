@@ -30,6 +30,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 using Quickstarts.ReferenceServer;
 
@@ -57,21 +59,19 @@ namespace Opc.Ua.Client.Tests
         private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerWithLimits SessionManagerForTest { get; set; }
 
-        public override ResponseHeader Browse(
+        public override Task<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken)
         {
-            return base.Browse(
+            return base.BrowseAsync(
                 requestHeader,
                 view,
                 TestMaxBrowseReferencesPerNode,
                 nodesToBrowse,
-                out results,
-                out diagnosticInfos);
+                cancellationToken);
         }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
@@ -263,13 +263,12 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public override void Browse(
+        public override async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -283,14 +282,21 @@ namespace Opc.Ua.Client.Tests
 
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
-                object viewHandle =
-                    GetManagerHandle(view.ViewId, out INodeManager viewManager)
-                    ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
+                (object viewHandle, IAsyncNodeManager viewManager) =
+                    await GetManagerHandleAsync(view.ViewId, cancellationToken)
+                    .ConfigureAwait(false);
 
-                NodeMetadata metadata = viewManager.GetNodeMetadata(
-                    context,
-                    viewHandle,
-                    BrowseResultMask.NodeClass);
+                if (viewHandle == null || viewManager == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
+                }
+
+                NodeMetadata metadata = await viewManager.GetNodeMetadataAsync(
+                        context,
+                        viewHandle,
+                        BrowseResultMask.NodeClass,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (metadata == null || metadata.NodeClass != NodeClass.View)
                 {
@@ -298,13 +304,15 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // validate access rights and role permissions
-                ServiceResult validationResult = ValidatePermissions(
-                    context,
-                    viewManager,
-                    viewHandle,
-                    PermissionType.Browse,
-                    null,
-                    true);
+                ServiceResult validationResult = await ValidatePermissionsAsync(
+                        context,
+                        viewManager,
+                        viewHandle,
+                        PermissionType.Browse,
+                        null,
+                        true,
+                        cancellationToken)
+                    .ConfigureAwait(false);
                 if (ServiceResult.IsBad(validationResult))
                 {
                     throw new ServiceResultException(validationResult);
@@ -313,8 +321,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             bool diagnosticsExist = false;
-            results = new BrowseResultCollection(nodesToBrowse.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
+            var results = new BrowseResultCollection(nodesToBrowse.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
 
             uint continuationPointsAssigned = 0;
 
@@ -350,14 +358,15 @@ namespace Opc.Ua.Client.Tests
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = Browse(
+                    error = await BrowseAsync(
                         context,
                         view,
                         maxReferencesPerNode,
                         MaxContinuationPointsPerBrowseForUnitTest <= 0 ||
                         continuationPointsAssigned < MaxContinuationPointsPerBrowseForUnitTest,
                         nodeToBrowse,
-                        result);
+                        result,
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -392,6 +401,8 @@ namespace Opc.Ua.Client.Tests
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
     }
 }

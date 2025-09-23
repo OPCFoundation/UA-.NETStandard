@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>
-    public class ConfigurationNodeManager : DiagnosticsNodeManager, IAsyncNodeManager
+    public class ConfigurationNodeManager : DiagnosticsNodeManager, ICallAsyncNodeManager
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.

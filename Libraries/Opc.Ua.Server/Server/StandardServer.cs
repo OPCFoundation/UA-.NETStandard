@@ -1064,6 +1064,58 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the Browse service using async Task based request.
+        /// </summary>
+        public override async Task<BrowseResponse> BrowseAsync(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            uint requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Browse);
+
+            try
+            {
+                ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
+
+                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.BrowseAsync(
+                        context,
+                        view,
+                        requestedMaxReferencesPerNode,
+                        nodesToBrowse,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new BrowseResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1098,6 +1150,56 @@ namespace Opc.Ua.Server
                     out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the BrowseNext service using async Task based request.
+        /// </summary>
+        public override async Task<BrowseNextResponse> BrowseNextAsync(
+            RequestHeader requestHeader,
+            bool releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.BrowseNext);
+
+            try
+            {
+                ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
+
+                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.BrowseNextAsync(
+                        context,
+                        releaseContinuationPoints,
+                        continuationPoints,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new BrowseNextResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {
@@ -1275,6 +1377,65 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
+        /// </summary>
+        public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            RequestHeader requestHeader,
+            BrowsePathCollection browsePaths,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(
+                requestHeader,
+                RequestType.TranslateBrowsePathsToNodeIds);
+
+            try
+            {
+                ValidateOperationLimits(
+                    browsePaths,
+                    OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+
+                foreach (BrowsePath bp in browsePaths)
+                {
+                    ValidateOperationLimits(
+                        bp.RelativePath.Elements.Count,
+                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+                }
+
+                (BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                        context,
+                        browsePaths,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the Read service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1309,6 +1470,59 @@ namespace Opc.Ua.Server
                     out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditEvent(context, "Read", e);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the Read service using async Task based request.
+        /// </summary>
+        public override async Task<ReadResponse> ReadAsync(
+            RequestHeader requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
+
+            try
+            {
+                ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
+
+                (DataValueCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.ReadAsync(
+                        context,
+                        maxAge,
+                        timestampsToReturn,
+                        nodesToRead,
+                        ct).ConfigureAwait(false);
+
+                return new ReadResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {
@@ -1405,6 +1619,73 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the HistoryRead service using async Task based request.
+        /// </summary>
+        public override async Task<HistoryReadResponse> HistoryReadAsync(
+            RequestHeader requestHeader,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
+
+            try
+            {
+                if (historyReadDetails?.Body is ReadEventDetails)
+                {
+                    ValidateOperationLimits(
+                        nodesToRead,
+                        OperationLimits.MaxNodesPerHistoryReadEvents);
+                }
+                else
+                {
+                    ValidateOperationLimits(
+                        nodesToRead,
+                        OperationLimits.MaxNodesPerHistoryReadData);
+                }
+
+                (HistoryReadResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.HistoryReadAsync(
+                        context,
+                        historyReadDetails,
+                        timestampsToReturn,
+                        releaseContinuationPoints,
+                        nodesToRead,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new HistoryReadResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditEvent(context, "HistoryRead", e);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the Write service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1430,6 +1711,52 @@ namespace Opc.Ua.Server
                     .Write(context, nodesToWrite, out results, out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the Write service using async Task based request.
+        /// </summary>
+        public override async Task<WriteResponse> WriteAsync(
+            RequestHeader requestHeader,
+            WriteValueCollection nodesToWrite,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
+
+            try
+            {
+                ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
+
+                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager
+                        .WriteAsync(context, nodesToWrite, ct)
+                        .ConfigureAwait(false);
+
+                return new WriteResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {
@@ -1483,6 +1810,53 @@ namespace Opc.Ua.Server
                     out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the HistoryUpdate service using async Task based request.
+        /// </summary>
+        public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            RequestHeader requestHeader,
+            ExtensionObjectCollection historyUpdateDetails,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
+
+            try
+            {
+                // check only for BadNothingToDo here
+                // MaxNodesPerHistoryUpdateEvents & MaxNodesPerHistoryUpdateData
+                // must be checked in NodeManager (TODO)
+                ValidateOperationLimits(historyUpdateDetails);
+
+                (HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.HistoryUpdateAsync(context, historyUpdateDetails, ct).ConfigureAwait(false);
+
+                return new HistoryUpdateResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {
@@ -3238,7 +3612,8 @@ namespace Opc.Ua.Server
                     m_serverInternal.SetNodeManager(masterNodeManager);
 
                     // put the node manager into a state that allows it to be used by other objects.
-                    masterNodeManager.Startup();
+                    masterNodeManager.StartupAsync()
+                        .AsTask().GetAwaiter().GetResult();
 
                     // create the manager responsible for handling events.
                     LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
@@ -3445,7 +3820,8 @@ namespace Opc.Ua.Server
                             -= SessionChannelKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
-                        m_serverInternal.NodeManager.Shutdown();
+                        m_serverInternal.NodeManager.ShutdownAsync()
+                            .AsTask().GetAwaiter().GetResult();
                     }
                 }
             }
