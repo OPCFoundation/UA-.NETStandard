@@ -739,35 +739,42 @@ namespace Opc.Ua
         /// <summary>
         /// Called after the application certificate update.
         /// </summary>
-        protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
+        protected virtual async void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
         {
-            InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
-
-            foreach (
-                CertificateIdentifier certificateIdentifier in Configuration
-                    .SecurityConfiguration
-                    .ApplicationCertificates)
+            try
             {
-                // preload chain
-                X509Certificate2 certificate = certificateIdentifier.FindAsync(false).GetAwaiter()
-                    .GetResult();
-                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter()
-                    .GetResult();
+                InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+
+                foreach (
+                    CertificateIdentifier certificateIdentifier in Configuration
+                        .SecurityConfiguration
+                        .ApplicationCertificates)
+                {
+                    // preload chain
+                    X509Certificate2 certificate = await certificateIdentifier.FindAsync(false)
+                        .ConfigureAwait(false);
+                    await InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate)
+                        .ConfigureAwait(false);
+                }
+
+                //update certificate in the endpoint descriptions
+                foreach (EndpointDescription endpointDescription in Endpoints)
+                {
+                    SetServerCertificateInEndpointDescription(
+                        endpointDescription,
+                        InstanceCertificateTypesProvider);
+                }
+
+                foreach (ITransportListener listener in TransportListeners)
+                {
+                    listener.CertificateUpdate(
+                        e.CertificateValidator,
+                        InstanceCertificateTypesProvider);
+                }
             }
-
-            //update certificate in the endpoint descriptions
-            foreach (EndpointDescription endpointDescription in Endpoints)
+            catch (Exception ex)
             {
-                SetServerCertificateInEndpointDescription(
-                    endpointDescription,
-                    InstanceCertificateTypesProvider);
-            }
-
-            foreach (ITransportListener listener in TransportListeners)
-            {
-                listener.CertificateUpdate(
-                    e.CertificateValidator,
-                    InstanceCertificateTypesProvider);
+                Utils.LogError(ex, "Failed to update Instance Certificates: {0}", e);
             }
         }
 
