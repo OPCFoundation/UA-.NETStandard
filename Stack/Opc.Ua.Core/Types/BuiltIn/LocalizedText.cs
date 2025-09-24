@@ -17,6 +17,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Opc.Ua
@@ -593,8 +594,11 @@ namespace Opc.Ua
             }
             catch
             {
-                // TODO: Need to wire to a logger
-                Debug.WriteLine("Failed to parse mul locale JSON text: {0}", XmlEncodedText);
+                // TODO: Need to wire a logger here
+                ITelemetryContext telemetry = AmbientMessageContext.Telemetry;
+                ILogger logger = telemetry != null ?
+                     telemetry.CreateLogger<LocalizedText>() : Utils.Fallback.Logger;
+                logger.LogDebug("Failed to parse mul locale JSON text: {Text}", XmlEncodedText);
                 return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);

@@ -415,7 +415,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 application.ApplicationConfiguration.SecurityConfiguration
                                     .TrustedUserCertificates,
                                 telemetry,
-                                ct: ct
+                                ct
                             )
                             .ConfigureAwait(true);
 
@@ -425,7 +425,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 userCertificateIdentifier,
                                 new CertificatePasswordProvider(userCertificatePassword ?? string.Empty),
                                 telemetry,
-                                logger
+                                ct
                             ).GetAwaiter().GetResult();
                         }
                         else

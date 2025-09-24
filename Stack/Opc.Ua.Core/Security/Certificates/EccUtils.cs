@@ -1409,7 +1409,7 @@ namespace Opc.Ua
 
             return ECDsa.Create(ecParameters);
 #else
-            throw new NotSupportedException("ECC is not available on NET4.6.2");
+            throw new NotSupportedException("ECC is not supported in this library");
 #endif
         }
 

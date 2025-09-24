@@ -81,7 +81,6 @@
     <File Path=".azurepipelines/testcc.yml" />
   </Folder>
   <Folder Name="/Solution Items/nuget/">
-    <File Path="nuget/Opc.Ua.Client.ComplexTypes.Symbols.nuspec" />
     <File Path="nuget/Opc.Ua.nuspec" />
     <File Path="nuget/Opc.Ua.Symbols.nuspec" />
   </Folder>

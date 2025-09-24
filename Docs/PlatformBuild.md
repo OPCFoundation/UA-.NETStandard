@@ -45,11 +45,8 @@ The following .NET versions are currently supported by the class libraries
 - .NET 6.0 *
 - .NET 8.0 **
 
-The following platform is deprecated but can still be built and tested:
-- .NET Framework 4.6.2
-
 Limitations:
-- .NET Standard 2.0 and .NET Framework 4.6.2 has no support for the complex types library, as it requires netcoreapp2.1 which is end of life. Similarly there will net be support for ECC profiles due to the missing ECC support.
+- .NET Standard 2.0 has no support for the complex types library, as it requires netcoreapp2.1 which is end of life. Similarly there will net be support for ECC profiles due to the missing ECC support.
 
 To reduce the ci build overhead and the number of tests to be run in Visual Studio, only the tagged versions (* and **) are part of a qualifying ci build to pass a pull request. 
 All other platforms are only tested in weekly scheduled or manual ci builds.
@@ -60,7 +57,7 @@ Another option is to test run such a custom target in a command window with a ba
 ```xml
 <!-- 
   Uncomment the following lines to test a custom test target 
-  supported values: net462, netstandard2.0, netstandard2.1, net472, net48, net6.0, net8.0
+  supported values: netstandard2.0, netstandard2.1, net472, net48, net6.0, net8.0
  -->
   
   <PropertyGroup>

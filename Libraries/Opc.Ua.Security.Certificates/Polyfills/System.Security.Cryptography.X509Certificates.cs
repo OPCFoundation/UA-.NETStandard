@@ -1,7 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-#if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
+#if NETSTANDARD2_0
 
 // This source code is intentionally copied from the .NET core runtime to close
 // a gap in .NET standard 2.0 runtime implementations.

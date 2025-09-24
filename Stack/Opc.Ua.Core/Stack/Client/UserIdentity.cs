@@ -61,6 +61,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the object with an X509 certificate identifier
+        /// </summary>
+        [Obsolete("Use CreateAsync method instead.")]
+        public UserIdentity(CertificateIdentifier certificateId)
+            : this(certificateId, new CertificatePasswordProvider(string.Empty))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
+        /// </summary>
+        [Obsolete("Use CreateAsync method instead.")]
+        public UserIdentity(
+            CertificateIdentifier certificateId,
+            CertificatePasswordProvider certificatePasswordProvider)
+            : this(certificateId
+                .LoadPrivateKeyExAsync(certificatePasswordProvider).GetAwaiter().GetResult(), null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
         public UserIdentity(X509Certificate2 certificate, ITelemetryContext telemetry)
@@ -114,7 +135,6 @@ namespace Opc.Ua
             CertificateIdentifier certificateId,
             CertificatePasswordProvider certificatePasswordProvider,
             ITelemetryContext telemetry,
-            ILogger logger = null,
             CancellationToken ct = default)
         {
             if (certificateId == null)
@@ -141,14 +161,12 @@ namespace Opc.Ua
         public static Task<UserIdentity> CreateAsync(
             CertificateIdentifier certificateId,
             ITelemetryContext telemetry,
-            ILogger logger = null,
             CancellationToken ct = default)
         {
             return CreateAsync(
                 certificateId,
                 new CertificatePasswordProvider(string.Empty),
                 telemetry,
-                logger,
                 ct);
         }
 

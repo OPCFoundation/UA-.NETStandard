@@ -32,9 +32,6 @@
     <Compile Include="..\Common\Main.cs" />
     <Compile Include="..\Common\Logging.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.Reflection" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />

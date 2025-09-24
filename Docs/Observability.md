@@ -33,9 +33,9 @@ which means it cannot be used to replace EventSource.  The approach also does no
 logging, but worse, it requires a single logging context in the same process, prohibiting you from running server
 and clients with different logging mechanism.
 
-## Telemetry context design introduced in 1.4.378
+## Telemetry context design introduced in 1.5.378
 
-The new and more flexible observability design introduced in 1.4.378 deprecates and in part removes the previous
+The new and more flexible observability design introduced in 1.5.378 deprecates and in part removes the previous
 model with the intend of supporting dependency injection, structured logging and OpenTelemetry based [observability
 (metrics, traces and logs)](https://learn.microsoft.com/dotnet/core/diagnostics/). `ITelemetryContext`
 standardizes how logging, tracing and metrics are accessed, removes prior limitations of a singleton logger,
@@ -116,6 +116,12 @@ When deriving from `NodeState` and the derived class requires an `ITelemetryCont
 `void Initialize(ITelemetryContext)` method and store the context in a private field. Ensure to call the base class
 so that it also receives the telemetry context. The Initialize method is called after creation of the NodeState
 instance and before any other method is called.
+
+To create a telemetry context you can use the `public ITelemetryContext DefaultTelemetryContext.Create()` static
+method.  Do not create new telemetry contexts in cases where you have no access to one but try to wire it from
+an area in code where you have to the place you need it.  Best to initialize the telemetry context at the root
+of your application, e.g. at time you create a `new ApplicationInstance(...)`.  See [migrating](#migrating)
+for more information.
 
 ### Using the telemetry context
 
@@ -203,8 +209,8 @@ These issues will be addressed over time by refactoring the code base to be depe
 
 #### Important context - read first
 
-- Breaking Changes to be aware of upfront. While affecting public signatures, the API can be considered internal
-  so it is not expected that these affect current code paths.
+- Breaking Changes to be aware of upfront. While affecting public signatures, much of the updated API can be
+  considered internal and the effect on current code is expected to be low. Generally affected are:
   1. **Core infrastructure classes** (`ServiceMessageContext`, `EncodeableFactory`) no longer have parameter-less constructors.
   2. **Transport binding factories** require telemetry context in `Create()` methods
   3. **Certificate operations** require telemetry context parameters
@@ -225,6 +231,25 @@ These issues will be addressed over time by refactoring the code base to be depe
 - See the official documentation for ILoggerFactory and ILogger for more details on logging.
 
 - Use Github Copilot to make the changes in your codebase by pointing to this document.
+
+#### Utilities
+
+To aid migration, the following functionality is provided:
+
+- A default telemetry context (`DefaultTelemetry`) which when created using the default constructor provides trace based
+  logging via the `Utils.LoggingProvider` provider.
+
+- A NullLogger (not the one in `Microsoft.Extensions.Logging.Abstraction` nuget package).  This `Utils.Null.Logger` and
+  `Utils.Null<T>.Logger` can not be instantiated but obtained via its `static Logger` property.
+  This logger can be used to initialize a `m_logger` to prevent null reference exceptions.  In release builds it is a
+  dummy, in debug builds it debug checks and crashes the application with stack trace.
+
+- A Logger that can be used to replace the `Utils.LogXXX` calls called `Utils.Fallback.Logger` and can be used in places
+  where no telemetry context can be plumbed through (for example static global properties) or in cases where a ILogger
+  is required in the method signature but a null was passed by the caller. The logger can be used just
+  like the old static `ILogger`, e.g. `Utils.Fallback.Logger.LogInformation(...)`.  However, it must be temporary and a
+  proper refactoring of the area is advised as such the Fallback class has been marked as Experimental and can be removed
+  at any point in time in future releases.
 
 #### From Static Logger Management
 

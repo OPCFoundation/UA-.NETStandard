@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem
     {
-        /// <summary>max
+        /// <summary>
         /// Initializes the object with its node type.
         /// </summary>
         public MonitoredItem(

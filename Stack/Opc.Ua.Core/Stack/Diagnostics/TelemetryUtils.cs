@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
 #nullable enable
@@ -43,6 +44,7 @@ namespace Opc.Ua
         /// <summary>
         /// Fallback logger
         /// </summary>
+        [Experimental("UA_NETStandard_1")]
         public static class Fallback
         {
             /// <summary>

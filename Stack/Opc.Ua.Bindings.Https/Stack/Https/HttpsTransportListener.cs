@@ -289,15 +289,7 @@ namespace Opc.Ua.Bindings
                 ClientCertificateValidation = ValidateClientCertificate
             };
 
-#if NET462
-            // note: although security tools recommend 'None' here,
-            // it only works on .NET 4.6.2 if Tls12 is used
-#pragma warning disable CA5398 // Avoid hardcoded SslProtocols values
-            httpsOptions.SslProtocols = SslProtocols.Tls12;
-#pragma warning restore CA5398 // Avoid hardcoded SslProtocols values
-#else
             httpsOptions.SslProtocols = SslProtocols.None;
-#endif
 
             UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
             if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
