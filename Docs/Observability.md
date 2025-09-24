@@ -112,6 +112,24 @@ gradual adoption but also provides telemetry context to frequently used capabili
 users, or filtering.  On the server side, `ISystemContext` is passed to many methods, allowing access to telemetry.
 On the client side, IServiceMessageContext is available from `ISession` as a property.
 
+In server context or when code is shared between client and server use the following priority should there be
+ambiguity of where to obtain the telemetry context from:
+
+0. From a `ITelemetryContext` member variable (e.g. `m_telemetry`) of the current class. If the constructor is passed
+   any of the types in this list pick the first and assign a private readonly m_telemetry variable then use it
+   everywhere in the current class. You might want to create a logger at the same time if it is needed.
+1. `ISystemContext.Telemetry`
+2. `IServerInternal.Telemetry`
+3. `IServiceMessageContext.Telemetry`
+
+In pure client context use the following priority should there be ambiguity of where to obtain the telemetry context from:
+
+0. From a `ITelemetryContext` member variable (e.g. `m_telemetry`) of the current class initialized in the constructor
+   from any context in this list. Same as above.
+1. `ISession` via `session.MessageContext.Telemetry`
+2. `ISystemContext.Telemetry`
+3. `IServiceMessageContext.Telemetry`
+
 When deriving from `NodeState` and the derived class requires an `ITelemetryContext`, the subclass can override the
 `void Initialize(ITelemetryContext)` method and store the context in a private field. Ensure to call the base class
 so that it also receives the telemetry context. The Initialize method is called after creation of the NodeState
@@ -250,6 +268,9 @@ To aid migration, the following functionality is provided:
   like the old static `ILogger`, e.g. `Utils.Fallback.Logger.LogInformation(...)`.  However, it must be temporary and a
   proper refactoring of the area is advised as such the Fallback class has been marked as Experimental and can be removed
   at any point in time in future releases.
+
+When running the tests in debug, wherever a null telemetry is used triggers a debug check (`Debug.Fail`) to crash the
+system in this case. When linking applications to the debug stack they can take advantage of this capability.
 
 #### From Static Logger Management
 
