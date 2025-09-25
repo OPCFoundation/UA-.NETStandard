@@ -161,7 +161,7 @@ namespace Opc.Ua.Gds.Tests
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
             m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory, TestContext.Out).ConfigureAwait(false);
-            m_server.StopServer();
+            await m_server.StopServerAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
             m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory, TestContext.Out).ConfigureAwait(false);
 
@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Tests
                 await UnRegisterPushServerApplicationAsync().ConfigureAwait(false);
                 await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
                 await m_pushClient.DisconnectClientAsync().ConfigureAwait(false);
-                m_server.StopServer();
+                await m_server.StopServerAsync().ConfigureAwait(false);
             }
             catch
             {
@@ -968,7 +968,7 @@ namespace Opc.Ua.Gds.Tests
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = "")
         {
             int retryCount = 3;
-            TimeSpan retryInterval = TimeSpan.FromSeconds(2);
+            var retryInterval = TimeSpan.FromSeconds(2);
 
             while (retryCount > 0)
             {

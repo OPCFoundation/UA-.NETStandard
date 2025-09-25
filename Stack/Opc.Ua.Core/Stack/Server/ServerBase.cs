@@ -224,11 +224,15 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information
         /// for a UA application</param>
+        /// <param name="cancellationToken">The cancellation token</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
+        public async ValueTask<ServiceHost> StartAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default,
+            params Uri[] baseAddresses)
         {
             if (configuration == null)
             {
@@ -263,7 +267,8 @@ namespace Opc.Ua
             Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
 
             // start the application.
-            StartApplication(configuration);
+            await StartApplicationAsync(configuration)
+                .ConfigureAwait(false);
 
             // the configuration file may specify multiple security policies or non-HTTP protocols
             // which will require multiple service hosts. the default host will be opened by WCF when
@@ -289,13 +294,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Starts the server.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information
+        /// for a UA application</param>
+        /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
+        /// <returns>Returns a host for a UA service.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
+        {
+            return StartAsync(configuration, default, baseAddresses).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// Starts the server (called from a dedicated host process).
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration
-        /// information for a UA application.
-        /// </param>
+        /// information for a UA application.</param>
+        /// <param name="cancellationToken">Thee cancellation token</param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        public void Start(ApplicationConfiguration configuration)
+        public async ValueTask StartAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
             if (configuration == null)
             {
@@ -330,7 +349,8 @@ namespace Opc.Ua
             Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
 
             // start the application.
-            StartApplication(configuration);
+            await StartApplicationAsync(configuration, cancellationToken)
+                .ConfigureAwait(false);
 
             // open the hosts.
             lock (ServiceHosts)
@@ -341,6 +361,19 @@ namespace Opc.Ua
                     ServiceHosts.Add(serviceHost);
                 }
             }
+        }
+
+        /// <summary>
+        /// Starts the server (called from a dedicated host process).
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration
+        /// information for a UA application.
+        /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
+        [Obsolete("Use StartAsync")]
+        public void Start(ApplicationConfiguration configuration)
+        {
+            StartAsync(configuration).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -508,17 +541,21 @@ namespace Opc.Ua
         /// <summary>
         /// Stops the server and releases all resources.
         /// </summary>
-        public virtual void Stop()
+        public virtual async ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
             // do any pre-stop processing.
             try
             {
-                OnServerStopping();
+                await OnServerStoppingAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 m_serverError = new ServiceResult(e);
             }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            Stop();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             // close any listeners.
             List<ITransportListener> listeners = TransportListeners;
@@ -554,6 +591,23 @@ namespace Opc.Ua
                     }
                     host.Close();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Stops the server and releases all resources.
+        /// </summary>
+        [Obsolete("Use StopAsync")]
+        public virtual void Stop()
+        {
+            // do any pre-stop processing.
+            try
+            {
+                OnServerStopping();
+            }
+            catch (Exception e)
+            {
+                m_serverError = new ServiceResult(e);
             }
         }
 
@@ -1321,9 +1375,26 @@ namespace Opc.Ua
         /// Called when the server configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
         /// <remarks>
         /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
         /// </remarks>
+        protected virtual ValueTask OnUpdateConfigurationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            OnUpdateConfiguration(configuration);
+#pragma warning restore CS0618 // Type or member is obsolete
+            return default;
+        }
+
+        /// <summary>
+        /// Called when the server configuration is changed on disk.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <remarks>
+        /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
+        /// </remarks>
+        [Obsolete("User OnUpdateConfigurationAsync")]
         protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
         }
@@ -1461,6 +1532,17 @@ namespace Opc.Ua
         /// Starts the server application.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        protected virtual ValueTask StartApplicationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
+        {
+            // must be defined by the subclass.
+            return default;
+        }
+
+        /// <summary>
+        /// Starts the server application.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
         protected virtual void StartApplication(ApplicationConfiguration configuration)
         {
             // must be defined by the subclass.
@@ -1469,6 +1551,16 @@ namespace Opc.Ua
         /// <summary>
         /// Called before the server stops
         /// </summary>
+        protected virtual ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
+        {
+            // may be overridden by the subclass.
+            return default;
+        }
+
+        /// <summary>
+        /// Called before the server stops
+        /// </summary>
+        [Obsolete("Use OnServerStoppingAsync")]
         protected virtual void OnServerStopping()
         {
             // may be overridden by the subclass.

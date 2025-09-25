@@ -342,14 +342,17 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Stop the server.
         /// </summary>
-        public Task StopAsync()
+        public async Task StopAsync()
         {
-            Server?.Stop();
-            Server?.Dispose();
-            Server = null;
+            if (Server != null)
+            {
+                await Server.StopAsync().ConfigureAwait(false);
+                Server.Dispose();
+                Server = null;
+            }
             ActivityListener?.Dispose();
             ActivityListener = null;
-            return Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
         }
     }
 }

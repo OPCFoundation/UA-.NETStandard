@@ -182,7 +182,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        public void StopServer()
+        public async Task StopServerAsync()
         {
             if (Server != null)
             {
@@ -191,7 +191,7 @@ namespace Opc.Ua.Gds.Tests
                 using GlobalDiscoverySampleServer server = Server;
                 Server = null;
                 // Stop server and dispose
-                server.Stop();
+                await server.StopAsync().ConfigureAwait(false);
             }
         }
 

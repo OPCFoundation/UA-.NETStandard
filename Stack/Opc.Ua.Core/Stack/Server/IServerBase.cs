@@ -51,7 +51,7 @@ namespace Opc.Ua
         /// <summary>
         /// Stops the server and releases all resources.
         /// </summary>
-        void Stop();
+        ValueTask StopAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Starts the server.
@@ -68,7 +68,8 @@ namespace Opc.Ua
         /// <param name="configuration">The object that stores the configurable configuration
         /// information for a UA application.
         /// </param>
-        void Start(ApplicationConfiguration configuration);
+        /// <param name="cancellationToken">The cancellation token</param>
+        ValueTask StartAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Trys to get the secure channel id for an AuthenticationToken.

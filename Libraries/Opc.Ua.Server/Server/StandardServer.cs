@@ -3685,7 +3685,8 @@ namespace Opc.Ua.Server
                         Configuration.GetType())
                     .ConfigureAwait(false);
 
-                OnUpdateConfiguration(configuration);
+                await OnUpdateConfigurationAsync(configuration)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -3697,12 +3698,13 @@ namespace Opc.Ua.Server
         /// Called when the server configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
         /// <remarks>
         /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
         /// </remarks>
-        protected override async void OnUpdateConfiguration(ApplicationConfiguration configuration)
+        protected override async ValueTask OnUpdateConfigurationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
-            await SemaphoreSlim.WaitAsync().ConfigureAwait(false);
+            await SemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // update security configuration.
@@ -4084,7 +4086,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called before the server stops
         /// </summary>
-        protected override async void OnServerStopping()
+        protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
             LogInfo(TraceMasks.StartStop, "Server - Stopping.");
 
@@ -4107,10 +4109,10 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server if registered before
                     m_registrationInfo.IsOnline = false;
-                    await RegisterWithDiscoveryServerAsync().ConfigureAwait(false);
+                    await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 }
 
-                await SemaphoreSlim.WaitAsync().ConfigureAwait(false);
+                await SemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
                     if (m_serverInternal != null)
