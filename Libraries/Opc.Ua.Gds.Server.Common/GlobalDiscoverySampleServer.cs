@@ -171,9 +171,14 @@ namespace Opc.Ua.Gds.Server
                 // check for a user name token.
                 if (securityToken is UserNameIdentityToken)
                 {
-                    lock (Lock)
+                    SemaphoreSlim.Wait();
+                    try
                     {
                         m_contexts.Add(context.RequestId, new ImpersonationContext());
+                    }
+                    finally
+                    {
+                        SemaphoreSlim.Release();
                     }
                 }
             }
@@ -186,7 +191,8 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override void OnRequestComplete(OperationContext context)
         {
-            lock (Lock)
+            SemaphoreSlim.Wait();
+            try
             {
                 if (m_contexts.TryGetValue(
                     context.RequestId,
@@ -194,6 +200,10 @@ namespace Opc.Ua.Gds.Server
                 {
                     m_contexts.Remove(context.RequestId);
                 }
+            }
+            finally
+            {
+                SemaphoreSlim.Release();
             }
 
             base.OnRequestComplete(context);
