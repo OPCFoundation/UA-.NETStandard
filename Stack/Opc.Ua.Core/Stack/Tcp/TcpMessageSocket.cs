@@ -14,6 +14,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -25,8 +26,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a Tcp transport channel.
         /// </summary>
-        public TcpTransportChannel()
-            : base(new TcpMessageSocketFactory())
+        public TcpTransportChannel(ITelemetryContext telemetry)
+            : base(new TcpMessageSocketFactory(telemetry), telemetry)
         {
         }
     }
@@ -45,9 +46,9 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a TCP transport channel
         /// </summary>
         /// <returns>The transport channel</returns>
-        public ITransportChannel Create()
+        public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new TcpTransportChannel();
+            return new TcpTransportChannel(telemetry);
         }
     }
 
@@ -211,6 +212,15 @@ namespace Opc.Ua.Bindings
     public class TcpMessageSocketFactory : IMessageSocketFactory
     {
         /// <summary>
+        /// Create a socket factory
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public TcpMessageSocketFactory(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+        }
+
+        /// <summary>
         /// The method creates a new instance of a UA-TCP message socket
         /// </summary>
         /// <returns> the message socket</returns>
@@ -219,7 +229,11 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            return new TcpMessageSocket(sink, bufferManager, receiveBufferSize);
+            return new TcpMessageSocket(
+                sink,
+                bufferManager,
+                receiveBufferSize,
+                m_telemetry);
         }
 
         /// <summary>
@@ -227,6 +241,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <value>The implementation string.</value>
         public string Implementation => "UA-TCP";
+
+        private readonly ITelemetryContext m_telemetry;
     }
 
     /// <summary>
@@ -240,8 +256,10 @@ namespace Opc.Ua.Bindings
         public TcpMessageSocket(
             IMessageSink sink,
             BufferManager bufferManager,
-            int receiveBufferSize)
+            int receiveBufferSize,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<TcpMessageSocket>();
             m_sink = sink;
             m_socket = null;
             m_bufferManager = bufferManager ??
@@ -259,8 +277,10 @@ namespace Opc.Ua.Bindings
             IMessageSink sink,
             Socket socket,
             BufferManager bufferManager,
-            int receiveBufferSize)
+            int receiveBufferSize,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<TcpMessageSocket>();
             m_sink = sink;
             m_socket = socket ?? throw new ArgumentNullException(nameof(socket));
             m_bufferManager = bufferManager ??
@@ -380,7 +400,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Unexpected error closing socket.");
+                        m_logger.LogError(e, "Unexpected error closing socket.");
                     }
                     finally
                     {
@@ -453,7 +473,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError(ex, "Unexpected error during OnReadComplete,");
+                    m_logger.LogError(ex, "Unexpected error during OnReadComplete,");
                     error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, ex.Message);
                 }
                 finally
@@ -573,7 +593,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError(ex, "Unexpected error invoking OnMessageReceived callback.");
+                    m_logger.LogError(ex, "Unexpected error invoking OnMessageReceived callback.");
                 }
             }
 
@@ -770,6 +790,7 @@ namespace Opc.Ua.Bindings
         }
 
         private IMessageSink m_sink;
+        private readonly ILogger m_logger;
         private readonly BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
         private readonly EventHandler<SocketAsyncEventArgs> m_readComplete;

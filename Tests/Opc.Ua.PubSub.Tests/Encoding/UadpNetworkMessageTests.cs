@@ -31,9 +31,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 
@@ -51,6 +53,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             "SubscriberConfiguration.xml");
 
         private PubSubConfigurationDataType m_publisherConfiguration;
+        private ITelemetryContext m_telemetry;
         private UaPubSubApplication m_publisherApplication;
         private WriterGroupDataType m_firstWriterGroup;
         private IUaPubSubConnection m_firstPublisherConnection;
@@ -70,10 +73,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create a publisher application
             string publisherConfigurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
-            m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+                checkCurrentDirectory: true,
+                createAlways: false);
+
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile, m_telemetry);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication shall not be null");
 
             // Get the publisher configuration
@@ -105,10 +109,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create a subscriber application
             string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
-                true,
-                true,
-                false);
-            m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
+                checkCurrentDirectory: true,
+                createAlways: false);
+            m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile, m_telemetry);
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 
             // Get the subscriber configuration
@@ -183,7 +186,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.PublisherId = publisherId;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Invalidate PublisherId with wrong data type")]
@@ -237,7 +241,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.PublisherId = publisherId;
 
             // Assert
-            InvalidCompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            InvalidCompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate GroupHeader")]
@@ -291,7 +296,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.PublisherId = (ushort)10;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate WriterGroupId")]
@@ -346,7 +352,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.WriterGroupId = 1;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate GroupVersion")]
@@ -401,7 +408,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.GroupVersion = 1;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate NetworkMessageNumber")]
@@ -456,7 +464,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.NetworkMessageNumber = 1;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate SequenceNumber")]
@@ -511,7 +520,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.SequenceNumber = 1;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate PayloadHeader")]
@@ -564,7 +574,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.PublisherId = (ushort)10;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate Timestamp")]
@@ -619,7 +630,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.Timestamp = DateTime.UtcNow;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate PicoSeconds")]
@@ -674,7 +686,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.PicoSeconds = 10;
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         [Test(Description = "Validate DataSetClassId")]
@@ -726,7 +739,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.DataSetClassId = Guid.NewGuid();
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
+            CompareEncodeDecode(uaNetworkMessage, logger);
         }
 
         /// <summary>
@@ -871,13 +885,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Compare encoded/decoded network messages
         /// </summary>
-        private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
+        private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
 
-            var uaNetworkMessageDecoded = new UadpNetworkMessage();
+            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(),
+                new ServiceMessageContext(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 
@@ -888,13 +902,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Invalid compare encoded/decoded network messages
         /// </summary>
-        private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
+        private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
 
-            var uaNetworkMessageDecoded = new UadpNetworkMessage();
+            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(),
+                new ServiceMessageContext(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 

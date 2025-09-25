@@ -30,6 +30,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -43,9 +44,11 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
         /// <param name="port">The port.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
-        public UdpClientUnicast(IPAddress localAddress, int port)
+        public UdpClientUnicast(IPAddress localAddress, int port, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<UdpClientUnicast>();
             Address = localAddress;
             Port = port;
 
@@ -59,7 +62,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "SetSocketOption has thrown exception ");
+                m_logger.LogError(ex, "SetSocketOption has thrown exception ");
             }
             try
             {
@@ -68,13 +71,13 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "Setting ExclusiveAddressUse to false has thrown exception ");
+                m_logger.LogError(ex, "Setting ExclusiveAddressUse to false has thrown exception ");
             }
 
             Client.Bind(new IPEndPoint(localAddress, port));
 
-            Utils.Trace(
-                "UdpClientUnicast was created for local Address: {0}:{1}.",
+            m_logger.LogInformation(
+                "UdpClientUnicast was created for local Address: {Address}:{Port}.",
                 localAddress,
                 port);
         }
@@ -88,5 +91,7 @@ namespace Opc.Ua.PubSub.Transport
         /// The Port
         /// </summary>
         internal int Port { get; }
+
+        private readonly ILogger m_logger;
     }
 }

@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Xml;
 
 namespace Opc.Ua.Test
@@ -27,6 +26,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public DataComparer(IServiceMessageContext context)
         {
+            EncodeableFactory = new EncodeableFactory(context.Telemetry);
             m_context = context;
             ThrowOnError = true;
         }
@@ -1017,31 +1017,14 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The factory to use when decoding extension objects.
         /// </summary>
-        public static IEncodeableFactory EncodeableFactory
-        {
-            get
-            {
-                if (s_factory == null)
-                {
-                    s_factory = new EncodeableFactory();
-                    s_factory.AddEncodeableTypes(typeof(DataComparer).GetTypeInfo().Assembly);
-                }
-
-                return s_factory;
-            }
-        }
-
-        /// <summary>
-        /// It stores encodeable types of the executing assembly.
-        /// </summary>
-        private static EncodeableFactory s_factory = new();
+        public IEncodeableFactory EncodeableFactory { get; }
 
         /// <summary>
         /// Extracts the extension object body.
         /// </summary>
         /// <param name="value">Extension object.</param>
         /// <returns>IEncodeable object</returns>
-        public static object GetExtensionObjectBody(ExtensionObject value)
+        private object GetExtensionObjectBody(ExtensionObject value)
         {
             object body = value.Body;
 
@@ -1057,7 +1040,7 @@ namespace Opc.Ua.Test
                 return body;
             }
 
-            IServiceMessageContext context = new ServiceMessageContext
+            IServiceMessageContext context = new ServiceMessageContext(m_context.Telemetry)
             {
                 Factory = EncodeableFactory
             };

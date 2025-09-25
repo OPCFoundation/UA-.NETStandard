@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -121,19 +122,22 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <param name="dictionary">The encoded dictionary to validate.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
-        internal void Validate(byte[] dictionary, bool throwOnError)
+        /// <param name="logger">A contextual logger to log to</param>
+        internal void Validate(byte[] dictionary, bool throwOnError, ILogger logger)
         {
-            Validate(dictionary, null, throwOnError);
+            Validate(dictionary, logger, null, throwOnError);
         }
 
         /// <summary>
         /// Validates the type dictionary.
         /// </summary>
         /// <param name="dictionary">The encoded dictionary to validate.</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <param name="imports">A table of imported namespace schemas.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
         internal void Validate(
             byte[] dictionary,
+            ILogger logger,
             IDictionary<string, byte[]> imports = null,
             bool throwOnError = false)
         {
@@ -145,11 +149,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 try
                 {
-                    validator.Validate(istrm);
+                    validator.Validate(istrm, logger);
                 }
                 catch (Exception e) when (!throwOnError)
                 {
-                    Utils.LogWarning(e, "Could not validate XML schema, error is ignored.");
+                    logger.LogWarning(e, "Could not validate XML schema, error is ignored.");
                 }
 
                 m_validator = validator;
@@ -164,7 +168,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 catch (Exception e) when (!throwOnError)
                 {
-                    Utils.LogWarning(e, "Could not validate binary schema, error is ignored.");
+                    logger.LogWarning(e, "Could not validate binary schema, error is ignored.");
                 }
 
                 m_validator = validator;

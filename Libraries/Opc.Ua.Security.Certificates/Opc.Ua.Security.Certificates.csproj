@@ -13,19 +13,15 @@
     <EnablePackageValidation>false</EnablePackageValidation>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-  <!-- Choose which platforms support ECC -->
-  <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462' Or '$(TargetFramework)' == 'netstandard2.0'">
-      <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" />
-      </ItemGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup>
-        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
+  <ItemGroup>
+    <PackageReference Include="System.Collections.Immutable" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" />
+    <PackageReference Include="System.Formats.Asn1" />
+  </ItemGroup>
+  <!-- Add additional crypto library version -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="BouncyCastle.Cryptography" />
+  </ItemGroup>
   <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
   <ItemGroup>
     <PackageReference Include="PolySharp" PrivateAssets="All" />
@@ -39,16 +35,9 @@
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-  <!-- Choose Asn1 encoder and additional crypto library version -->
-  <Choose>
-    <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
-      <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <ItemGroup>
-    <PackageReference Include="System.Formats.Asn1" />
-  </ItemGroup>
+  <!-- Choose which platforms support ECC -->
+  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+  </PropertyGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

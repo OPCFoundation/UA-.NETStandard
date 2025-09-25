@@ -48,6 +48,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 #### **New in 1.05.378.**
 * Support for AsyncNodeManagers in the Server Library, see [Server Async (TAP) Support](Docs/AsyncServerSupport.md)
+* Reworked [Observability](Docs/Observability.md) via `ITelemetryContext` in preparation for better DI support. See documentation for breaking changes. 
 
 #### **New in 1.05.376.**
 * Support for [Durable Subscriptions](Docs/DurableSubscription.md)
@@ -63,7 +64,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Support for [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
 
 #### **New in 1.04.368**
-* Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
+* Improved support for [Logging](Docs/Observability.md) with `ILogger` and `EventSource`. 
 * Support for custom certificate stores with refactored `ICertificateStore` and `CertificateStoreType` interface.
 * Client and Server support for [TransferSubscriptions](Docs/TransferSubscription.md).
 * How to use [Container support](Docs/ContainerReferenceServer.md) with reference server.

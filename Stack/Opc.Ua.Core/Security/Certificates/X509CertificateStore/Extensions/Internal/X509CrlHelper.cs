@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Windows.Win32;
 using Windows.Win32.Security.Cryptography;
 
@@ -45,9 +46,10 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// Gets all crls from the provided X509 Store on Windows
         /// </summary>
         /// <param name="storeHandle">HCERTSTORE Handle to X509 Store</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>array of all found crls as byte array</returns>
         /// <exception cref="PlatformNotSupportedException"></exception>
-        public static byte[][] GetCrls(IntPtr storeHandle)
+        public static byte[][] GetCrls(IntPtr storeHandle, ILogger logger)
         {
             if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
@@ -84,8 +86,8 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         }
                         else if (error != 0)
                         {
-                            Utils.LogError(
-                                "Error while enumerating Crls from X509Store, Win32Error-Code: {0}",
+                            logger.LogError(
+                                "Error while enumerating Crls from X509Store, Win32Error-Code: {ErrorCode}",
                                 error);
                         }
                         break;
@@ -94,7 +96,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Exception while enumerating Crls from X509Store");
+                logger.LogError(ex, "Exception while enumerating Crls from X509Store");
             }
             return [.. crls];
         }
@@ -119,8 +121,9 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// </summary>
         /// <param name="storeHandle">HCERTSTORE Handle to X509 Store</param>
         /// <param name="crl">the crl as Asn1 or PKCS7 encoded byte array</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <exception cref="PlatformNotSupportedException"></exception>
-        public static void AddCrl(IntPtr storeHandle, byte[] crl)
+        public static void AddCrl(IntPtr storeHandle, byte[] crl, ILogger logger)
         {
             if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
@@ -157,32 +160,32 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 int error = Marshal.GetLastWin32Error();
                 if (error == -2147024809)
                 {
-                    Utils.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ",
+                    logger.LogError(
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ",
                         error);
                 }
                 if (error == -2146881269)
                 {
-                    Utils.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ",
+                    logger.LogError(
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ",
                         error);
                 }
                 if (error == -2147024891)
                 {
-                    Utils.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_ACCESS_DENIED, Access is denied. ",
+                    logger.LogError(
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ERROR_ACCESS_DENIED, Access is denied. ",
                         error);
                 }
                 if (error != 0)
                 {
-                    Utils.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {0}: ",
+                    logger.LogError(
+                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ",
                         error);
                 }
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Exception while adding Crl to X509Store");
+                logger.LogError(ex, "Exception while adding Crl to X509Store");
             }
             finally
             {
@@ -198,9 +201,10 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// </summary>
         /// <param name="storeHandle">HCERTSTORE Handle to X509 Store</param>
         /// <param name="crl">asn1 encoded crl to delete from the store</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>true if delete sucessfully, false if failure</returns>
         /// <exception cref="PlatformNotSupportedException"></exception>
-        public static bool DeleteCrl(IntPtr storeHandle, byte[] crl)
+        public static bool DeleteCrl(IntPtr storeHandle, byte[] crl, ILogger logger)
         {
             if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
@@ -227,8 +231,8 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                                 int error = Marshal.GetLastWin32Error();
                                 if (error != 0)
                                 {
-                                    Utils.LogError(
-                                        "Error while deleting Crl from X509Store, Win32Error-Code: {0}",
+                                    logger.LogError(
+                                        "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}",
                                         error);
                                 }
                             }
@@ -250,8 +254,8 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         }
                         else if (error != 0)
                         {
-                            Utils.LogError(
-                                "Error while deleting Crl from X509Store, Win32Error-Code: {0}",
+                            logger.LogError(
+                                "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}",
                                 error);
                         }
                         break;
@@ -260,7 +264,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Exception while deleting Crl from X509Store");
+                logger.LogError(ex, "Exception while deleting Crl from X509Store");
             }
             return false;
         }

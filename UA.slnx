@@ -1,10 +1,10 @@
 <Solution>
   <Folder Name="/Applications/">
     <Project Path="Applications/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
-    <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
-    <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="Applications/ConsoleReferencePublisher/ConsoleReferencePublisher.csproj" />
+    <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
     <Project Path="Applications/ConsoleReferenceSubscriber/ConsoleReferenceSubscriber.csproj" />
+    <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
   </Folder>
   <Folder Name="/Fuzzing/">
     <File Path="Fuzzing/Fuzzing.md" />
@@ -72,7 +72,6 @@
     <File Path=".azurepipelines/ci.yml" />
     <File Path=".azurepipelines/get-matrix.ps1" />
     <File Path=".azurepipelines/get-root.ps1" />
-    <File Path=".azurepipelines/get-version.ps1" />
     <File Path=".azurepipelines/preview.yml" />
     <File Path=".azurepipelines/set-version.ps1" />
     <File Path=".azurepipelines/signlistDebug.txt" />
@@ -82,9 +81,21 @@
     <File Path=".azurepipelines/testcc.yml" />
   </Folder>
   <Folder Name="/Solution Items/nuget/">
-    <File Path="nuget/Opc.Ua.Client.ComplexTypes.Symbols.nuspec" />
     <File Path="nuget/Opc.Ua.nuspec" />
     <File Path="nuget/Opc.Ua.Symbols.nuspec" />
+  </Folder>
+  <Folder Name="/Solution Items/Docs/">
+    <File Path="Docs/DurableSubscription.md" />
+    <File Path="Docs/EccProfiles.md" />
+    <File Path="Docs/Certificates.md" />
+    <File Path="Docs/Observability.md" />
+    <File Path="Docs/PlatformBuild.md" />
+    <File Path="Docs/PubSub.md" />
+    <File Path="Docs/ReverseConnect.md" />
+    <File Path="Docs/RoleBasedUserManagement.md" />
+    <File Path="Docs/TransferSubscription.md" />
+    <File Path="Docs/NugetREADME.md" />
+    <File Path="Docs/README.md" />
   </Folder>
   <Folder Name="/Stack/">
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />

@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.UserDatabase
 
         private static string Hash(string password)
         {
-#if NETSTANDARD2_0 || NET462
+#if NETSTANDARD2_0
             using var algorithm = new Rfc2898DeriveBytes(password, kSaltSize, kIterations);
 #else
             using var algorithm = new Rfc2898DeriveBytes(
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server.UserDatabase
             byte[] salt = Convert.FromBase64String(parts[1]);
             byte[] key = Convert.FromBase64String(parts[2]);
 
-#if NETSTANDARD2_0 || NET462
+#if NETSTANDARD2_0
             using var algorithm = new Rfc2898DeriveBytes(password, salt, iterations);
 #else
             using var algorithm = new Rfc2898DeriveBytes(

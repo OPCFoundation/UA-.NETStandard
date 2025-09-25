@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -84,6 +85,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<Session>();
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
@@ -489,9 +491,10 @@ namespace Opc.Ua.Server
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain = Utils
-                            .ParseCertificateChainBlob(
-                                EndpointDescription.ServerCertificate);
+                        X509Certificate2Collection serverCertificateChain =
+                            Utils.ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate,
+                                m_server.Telemetry);
 
                         if (serverCertificateChain.Count > 1)
                         {
@@ -797,7 +800,16 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
+            // Legacy event source logging
             ServerUtils.EventLog.SessionState(
+                context,
+                Id.ToString(),
+                m_sessionName,
+                SecureChannelId,
+                Identity?.DisplayName ?? "(none)");
+
+            m_logger.LogInformation(
+                "Session {Context}, Id={SessionId}, Name={Name}, ChannelId={ChannelId}, User={User}",
                 context,
                 Id.ToString(),
                 m_sessionName,
@@ -1002,7 +1014,8 @@ namespace Opc.Ua.Server
                 {
                     m_serverCertificate = CertificateFactory.Create(
                         EndpointDescription.ServerCertificate,
-                        true);
+                        true,
+                        m_server.Telemetry);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
@@ -1019,6 +1032,7 @@ namespace Opc.Ua.Server
                         m_serverCertificate,
                         m_serverNonce,
                         securityPolicyUri,
+                        m_server.MessageContext,
                         m_eccUserTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates);
@@ -1038,13 +1052,14 @@ namespace Opc.Ua.Server
                         m_serverCertificate.RawData,
                         m_serverNonce.Data);
 
-                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_server.Telemetry))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain = Utils
-                            .ParseCertificateChainBlob(
-                                EndpointDescription.ServerCertificate);
+                        X509Certificate2Collection serverCertificateChain =
+                            Utils.ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate,
+                                m_server.Telemetry);
 
                         if (serverCertificateChain.Count > 1)
                         {
@@ -1062,7 +1077,7 @@ namespace Opc.Ua.Server
                                 serverCertificateChainData,
                                 m_serverNonce.Data);
 
-                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_server.Telemetry))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,
@@ -1255,6 +1270,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;

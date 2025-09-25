@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.PublishedData;
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
@@ -3423,7 +3424,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Convert a value type to nullable object
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static T? ConvertToNullable<T>(object value)
+        public static T? ConvertToNullable<T>(object value, ILogger logger)
             where T : struct
         {
             string valueString = value?.ToString();
@@ -3438,7 +3439,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             catch (Exception ex)
             {
-                Utils.Trace("ConvertToNullable has thrown: ", ex.Message);
+                logger.LogInformation(ex, "ConvertToNullable exception");
             }
 
             return nullableObject;

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -62,20 +61,20 @@ namespace Opc.Ua.Client.Tests
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
-            return OneTimeSetUpAsync(writer: null, securityNone: true);
+            return OneTimeSetUpCoreAsync(securityNone: true);
         }
 
         public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
-            bool securityNone,
-            TextWriter writer)
+            bool securityNone)
         {
             {
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer>(
                     enableTracing,
-                    disableActivityLogging)
+                    disableActivityLogging,
+                    Telemetry)
                 {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
@@ -84,11 +83,6 @@ namespace Opc.Ua.Client.Tests
                     OperationLimits = true,
                     DurableSubscriptionsEnabled = true
                 };
-            }
-
-            if (writer != null)
-            {
-                ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
@@ -109,7 +103,7 @@ namespace Opc.Ua.Client.Tests
                     IssuedTokenType = Profiles.JwtUserToken
                 });
 
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+            ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
@@ -154,14 +148,6 @@ namespace Opc.Ua.Client.Tests
                     NUnit.Framework.Assert.Ignore(
                         $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
-            }
-            if (ServerFixture == null)
-            {
-                ClientFixture.SetTraceOutput(TestContext.Out);
-            }
-            else
-            {
-                ServerFixture.SetTraceOutput(TestContext.Out);
             }
         }
 

@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NETCOREAPP2_1 || !ECC_SUPPORT
 using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
@@ -74,7 +75,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ushort hashSize = 512;
 
             // good applications test set
-            var appTestDataGenerator = new ApplicationTestDataGenerator(1);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appTestDataGenerator = new ApplicationTestDataGenerator(1, telemetry);
             m_goodApplicationTestSet = appTestDataGenerator.ApplicationTestSet(
                 kGoodApplicationsTestCount);
             m_notYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(
@@ -253,8 +255,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void VerifySelfSignedAppCertsNotTrusted()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
-            using var validator = TemporaryCertValidator.Create(true);
+            using var validator = TemporaryCertValidator.Create(telemetry, true);
             CertificateValidator certValidator = validator.Update();
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
@@ -293,7 +297,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifySelfSignedAppCertsNotTrustedWithCAAsync()
         {
-            using var validator = TemporaryCertValidator.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            using var validator = TemporaryCertValidator.Create(telemetry);
             // add random issuer certs
             for (int i = 0; i < kCaChainCount; i++)
             {
@@ -329,10 +335,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifySelfSignedAppCertsThrowAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
             {
                 // add all certs to issuer store, make sure validation fails.
-                using var validator = TemporaryCertValidator.Create(true);
+                using var validator = TemporaryCertValidator.Create(telemetry, true);
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
                 {
                     await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
@@ -365,11 +373,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyRejectedCertsDoNotOverflowStoreAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // test number of rejected certs
             const int kNumberOfRejectCertsHistory = 5;
 
             // add all certs to issuer store, make sure validation fails.
-            using var validator = TemporaryCertValidator.Create(true);
+            using var validator = TemporaryCertValidator.Create(telemetry, true);
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
                 await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
@@ -501,8 +511,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifySelfSignedAppCertsTrustedAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // add all certs to trusted store
-            using var validator = TemporaryCertValidator.Create();
+            using var validator = TemporaryCertValidator.Create(telemetry);
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -523,8 +535,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifySelfSignedAppCertsAllStoresAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // add all certs to trusted and issuer store
-            using var validator = TemporaryCertValidator.Create();
+            using var validator = TemporaryCertValidator.Create(telemetry);
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -543,6 +557,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyAppChainsOneTrustedAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             // verify cert with issuer chain
@@ -550,7 +566,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 long start = stopWatch.ElapsedMilliseconds;
                 TestContext.Out.WriteLine($"Chain Number {v}, Total Elapsed: {start}");
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 TestContext.Out.WriteLine($"Cleanup: {stopWatch.ElapsedMilliseconds - start}");
                 for (int i = 0; i < kCaChainCount; i++)
                 {
@@ -579,10 +595,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyAppChainsAllButOneTrustedAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     ICertificateStore store =
@@ -606,10 +624,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyAppChainsIncompleteChainAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i != v)
@@ -640,10 +660,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyAppChainsInvalidChainAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i != v)
@@ -681,10 +703,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyAppChainsWithGoodAndInvalidChainAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     ICertificateStore store = i == v
@@ -709,10 +733,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyRevokedTrustedStoreAppChainsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert is revoked with CRL in trusted store
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -751,9 +777,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyRevokedIssuerStoreAppChainsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -792,9 +820,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyRevokedIssuerStoreTrustedAppChainsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -840,9 +870,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyRevokedTrustedStoreNotTrustedAppChainsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
@@ -880,9 +912,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyRevokedTrustedStoreTrustedAppChainsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
@@ -927,7 +961,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyIssuerChainIncompleteTrustedAppCertsAsync()
         {
-            using var validator = TemporaryCertValidator.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            using var validator = TemporaryCertValidator.Create(telemetry);
             // issuer chain
             for (int i = 0; i < kCaChainCount; i++)
             {
@@ -956,10 +992,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyIssuerChainTrustedAppCertsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             for (int v = 0; v < kCaChainCount; v++)
             {
                 TestContext.Out.WriteLine("Chain cert {0} not in issuer store.", v);
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 // issuer chain
                 for (int i = 0; i < kCaChainCount; i++)
                 {
@@ -1101,6 +1139,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task VerifyNotBeforeInvalidAsync(bool trusted)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string applicationName = "App Test Cert";
             X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(null, applicationName, null, null)
@@ -1110,7 +1150,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
             Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName, cert.Subject));
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
                 await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
@@ -1152,6 +1192,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task VerifyNotAfterInvalidAsync(bool trusted)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string applicationName = "App Test Cert";
             X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(null, applicationName, null, null)
@@ -1163,7 +1205,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
             Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName, cert.Subject));
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
                 await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
@@ -1198,6 +1240,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task VerifySignedNotAfterInvalidAsync(bool trusted)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string subject = "CN=Signed App Test Cert, O=OPC Foundation";
             X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(null, null, subject, null)
@@ -1210,7 +1254,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
             Assert.True(X509Utils.CompareDistinguishedName(subject, cert.Subject));
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
                 await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
@@ -1244,12 +1288,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void TestNullParameters()
         {
-            var validator = TemporaryCertValidator.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var validator = TemporaryCertValidator.Create(telemetry);
             CertificateValidator certValidator = validator.Update();
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() =>
                 certValidator.UpdateAsync((SecurityConfiguration)null).GetAwaiter().GetResult());
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() =>
-                certValidator.UpdateAsync(null).GetAwaiter().GetResult());
+                certValidator.UpdateAsync((ApplicationConfiguration)null).GetAwaiter().GetResult());
         }
 
         /// <summary>
@@ -1258,7 +1304,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void TestEventHandler()
         {
-            var validator = TemporaryCertValidator.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var validator = TemporaryCertValidator.Create(telemetry);
             CertificateValidator certValidator = validator.Update();
             certValidator.CertificateUpdate += OnCertificateUpdate;
             certValidator.CertificateValidation += OnCertificateValidation;
@@ -1276,11 +1324,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             NUnit.Framework.Assert
                 .Ignore("To create SHA1 certificates is unsupported on this .NET version");
 #endif
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation", null)
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)
                 .CreateForRSA();
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -1336,6 +1386,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestInvalidKeyUsageAsync(bool trusted)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             // self signed but key usage is not valid for app cert
             X509Certificate2 cert = CertificateFactory
@@ -1344,7 +1396,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             Assert.True(X509Utils.VerifySelfSigned(cert));
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -1379,6 +1431,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestInvalidSignatureAsync(bool ca, bool trusted)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             X509Certificate2 certBase = CertificateFactory.CreateCertificate(
                 null,
@@ -1406,7 +1460,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA(generator);
 
             Assert.False(X509Utils.VerifySelfSigned(cert));
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -1458,11 +1512,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [NonParallelizable]
         public async Task TestMinimumKeyRejectedAsync(bool trusted)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(null, null, "CN=1k Key", null)
                 .SetRSAKeySize(1024)
                 .CreateForRSA();
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -1517,6 +1573,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task ECDsaHashSizeLowerThanPublicKeySizeAsync(ECCurveHashPair ecCurveHashPair)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             if (ecCurveHashPair.HashSize > 0)
             {
                 // default signing cert with custom key
@@ -1526,7 +1584,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa();
 
-                var validator = TemporaryCertValidator.Create();
+                var validator = TemporaryCertValidator.Create(telemetry);
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
                 CertificateValidator certValidator = validator.Update();
 
@@ -1552,12 +1610,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [NonParallelizable]
         public async Task TestAutoAcceptAsync(bool trusted, bool autoAccept)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             X509Certificate2 cert = CertificateFactory.CreateCertificate(
                 null,
                 null,
                 "CN=Test",
                 null).CreateForRSA();
-            var validator = TemporaryCertValidator.Create();
+            var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -1622,9 +1682,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             NUnit.Framework.Assert.DoesNotThrow(() =>
             {
-                var appConfig = new ApplicationConfiguration
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                var appConfig = new ApplicationConfiguration(telemetry)
                 {
-                    CertificateValidator = new CertificateValidator()
+                    CertificateValidator = new CertificateValidator(telemetry)
                 };
                 Assert.NotNull(appConfig);
                 Assert.NotNull(appConfig.CertificateValidator);
@@ -1639,11 +1700,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifySomeMissingCRLRevokedTrustedStoreAppChainsAsync(
             bool rejectUnknownRevocationStatus)
         {
-            // verify cert is revoked with CRL in trusted store
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
+            // verify cert is revoked with CRL in trusted store
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 // Discussion:
                 // one CA (root or intermediate) is added to the trust store, all others to the issuer store
                 // for the one in the trust store, a CRL is added revoking the certificates signed by the CA
@@ -1690,6 +1752,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyAllMissingCRLRevokedTrustedStoreAppChainsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert is revoked with CRL in trusted store
 
             for (int v = 0; v < kCaChainCount; v++)
@@ -1698,7 +1762,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // no crl is placed into any store, but revocation list is required.
                 // the validator (correctly) complains about a missing CRL
                 // it does not detect the missing CA CRLs
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -1751,6 +1815,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifySomeMissingCRLTrustedStoreAppChainsAsync(
             bool rejectUnknownRevocationStatus)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Discussion:
             // v == kCaChainCount - 1: empty CRL is placed into the issuer stores, no CRL in trust store:
             // -> validator complains about missing revocation list for CA which signed the application certificate (ok)
@@ -1761,7 +1827,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -1812,10 +1878,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifyMissingCRLANDAppChainsIncompleteChainAsync(
             bool rejectUnknownRevocationStatus)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i != v)
@@ -1852,9 +1920,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifyExistingCRLAppChainsExpiredCertificatesAsync(
             bool rejectUnknownRevocationStatus)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i != v || kCaChainCount == 1)
@@ -1906,9 +1976,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifyMissingCRLAppChainsExpiredCertificatesAsync(
             bool rejectUnknownRevocationStatus)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i != v || kCaChainCount == 1)
@@ -1974,10 +2046,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task VerifyMissingCRLNoTrustAsync(bool rejectUnknownRevocationStatus)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create();
+                using var validator = TemporaryCertValidator.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);

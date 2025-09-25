@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
@@ -51,8 +52,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create new instance of <see cref="UaDataSetMessage"/>
         /// </summary>
-        protected UaDataSetMessage()
+        protected UaDataSetMessage(ILogger logger)
         {
+            m_logger = logger ?? Utils.Fallback.Logger;
             DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
             MetaDataVersion = new ConfigurationVersionDataType
@@ -133,5 +135,12 @@ namespace Opc.Ua.PubSub
 
             return DataSetDecodeErrorReason.NoError;
         }
+
+        /// <summary>
+        /// A Logger to be used by this and derived classes
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; }
+#pragma warning restore IDE1006 // Naming Styles
     }
 }

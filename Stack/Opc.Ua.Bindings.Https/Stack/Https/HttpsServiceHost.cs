@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -33,7 +34,7 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        public abstract ITransportListener Create();
+        public abstract ITransportListener Create(ITelemetryContext telemetry);
 
         /// <inheritdoc/>
         /// <summary>
@@ -63,6 +64,12 @@ namespace Opc.Ua.Bindings
             // create the endpoint configuration to use.
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
             string computerName = Utils.GetHostName();
+
+            // create intermediate logger for just this call.
+            // This is needed because the binding always requires a default
+            // constructor construction. So the telemetry context is not available
+            // until we are here.
+            ILogger logger = serverBase.MessageContext.Telemetry.CreateLogger<HttpsServiceHost>();
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
@@ -148,7 +155,8 @@ namespace Opc.Ua.Bindings
                 description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
                 description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                     bestPolicy.SecurityMode,
-                    bestPolicy.SecurityPolicyUri);
+                    bestPolicy.SecurityPolicyUri,
+                    logger);
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                     configuration,
                     description);
@@ -164,7 +172,7 @@ namespace Opc.Ua.Bindings
                     ];
                 }
 
-                ITransportListener listener = Create();
+                ITransportListener listener = Create(serverBase.MessageContext.Telemetry);
                 if (listener != null)
                 {
                     endpoints.Add(description);
@@ -177,13 +185,12 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                    logger.LogError("Failed to create endpoint {Uri} because the transport profile is unsupported.", uri);
                 }
             }
 
             // create the host.
             hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
-
             return endpoints;
         }
     }

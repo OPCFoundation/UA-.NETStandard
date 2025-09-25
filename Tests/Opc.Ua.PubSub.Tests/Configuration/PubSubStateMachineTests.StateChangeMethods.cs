@@ -30,6 +30,7 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
@@ -39,7 +40,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Enable on Disabled object")]
         public void ValidateEnableOnDisabled()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -50,7 +52,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Enable on Enabled object")]
         public void ValidateEnableOnOperational()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -61,7 +64,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Disable on Enabled object")]
         public void ValidateDisableOnEnabled()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -72,7 +76,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Disable on Disabled object")]
         public void ValidateDisableOnDisabled()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -83,7 +88,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Enable on null object")]
         public void ValidateEnableOnNUll()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => configurator.Enable(null),
@@ -93,7 +99,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Disable on null object")]
         public void ValidateDisableOnNUll()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => configurator.Disable(null),
@@ -103,7 +110,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Enable on non existing object")]
         public void ValidateEnableOnNonExisting()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
             NUnit.Framework.Assert.Throws<ArgumentException>(
@@ -114,7 +122,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Disable on non existing object")]
         public void ValidateDisableOnNonExisting()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
             NUnit.Framework.Assert.Throws<ArgumentException>(

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -71,6 +72,8 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(itemToMonitor));
             }
 
+            m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
+
             Initialize();
 
             m_server = server;
@@ -103,7 +106,7 @@ namespace Opc.Ua.Server
 
             if (!m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     "Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {id} could not be created",
                     id);
                 throw new ServiceResultException(StatusCodes.BadInternalError);
@@ -166,6 +169,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(storedMonitoredItem));
             }
+            m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
 
             Initialize();
 
@@ -296,6 +300,7 @@ namespace Opc.Ua.Server
                 if (!m_readyToPublish)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -303,6 +308,7 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
+                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] TRIGGERED", Id);
                     return true;
                 }
 
@@ -310,6 +316,7 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -323,10 +330,12 @@ namespace Opc.Ua.Server
                         ServerUtils.EventLog.MonitoredItemReady(
                             Id,
                             Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
+                        m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE {Delay}ms", Id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
                 ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
+                m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] NORMAL", Id);
                 return true;
             }
         }
@@ -392,7 +401,7 @@ namespace Opc.Ua.Server
             {
                 if (m_readyToPublish)
                 {
-                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "SetTriggered[{0}]", Id);
+                    m_logger.LogTrace(Utils.TraceMasks.OperationDetail, "SetTriggered[{Id}]", Id);
                     m_triggered = true;
                     return true;
                 }
@@ -788,8 +797,8 @@ namespace Opc.Ua.Server
                     return previousMode;
                 }
 
-                Utils.LogTrace(
-                    "MONITORING MODE[{0}] {1} -> {2}",
+                m_logger.LogTrace(
+                    "MONITORING MODE[{MonitoredItemId}] {Previous} -> {New}",
                     Id,
                     MonitoringMode,
                     monitoringMode);
@@ -857,9 +866,9 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    Utils.LogTrace(
+                    m_logger.LogTrace(
                         Utils.TraceMasks.OperationDetail,
-                        "RECEIVED VALUE[{0}] Value={1}",
+                        "RECEIVED VALUE[{MonitoredItemId}] Value={Value}",
                         Id,
                         value.WrappedValue);
 
@@ -902,11 +911,10 @@ namespace Opc.Ua.Server
                 {
                     if (!m_calculator.QueueRawValue(value))
                     {
-                        Utils.LogTrace(
-                            "Value received out of order: {1}, ServerHandle={0}",
-                            Id,
-                            value.SourceTimestamp.ToLocalTime()
-                                .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture));
+                        m_logger.LogTrace(
+                            "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}",
+                            value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                            Id);
                     }
 
                     DataValue processedValue = m_calculator.GetProcessedValue(false);
@@ -953,7 +961,15 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-            ServerUtils.EventLog.QueueValue(Id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
+
+            m_logger.LogTrace(
+                Utils.TraceMasks.OperationDetail,
+                "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                Id,
+                m_lastValue.WrappedValue,
+                m_lastValue.StatusCode.Code,
+                m_lastValue.StatusCode.Code,
+                m_lastValue.StatusCode.Overflow);
         }
 
         /// <summary>
@@ -1054,7 +1070,8 @@ namespace Opc.Ua.Server
                 var context = new FilterContext(
                     m_server.NamespaceUris,
                     m_server.TypeTree,
-                    Session?.PreferredLocales);
+                    Session?.PreferredLocales,
+                    m_server.Telemetry);
 
                 // event filter must be specified.
                 if (m_filterToUse is not EventFilter filter)
@@ -1227,9 +1244,9 @@ namespace Opc.Ua.Server
                 // publish events.
                 if (m_eventQueueHandler != null)
                 {
-                    Utils.LogTrace(
+                    m_logger.LogTrace(
                         Utils.TraceMasks.OperationDetail,
-                        "MONITORED ITEM: Publish(QueueSize={0})",
+                        "MONITORED ITEM: Publish(QueueSize={QueueSize})",
                         notifications.Count);
 
                     EventFieldList overflowEvent = null;
@@ -1264,7 +1281,8 @@ namespace Opc.Ua.Server
                             new FilterContext(
                                 m_server.NamespaceUris,
                                 m_server.TypeTree,
-                                Session?.PreferredLocales),
+                                Session?.PreferredLocales,
+                                m_server.Telemetry),
                             m_filterToUse as EventFilter,
                             e);
                     }
@@ -1295,9 +1313,9 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    Utils.LogTrace(
+                    m_logger.LogTrace(
                         Utils.TraceMasks.OperationDetail,
-                        "MONITORED ITEM: Publish(QueueSize={0})",
+                        "MONITORED ITEM: Publish(QueueSize={QueueSize})",
                         notifications.Count);
                 }
 
@@ -1318,7 +1336,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
-            uint maxNotificationsPerPublish)
+            uint maxNotificationsPerPublish,
+            ILogger logger)
         {
             if (context == null)
             {
@@ -1392,8 +1411,12 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing or no items are queued
                 else
                 {
-                    ServerUtils.EventLog
-                        .DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
+                    m_logger.LogTrace(
+                        "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                        m_lastValue.WrappedValue,
+                        m_lastValue.StatusCode.Code,
+                        m_lastValue.StatusCode.Code,
+                        m_lastValue.StatusCode.Overflow);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
@@ -1485,7 +1508,7 @@ namespace Opc.Ua.Server
 
             if ((DiagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
             {
-                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
+                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error, m_logger);
             }
 
             diagnostics.Enqueue(diagnosticInfo);
@@ -1888,6 +1911,7 @@ namespace Opc.Ua.Server
                                 Id,
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
+                                m_server.Telemetry,
                                 QueueOverflowHandler);
                             queueLastValue = true;
                         }
@@ -1908,7 +1932,8 @@ namespace Opc.Ua.Server
                         m_eventQueueHandler ??= new EventQueueHandler(
                             IsDurable,
                             m_monitoredItemQueueFactory,
-                            Id);
+                            Id,
+                            m_server.Telemetry);
                         m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                     }
                     break;
@@ -1959,9 +1984,9 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogError(
+                            m_logger.LogError(
                                 ex,
-                                "Failed to restore queue for monitored item with id {0}",
+                                "Failed to restore queue for monitored item with id {MonitoredItemId}",
                                 Id);
                         }
 
@@ -1972,6 +1997,7 @@ namespace Opc.Ua.Server
                                 restoredQueue,
                                 m_discardOldest,
                                 m_samplingInterval,
+                                m_server.Telemetry,
                                 QueueOverflowHandler);
                         }
                         else
@@ -1981,6 +2007,7 @@ namespace Opc.Ua.Server
                                 Id,
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
+                                m_server.Telemetry,
                                 QueueOverflowHandler);
 
                             m_dataChangeQueueHandler.SetQueueSize(
@@ -1999,9 +2026,9 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogError(
+                            m_logger.LogError(
                                 ex,
-                                "Failed to restore queue for monitored item with id {0}",
+                                "Failed to restore queue for monitored item with id {Id}",
                                 Id);
                         }
                         if (restoredQueue != null)
@@ -2009,7 +2036,8 @@ namespace Opc.Ua.Server
                             // initialize with existing queue
                             m_eventQueueHandler = new EventQueueHandler(
                                 restoredQueue,
-                                m_discardOldest);
+                                m_discardOldest,
+                                m_server.Telemetry);
                         }
                         else
                         {
@@ -2017,7 +2045,8 @@ namespace Opc.Ua.Server
                             m_eventQueueHandler = new EventQueueHandler(
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
-                                Id);
+                                Id,
+                                m_server.Telemetry);
                             m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }
@@ -2053,6 +2082,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private IServerInternal m_server;
         private string m_indexRange;
         private NumericRange m_parsedIndexRange;

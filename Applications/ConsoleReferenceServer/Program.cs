@@ -44,10 +44,9 @@ namespace Quickstarts.ReferenceServer
     {
         public static async Task<int> Main(string[] args)
         {
-            TextWriter output = Console.Out;
-            output.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
+            Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
 
-            output.WriteLine(
+            Console.WriteLine(
                 "OPC UA library: {0} @ {1} -- {2}",
                 Utils.GetAssemblyBuildNumber(),
                 Utils.GetAssemblyTimestamp().ToString("G", CultureInfo.InvariantCulture),
@@ -94,27 +93,34 @@ namespace Quickstarts.ReferenceServer
                 { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null }
             };
 
+            using var telemetry = new ConsoleTelemetry();
+            ILogger logger = Utils.Null.Logger;
             try
             {
                 // parse command line and set options
-                ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, "REFSERVER");
+                ConsoleUtils.ProcessCommandLine(args, options, ref showHelp, "REFSERVER");
 
+                // log console output to logger
                 if (logConsole && appLog)
                 {
-                    output = new LogWriter();
+                    logger = telemetry.CreateLogger("Main");
                 }
 
                 // create the UA server
-                var server = new UAServer<ReferenceServer>(output) { AutoAccept = autoAccept, Password = password };
+                var server = new UAServer<ReferenceServer>(telemetry)
+                {
+                    AutoAccept = autoAccept,
+                    Password = password
+                };
 
                 // load the server configuration, validate certificates
-                output.WriteLine("Loading configuration from {0}.", configSectionName);
+                logger.LogInformation("Loading configuration from config section {Name}.", configSectionName);
                 await server.LoadAsync(applicationName, configSectionName).ConfigureAwait(false);
 
                 // use the shadow config to map the config to an externally accessible location
                 if (shadowConfig)
                 {
-                    output.WriteLine("Using shadow configuration.");
+                    logger.LogInformation("Using shadow configuration.");
                     string shadowPath = Directory
                         .GetParent(
                             Path.GetDirectoryName(
@@ -128,20 +134,20 @@ namespace Quickstarts.ReferenceServer
                     );
                     if (!File.Exists(shadowFilePath))
                     {
-                        output.WriteLine("Create a copy of the config in the shadow location.");
+                        logger.LogInformation("Create a copy of the config in the shadow location.");
                         File.Copy(server.Configuration.SourceFilePath, shadowFilePath, true);
                     }
-                    output.WriteLine("Reloading configuration from {0}.", shadowFilePath);
+                    logger.LogInformation("Reloading configuration from shadow location {FilePath}.", shadowFilePath);
                     await server
                         .LoadAsync(applicationName, Path.Combine(shadowPath, configSectionName))
                         .ConfigureAwait(false);
                 }
 
                 // setup the logging
-                ConsoleUtils.ConfigureLogging(server.Configuration, applicationName, logConsole, LogLevel.Information);
+                telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, LogLevel.Information);
 
                 // check or renew the certificate
-                output.WriteLine("Check the certificate.");
+                logger.LogInformation("Check the certificate.");
                 await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
                 // Create and add the node managers
@@ -154,18 +160,18 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // start the server
-                output.WriteLine("Start the server.");
+                logger.LogInformation("Start the server.");
                 await server.StartAsync().ConfigureAwait(false);
 
                 // Apply custom settings for CTT testing
                 if (cttMode)
                 {
-                    output.WriteLine("Apply settings for CTT.");
+                    logger.LogInformation("Apply settings for CTT.");
                     // start Alarms and other settings for CTT test
-                    Servers.Utils.ApplyCTTMode(output, server.Server);
+                    Servers.Utils.ApplyCTTMode(Console.Out, server.Server);
                 }
 
-                output.WriteLine("Server started. Press Ctrl-C to exit...");
+                logger.LogInformation("Server started. Press Ctrl-C to exit...");
 
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
@@ -173,14 +179,14 @@ namespace Quickstarts.ReferenceServer
                 bool ctrlc = quitEvent.WaitOne(timeout);
 
                 // stop server. May have to wait for clients to disconnect.
-                output.WriteLine("Server stopped. Waiting for exit...");
+                logger.LogInformation("Server stopped. Waiting for exit...");
                 await server.StopAsync().ConfigureAwait(false);
 
                 return (int)ExitCode.Ok;
             }
             catch (ErrorExitException eee)
             {
-                output.WriteLine("The application exits with error: {0}", eee.Message);
+                logger.LogInformation("The application exits with error: {ExitMessage}", eee.Message);
                 return (int)eee.ExitCode;
             }
         }

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -57,6 +58,8 @@ namespace Opc.Ua.Server
             }
 
             Server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<CoreNodeManager>();
+
             m_nodes = new NodeTable(server.NamespaceUris, server.ServerUris, server.TypeTree);
             m_monitoredItems = [];
             m_defaultMinimumSamplingInterval = 1000;
@@ -196,7 +199,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Unexpected error disposing a Node object.");
+                    m_logger.LogError(e, "Unexpected error disposing a Node object.");
                 }
             }
         }
@@ -2838,7 +2841,7 @@ namespace Opc.Ua.Server
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSourceNodeIdInvalid,
-                        "Node '{0}' does not exist.",
+                        "Node '{NodeId}' does not exist.",
                         nodeId);
                 }
 
@@ -2858,7 +2861,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error deleting node: {0}", nodeId);
+                    m_logger.LogError(e, "Error deleting node: {NodeId}", nodeId);
                 }
             }
             else
@@ -2967,7 +2970,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error deleting references for node: {0}", current.Key);
+                    m_logger.LogError(e, "Error deleting references for node: {NodeId}", current.Key);
                 }
             }
         }
@@ -3659,5 +3662,6 @@ namespace Opc.Ua.Server
         private readonly double m_defaultMinimumSamplingInterval;
         private readonly List<string> m_namespaceUris;
         private readonly ushort m_dynamicNamespaceIndex;
+        private readonly ILogger m_logger;
     }
 }

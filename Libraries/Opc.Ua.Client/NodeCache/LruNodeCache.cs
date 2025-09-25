@@ -58,6 +58,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public LruNodeCache(
             ISession session,
+            ITelemetryContext telemetry,
             TimeSpan? cacheExpiry = null,
             int capacity = 4096,
             bool withMetrics = false)

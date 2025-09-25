@@ -27,46 +27,36 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-using System;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+#nullable enable
+
+namespace Opc.Ua
 {
     /// <summary>
-    /// Adds IEncoder Extension Method for tests targeting a netstandard 2.0 assembly (no span support) but being run on net 8 or higher
+    /// Provides context for tracing, metrics and logging.
     /// </summary>
-    internal static class EncoderSpanExtensions
+    public interface ITelemetryContext
     {
         /// <summary>
-        /// Bridges encoder.WriteByteString(string, ReadOnlySpan<byte>) to the byte[] overloads.
+        /// Create the meter instance to create and record metrics.
+        /// The caller is responsible to dispose the meter instance
+        /// returned.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="encoder"/> is <c>null</c>.</exception>
-        public static void WriteByteString(this IEncoder encoder, string fieldName, ReadOnlySpan<byte> value)
-        {
-            if (encoder == null)
-            {
-                throw new ArgumentNullException(nameof(encoder));
-            }
+        Meter CreateMeter();
 
-            // Preserve test expectations:
-            // - value == ReadOnlySpan<byte>.Empty (null/default span) => encode null
-            // - value.IsEmpty (but not Equal to .Empty) => encode empty array
-            // - otherwise => encode the span content
-            if (value == ReadOnlySpan<byte>.Empty)
-            {
-                encoder.WriteByteString(fieldName, null);
-                return;
-            }
+        /// <summary>
+        /// Access the logger factory to create logger objects.
+        /// </summary>
+        ILoggerFactory LoggerFactory { get; }
 
-            if (value.IsEmpty)
-            {
-                encoder.WriteByteString(fieldName, []);
-                return;
-            }
-
-            encoder.WriteByteString(fieldName, value.ToArray());
-        }
+        /// <summary>
+        /// Get a activity source for the current assembly.
+        /// Do not dispose the activity source returned as it is
+        /// held as part of the telemetry context.
+        /// </summary>
+        ActivitySource ActivitySource { get; }
     }
 }
-#endif
-

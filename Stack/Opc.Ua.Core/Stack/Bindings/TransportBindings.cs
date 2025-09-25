@@ -27,7 +27,10 @@ namespace Opc.Ua.Bindings
                     typeof(HttpsTransportChannelFactory),
                     typeof(OpcHttpsTransportChannelFactory)
                 ]);
-            Listeners = new TransportListenerBindings([typeof(TcpTransportListenerFactory)]);
+            Listeners = new TransportListenerBindings(
+                [
+                    typeof(TcpTransportListenerFactory)
+                ]);
         }
 
         /// <summary>
@@ -59,10 +62,11 @@ namespace Opc.Ua.Bindings
         /// Get a transport channel for the specified uri scheme.
         /// </summary>
         /// <param name="uriScheme">The uri scheme of the transport.</param>
-        public ITransportChannel GetChannel(string uriScheme)
+        /// <param name="telemetry">Telemetry context to use</param>
+        public ITransportChannel GetChannel(string uriScheme, ITelemetryContext telemetry)
         {
-            ITransportChannelFactory binding = GetBinding(uriScheme);
-            return binding?.Create();
+            ITransportChannelFactory binding = GetBinding(uriScheme, telemetry);
+            return binding?.Create(telemetry);
         }
     }
 
@@ -84,10 +88,11 @@ namespace Opc.Ua.Bindings
         /// Get a transport listener for the specified uri scheme.
         /// </summary>
         /// <param name="uriScheme">The uri scheme of the transport.</param>
-        public ITransportListener GetListener(string uriScheme)
+        /// <param name="telemetry">Telemetry context to use</param>
+        public ITransportListener GetListener(string uriScheme, ITelemetryContext telemetry)
         {
-            ITransportListenerFactory binding = GetBinding(uriScheme);
-            return binding?.Create();
+            ITransportListenerFactory binding = GetBinding(uriScheme, telemetry);
+            return binding?.Create(telemetry);
         }
     }
 }

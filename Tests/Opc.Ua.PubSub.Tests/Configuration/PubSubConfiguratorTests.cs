@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
@@ -67,7 +68,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [SetUp]
         public void MyTestInitialize()
         {
-            m_uaPubSubConfigurator = new UaPubSubConfigurator();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            m_uaPubSubConfigurator = new UaPubSubConfigurator(telemetry);
 
             // Attach triggers that count calls
             m_uaPubSubConfigurator.ConnectionAdded += (sender, e) => ++CallCountConnectionAdded;
@@ -94,19 +96,19 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // A publisher configuration source
             string publisherConfigFile = Utils.GetAbsoluteFilePath(
                 PublisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_pubConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
-                publisherConfigFile);
+                publisherConfigFile,
+                telemetry);
             // A subscriber configuration source
             string subscriberConfigFile = Utils.GetAbsoluteFilePath(
                 SubscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_subConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
-                subscriberConfigFile);
+                subscriberConfigFile,
+                telemetry);
         }
 
         [Test(Description = "Validate ConnectionAdded event is triggered")]
@@ -599,9 +601,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher ConnectionAdded event is reflected in the parent UaPubSubApplication")]
         public void ValidatePubConnectionAddedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -621,9 +624,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         )]
         public void ValidatePubConnectionRemovedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int initialCount = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -639,8 +643,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher AddWriterGroup  is reflected in the parent UaPubSubApplication")]
         public void ValidateWriterGroupAddedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -682,8 +687,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher RemoveWriterGroup  is reflected in the parent UaPubSubApplication")]
         public void ValidateWriterGroupRemovedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -729,8 +735,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher AddDataSetWriter  is reflected in the parent UaPubSubApplication")]
         public void ValidateDataSetWriterAddedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -798,8 +806,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher RemoveDataSetWriter  is reflected in the parent UaPubSubApplication")]
         public void ValidateDataSetWriterRemovedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -873,6 +882,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher AddPublishedSet is reflected in the parent UaPubSubApplication")]
         public void ValidatePublishedDataSetAddedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
@@ -880,7 +890,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
+            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                 .PublishedDataSets
@@ -902,6 +912,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher RemovePublishedSet is reflected in the parent UaPubSubApplication")]
         public void ValidatePublishedDataSetRemovedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
@@ -909,7 +920,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
+            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int initialNrPublishedDs = uaPubSubApplication
                 .UaPubSubConfigurator
@@ -935,6 +946,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Subscriber ConnectionAdded event is reflected in the parent UaPubSubApplication")]
         public void ValidateSubConnectionAddedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
@@ -942,7 +954,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
+            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -962,9 +974,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         )]
         public void ValidateSubConnectionRemovedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int initialCount = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -980,6 +993,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Subscriber AddReaderGroup  is reflected in the parent UaPubSubApplication")]
         public void ValidateReaderGroupAddedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
@@ -987,7 +1001,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
+            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1029,6 +1043,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Subscriber RemoveReaderGroup  is reflected in the parent UaPubSubApplication")]
         public void ValidateReaderGroupRemovedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
@@ -1036,7 +1051,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
+            var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1079,8 +1094,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Subscriber AddDataSetReader  is reflected in the parent UaPubSubApplication")]
         public void ValidateDataSetReaderAddedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create UaPubSubConfigurator with empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1146,8 +1162,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Subscriber AddDataSetReader  is reflected in the parent UaPubSubApplication")]
         public void ValidateDataSetReaderRemovedAndReflectedInApplication()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create UaPubSubConfigurator with empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)

@@ -28,13 +28,15 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
 {
-    internal class NonExclusiveLimitHolder : LimitAlarmTypeHolder
+    public abstract class NonExclusiveLimitHolder : LimitAlarmTypeHolder
     {
-        public NonExclusiveLimitHolder(
+        protected NonExclusiveLimitHolder(
+            ILogger logger,
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
@@ -46,6 +48,7 @@ namespace Alarms
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
             bool create = true)
             : base(
+                logger,
                 alarmNodeManager,
                 parent,
                 trigger,

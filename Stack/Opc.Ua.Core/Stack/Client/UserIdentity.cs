@@ -14,7 +14,10 @@ using System;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -60,6 +63,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an X509 certificate identifier
         /// </summary>
+        [Obsolete("Use CreateAsync method instead.")]
         public UserIdentity(CertificateIdentifier certificateId)
             : this(certificateId, new CertificatePasswordProvider(string.Empty))
         {
@@ -68,33 +72,19 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
         /// </summary>
+        [Obsolete("Use CreateAsync method instead.")]
         public UserIdentity(
             CertificateIdentifier certificateId,
             CertificatePasswordProvider certificatePasswordProvider)
+            : this(certificateId
+                .LoadPrivateKeyExAsync(certificatePasswordProvider).GetAwaiter().GetResult(), null)
         {
-            if (certificateId == null)
-            {
-                throw new ArgumentNullException(nameof(certificateId));
-            }
-
-            X509Certificate2 certificate = certificateId
-                .LoadPrivateKeyExAsync(certificatePasswordProvider)
-                .GetAwaiter()
-                .GetResult();
-
-            if (certificate == null || !certificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(
-                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
-            }
-
-            Initialize(certificate);
         }
 
         /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
-        public UserIdentity(X509Certificate2 certificate)
+        public UserIdentity(X509Certificate2 certificate, ITelemetryContext telemetry)
         {
             if (certificate == null)
             {
@@ -107,16 +97,77 @@ namespace Opc.Ua
                     "Cannot create User Identity with Certificate that does not have a private key");
             }
 
-            Initialize(certificate);
+            Initialize(certificate, telemetry);
         }
 
         /// <summary>
         /// Initializes the object with a UA identity token.
         /// </summary>
         /// <param name="token">The user identity token.</param>
-        public UserIdentity(UserIdentityToken token)
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public UserIdentity(UserIdentityToken token, ITelemetryContext telemetry)
         {
-            Initialize(token);
+            switch (token)
+            {
+                case X509IdentityToken x509Token:
+                    Initialize(x509Token, telemetry);
+                    break;
+                case UserNameIdentityToken usernameToken:
+                    Initialize(usernameToken);
+                    break;
+                case AnonymousIdentityToken anonymous:
+                    Initialize(anonymous);
+                    break;
+                case IssuedIdentityToken issuedToken:
+                    Initialize(issuedToken);
+                    break;
+                default:
+                    throw new ArgumentException("Unrecognized UA user identity token type.", nameof(token));
+            }
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="certificateId"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static async Task<UserIdentity> CreateAsync(
+            CertificateIdentifier certificateId,
+            CertificatePasswordProvider certificatePasswordProvider,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
+        {
+            if (certificateId == null)
+            {
+                throw new ArgumentNullException(nameof(certificateId));
+            }
+
+            X509Certificate2 certificate = await certificateId
+                .LoadPrivateKeyExAsync(certificatePasswordProvider, applicationUri: null, telemetry, ct)
+                .ConfigureAwait(false);
+
+            if (certificate == null || !certificate.HasPrivateKey)
+            {
+                throw new ServiceResultException(
+                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
+            }
+
+            return new UserIdentity(certificate, telemetry);
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier
+        /// </summary>
+        public static Task<UserIdentity> CreateAsync(
+            CertificateIdentifier certificateId,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                certificateId,
+                new CertificatePasswordProvider(string.Empty),
+                telemetry,
+                ct);
         }
 
         /// <summary>
@@ -173,86 +224,111 @@ namespace Opc.Ua
             return m_token ?? new AnonymousIdentityToken();
         }
 
+        private void Initialize()
+        {
+            GrantedRoleIds = [];
+        }
+
         /// <summary>
         /// Initializes the object with a UA identity token
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="NotSupportedException"></exception>
-        private void Initialize(UserIdentityToken token)
+        private void Initialize(UserNameIdentityToken usernameToken)
         {
-            GrantedRoleIds = [];
-            m_token = token ?? throw new ArgumentNullException(nameof(token));
+            Initialize();
 
-            if (token is UserNameIdentityToken usernameToken)
+            m_token = usernameToken ?? throw new ArgumentNullException(nameof(usernameToken));
+            TokenType = UserTokenType.UserName;
+            IssuedTokenType = null;
+            DisplayName = usernameToken.UserName;
+        }
+
+        /// <summary>
+        /// Initializes the object with a UA identity token
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        private void Initialize(X509IdentityToken x509Token, ITelemetryContext telemetry)
+        {
+            Initialize();
+
+            m_token = x509Token ?? throw new ArgumentNullException(nameof(x509Token));
+            TokenType = UserTokenType.Certificate;
+            IssuedTokenType = null;
+            if (x509Token.Certificate != null)
             {
-                TokenType = UserTokenType.UserName;
-                IssuedTokenType = null;
-                DisplayName = usernameToken.UserName;
+                DisplayName = x509Token.Certificate.Subject;
+            }
+            else
+            {
+                X509Certificate2 cert = CertificateFactory.Create(
+                    x509Token.CertificateData,
+                    true,
+                    telemetry);
+                DisplayName = cert.Subject;
+            }
+        }
+
+        /// <summary>
+        /// Initializes the object with a UA identity token
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        private void Initialize(AnonymousIdentityToken anonymousToken)
+        {
+            Initialize();
+
+            m_token = anonymousToken ?? throw new ArgumentNullException(nameof(anonymousToken));
+
+            TokenType = UserTokenType.Anonymous;
+            IssuedTokenType = null;
+            DisplayName = "Anonymous";
+        }
+
+        /// <summary>
+        /// Initializes the object with a UA identity token
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        private void Initialize(IssuedIdentityToken issuedToken)
+        {
+            Initialize();
+            m_token = issuedToken ?? throw new ArgumentNullException(nameof(issuedToken));
+
+            if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
+            {
+                if (issuedToken.DecryptedTokenData == null ||
+                    issuedToken.DecryptedTokenData.Length == 0)
+                {
+                    throw new ArgumentException(
+                        "JSON Web Token has no data associated with it.",
+                        nameof(issuedToken));
+                }
+
+                TokenType = UserTokenType.IssuedToken;
+                IssuedTokenType = new XmlQualifiedName(string.Empty, Profiles.JwtUserToken);
+                DisplayName = "JWT";
                 return;
             }
-
-            if (token is X509IdentityToken x509Token)
-            {
-                TokenType = UserTokenType.Certificate;
-                IssuedTokenType = null;
-                if (x509Token.Certificate != null)
-                {
-                    DisplayName = x509Token.Certificate.Subject;
-                }
-                else
-                {
-                    X509Certificate2 cert = CertificateFactory.Create(
-                        x509Token.CertificateData,
-                        true);
-                    DisplayName = cert.Subject;
-                }
-                return;
-            }
-
-            if (token is IssuedIdentityToken issuedToken)
-            {
-                if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
-                {
-                    if (issuedToken.DecryptedTokenData == null ||
-                        issuedToken.DecryptedTokenData.Length == 0)
-                    {
-                        throw new ArgumentException(
-                            "JSON Web Token has no data associated with it.",
-                            nameof(token));
-                    }
-
-                    TokenType = UserTokenType.IssuedToken;
-                    IssuedTokenType = new XmlQualifiedName(string.Empty, Profiles.JwtUserToken);
-                    DisplayName = "JWT";
-                    return;
-                }
-
-                throw new NotSupportedException("Only JWT Issued Tokens are supported!");
-            }
-
-            if (token is AnonymousIdentityToken)
-            {
-                TokenType = UserTokenType.Anonymous;
-                IssuedTokenType = null;
-                DisplayName = "Anonymous";
-                return;
-            }
-
-            throw new ArgumentException("Unrecognized UA user identity token type.", nameof(token));
+            throw new NotSupportedException("Only JWT Issued Tokens are supported!");
         }
 
         /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
-        private void Initialize(X509Certificate2 certificate)
+        private void Initialize(X509Certificate2 certificate, ITelemetryContext telemetry)
         {
             var token = new X509IdentityToken
             {
                 CertificateData = certificate.RawData,
                 Certificate = certificate
             };
-            Initialize(token);
+            Initialize(token, telemetry);
         }
 
         private UserIdentityToken m_token;

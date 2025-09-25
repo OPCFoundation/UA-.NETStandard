@@ -39,18 +39,27 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool SupportsDurableQueues => false;
 
+        /// <summary>
+        /// Create monitored item queue factory
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public MonitoredItemQueueFactory(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+        }
+
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(
             bool createDurable,
             uint monitoredItemId)
         {
-            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
+            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId, m_telemetry);
         }
 
         /// <inheritdoc/>
         public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
         {
-            return new EventMonitoredItemQueue(createDurable, monitoredItemId);
+            return new EventMonitoredItemQueue(createDurable, monitoredItemId, m_telemetry);
         }
 
         /// <inheritdoc/>
@@ -67,5 +76,7 @@ namespace Opc.Ua.Server
         {
             //only needed for managed resources
         }
+
+        private readonly ITelemetryContext m_telemetry;
     }
 }

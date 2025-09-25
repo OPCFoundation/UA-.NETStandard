@@ -46,6 +46,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Server.Tests;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
@@ -137,10 +138,12 @@ namespace Opc.Ua.Client.Tests
         [Order(100)]
         public async Task GetEndpointsAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
             Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
@@ -184,10 +187,12 @@ namespace Opc.Ua.Client.Tests
         [Order(100)]
         public async Task FindServersAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
             ApplicationDescriptionCollection servers = await client.FindServersAsync(null)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
@@ -211,10 +216,12 @@ namespace Opc.Ua.Client.Tests
         [Order(100)]
         public async Task FindServersOnNetworkAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
             try
             {
                 FindServersOnNetworkResponse response = await client
@@ -248,10 +255,12 @@ namespace Opc.Ua.Client.Tests
         [TestCase(10000)]
         public async Task ReadOnDiscoveryChannelAsync(int readCount)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null).ConfigureAwait(false);
             Assert.NotNull(endpoints);
@@ -259,7 +268,7 @@ namespace Opc.Ua.Client.Tests
             // cast Innerchannel to ISessionChannel
             ITransportChannel channel = client.TransportChannel;
 
-            var sessionClient = new SessionClient(channel)
+            var sessionClient = new SessionClient(channel, telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.All
             };
@@ -311,10 +320,12 @@ namespace Opc.Ua.Client.Tests
         [TestCase(false)]
         public async Task GetEndpointsOnDiscoveryChannelAsync(bool securityNoneEnabled)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
             var profileUris = new StringCollection();
             for (int i = 0; i < 10000; i++)
             {
@@ -351,7 +362,9 @@ namespace Opc.Ua.Client.Tests
         [Order(110)]
         public async Task InvalidConfigurationAsync()
         {
-            var applicationInstance = new ApplicationInstance
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ClientFixture.Config.ApplicationName
             };
@@ -521,6 +534,8 @@ namespace Opc.Ua.Client.Tests
         [Order(210)]
         public async Task ConnectAndReconnectAsync(bool reconnectAbort, bool useMaxReconnectPeriod)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const int connectTimeout = MaxTimeout;
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
@@ -535,6 +550,7 @@ namespace Opc.Ua.Client.Tests
 
             var quitEvent = new ManualResetEvent(false);
             var reconnectHandler = new SessionReconnectHandler(
+                telemetry,
                 reconnectAbort,
                 useMaxReconnectPeriod ? MaxTimeout : -1);
             reconnectHandler.BeginReconnect(
@@ -893,7 +909,7 @@ namespace Opc.Ua.Client.Tests
 
             // read the session configuration
             var loadStream = new MemoryStream(streamArray);
-            var sessionConfiguration = SessionConfiguration.Create(loadStream);
+            var sessionConfiguration = SessionConfiguration.Create(loadStream, Telemetry);
 
             // create the inactive channel
             ITransportChannel channel2 = await ClientFixture
@@ -1220,6 +1236,8 @@ namespace Opc.Ua.Client.Tests
             string securityPolicy,
             bool operationLimits = false)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             if (OperationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -1248,7 +1266,7 @@ namespace Opc.Ua.Client.Tests
                 session = Session;
             }
 
-            var clientTestServices = new ClientTestServices(session);
+            var clientTestServices = new ClientTestServices(session, telemetry);
             ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
                 clientTestServices,
                 requestHeader,
@@ -1323,13 +1341,15 @@ namespace Opc.Ua.Client.Tests
         [Order(480)]
         public void Subscription()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var requestHeader = new RequestHeader
             {
                 Timestamp = DateTime.UtcNow,
                 TimeoutHint = MaxTimeout
             };
 
-            var clientTestServices = new ClientTestServices(Session);
+            var clientTestServices = new ClientTestServices(Session, telemetry);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
         }
 
@@ -1572,6 +1592,7 @@ namespace Opc.Ua.Client.Tests
         [NonParallelizable]
         public async Task TransferSubscriptionNativeAsync(bool sendInitialData)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ISession transferSession = null;
             try
             {
@@ -1589,7 +1610,7 @@ namespace Opc.Ua.Client.Tests
                     .. CommonTestWorkers.NodeIdTestSetStatic
                         .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
                 ];
-                var clientTestServices = new ClientTestServices(Session);
+                var clientTestServices = new ClientTestServices(Session, telemetry);
                 UInt32Collection subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(
                     clientTestServices,
                     requestHeader,
@@ -1609,7 +1630,7 @@ namespace Opc.Ua.Client.Tests
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
-                var transferTestServices = new ClientTestServices(transferSession);
+                var transferTestServices = new ClientTestServices(transferSession, telemetry);
                 CommonTestWorkers.TransferSubscriptionTest(
                     transferTestServices,
                     requestHeader,
@@ -1645,8 +1666,9 @@ namespace Opc.Ua.Client.Tests
             public TestableTraceableRequestHeaderClientSession(
                 ISessionChannel channel,
                 ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint)
-                : base(channel, configuration, endpoint)
+                ConfiguredEndpoint endpoint,
+                ITelemetryContext telemetry)
+                : base(channel, configuration, endpoint, telemetry)
             {
             }
 
@@ -1705,6 +1727,8 @@ namespace Opc.Ua.Client.Tests
         [Order(900)]
         public async Task ClientTestRequestHeaderUpdateAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             Activity rootActivity = new Activity("Test_Activity_Root")
             {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded
@@ -1736,7 +1760,8 @@ namespace Opc.Ua.Client.Tests
                         = new TestableTraceableRequestHeaderClientSession(
                         sessionChannelMock.Object,
                         ClientFixture.Config,
-                        endpoint);
+                        endpoint,
+                        telemetry);
                     var request = new CreateSessionRequest { RequestHeader = new RequestHeader() };
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update
@@ -1939,6 +1964,8 @@ namespace Opc.Ua.Client.Tests
             )]
                 string securityPolicy)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var eccCurveHashPairs = new ECCurveHashPairCollection
             {
                 { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
@@ -1970,7 +1997,7 @@ namespace Opc.Ua.Client.Tests
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();
 
-                    var userIdentity = new UserIdentity(cert);
+                    var userIdentity = new UserIdentity(cert, telemetry);
 
                     // the first channel determines the endpoint
                     ConfiguredEndpoint endpoint = await ClientFixture
@@ -2010,6 +2037,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11000)]
         public async Task SetSubscriptionDurableSuccessAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const uint expectedRevised = 5;
 
             var outputParameters = new List<object> { expectedRevised };
@@ -2025,7 +2054,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2046,6 +2075,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11010)]
         public async Task SetSubscriptionDurableExceptionAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var sessionMock = new Mock<ISession>();
 
             sessionMock
@@ -2057,7 +2088,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2072,6 +2103,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11020)]
         public async Task SetSubscriptionDurableNoOutputParametersAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var outputParameters = new List<object>();
 
             var sessionMock = new Mock<ISession>();
@@ -2085,7 +2118,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2100,6 +2133,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11030)]
         public async Task SetSubscriptionDurableNullOutputParametersAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             List<object> outputParameters = null;
 
             var sessionMock = new Mock<ISession>();
@@ -2113,7 +2148,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2128,6 +2163,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11040)]
         public async Task SetSubscriptionDurableTooManyOutputParametersAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const uint expectedRevised = 5;
 
             var outputParameters = new List<object> { expectedRevised, expectedRevised };
@@ -2143,7 +2180,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2157,6 +2194,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11100)]
         public async Task GetMonitoredItemsSuccessAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var outputParameters = new List<object> {
                 new uint[] { 1, 2, 3, 4, 5 },
                 new uint[] { 6, 7, 8, 9, 10 } };
@@ -2171,7 +2210,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             UInt32Collection serverHandles;
             UInt32Collection clientHandles;
@@ -2189,6 +2228,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11110)]
         public async Task GetMonitoredItemsExceptionAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var sessionMock = new Mock<ISession>();
 
             sessionMock
@@ -2199,7 +2240,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             UInt32Collection serverHandles;
             UInt32Collection clientHandles;
@@ -2216,6 +2257,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11120)]
         public async Task GetMonitoredItemsNoOutputParametersAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var outputParameters = new List<object>();
 
             var sessionMock = new Mock<ISession>();
@@ -2228,7 +2271,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             UInt32Collection serverHandles;
             UInt32Collection clientHandles;
@@ -2245,6 +2288,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11130)]
         public async Task GetMonitoredItemsNullOutputParametersAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             List<object> outputParameters = null;
 
             var sessionMock = new Mock<ISession>();
@@ -2257,7 +2302,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             UInt32Collection serverHandles;
             UInt32Collection clientHandles;
@@ -2274,6 +2319,8 @@ namespace Opc.Ua.Client.Tests
         [Order(11140)]
         public async Task GetMonitoredItemsTooManyOutputParametersAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var outputParameters = new List<object>
             {
                 new uint[] { 1, 2, 3, 4, 5 },
@@ -2291,7 +2338,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<uint>()))
                 .ReturnsAsync(outputParameters);
 
-            var subscription = new Subscription { Session = sessionMock.Object };
+            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             UInt32Collection serverHandles;
             UInt32Collection clientHandles;

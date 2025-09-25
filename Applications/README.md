@@ -6,7 +6,7 @@ This document is referring to the CTT version 1.04.9.398.
 
 This OPC Server is designed to be the default OPC UA Server when opening the [OPC UA Compliance Test Tool](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) and it uses an address-space that matches the design of the UACTT and the requirements for OPC UA compliance testing. 
 
-It uses the OPC Foundation UA .NET Standard Library. Therefore it supports both the opc.tcp and https transports. There is a .NET framework 4.6.2 based server with UI and a .NET Core console version of the server which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard) or .NET 6.0 and later.
+It uses the OPC Foundation UA .NET Standard Library. Therefore it supports both the opc.tcp and https transports. There is a .NET frameworkbased server with UI and a .NET Core console version of the server which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard) or .NET 6.0 and later.
 
 ## How to build and run the Windows OPC UA Reference Server with UACTT
 1. Open the solution **UA Reference.sln** with Visual Studio.

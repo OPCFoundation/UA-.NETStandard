@@ -35,6 +35,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -52,8 +53,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        protected CustomNodeManager2(IServerInternal server, params string[] namespaceUris)
-            : this(server, null, namespaceUris)
+        protected CustomNodeManager2(
+            IServerInternal server,
+            params string[] namespaceUris)
+            : this(server, null, false, namespaceUris)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager.
+        /// </summary>
+        protected CustomNodeManager2(
+            IServerInternal server,
+            ILogger logger,
+            params string[] namespaceUris)
+            : this(server, null, logger, namespaceUris)
         {
         }
 
@@ -74,7 +88,37 @@ namespace Opc.Ua.Server
         protected CustomNodeManager2(
             IServerInternal server,
             ApplicationConfiguration configuration,
+            ILogger logger,
+            params string[] namespaceUris)
+            : this(server, configuration, false, logger, namespaceUris)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager.
+        /// </summary>
+        protected CustomNodeManager2(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
             bool useSamplingGroups,
+            params string[] namespaceUris)
+            : this(
+                  server,
+                  configuration,
+                  useSamplingGroups,
+                  server.Telemetry.CreateLogger<CustomNodeManager2>(),
+                  namespaceUris)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager.
+        /// </summary>
+        protected CustomNodeManager2(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            bool useSamplingGroups,
+            ILogger logger,
             params string[] namespaceUris)
         {
             // set defaults.
@@ -90,6 +134,7 @@ namespace Opc.Ua.Server
 
             // save a reference to the UA server instance that owns the node manager.
             Server = server;
+            m_logger = logger;
 
             // all operations require information about the system
             SystemContext = Server.DefaultSystemContext.Copy();
@@ -1614,7 +1659,9 @@ namespace Opc.Ua.Server
 #if DEBUG
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
-                        ServerUtils.EventLog.ReadValueRange(
+                        m_logger.LogTrace(
+                            Utils.TraceMasks.ServiceDetail,
+                            "READ: NodeId={NodeId} Value={Value} Range={Range}",
                             nodeToRead.NodeId,
                             value.WrappedValue,
                             nodeToRead.IndexRange);
@@ -1879,7 +1926,9 @@ namespace Opc.Ua.Server
                     }
 
 #if DEBUG
-                    ServerUtils.EventLog.WriteValueRange(
+                    m_logger.LogTrace(
+                        Utils.TraceMasks.ServiceDetail,
+                        "WRITE: NodeId={NodeId} Value={Value} Range={Range}",
                         nodeToWrite.NodeId,
                         nodeToWrite.Value.WrappedValue,
                         nodeToWrite.IndexRange);
@@ -1926,7 +1975,8 @@ namespace Opc.Ua.Server
                         systemContext,
                         nodeToWrite,
                         oldValue?.Value,
-                        errors[ii]?.StatusCode ?? StatusCodes.Good);
+                        errors[ii]?.StatusCode ?? StatusCodes.Good,
+                        m_logger);
 
                     if (!ServiceResult.IsGood(errors[ii]))
                     {
@@ -2529,7 +2579,7 @@ namespace Opc.Ua.Server
 
                 // validate the event filter.
                 EventFilter.Result result = readEventDetails.Filter.Validate(
-                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
+                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
                 if (ServiceResult.IsBad(result.Status))
                 {
@@ -3115,7 +3165,8 @@ namespace Opc.Ua.Server
                                 argumentError,
                                 systemContext.OperationContext.DiagnosticsMask,
                                 false,
-                                systemContext.OperationContext.StringTable));
+                                systemContext.OperationContext.StringTable,
+                                m_logger));
                     }
                     else
                     {
@@ -4999,6 +5050,13 @@ namespace Opc.Ua.Server
         private IReadOnlyList<string> m_namespaceUris;
         private ushort[] m_namespaceIndexes;
         private NodeIdDictionary<CacheEntry> m_componentCache;
+
+        /// <summary>
+        /// A logger to use
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; }
+#pragma warning restore IDE1006 // Naming Styles
 
         /// <summary>
         /// the monitored item manager of the NodeManager

@@ -17,6 +17,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -30,10 +31,9 @@ namespace Opc.Ua
         /// </summary>
         public XmlEncoder(IServiceMessageContext context)
         {
-            Initialize();
-
-            m_destination = new StringBuilder();
             Context = context;
+            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
+            m_destination = new StringBuilder();
             m_nestingLevel = 0;
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
@@ -58,8 +58,8 @@ namespace Opc.Ua
         /// </summary>
         public XmlEncoder(XmlQualifiedName root, XmlWriter writer, IServiceMessageContext context)
         {
-            Initialize();
-
+            Context = context;
+            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
             if (writer == null)
             {
                 m_destination = new StringBuilder();
@@ -72,19 +72,7 @@ namespace Opc.Ua
             }
 
             Initialize(root.Name, root.Namespace);
-            Context = context;
             m_nestingLevel = 0;
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_destination = null;
-            m_writer = null;
-            m_namespaces = new Stack<string>();
-            m_root = null;
         }
 
         /// <summary>
@@ -717,8 +705,8 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning(
-                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                        m_logger.LogWarning(
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
                 }
@@ -2463,9 +2451,10 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
-        private StringBuilder m_destination;
+        private readonly ILogger m_logger;
+        private readonly StringBuilder m_destination;
         private XmlWriter m_writer;
-        private Stack<string> m_namespaces;
+        private readonly Stack<string> m_namespaces = [];
         private XmlQualifiedName m_root;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
