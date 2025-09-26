@@ -718,6 +718,47 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
+        /// This tests that instantiating two application instances the second with a SubjectName being a substring of the first one's CN,
+        /// succeeds without throwing exceptions.
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        public async Task TestAddTwoAppCertificatesToTrustedStoreAsync()
+        {
+            var subjectName = SubjectName;
+            //Arrange Application Instance
+            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/rusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            Assert.DoesNotThrowAsync(async() => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
+
+            subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
+            var applicationInstance2 = new ApplicationInstance { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration2 = await applicationInstance2
+                .Build(ApplicationUri + "2", ProductUri + "2")
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/trusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            Assert.DoesNotThrowAsync(async() => await applicationInstance2.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
+
+        }
+
+        /// <summary>
         /// Test to verify that a new cert is not recreated/replaced if DisableCertificateAutoCreation is set.
         /// </summary>
         [Theory]

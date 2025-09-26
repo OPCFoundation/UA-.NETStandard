@@ -403,9 +403,9 @@ namespace Opc.Ua
                 var simpleNameMatches = collection.Find(X509FindType.FindBySubjectName, subjectName, false)
                     .Cast<X509Certificate2>()
                     .Where(cert => string.Equals(
-                        cert.GetNameInfo(X509NameType.SimpleName, forIssuer:false),
+                        cert.GetNameInfo(X509NameType.SimpleName, forIssuer: false),
                         subjectName,
-                        StringComparison.OrdinalIgnoreCase))
+                        StringComparison.Ordinal))
                     .ToArray();
 
                 if (simpleNameMatches.Length > 0)
