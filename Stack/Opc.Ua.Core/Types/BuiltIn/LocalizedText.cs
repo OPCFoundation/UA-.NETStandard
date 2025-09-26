@@ -13,9 +13,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Opc.Ua
@@ -41,18 +43,18 @@ namespace Opc.Ua
     /// LocalizedText welcomeGB = new LocalizedText( "Hello Everyone", "EN-GB" );
     /// LocalizedText welcomeNoLocale = new LocalizedText( "Welcome" );
     ///
-    /// Utils.LogInfo( welcomeUS.ToString() );
-    /// Utils.LogInfo( welcomeGB.ToString() );
-    /// Utils.LogInfo( welcomeNoLocale.ToString() );
+    /// Console.WriteLine( welcomeUS.ToString() );
+    /// Console.WriteLine( welcomeGB.ToString() );
+    /// Console.WriteLine( welcomeNoLocale.ToString() );
     /// </code>
     /// <code lang="Visual Basic">
     /// Dim welcomeUS As LocalizedText = New LocalizedText( "Hi Everyone", "EN-GB" )
     /// Dim welcomeGB As LocalizedText = New LocalizedText( "Hello Everyone", "EN-GB" )
     /// Dim welcomeNoLocale As LocalizedText = New LocalizedText( "Welcome" )
     ///
-    /// Utils.LogInfo( welcomeUS.ToString() )
-    /// Utils.LogInfo( welcomeGB.ToString() )
-    /// Utils.LogInfo( welcomeNoLocale.ToString() )
+    /// Console.WriteLine( welcomeUS.ToString() )
+    /// Console.WriteLine( welcomeGB.ToString() )
+    /// Console.WriteLine( welcomeNoLocale.ToString() )
     /// </code>
     /// <para>
     /// This produces the following output:<br/>
@@ -570,9 +572,8 @@ namespace Opc.Ua
             try
             {
                 // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
-                Dictionary<string, object> json = JsonConvert
-                    .DeserializeObject<Dictionary<string, object>>(
-                        XmlEncodedText);
+                Dictionary<string, object> json =
+                    JsonConvert.DeserializeObject<Dictionary<string, object>>(XmlEncodedText);
                 if (json != null &&
                     json.TryGetValue(kMulLocaleDictionaryKey, out object tValue) &&
                     tValue is Newtonsoft.Json.Linq.JArray tArray)
@@ -593,7 +594,11 @@ namespace Opc.Ua
             }
             catch
             {
-                Utils.Trace("Failed to parse mul locale JSON text: {0}", XmlEncodedText);
+                // TODO: Need to wire a logger here
+                ITelemetryContext telemetry = AmbientMessageContext.Telemetry;
+                ILogger logger = telemetry != null ?
+                     telemetry.CreateLogger<LocalizedText>() : Utils.Fallback.Logger;
+                logger.LogDebug("Failed to parse mul locale JSON text: {Text}", XmlEncodedText);
                 return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);

@@ -38,7 +38,7 @@ namespace Opc.Ua.Bindings
         /// The factory to create a new transport.
         /// </summary>
         /// <returns>The transport.</returns>
-        T Create();
+        T Create(ITelemetryContext telemetry);
     }
 
     /// <summary>
@@ -51,7 +51,8 @@ namespace Opc.Ua.Bindings
         /// Get a transport binding for a uri scheme.
         /// </summary>
         /// <param name="uriScheme">The uri scheme.</param>
-        T GetBinding(string uriScheme);
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        T GetBinding(string uriScheme, ITelemetryContext telemetry);
 
         /// <summary>
         /// Return if there is a transport listener for a uri scheme.

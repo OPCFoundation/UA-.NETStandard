@@ -38,9 +38,6 @@ namespace Opc.Ua.Fuzzing
     {
         public delegate void MessageEncoder(IEncoder encoder);
 
-        public static readonly ServiceMessageContext MessageContext = ServiceMessageContext
-            .GlobalContext;
-
         public static readonly MessageEncoder[] MessageEncoders = [ReadRequest, ReadResponse];
 
         public static void ReadRequest(IEncoder encoder)

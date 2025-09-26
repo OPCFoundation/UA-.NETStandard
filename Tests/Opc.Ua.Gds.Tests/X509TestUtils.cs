@@ -44,7 +44,8 @@ namespace Opc.Ua.Gds.Tests
             byte[] privateKey,
             string privateKeyPassword,
             string privateKeyFormat,
-            byte[][] issuerCertificates)
+            byte[][] issuerCertificates,
+            ITelemetryContext telemetry)
         {
             X509Certificate2 newCert = X509CertificateLoader.LoadCertificate(certificate);
             Assert.IsNotNull(newCert);
@@ -79,7 +80,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             // verify cert with issuer chain
-            var certValidator = new CertificateValidator();
+            var certValidator = new CertificateValidator(telemetry);
             var issuerStore = new CertificateTrustList();
             var trustedStore = new CertificateTrustList
             {

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -83,13 +82,13 @@ namespace Opc.Ua.Client.Tests
         public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
-            bool securityNone,
-            TextWriter writer)
+            bool securityNone)
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging)
+                disableActivityLogging,
+                Telemetry)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
@@ -97,10 +96,6 @@ namespace Opc.Ua.Client.Tests
                 AllNodeManagers = true,
                 OperationLimits = true
             };
-            if (writer != null)
-            {
-                ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
-            }
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
@@ -116,7 +111,7 @@ namespace Opc.Ua.Client.Tests
                     IssuedTokenType = Profiles.JwtUserToken
                 });
 
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+            ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;

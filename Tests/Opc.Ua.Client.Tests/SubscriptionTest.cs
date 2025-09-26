@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Tests
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
-            return OneTimeSetUpAsync(writer: null, securityNone: true);
+            return OneTimeSetUpCoreAsync(securityNone: true);
         }
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Tests
         [Order(100)]
         public async Task AddSubscriptionAsync()
         {
-            var subscription = new TestableSubscription();
+            var subscription = new TestableSubscription(Telemetry);
 
             // check keepAlive
             int keepAlive = 0;
@@ -587,7 +587,9 @@ namespace Opc.Ua.Client.Tests
 
             // read the session configuration
             var loadConfigurationStream = new MemoryStream(configStreamArray);
-            var sessionConfiguration = SessionConfiguration.Create(loadConfigurationStream);
+            var sessionConfiguration = SessionConfiguration.Create(
+                loadConfigurationStream,
+                Telemetry);
 
             // create the inactive channel
             ITransportChannel channel2 = await ClientFixture

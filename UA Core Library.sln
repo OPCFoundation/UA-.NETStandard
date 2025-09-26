@@ -50,7 +50,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azurepipelines", "azurepipe
 		.azurepipelines\ci.yml = .azurepipelines\ci.yml
 		.azurepipelines\get-matrix.ps1 = .azurepipelines\get-matrix.ps1
 		.azurepipelines\get-root.ps1 = .azurepipelines\get-root.ps1
-		.azurepipelines\get-version.ps1 = .azurepipelines\get-version.ps1
 		.azurepipelines\preview.yml = .azurepipelines\preview.yml
 		.azurepipelines\set-version.ps1 = .azurepipelines\set-version.ps1
 		.azurepipelines\signlistDebug.txt = .azurepipelines\signlistDebug.txt

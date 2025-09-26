@@ -39,6 +39,11 @@ namespace Opc.Ua.Client
     public interface ISessionInstantiator
     {
         /// <summary>
+        /// Telemetry configuration to use when creating sessions.
+        /// </summary>
+        ITelemetryContext Telemetry { get; }
+
+        /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
         Session Create(

@@ -87,11 +87,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Allows a subclass to consume the telemetry context to create loggers or any other observability
+        /// instruments. This method is called by all Initialize overloads. However, it is possible that it
+        /// is not called if any of them does not call their base implementation.  Therefore it is advised
+        /// to always initialize a logger using the Utils.NullLogger.Instance to avoid Null reference exceptions.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        protected virtual void Initialize(ITelemetryContext telemetry)
+        {
+            // defined by subclass.
+        }
+
+        /// <summary>
         /// When overridden in a derived class, initializes the instance with the default values.
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
         protected virtual void Initialize(ISystemContext context)
         {
+            Initialize(context.Telemetry);
+
             // defined by subclass.
         }
 
@@ -132,6 +146,8 @@ namespace Opc.Ua
         /// <param name="source">The source node.</param>
         protected virtual void Initialize(ISystemContext context, NodeState source)
         {
+            Initialize(context.Telemetry);
+
             Handle = source.Handle;
             SymbolicName = source.SymbolicName;
             m_nodeId = source.m_nodeId;
@@ -506,7 +522,7 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsXml(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -538,7 +554,7 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -581,7 +597,7 @@ namespace Opc.Ua
         /// <param name="istrm">The stream to read.</param>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -1221,7 +1237,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void LoadFromXml(ISystemContext context, XmlReader reader)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -1800,7 +1816,8 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory();
 
             // create the appropriate node.
 
@@ -1872,7 +1889,8 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory();
 
             // create the appropriate node.
             NodeState child =
@@ -1932,7 +1950,8 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory();
 
             // create the appropriate node.
             NodeState child =
@@ -2014,7 +2033,8 @@ namespace Opc.Ua
             decoder.PopNamespace();
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory();
 
             // create the appropriate node.
 

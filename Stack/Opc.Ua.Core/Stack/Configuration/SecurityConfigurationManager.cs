@@ -15,6 +15,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Security
 {
@@ -23,6 +24,16 @@ namespace Opc.Ua.Security
     /// </summary>
     public class SecurityConfigurationManager : ISecurityConfigurationManager
     {
+        /// <summary>
+        /// Create the security configuration manager.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public SecurityConfigurationManager(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<SecurityConfigurationManager>();
+            m_telemetry = telemetry;
+        }
+
         /// <summary>
         /// Exports the security configuration for an application identified by a file or url.
         /// </summary>
@@ -61,7 +72,7 @@ namespace Opc.Ua.Security
                     sectionName = sectionName[..^file.Extension.Length];
 
                     configFilePath =
-                        ApplicationConfiguration.GetFilePathFromAppConfig(sectionName) ??
+                        ApplicationConfiguration.GetFilePathFromAppConfig(sectionName, m_logger) ??
                         filePath + ".config";
                 }
                 catch (Exception e)
@@ -110,6 +121,7 @@ namespace Opc.Ua.Security
                     if (data.ToString().Contains("SecuredApplication", StringComparison.Ordinal))
                     {
                         var serializer = new DataContractSerializer(typeof(SecuredApplication));
+                        using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                         application = serializer.ReadObject(reader) as SecuredApplication;
 
                         application.ConfigurationFile = configFilePath;
@@ -126,8 +138,11 @@ namespace Opc.Ua.Security
                             FileShare.Read);
                         var serializer = new DataContractSerializer(
                             typeof(ApplicationConfiguration));
+                        using IDisposable scope =
+                            AmbientMessageContext.SetScopedContext(m_telemetry);
                         applicationConfiguration = serializer.ReadObject(
                             reader) as ApplicationConfiguration;
+                        applicationConfiguration.Initialize(m_telemetry);
                     }
                 }
                 finally
@@ -347,7 +362,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Updates the XML document with the new configuration information.
         /// </summary>
-        private static void UpdateDocument(XmlElement element, SecuredApplication application)
+        private void UpdateDocument(XmlElement element, SecuredApplication application)
         {
             for (XmlNode node = element.FirstChild; node != null; node = node.NextSibling)
             {
@@ -441,7 +456,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Reads an object from the body of an XML element.
         /// </summary>
-        private static object GetObject(Type type, XmlNode element)
+        private object GetObject(Type type, XmlNode element)
         {
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml));
             var reader = XmlDictionaryReader.CreateTextReader(
@@ -450,16 +465,18 @@ namespace Opc.Ua.Security
                 new XmlDictionaryReaderQuotas(),
                 null);
             var serializer = new DataContractSerializer(type);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             return serializer.ReadObject(reader);
         }
 
         /// <summary>
         /// Reads an object from the body of an XML element.
         /// </summary>
-        private static string SetObject(Type type, object value)
+        private string SetObject(Type type, object value)
         {
             using var memoryStream = new MemoryStream();
             var serializer = new DataContractSerializer(value?.GetType() ?? type);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             serializer.WriteObject(memoryStream, value);
 
             // must extract the inner xml.
@@ -467,5 +484,8 @@ namespace Opc.Ua.Security
             document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
             return document.DocumentElement.InnerXml;
         }
+
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

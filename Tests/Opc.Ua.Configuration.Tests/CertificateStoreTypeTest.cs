@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Configuration.Tests
@@ -70,7 +71,9 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task CertificateStoreTypeNoConfigTestAsync()
         {
-            var application = new ApplicationInstance { ApplicationName = "Application" };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
 
             string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
             string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
@@ -103,13 +106,13 @@ namespace Opc.Ua.Configuration.Tests
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
 
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates)
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
                 .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates)
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates, telemetry)
                 .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates)
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates, telemetry)
                 .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates)
+            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates, telemetry)
                 .ConfigureAwait(false);
 
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
@@ -117,14 +120,14 @@ namespace Opc.Ua.Configuration.Tests
                 instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + trustedUserStorePath);
-            using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+            using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
             Assert.IsTrue(
                 instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
 
-        private static async Task OpenCertStoreAsync(CertificateTrustList trustList)
+        private static async Task OpenCertStoreAsync(CertificateTrustList trustList, ITelemetryContext telemetry)
         {
-            using ICertificateStore trustListStore = trustList.OpenStore();
+            using ICertificateStore trustListStore = trustList.OpenStore(telemetry);
             X509Certificate2Collection certs = await trustListStore.EnumerateAsync()
                 .ConfigureAwait(false);
             X509CRLCollection crls = await trustListStore.EnumerateCRLsAsync()
@@ -137,9 +140,9 @@ namespace Opc.Ua.Configuration.Tests
 
     internal sealed class TestStoreType : ICertificateStoreType
     {
-        public ICertificateStore CreateStore()
+        public ICertificateStore CreateStore(ITelemetryContext telemetry)
         {
-            return new TestCertStore();
+            return new TestCertStore(telemetry);
         }
 
         public bool SupportsStorePath(string storePath)
@@ -153,10 +156,10 @@ namespace Opc.Ua.Configuration.Tests
     {
         public const string StoreTypePrefix = "testStoreType:";
 
-        public TestCertStore()
+        public TestCertStore(ITelemetryContext telemetry)
         {
             InstancesCreated++;
-            m_innerStore = new DirectoryCertificateStore(true);
+            m_innerStore = new DirectoryCertificateStore(true, telemetry);
         }
 
         /// <inheritdoc/>

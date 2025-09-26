@@ -29,9 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -60,54 +58,6 @@ namespace Opc.Ua.Client.Tests
         public string ToString(string format, IFormatProvider formatProvider)
         {
             return $"{MaxNumberOfContinuationPoints}:{MaxNumberOfReferencesPerNode}";
-        }
-    }
-
-    internal class CPBatchTestMemoryWriter : TextWriter
-    {
-        private MemoryStream m_stream = new(64000);
-        private StreamWriter m_writer;
-
-        public override Encoding Encoding => Encoding.Default;
-
-        public CPBatchTestMemoryWriter()
-        {
-            m_writer = new StreamWriter(m_stream) { AutoFlush = true };
-        }
-
-        public override void Write(char value)
-        {
-            m_writer.Write(value);
-        }
-
-        public List<string> GetEntries()
-        {
-            m_stream.Position = 0;
-            var entries = new List<string>();
-            using (var sr = new StreamReader(m_stream))
-            {
-                string line;
-                while ((line = sr.ReadLine()) != null)
-                {
-                    entries.Add(line);
-                }
-            }
-            // get entries closes the stream.
-            m_stream = new MemoryStream(64000);
-            m_writer = new StreamWriter(m_stream) { AutoFlush = true };
-            return entries;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                m_writer?.Dispose();
-                m_stream?.Dispose();
-            }
-            catch
-            {
-            }
         }
     }
 
@@ -165,29 +115,20 @@ namespace Opc.Ua.Client.Tests
         public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
-            bool securityNone,
-            TextWriter writer)
+            bool securityNone)
         {
-            TextWriter localWriter = enableTracing ? writer : null;
+            // start Ref server
+            ServerFixtureWithLimits = new ServerFixture<ReferenceServerWithLimits>(
+                enableTracing,
+                disableActivityLogging,
+                Telemetry)
             {
-                // start Ref server
-                ServerFixtureWithLimits = new ServerFixture<ReferenceServerWithLimits>(
-                    enableTracing,
-                    disableActivityLogging)
-                {
-                    UriScheme = UriScheme,
-                    SecurityNone = securityNone,
-                    AutoAccept = true,
-                    AllNodeManagers = true,
-                    OperationLimits = true
-                };
-            }
-
-            if (writer != null && enableTracing)
-            {
-                ServerFixtureWithLimits.TraceMasks = Utils.TraceMasks.Error |
-                    Utils.TraceMasks.Security;
-            }
+                UriScheme = UriScheme,
+                SecurityNone = securityNone,
+                AutoAccept = true,
+                AllNodeManagers = true,
+                OperationLimits = true
+            };
 
             await ServerFixtureWithLimits.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixtureWithLimits.Config.TransportQuotas.MaxMessageSize
@@ -212,7 +153,7 @@ namespace Opc.Ua.Client.Tests
             ServerFixtureWithLimits.Config.ServerConfiguration.OperationLimits.MaxNodesPerBrowse
                 = 5;
 
-            ReferenceServerWithLimits = await ServerFixtureWithLimits.StartAsync(localWriter)
+            ReferenceServerWithLimits = await ServerFixtureWithLimits.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServerWithLimits.TokenValidator = TokenValidator;
             ReferenceServer = ReferenceServerWithLimits;
@@ -237,7 +178,7 @@ namespace Opc.Ua.Client.Tests
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
-            return OneTimeSetUpAsync(null, false, false, false, true);
+            return OneTimeSetUpCoreAsync(false, false, false, true);
         }
 
         /// <summary>
@@ -387,8 +328,6 @@ namespace Opc.Ua.Client.Tests
         public async Task ManagedBrowseWithManyContinuationPointsAsync(
             ManagedBrowseTestDataProvider testData)
         {
-            var memoryWriter = new CPBatchTestMemoryWriter();
-            ClientFixture.SetTraceOutput(memoryWriter);
             var theSession = (Session)((TraceableSession)Session).Session;
             await theSession.FetchOperationLimitsAsync().ConfigureAwait(false);
 
@@ -421,9 +360,8 @@ namespace Opc.Ua.Client.Tests
             List<NodeId> nodeIds = GetMassFolderNodesToBrowse();
 
             IList<ReferenceDescriptionCollection> referenceDescriptionCollectionsPass1;
-            IList<ServiceResult> errorsPass1;
             // browse with test settings
-            (referenceDescriptionCollectionsPass1, errorsPass1) = await theSession.ManagedBrowseAsync(
+            (referenceDescriptionCollectionsPass1, _) = await theSession.ManagedBrowseAsync(
                 null,
                 null,
                 nodeIds,
@@ -434,22 +372,6 @@ namespace Opc.Ua.Client.Tests
                 0).ConfigureAwait(false);
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
-
-            List<string> memoryLogPass1 = memoryWriter.GetEntries();
-            WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
-#if DEBUG
-            VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
-#endif
-
-            memoryWriter.Close();
-            memoryWriter.Dispose();
-
-            // reset memory log
-            memoryWriter = new CPBatchTestMemoryWriter();
-            ClientFixture.SetTraceOutput(memoryWriter);
-
-            //set log level to ensure we get all messages
-            ClientFixture.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
 
             // now reset the server qutas to get a browse scenario without continuation points. This allows
             // to verify the result from the first browse service call (with quotas in place).
@@ -462,8 +384,7 @@ namespace Opc.Ua.Client.Tests
                 .InputMaxNumberOfContinuationPoints;
 
             IList<ReferenceDescriptionCollection> referenceDescriptionsPass2;
-            IList<ServiceResult> errorsPass2;
-            (referenceDescriptionsPass2, errorsPass2) = await theSession.ManagedBrowseAsync(
+            (referenceDescriptionsPass2, _) = await theSession.ManagedBrowseAsync(
                 null,
                 null,
                 nodeIds,
@@ -474,25 +395,10 @@ namespace Opc.Ua.Client.Tests
                 0).ConfigureAwait(false);
             Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
 
-            List<string> memoryLogPass2 = memoryWriter.GetEntries();
-            WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
-#if DEBUG
-            // since there is no randomness in this test, we can verify the results directly
-            VerifyExpectedResults(memoryLogPass2, pass2ExpectedResults);
-#endif
-            memoryWriter.Close();
-            memoryWriter.Dispose();
-
-            ClientFixture.SetTraceOutput(TestContext.Out);
-            // reset the log level
-            ClientFixture.SetTraceOutputLevel();
-
             // finally browse again with a simple browse service call.
             IList<ReferenceDescriptionCollection> referenceDescriptionCollections2ndBrowse;
-            IList<ServiceResult> errors2ndBrowse;
-            ByteStringCollection continuationPoints2ndBrowse;
 
-            (_, continuationPoints2ndBrowse, referenceDescriptionCollections2ndBrowse, errors2ndBrowse) =
+            (_, _, referenceDescriptionCollections2ndBrowse, _) =
                 await theSession.BrowseAsync(
                     null,
                     null,
@@ -565,8 +471,6 @@ namespace Opc.Ua.Client.Tests
         public async Task BalancedManagedBrowseWithManyContinuationPointsAsync(
             ManagedBrowseTestDataProvider testData)
         {
-            var memoryWriter = new CPBatchTestMemoryWriter();
-            ClientFixture.SetTraceOutput(memoryWriter);
             var theSession = (Session)((TraceableSession)Session).Session;
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Balanced;
@@ -611,21 +515,6 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
 
-            List<string> memoryLogPass1 = memoryWriter.GetEntries();
-            WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
-            // this is no typo - we expect no error, hence we use pass2ExpectedResults
-            VerifyExpectedResults(memoryLogPass1, pass2ExpectedResults);
-
-            memoryWriter.Close();
-            memoryWriter.Dispose();
-
-            // reset memory log
-            memoryWriter = new CPBatchTestMemoryWriter();
-            ClientFixture.SetTraceOutput(memoryWriter);
-
-            //set log level to ensure we get all messages
-            ClientFixture.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
-
             // now reset the server qutas to get a browse scenario without continuation points. This allows
             // to verify the result from the first browse service call (with quotas in place).
             ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
@@ -649,19 +538,6 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0).ConfigureAwait(false);
             Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
-
-            List<string> memoryLogPass2 = memoryWriter.GetEntries();
-            WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
-
-            // since there is no randomness in this test, we can verify the results directly
-            VerifyExpectedResults(memoryLogPass2, pass2ExpectedResults);
-
-            memoryWriter.Close();
-            memoryWriter.Dispose();
-
-            ClientFixture.SetTraceOutput(TestContext.Out);
-            // reset the log level
-            ClientFixture.SetTraceOutputLevel();
 
             IList<ReferenceDescriptionCollection> referenceDescriptionCollections2ndBrowse;
             // finally browse again with a simple browse service call.
@@ -736,8 +612,6 @@ namespace Opc.Ua.Client.Tests
             ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy)
         {
-            var memoryWriter = new CPBatchTestMemoryWriter();
-            ClientFixture.SetTraceOutput(memoryWriter);
             var theSession = (Session)((TraceableSession)Session).Session;
 
             theSession.ContinuationPointPolicy = policy;
@@ -803,16 +677,6 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(nodeIds1.Count, referenceDescriptionCollectionsPass1.Count);
             Assert.AreEqual(nodeIds2.Count, referenceDescriptionCollectionsPass2.Count);
-
-            List<string> memoryLogPass1 = memoryWriter.GetEntries();
-            WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
-
-            memoryWriter.Close();
-            memoryWriter.Dispose();
-
-            // reset memory log
-            memoryWriter = new CPBatchTestMemoryWriter();
-            ClientFixture.SetTraceOutput(memoryWriter);
 
             ((List<ReferenceDescriptionCollection>)referenceDescriptionCollectionsPass1).AddRange(
                 referenceDescriptionCollectionsPass2);
@@ -950,58 +814,6 @@ namespace Opc.Ua.Client.Tests
             }
 
             TestContext.Out.WriteLine("Found {0} variables", result.Count);
-        }
-
-        private void WriteMemoryLogToTextOut(List<string> memoryLog, string contextInfo)
-        {
-            var theSession = (Session)((TraceableSession)Session).Session;
-
-            TestContext.WriteLine(
-                $"Note: the clients ServerMaxContinuationPointsPerBrowse was set to {theSession.ServerMaxContinuationPointsPerBrowse}");
-
-            if (memoryLog.Count > 0)
-            {
-                TestContext.WriteLine(
-                    $"<!-- begin: output from memory log from context {contextInfo} -->");
-                foreach (string s in memoryLog)
-                {
-                    TestContext.Out.WriteLine(s);
-                }
-                TestContext.WriteLine(
-                    $"<!-- end: output from memory log from context {contextInfo} -->");
-            }
-            else
-            {
-                TestContext.WriteLine($"<!-- memory log from context {contextInfo} is empty -->");
-            }
-        }
-
-        private static void VerifyExpectedResults(
-            List<string> memoryLogPass,
-            ManagedBrowseExpectedResultValues expectedResults)
-        {
-            var messagesWithBadNoCPSC = memoryLogPass
-                .Where(x => x.Contains("BadNoContinuationPoints", StringComparison.Ordinal))
-                .ToList();
-
-            Assert.AreEqual(
-                messagesWithBadNoCPSC.Count, expectedResults.ExpectedNumberOfBadNoCPSCs.Count);
-
-            int pass = 0;
-            foreach (string s in messagesWithBadNoCPSC)
-            {
-                // get the part of the error message after the time stamp:
-                string msg = s[s.IndexOf("ManagedBrowse")..];
-                // create error message from expected results
-                string expectedString = Utils.Format(
-                    "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.",
-                    pass,
-                    expectedResults.ExpectedNumberOfBadNoCPSCs[pass],
-                    expectedResults.ExpectedNumberOfBadNoCPSCs[pass] == 1 ? "error" : "errors",
-                    nameof(StatusCodes.BadNoContinuationPoints));
-                Assert.IsTrue(msg.Equals(expectedString, StringComparison.Ordinal));
-                pass++;
-            }
         }
 
         private List<NodeId> GetMassFolderNodesToBrowse()

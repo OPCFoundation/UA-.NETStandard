@@ -12,6 +12,7 @@
 
 using System;
 using System.IO;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -23,12 +24,16 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the watcher for the configuration.
         /// </summary>
-        public ConfigurationWatcher(ApplicationConfiguration configuration)
+        public ConfigurationWatcher(
+            ApplicationConfiguration configuration,
+            ITelemetryContext telemetry)
         {
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
+
+            m_logger = telemetry.CreateLogger<ConfigurationWatcher>();
 
             var fileInfo = new FileInfo(configuration.SourceFilePath);
 
@@ -103,12 +108,13 @@ namespace Opc.Ua
             }
             catch (Exception exception)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     exception,
                     "Unexpected error raising configuration file changed event.");
             }
         }
 
+        private readonly ILogger m_logger;
         private readonly ApplicationConfiguration m_configuration;
         private System.Threading.Timer m_watcher;
         private DateTime m_lastWriteTime;

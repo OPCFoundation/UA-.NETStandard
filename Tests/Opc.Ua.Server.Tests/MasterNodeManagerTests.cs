@@ -32,6 +32,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
@@ -53,7 +54,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RegisterNamespaceManagerNewNamespaceAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -64,7 +66,7 @@ namespace Opc.Ua.Server.Tests
                 nodeManager.Setup(x => x.NamespaceUris).Returns([]);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -94,7 +96,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RegisterNamespaceManagerExistingNamespaceAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -109,7 +112,7 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -145,7 +148,8 @@ namespace Opc.Ua.Server.Tests
             int totalManagers,
             int indexToRemove)
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -165,7 +169,7 @@ namespace Opc.Ua.Server.Tests
                 INodeManager nodeManagerToRemove = additionalManagers[indexToRemove];
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -196,7 +200,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task UnregisterNamespaceManagerNotInCollectionAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -214,7 +219,7 @@ namespace Opc.Ua.Server.Tests
                 thirdNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -249,7 +254,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task UnregisterNamespaceManagerUnknownNamespaceAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -264,7 +270,7 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns([originalNs, newNs]);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,

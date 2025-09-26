@@ -18,6 +18,7 @@ using System.Reflection;
 using System.Text;
 using System.Xml;
 using System.Xml.Schema;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Schema.Xml
 {
@@ -65,19 +66,20 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public void Validate(string inputPath)
+        public void Validate(string inputPath, ILogger logger)
         {
             using Stream istrm = File.OpenRead(inputPath);
-            Validate(istrm);
+            Validate(istrm, logger);
         }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public void Validate(Stream stream)
+        public void Validate(Stream stream, ILogger logger)
         {
+            var handler = new ValidationEventHandler((sender, e) => OnValidate(sender, e, logger));
             using var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-            TargetSchema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
+            TargetSchema = XmlSchema.Read(xmlReader, handler);
 
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
             foreach (XmlSchemaImport import in TargetSchema.Includes.OfType<XmlSchemaImport>())
@@ -93,17 +95,13 @@ namespace Opc.Ua.Schema.Xml
                 {
                     using var strm = new StreamReader(assembly.GetManifestResourceStream(location));
                     using var schemaReader = XmlReader.Create(strm, settings);
-                    import.Schema = XmlSchema.Read(
-                        schemaReader,
-                        new ValidationEventHandler(OnValidate));
+                    import.Schema = XmlSchema.Read(schemaReader, handler);
                 }
                 else
                 {
                     using Stream strm = File.OpenRead(location);
                     using var schemaReader = XmlReader.Create(strm, settings);
-                    import.Schema = XmlSchema.Read(
-                        schemaReader,
-                        new ValidationEventHandler(OnValidate));
+                    import.Schema = XmlSchema.Read(schemaReader, handler);
                 }
             }
 
@@ -156,9 +154,9 @@ namespace Opc.Ua.Schema.Xml
         /// Handles a validation error.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        private static void OnValidate(object sender, ValidationEventArgs args)
+        private static void OnValidate(object sender, ValidationEventArgs args, ILogger logger)
         {
-            Utils.LogError("Error in XML schema validation: {0}", args.Message);
+            logger.LogError("Error in XML schema validation: {Message}", args.Message);
             throw new InvalidOperationException(args.Message, args.Exception);
         }
 

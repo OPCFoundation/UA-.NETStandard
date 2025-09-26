@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Threading;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Test;
@@ -53,13 +54,16 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration,
             bool useSamplingGroups = false)
-            : base(server, configuration, useSamplingGroups, Namespaces.ReferenceServer)
+            : base(
+                  server,
+                  configuration,
+                  useSamplingGroups,
+                  server.Telemetry.CreateLogger<ReferenceNodeManager>(),
+                  Namespaces.ReferenceServer)
         {
             SystemContext.NodeIdFactory = this;
 
             // use suitable defaults if no configuration exists.
-
-            m_dynamicNodes = [];
         }
 
         /// <summary>
@@ -3881,7 +3885,7 @@ namespace Quickstarts.ReferenceServer
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error creating the ReferenceNodeManager address space.");
+                    m_logger.LogError(e, "Error creating the ReferenceNodeManager address space.");
                 }
 
                 AddPredefinedNode(SystemContext, root);
@@ -3910,7 +3914,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error writing Interval variable.");
+                m_logger.LogError(e, "Error writing Interval variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
             }
         }
@@ -3937,7 +3941,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error writing Enabled variable.");
+                m_logger.LogError(e, "Error writing Enabled variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
             }
         }
@@ -4528,7 +4532,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            var parentTypeInfo = TypeInfo.Construct(parent.Value);
+            TypeInfo parentTypeInfo = TypeInfo.Construct(parent.Value);
             Range parentRange = GetAnalogRange(parentTypeInfo.BuiltInType);
             if (parentRange.High < newRange.High || parentRange.Low > newRange.Low)
             {
@@ -4963,7 +4967,7 @@ namespace Quickstarts.ReferenceServer
         private void ResetRandomGenerator(int seed, int boundaryValueFrequency = 0)
         {
             m_randomSource = new RandomSource(seed);
-            m_generator = new DataGenerator(m_randomSource)
+            m_generator = new DataGenerator(m_randomSource, Server.Telemetry)
             {
                 BoundaryValueFrequency = boundaryValueFrequency
             };
@@ -5008,7 +5012,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error doing simulation.");
+                m_logger.LogError(e, "Unexpected error doing simulation.");
             }
         }
 
@@ -5083,7 +5087,7 @@ namespace Quickstarts.ReferenceServer
         private Timer m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
-        private readonly List<BaseDataVariableState> m_dynamicNodes;
+        private readonly List<BaseDataVariableState> m_dynamicNodes = [];
 
         private static readonly bool[] s_booleanArray
             = [true, false, true, false, true, false, true, false, true];

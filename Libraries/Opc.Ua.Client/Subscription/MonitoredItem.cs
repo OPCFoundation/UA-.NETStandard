@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -50,14 +51,15 @@ namespace Opc.Ua.Client
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
         /// </summary>
         public MonitoredItem()
+            : this(Utils.IncrementIdentifier(ref s_globalClientHandle))
         {
-            Initialize();
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
         /// </summary>
-        /// <param name="clientHandle">The client handle. The caller must ensure it uniquely identifies the monitored item.</param>
+        /// <param name="clientHandle">The client handle. The caller must ensure it
+        /// uniquely identifies the monitored item.</param>
         public MonitoredItem(uint clientHandle)
         {
             Initialize();
@@ -68,29 +70,18 @@ namespace Opc.Ua.Client
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
         /// </summary>
         /// <param name="template">The template used to specify the monitoring parameters.</param>
-        public MonitoredItem(MonitoredItem template)
-            : this(template, false)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
-        /// </summary>
-        /// <param name="template">The template used to specify the monitoring parameters.</param>
-        /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public MonitoredItem(MonitoredItem template, bool copyEventHandlers)
-            : this(template, copyEventHandlers, false)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
-        /// </summary>
-        /// <param name="template">The template used to specify the monitoring parameters.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         /// <param name="copyClientHandle">if set to <c>true</c> the clientHandle is of the template copied.</param>
-        public MonitoredItem(MonitoredItem template, bool copyEventHandlers, bool copyClientHandle)
+        public MonitoredItem(
+            MonitoredItem template,
+            bool copyEventHandlers = false,
+            bool copyClientHandle = false)
         {
+            if (template != null)
+            {
+                m_logger = template.m_logger;
+            }
+
             Initialize();
 
             if (template != null)
@@ -138,9 +129,18 @@ namespace Opc.Ua.Client
                 {
                     ClientHandle = template.ClientHandle;
                 }
+                else
+                {
+                    ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
+                }
 
                 // this ensures the state is consistent with the node class.
                 NodeClass = template.m_nodeClass;
+            }
+            else
+            {
+                // assign a unique handle.
+                ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
             }
         }
 
@@ -154,6 +154,9 @@ namespace Opc.Ua.Client
             m_cache = new Lock();
 
             Initialize();
+
+            // assign a unique handle.
+            ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
         }
 
         /// <summary>
@@ -178,8 +181,8 @@ namespace Opc.Ua.Client
             // this ensures the state is consistent with the node class.
             NodeClass = NodeClass.Variable;
 
-            // assign a unique handle.
-            ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
+            // Creates a default logger even if telemetry is null
+            m_logger ??= Utils.Null.Logger;
         }
 
         /// <summary>
@@ -376,7 +379,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The subscription that owns the monitored item.
         /// </summary>
-        public Subscription Subscription { get; internal set; }
+        public Subscription Subscription
+        {
+            get => m_subscription;
+            internal set
+            {
+                if (m_subscription == null && value.Telemetry != null)
+                {
+                    m_logger = value.Telemetry.CreateLogger<MonitoredItem>();
+                }
+                m_subscription = value;
+            }
+        }
 
         /// <summary>
         /// A local handle assigned to the monitored item.
@@ -583,8 +597,8 @@ namespace Opc.Ua.Client
                             // validate the ServerTimestamp of the notification.
                             if (datachange.Value.ServerTimestamp > now)
                             {
-                                Utils.LogWarning(
-                                    "Received ServerTimestamp {0} is in the future for MonitoredItemId {1}",
+                                m_logger.LogWarning(
+                                    "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
                                     datachange.Value.ServerTimestamp.ToLocalTime(),
                                     ClientHandle);
                             }
@@ -592,8 +606,8 @@ namespace Opc.Ua.Client
                             // validate SourceTimestamp of the notification.
                             if (datachange.Value.SourceTimestamp > now)
                             {
-                                Utils.LogWarning(
-                                    "Received SourceTimestamp {0} is in the future for MonitoredItemId {1}",
+                                m_logger.LogWarning(
+                                    "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
                                     datachange.Value.SourceTimestamp.ToLocalTime(),
                                     ClientHandle);
                             }
@@ -601,8 +615,8 @@ namespace Opc.Ua.Client
 
                         if (datachange.Value.StatusCode.Overflow)
                         {
-                            Utils.LogWarning(
-                                "Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}",
+                            m_logger.LogWarning(
+                                "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} and value {Value} for MonitoredItemId {MonitoredItemId}",
                                 datachange.Value.ServerTimestamp.ToLocalTime(),
                                 datachange.Value.Value,
                                 ClientHandle);
@@ -1006,7 +1020,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// To save memory the cache is by default not initialized
         /// until <see cref="SaveValueInCache(IEncodeable)"/> is called.
-        ///
         /// </summary>
         private void EnsureCacheIsInitialized()
         {
@@ -1018,7 +1031,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    m_dataCache = new MonitoredItemDataCache(1);
+                    m_dataCache = new MonitoredItemDataCache(Subscription?.Telemetry, 1);
                 }
             }
         }
@@ -1088,7 +1101,8 @@ namespace Opc.Ua.Client
         private uint m_queueSize;
         private bool m_discardOldest;
         private static uint s_globalClientHandle;
-
+        private Subscription m_subscription;
+        private ILogger m_logger = Utils.Null.Logger;
         private Lock m_cache = new();
         private MonitoredItemDataCache m_dataCache;
         private MonitoredItemEventCache m_eventCache;
@@ -1133,9 +1147,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Constructs a cache for a monitored item.
         /// </summary>
-        public MonitoredItemDataCache(int queueSize = 1)
+        public MonitoredItemDataCache(ITelemetryContext telemetry, int queueSize = 1)
         {
             QueueSize = queueSize;
+            m_logger = telemetry.CreateLogger<MonitoredItemDataCache>();
             if (queueSize > 1)
             {
                 m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
@@ -1184,8 +1199,14 @@ namespace Opc.Ua.Client
         public void OnNotification(MonitoredItemNotification notification)
         {
             LastValue = notification.Value;
-            CoreClientUtils.EventLog
-                .NotificationValue(notification.ClientHandle, LastValue.WrappedValue);
+            CoreClientUtils.EventLog.Notification(
+                (int)notification.ClientHandle,
+                LastValue.WrappedValue);
+
+            m_logger.LogTrace(
+                "Notification: ClientHandle={ClientHandle}, Value={Value}",
+                notification.ClientHandle,
+                LastValue.WrappedValue);
 
             if (m_values != null)
             {
@@ -1226,6 +1247,7 @@ namespace Opc.Ua.Client
         }
 
         private Queue<DataValue> m_values;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

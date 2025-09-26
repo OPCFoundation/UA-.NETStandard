@@ -34,6 +34,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Tests.Encoding;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
@@ -60,6 +61,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 PubSubMessageType.Json)] PubSubMessageType pubSubMessageType,
             [Values(1, 2, 3, 4)] int keyFrameCount)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             //Arrange
             object publisherId = 1;
             const ushort writerGroupId = 1;
@@ -124,7 +126,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];

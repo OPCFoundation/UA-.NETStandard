@@ -33,6 +33,7 @@ namespace Opc.Ua
         public static ServiceResult Validate(
             CertificateValidator validator,
             byte[] signedCertificate,
+            ITelemetryContext telemetry,
             out SoftwareCertificate softwareCertificate)
         {
             softwareCertificate = null;
@@ -41,7 +42,7 @@ namespace Opc.Ua
             X509Certificate2 certificate;
             try
             {
-                certificate = CertificateFactory.Create(signedCertificate, true);
+                certificate = CertificateFactory.Create(signedCertificate, true, telemetry);
                 validator.Validate(certificate);
             }
             catch (Exception e)
@@ -66,6 +67,7 @@ namespace Opc.Ua
             {
                 var istrm = new MemoryStream(encodedData, false);
                 var serializer = new DataContractSerializer(typeof(SoftwareCertificate));
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 softwareCertificate = (SoftwareCertificate)serializer.ReadObject(istrm);
                 softwareCertificate.SignedCertificate = certificate;
             }

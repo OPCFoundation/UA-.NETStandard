@@ -36,6 +36,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Server;
@@ -61,7 +62,10 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
             bool autoApprove = false)
-            : base(server, configuration)
+            : base(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<ApplicationsNodeManager>())
         {
             NamespaceUris = ["http://opcfoundation.org/UA/GDS/applications/", Namespaces.OpcUaGds];
 
@@ -109,29 +113,29 @@ namespace Opc.Ua.Gds.Server
                     null,
                     null,
                     out DateTime lastResetTime);
-                Utils.LogInfo("QueryServers Returned: {0} records", results.Length);
+                m_logger.LogInformation("QueryServers Returned: {Count} records", results.Length);
 
                 foreach (ServerOnNetwork result in results)
                 {
-                    Utils.LogInfo("Server Found at {0}", result.DiscoveryUrl);
+                    m_logger.LogInformation("Server Found at {DiscoveryUrl}", result.DiscoveryUrl);
                 }
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Could not connect to the Database!");
+                m_logger.LogError(e, "Could not connect to the Database!");
 
                 Exception ie = e.InnerException;
 
                 while (ie != null)
                 {
-                    Utils.LogInfo(ie, string.Empty);
+                    m_logger.LogInformation(ie, "Exception");
                     ie = ie.InnerException;
                 }
 
-                Utils.LogInfo("Initialize Database tables!");
+                m_logger.LogInformation("Initialize Database tables!");
                 m_database.Initialize();
 
-                Utils.LogInfo("Database Initialized!");
+                m_logger.LogInformation("Database Initialized!");
             }
 
             Server.MessageContext.Factory
@@ -247,9 +251,9 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            "Unexpected error revoking certificate. {0} for Authority={1}",
+                            "Unexpected error revoking certificate. {Subject} for Authority={CertificateGroupId}",
                             x509.Subject,
                             certificateGroup.Id);
                     }
@@ -375,12 +379,9 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        var message = new StringBuilder();
-                        message.AppendLine("Unexpected error initializing certificateGroup: {0}")
-                            .AppendLine("{1}");
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            message.ToString(),
+                            "Unexpected error initializing certificateGroup: {CertificateGroupId}\n{StackTrace}",
                             certificateGroupConfiguration.Id,
                             ServiceResult.BuildExceptionTrace(e));
                         // make sure gds server doesn't start without cert groups!
@@ -575,7 +576,7 @@ namespace Opc.Ua.Gds.Server
             ref DateTime lastCounterResetTime,
             ref ServerOnNetwork[] servers)
         {
-            Utils.LogInfo("QueryServers: {0} {1}", applicationUri, applicationName);
+            m_logger.LogInformation("QueryServers: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
 
             servers = m_database.QueryServers(
                 startingRecordId,
@@ -604,7 +605,7 @@ namespace Opc.Ua.Gds.Server
             ref uint nextRecordId,
             ref ApplicationDescription[] applications)
         {
-            Utils.LogInfo("QueryApplications: {0} {1}", applicationUri, applicationName);
+            m_logger.LogInformation("QueryApplications: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
 
             applications = m_database.QueryApplications(
                 startingRecordId,
@@ -628,7 +629,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdmin);
 
-            Utils.LogInfo("OnRegisterApplication: {0}", application.ApplicationUri);
+            m_logger.LogInformation("OnRegisterApplication: {ApplicationUri}", application.ApplicationUri);
 
             applicationId = m_database.RegisterApplication(application);
 
@@ -639,7 +640,8 @@ namespace Opc.Ua.Gds.Server
                     context,
                     objectId,
                     method,
-                    inputArguments);
+                    inputArguments,
+                    m_logger);
             }
 
             return ServiceResult.Good;
@@ -653,7 +655,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdmin);
 
-            Utils.LogInfo("OnUpdateApplication: {0}", application.ApplicationUri);
+            m_logger.LogInformation("OnUpdateApplication: {ApplicationUri}", application.ApplicationUri);
 
             ApplicationRecordDataType record = m_database.GetApplication(application.ApplicationId);
 
@@ -671,7 +673,8 @@ namespace Opc.Ua.Gds.Server
                 context,
                 objectId,
                 method,
-                inputArguments);
+                inputArguments,
+                m_logger);
 
             return ServiceResult.Good;
         }
@@ -688,7 +691,7 @@ namespace Opc.Ua.Gds.Server
                 context,
                 AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
 
-            Utils.LogInfo("OnUnregisterApplication: {0}", applicationId.ToString());
+            m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
 
             foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
             {
@@ -705,7 +708,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 catch
                 {
-                    Utils.LogError("Failed to revoke: {0}", certType.Value);
+                    m_logger.LogError("Failed to revoke: {CertificateType}", certType.Value);
                 }
             }
 
@@ -716,7 +719,8 @@ namespace Opc.Ua.Gds.Server
                 context,
                 objectId,
                 method,
-                inputArguments);
+                inputArguments,
+                m_logger);
 
             return new UnregisterApplicationMethodStateResult
             {
@@ -784,7 +788,7 @@ namespace Opc.Ua.Gds.Server
             ref ApplicationRecordDataType[] applications)
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
-            Utils.LogInfo("OnFindApplications: {0}", applicationUri);
+            m_logger.LogInformation("OnFindApplications: {ApplicationUri}", applicationUri);
             applications = m_database.FindApplications(applicationUri);
             return ServiceResult.Good;
         }
@@ -800,7 +804,7 @@ namespace Opc.Ua.Gds.Server
                 context,
                 AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
                 applicationId);
-            Utils.LogInfo("OnGetApplication: {0}", applicationId);
+            m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
             application = m_database.GetApplication(applicationId);
             return ServiceResult.Good;
         }
@@ -831,7 +835,7 @@ namespace Opc.Ua.Gds.Server
                 //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
                 ICertificateStore store = m_configuration.SecurityConfiguration
                     .TrustedIssuerCertificates
-                    .OpenStore();
+                    .OpenStore(Server.Telemetry);
                 if (store != null)
                 {
                     try
@@ -1124,7 +1128,8 @@ namespace Opc.Ua.Gds.Server
                 method,
                 inputArguments,
                 certificateGroupId,
-                certificateTypeId);
+                certificateTypeId,
+                m_logger);
 
             AuthorizationHelper.HasAuthorization(
                 context,
@@ -1324,7 +1329,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // verify the CSR integrity for the application
-            await certificateGroup.VerifySigningRequestAsync(application, certificateRequest).ConfigureAwait(false);
+            await certificateGroup.VerifySigningRequestAsync(application, certificateRequest, cancellationToken).ConfigureAwait(false);
 
             // store request in the queue for approval
             result.RequestId = m_request.StartSigningRequest(
@@ -1463,7 +1468,8 @@ namespace Opc.Ua.Gds.Server
                                 application,
                                 certificateTypeNodeId,
                                 defaultDomainNames,
-                                certificateRequest)
+                                certificateRequest,
+                                cancellationToken)
                             .Result;
                     }
                     catch (Exception e)
@@ -1495,7 +1501,8 @@ namespace Opc.Ua.Gds.Server
                                 subjectName,
                                 domainNames,
                                 privateKeyFormat,
-                                privateKeyPassword)
+                                privateKeyPassword,
+                                cancellationToken)
                             .Result;
                     }
                     catch (Exception e)
@@ -1531,7 +1538,7 @@ namespace Opc.Ua.Gds.Server
             // store new app certificate
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath);
-            using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
+            using (ICertificateStore store = certificateStoreIdentifier.OpenStore(Server.Telemetry))
             {
                 if (store != null)
                 {
@@ -1553,7 +1560,7 @@ namespace Opc.Ua.Gds.Server
 
             object[] inputArguments
                 = [applicationId, requestId, result.Certificate, result.PrivateKey, result.IssuerCertificates];
-            Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments);
+            Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
 
             result.ServiceResult = ServiceResult.Good;
             return result;
@@ -1853,7 +1860,8 @@ namespace Opc.Ua.Gds.Server
                     new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath),
                     new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath),
                     new TrustList.SecureAccess(HasTrustListAccess),
-                    new TrustList.SecureAccess(HasTrustListAccess));
+                    new TrustList.SecureAccess(HasTrustListAccess),
+                    Server.Telemetry);
             }
         }
 

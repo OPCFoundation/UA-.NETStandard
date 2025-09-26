@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -42,6 +43,8 @@ namespace Opc.Ua.PubSub
     public class UaPubSubApplication : IDisposable
     {
         private readonly List<IUaPubSubConnection> m_uaPubSubConnections;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
 
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives a message via its active connections
@@ -83,16 +86,21 @@ namespace Opc.Ua.PubSub
         public ValidateBrokerCertificateHandler OnValidateBrokerCertificate;
 
         /// <summary>
-        ///  Initializes a new instance of the <see cref="UaPubSubApplication"/> class.
+        /// Initializes a new instance of the <see cref="UaPubSubApplication"/> class.
         /// </summary>
-        /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="dataStore">The current implementation of <see cref="IUaPubSubDataStore"/>
+        /// used by this instance of pub sub application</param>
         /// <param name="applicationId"> The application id for instance.</param>
         private UaPubSubApplication(
+            ITelemetryContext telemetry,
             IUaPubSubDataStore dataStore = null,
             string applicationId = null)
         {
+            m_logger = telemetry.CreateLogger<UaPubSubApplication>();
             m_uaPubSubConnections = [];
 
+            m_telemetry = telemetry;
             DataStore = dataStore ?? new UaPubSubDataStore();
 
             if (!string.IsNullOrEmpty(applicationId))
@@ -104,8 +112,8 @@ namespace Opc.Ua.PubSub
                 ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next():D10}";
             }
 
-            DataCollector = new DataCollector(DataStore);
-            UaPubSubConfigurator = new UaPubSubConfigurator();
+            DataCollector = new DataCollector(DataStore, m_telemetry);
+            UaPubSubConfigurator = new UaPubSubConfigurator(m_telemetry);
             UaPubSubConfigurator.ConnectionAdded += UaPubSubConfigurator_ConnectionAdded;
             UaPubSubConfigurator.ConnectionRemoved += UaPubSubConfigurator_ConnectionRemoved;
             UaPubSubConfigurator.PublishedDataSetAdded
@@ -113,7 +121,7 @@ namespace Opc.Ua.PubSub
             UaPubSubConfigurator.PublishedDataSetRemoved
                 += UaPubSubConfigurator_PublishedDataSetRemoved;
 
-            Utils.Trace("An instance of UaPubSubApplication was created.");
+            m_logger.LogInformation("An instance of UaPubSubApplication was created.");
         }
 
         /// <summary>
@@ -134,12 +142,14 @@ namespace Opc.Ua.PubSub
         public UaPubSubConfigurator UaPubSubConfigurator { get; }
 
         /// <summary>
-        /// Get reference to current DataStore. Write here all node values needed to be published by this PubSubApplication
+        /// Get reference to current DataStore. Write here all node values needed to be
+        /// published by this PubSubApplication
         /// </summary>
         public IUaPubSubDataStore DataStore { get; }
 
         /// <summary>
-        /// Get the read only list of <see cref="UaPubSubConnection"/> created for this Application instance
+        /// Get the read only list of <see cref="UaPubSubConnection"/> created for this
+        /// Application instance
         /// </summary>
         public ReadOnlyList<IUaPubSubConnection> PubSubConnections => new(m_uaPubSubConnections);
 
@@ -149,25 +159,32 @@ namespace Opc.Ua.PubSub
         internal DataCollector DataCollector { get; }
 
         /// <summary>
-        /// Creates a new <see cref="UaPubSubApplication"/> and associates it with a custom implementation of <see cref="IUaPubSubDataStore"/>.
+        /// Creates a new <see cref="UaPubSubApplication"/> and associates it with a
+        /// custom implementation of <see cref="IUaPubSubDataStore"/>.
         /// </summary>
-        /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
+        /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
+        /// used by this instance of pub sub application</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
-        public static UaPubSubApplication Create(IUaPubSubDataStore dataStore)
+        public static UaPubSubApplication Create(IUaPubSubDataStore dataStore, ITelemetryContext telemetry)
         {
-            return Create(new PubSubConfigurationDataType(), dataStore);
+            return Create(new PubSubConfigurationDataType(), dataStore, telemetry);
         }
 
         /// <summary>
-        /// Creates a new <see cref="UaPubSubApplication"/> by loading the configuration parameters from the specified path.
+        /// Creates a new <see cref="UaPubSubApplication"/> by loading the configuration parameters
+        /// from the specified path.
         /// </summary>
         /// <param name="configFilePath">The path of the configuration path.</param>
-        /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
+        /// used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         /// <exception cref="ArgumentNullException"><paramref name="configFilePath"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public static UaPubSubApplication Create(
             string configFilePath,
+            ITelemetryContext telemetry,
             IUaPubSubDataStore dataStore = null)
         {
             // validate input argument
@@ -181,11 +198,22 @@ namespace Opc.Ua.PubSub
                     "The specified file {0} does not exist",
                     configFilePath);
             }
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
-                .LoadConfiguration(
-                    configFilePath);
+            PubSubConfigurationDataType pubSubConfiguration =
+                UaPubSubConfigurationHelper.LoadConfiguration(configFilePath, telemetry);
 
-            return Create(pubSubConfiguration, dataStore);
+            return Create(pubSubConfiguration, dataStore, telemetry);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="UaPubSubApplication"/> by loading the configuration parameters from the
+        /// specified <see cref="PubSubConfigurationDataType"/> parameter.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
+        public static UaPubSubApplication Create(
+            ITelemetryContext telemetry)
+        {
+            return Create(null, null, telemetry);
         }
 
         /// <summary>
@@ -193,16 +221,33 @@ namespace Opc.Ua.PubSub
         /// specified <see cref="PubSubConfigurationDataType"/> parameter.
         /// </summary>
         /// <param name="pubSubConfiguration">The configuration object.</param>
-        /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(
-            PubSubConfigurationDataType pubSubConfiguration = null,
-            IUaPubSubDataStore dataStore = null)
+            PubSubConfigurationDataType pubSubConfiguration,
+            ITelemetryContext telemetry)
+        {
+            return Create(pubSubConfiguration, null, telemetry);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="UaPubSubApplication"/> by loading the configuration parameters from the
+        /// specified <see cref="PubSubConfigurationDataType"/> parameter.
+        /// </summary>
+        /// <param name="pubSubConfiguration">The configuration object.</param>
+        /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
+        /// used by this instance of pub sub application</param>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
+        public static UaPubSubApplication Create(
+            PubSubConfigurationDataType pubSubConfiguration,
+            IUaPubSubDataStore dataStore,
+            ITelemetryContext telemetry)
         {
             // if no argument received, start with empty configuration
             pubSubConfiguration ??= new PubSubConfigurationDataType();
 
-            var uaPubSubApplication = new UaPubSubApplication(dataStore);
+            var uaPubSubApplication = new UaPubSubApplication(telemetry, dataStore);
             uaPubSubApplication.UaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
             return uaPubSubApplication;
         }
@@ -212,12 +257,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            Utils.Trace("UaPubSubApplication is starting.");
+            m_logger.LogInformation("UaPubSubApplication is starting.");
             foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Start();
             }
-            Utils.Trace("UaPubSubApplication was started.");
+            m_logger.LogInformation("UaPubSubApplication was started.");
         }
 
         /// <summary>
@@ -225,12 +270,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
-            Utils.Trace("UaPubSubApplication is stopping.");
+            m_logger.LogInformation("UaPubSubApplication is stopping.");
             foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Stop();
             }
-            Utils.Trace("UaPubSubApplication is stopped.");
+            m_logger.LogInformation("UaPubSubApplication is stopped.");
         }
 
         /// <summary>
@@ -244,7 +289,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseRawDataReceivedEvent");
+                m_logger.LogError(ex, "UaPubSubApplication.RaiseRawDataReceivedEvent");
             }
         }
 
@@ -259,7 +304,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseDataReceivedEvent");
+                m_logger.LogError(ex, "UaPubSubApplication.RaiseDataReceivedEvent");
             }
         }
 
@@ -274,7 +319,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
+                m_logger.LogError(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
             }
         }
 
@@ -290,7 +335,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.DatasetWriterConfigurationReceivedEvent");
+                m_logger.LogError(ex, "UaPubSubApplication.DatasetWriterConfigurationReceivedEvent");
             }
         }
 
@@ -305,7 +350,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaisePublisherEndpointsReceivedEvent");
+                m_logger.LogError(ex, "UaPubSubApplication.RaisePublisherEndpointsReceivedEvent");
             }
         }
 
@@ -320,7 +365,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseConfigurationUpdatingEvent");
+                m_logger.LogError(ex, "UaPubSubApplication.RaiseConfigurationUpdatingEvent");
             }
         }
 
@@ -372,7 +417,8 @@ namespace Opc.Ua.PubSub
         {
             UaPubSubConnection newUaPubSubConnection = ObjectFactory.CreateConnection(
                 this,
-                e.PubSubConnectionDataType);
+                e.PubSubConnectionDataType,
+                m_telemetry);
             if (newUaPubSubConnection != null)
             {
                 m_uaPubSubConnections.Add(newUaPubSubConnection);

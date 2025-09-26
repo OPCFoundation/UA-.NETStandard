@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
@@ -48,6 +49,7 @@ namespace Opc.Ua.Sample
         {
             // save a reference to the server that owns the node manager.
             Server = server;
+            m_logger = server.Telemetry.CreateLogger<SampleNodeManager>();
 
             // create the default context.
             SystemContext = Server.DefaultSystemContext.Copy();
@@ -56,9 +58,6 @@ namespace Opc.Ua.Sample
             SystemContext.NodeIdFactory = this;
 
             // create the table of nodes.
-            PredefinedNodes = [];
-            RootNotifiers = [];
-            m_sampledItems = [];
             m_minimumSamplingInterval = 100;
         }
 
@@ -120,12 +119,12 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        protected NodeIdDictionary<NodeState> PredefinedNodes { get; } = [];
 
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected List<NodeState> RootNotifiers { get; }
+        protected List<NodeState> RootNotifiers { get; } = [];
 
         /// <summary>
         /// Returns true if the namespace for the node id is one of the namespaces managed by the node manager.
@@ -1900,7 +1899,8 @@ namespace Opc.Ua.Sample
                                 argumentError,
                                 systemContext.OperationContext.DiagnosticsMask,
                                 false,
-                                systemContext.OperationContext.StringTable));
+                                systemContext.OperationContext.StringTable,
+                                m_logger));
                     }
                     else
                     {
@@ -2772,7 +2772,7 @@ namespace Opc.Ua.Sample
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
@@ -3187,9 +3187,9 @@ namespace Opc.Ua.Sample
 
         private IList<string> m_namespaceUris;
         private ushort[] m_namespaceIndexes;
-
         private Timer m_samplingTimer;
-        private readonly List<DataChangeMonitoredItem> m_sampledItems;
+        private readonly ILogger m_logger;
+        private readonly List<DataChangeMonitoredItem> m_sampledItems = [];
         private readonly double m_minimumSamplingInterval;
     }
 }

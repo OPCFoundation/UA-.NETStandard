@@ -24,6 +24,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
+using Microsoft.Extensions.Logging;
+
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -45,9 +47,9 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        public override ITransportListener Create()
+        public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeHttps);
+            return new HttpsTransportListener(Utils.UriSchemeHttps, telemetry);
         }
     }
 
@@ -66,9 +68,9 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        public override ITransportListener Create()
+        public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeOpcHttps);
+            return new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry);
         }
     }
 
@@ -118,9 +120,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
-        public HttpsTransportListener(string uriScheme)
+        public HttpsTransportListener(string uriScheme, ITelemetryContext telemetry)
         {
             UriScheme = uriScheme;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<HttpsTransportListener>();
         }
 
         /// <summary>
@@ -173,26 +177,23 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            {
+                MaxArrayLength = configuration.MaxArrayLength,
+                MaxByteStringLength = configuration.MaxByteStringLength,
+                MaxMessageSize = configuration.MaxMessageSize,
+                MaxStringLength = configuration.MaxStringLength,
+                MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
+                NamespaceUris = settings.NamespaceUris,
+                ServerUris = new StringTable(),
+                Factory = settings.Factory
+            })
             {
                 MaxBufferSize = configuration.MaxBufferSize,
                 MaxMessageSize = configuration.MaxMessageSize,
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-
-                MessageContext = new ServiceMessageContext
-                {
-                    MaxArrayLength = configuration.MaxArrayLength,
-                    MaxByteStringLength = configuration.MaxByteStringLength,
-                    MaxMessageSize = configuration.MaxMessageSize,
-                    MaxStringLength = configuration.MaxStringLength,
-                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
-                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                    NamespaceUris = settings.NamespaceUris,
-                    ServerUris = new StringTable(),
-                    Factory = settings.Factory
-                },
-
                 CertificateValidator = settings.CertificateValidator
             };
 
@@ -273,7 +274,7 @@ namespace Opc.Ua.Bindings
             }
             catch (CryptographicException ce)
             {
-                Utils.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+                m_logger.LogTrace("Copy of the private key for https was denied: {Message}", ce.Message);
             }
 #endif
 
@@ -288,15 +289,7 @@ namespace Opc.Ua.Bindings
                 ClientCertificateValidation = ValidateClientCertificate
             };
 
-#if NET462
-            // note: although security tools recommend 'None' here,
-            // it only works on .NET 4.6.2 if Tls12 is used
-#pragma warning disable CA5398 // Avoid hardcoded SslProtocols values
-            httpsOptions.SslProtocols = SslProtocols.Tls12;
-#pragma warning restore CA5398 // Avoid hardcoded SslProtocols values
-#else
             httpsOptions.SslProtocols = SslProtocols.None;
-#endif
 
             UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
             if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
@@ -385,7 +378,7 @@ namespace Opc.Ua.Bindings
                     {
                         message =
                             "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
-                        Utils.LogError(message);
+                        m_logger.LogError("{Message}", message);
                         await WriteResponseAsync(
                             context.Response,
                             message,
@@ -460,6 +453,7 @@ namespace Opc.Ua.Bindings
                     if (serviceResultException != null)
                     {
                         IServiceResponse serviceResponse = EndpointBase.CreateFault(
+                            m_logger,
                             null,
                             serviceResultException);
                         await WriteServiceResponseAsync(context, serviceResponse, ct)
@@ -485,7 +479,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 message = "HTTPSLISTENER - Unexpected error processing request.";
-                Utils.LogError(e, message);
+                m_logger.LogError(e, "{Message}", message);
             }
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
@@ -593,5 +587,7 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private CertificateTypesProvider m_serverCertProvider;
         private bool m_mutualTlsEnabled;
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

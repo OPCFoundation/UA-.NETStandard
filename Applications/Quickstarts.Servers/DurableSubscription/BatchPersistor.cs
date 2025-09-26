@@ -35,7 +35,9 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Opc.Ua;
 
 namespace Quickstarts.Servers
 {
@@ -53,6 +55,12 @@ namespace Quickstarts.Servers
             "Batches");
 
         private const string kBaseFilename = "_batch.txt";
+
+        public BatchPersistor(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<DurableDataChangeMonitoredItemQueue>();
+            m_telemetry = telemetry;
+        }
 
         /// <inheritdoc/>
         public void RequestBatchPersist(BatchBase batch)
@@ -107,6 +115,7 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
+                    using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                     result = JsonConvert.DeserializeObject(json, batch.GetType(), s_settings);
 
                     File.Delete(filePath);
@@ -114,7 +123,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogError(ex, "Failed to restore batch");
+                m_logger.LogError(ex, "Failed to restore batch");
 
                 batch.RestoreInProgress = false;
                 m_batchesToRestore.TryRemove(batch.Id, out _);
@@ -144,6 +153,7 @@ namespace Quickstarts.Servers
             batch.CancelBatchPersist = cancellationTokenSource;
             try
             {
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                 string result = JsonConvert.SerializeObject(batch, s_settings);
 
                 if (!Directory.Exists(s_storage_path))
@@ -177,7 +187,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to store batch");
+                m_logger.LogWarning(ex, "Failed to store batch");
                 lock (batch)
                 {
                     batch.PersistingInProgress = false;
@@ -213,7 +223,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to clean up batches");
+                m_logger.LogWarning(ex, "Failed to clean up batches");
             }
         }
 
@@ -240,11 +250,13 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to clean up single batch");
+                m_logger.LogWarning(ex, "Failed to clean up single batch");
             }
         }
 
         private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new();
         private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToPersist = new();
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
     }
 }

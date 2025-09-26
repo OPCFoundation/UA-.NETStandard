@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
@@ -23,16 +24,18 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void NodeStateReferencesCollectionConcurrencyTest(
             CancellationToken cancellationToken)
         {
-            var testNodeState = new AnalogUnitRangeState(null);
-            var serviceMessageContext = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var systemContext = new SystemContext
+            var testNodeState = new AnalogUnitRangeState(null);
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
+
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
 
             testNodeState.Create(
-                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
@@ -85,8 +88,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [CancelAfter(10000)]
         public void NodeStateNotifiersCollectionConcurrencyTest(CancellationToken cancellationToken)
         {
-            var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
@@ -94,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var testNodeState = new BaseObjectState(null);
 
             testNodeState.Create(
-                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
@@ -119,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                         var targetState = new AnalogUnitRangeState(null);
 
                         testNodeState.Create(
-                            new SystemContext
+                            new SystemContext(telemetry)
                             {
                                 NamespaceUris = serviceMessageContext.NamespaceUris
                             },
@@ -158,8 +163,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [CancelAfter(10000)]
         public void NodeStateChildrenCollectionConcurrencyTest(CancellationToken cancellationToken)
         {
-            var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
@@ -167,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var testNodeState = new BaseObjectState(null);
 
             testNodeState.Create(
-                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
@@ -192,7 +199,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                         var targetState = new AnalogUnitRangeState(null);
 
                         testNodeState.Create(
-                            new SystemContext
+                            new SystemContext(telemetry)
                             {
                                 NamespaceUris = serviceMessageContext.NamespaceUris
                             },

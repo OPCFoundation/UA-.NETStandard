@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security;
 
 namespace Opc.Ua.Client
@@ -50,13 +51,15 @@ namespace Opc.Ua.Client
         /// Discovers the servers on the local machine.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A list of server urls.</returns>
         public static ValueTask<IList<string>> DiscoverServersAsync(
             ApplicationConfiguration configuration,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            return DiscoverServersAsync(configuration, DefaultDiscoverTimeout, ct);
+            return DiscoverServersAsync(configuration, DefaultDiscoverTimeout, telemetry, ct);
         }
 
         /// <summary>
@@ -64,11 +67,13 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A list of server urls.</returns>
         public static async ValueTask<IList<string>> DiscoverServersAsync(
             ApplicationConfiguration configuration,
             int discoverTimeout,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             var serverUrls = new List<string>();
@@ -80,7 +85,7 @@ namespace Opc.Ua.Client
             // Connect to the local discovery server and find the available servers.
             using (var client = DiscoveryClient.Create(
                     new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
-                    endpointConfiguration))
+                    endpointConfiguration, telemetry))
             {
                 ApplicationDescriptionCollection servers =
                     await client.FindServersAsync(null, ct).ConfigureAwait(false);
@@ -126,6 +131,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             return SelectEndpointAsync(
@@ -133,6 +139,7 @@ namespace Opc.Ua.Client
                 connection,
                 useSecurity,
                 DefaultDiscoverTimeout,
+                telemetry,
                 ct);
         }
 
@@ -144,6 +151,7 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection connection,
             bool useSecurity,
             int discoverTimeout,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             var endpointConfiguration = EndpointConfiguration.Create(application);
@@ -154,11 +162,17 @@ namespace Opc.Ua.Client
             using var client = DiscoveryClient.Create(
                 application,
                 connection,
-                endpointConfiguration);
+                endpointConfiguration,
+                telemetry);
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
-            return SelectEndpoint(application, url, endpoints, useSecurity);
+            return SelectEndpoint(
+                application,
+                url,
+                endpoints,
+                useSecurity,
+                telemetry);
         }
 
         /// <summary>
@@ -168,12 +182,14 @@ namespace Opc.Ua.Client
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint
         /// that uses security.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
         public static ValueTask<EndpointDescription> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             return SelectEndpointAsync(
@@ -181,6 +197,7 @@ namespace Opc.Ua.Client
                 discoveryUrl,
                 useSecurity,
                 DefaultDiscoverTimeout,
+                telemetry,
                 ct);
         }
 
@@ -191,6 +208,7 @@ namespace Opc.Ua.Client
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <param name="discoverTimeout">The timeout for the discover operation.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
         public static async ValueTask<EndpointDescription> SelectEndpointAsync(
@@ -198,13 +216,14 @@ namespace Opc.Ua.Client
             string discoveryUrl,
             bool useSecurity,
             int discoverTimeout,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             Uri uri = GetDiscoveryUrl(discoveryUrl);
             var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
-            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
+            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration, telemetry);
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
@@ -213,7 +232,8 @@ namespace Opc.Ua.Client
                 application,
                 url,
                 endpoints,
-                useSecurity);
+                useSecurity,
+                telemetry);
 
             Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
             if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
@@ -237,7 +257,8 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             Uri url,
             EndpointDescriptionCollection endpoints,
-            bool useSecurity)
+            bool useSecurity,
+            ITelemetryContext telemetry)
         {
             EndpointDescription selectedEndpoint = null;
 
@@ -285,13 +306,17 @@ namespace Opc.Ua.Client
                     // pick the first available endpoint by default.
                     selectedEndpoint ??= endpoint;
 
+                    ILogger logger = telemetry.CreateLogger<DiscoveryClient>();
+
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
                     if (SecuredApplication.CalculateSecurityLevel(
-                        endpoint.SecurityMode,
-                        endpoint.SecurityPolicyUri) >
+                            endpoint.SecurityMode,
+                            endpoint.SecurityPolicyUri,
+                            logger) >
                         SecuredApplication.CalculateSecurityLevel(
                             selectedEndpoint.SecurityMode,
-                            selectedEndpoint.SecurityPolicyUri))
+                            selectedEndpoint.SecurityPolicyUri,
+                            logger))
                     {
                         selectedEndpoint = endpoint;
                     }
