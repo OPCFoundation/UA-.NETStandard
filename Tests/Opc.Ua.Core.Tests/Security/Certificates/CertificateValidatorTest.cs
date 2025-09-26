@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName, cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
             var validator = TemporaryCertValidator.Create();
             if (!trusted)
             {
@@ -1162,7 +1162,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName, cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
             var validator = TemporaryCertValidator.Create();
             if (!trusted)
             {
