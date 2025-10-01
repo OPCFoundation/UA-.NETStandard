@@ -65,11 +65,10 @@ namespace Opc.Ua.Client.ComplexTypes
             => m_complexTypeResolver.DataTypeSystem;
 
         /// <summary>
-        /// Obsolete constructor
+        /// Initializes the type system with a session to load the custom types.
         /// </summary>
-        [Obsolete("Use ComplexTypeSystem(ISession, ITelemetryContext) instead.")]
         public ComplexTypeSystem(ISession session)
-            : this(session, (ITelemetryContext)null)
+            : this(session, session.MessageContext.Telemetry)
         {
         }
 
@@ -101,13 +100,12 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Obsolete constructor
+        /// Create complex type system with session and custom type builder factory
         /// </summary>
-        [Obsolete("Use ComplexTypeSystem(IComplexTypeResolver, ITelemetryContext) instead.")]
         public ComplexTypeSystem(
             ISession session,
             IComplexTypeFactory complexTypeBuilderFactory)
-            : this(session, complexTypeBuilderFactory, null)
+            : this(session, complexTypeBuilderFactory, session.MessageContext.Telemetry)
         {
         }
 

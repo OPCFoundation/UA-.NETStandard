@@ -49,7 +49,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new TraceableRequestHeaderClientSession(channel, configuration, endpoint, Telemetry);
+            return new TraceableRequestHeaderClientSession(channel, configuration, endpoint);
         }
 
         /// <inheritdoc/>
@@ -66,7 +66,6 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
-                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

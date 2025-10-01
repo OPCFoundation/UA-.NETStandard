@@ -37,10 +37,8 @@ namespace Opc.Ua.Gds.Client
     public class LocalDiscoveryServerClient
     {
         public LocalDiscoveryServerClient(
-            ApplicationConfiguration configuration,
-            ITelemetryContext telemetry)
+            ApplicationConfiguration configuration)
         {
-            m_telemetry = telemetry;
             ApplicationConfiguration = configuration;
             MessageContext = configuration.CreateMessageContext();
 
@@ -546,13 +544,11 @@ namespace Opc.Ua.Gds.Client
             ITransportChannel channel = DiscoveryChannel.Create(
                 new Uri(endpointUrl),
                 configuration,
-                context,
-                m_telemetry);
+                context);
 
-            return new DiscoveryClient(channel, m_telemetry);
+            return new DiscoveryClient(channel, context.Telemetry);
         }
 
-        private readonly ITelemetryContext m_telemetry;
         private const string kDefaultUrl = "opc.tcp://localhost:4840";
     }
 }

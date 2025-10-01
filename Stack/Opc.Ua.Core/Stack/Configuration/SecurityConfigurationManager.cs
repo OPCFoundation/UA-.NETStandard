@@ -25,6 +25,14 @@ namespace Opc.Ua.Security
     public class SecurityConfigurationManager : ISecurityConfigurationManager
     {
         /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use SecurityConfigurationManager(ITelemetryContext) instead.")]
+        public SecurityConfigurationManager() : this (null)
+        {
+        }
+
+        /// <summary>
         /// Create the security configuration manager.
         /// </summary>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>

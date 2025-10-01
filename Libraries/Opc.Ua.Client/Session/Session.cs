@@ -62,13 +62,11 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public Session(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            ITelemetryContext telemetry)
-            : this(channel as ITransportChannel, configuration, endpoint, null, telemetry)
+            ConfiguredEndpoint endpoint)
+            : this(channel as ITransportChannel, configuration, endpoint, null)
         {
         }
 
@@ -79,7 +77,6 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint used to initialize the channel.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
         /// <remarks>
@@ -95,12 +92,11 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            ITelemetryContext telemetry,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
-            : base(channel, telemetry)
+            : base(channel)
         {
-            Initialize(channel, configuration, endpoint, telemetry);
+            Initialize(channel, configuration, endpoint);
             LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
@@ -113,9 +109,9 @@ namespace Opc.Ua.Client
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         public Session(ITransportChannel channel, Session template, bool copyEventHandlers)
-            : base(channel, template.m_telemetry)
+            : base(channel)
         {
-            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_telemetry);
+            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint);
             LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
             SessionFactory = template.SessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
@@ -163,11 +159,13 @@ namespace Opc.Ua.Client
         private void Initialize(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            ITelemetryContext telemetry)
+            ConfiguredEndpoint endpoint)
         {
-            m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<Session>();
+            // initialize the message context.
+            IServiceMessageContext messageContext = channel.MessageContext;
+
+            m_telemetry = messageContext.Telemetry;
+            m_logger = m_telemetry.CreateLogger<Session>();
 
             Initialize();
 
@@ -181,8 +179,6 @@ namespace Opc.Ua.Client
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
                 .MinSubscriptionLifetime;
 
-            // initialize the message context.
-            IServiceMessageContext messageContext = channel.MessageContext;
 
             if (messageContext != null)
             {
@@ -1131,7 +1127,6 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">A configured endpoint to connect to.</param>
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
         public static async Task<ITransportChannel> CreateChannelAsync(
@@ -1140,7 +1135,6 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
-            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             endpoint.UpdateBeforeConnect = updateBeforeConnect;
@@ -1162,7 +1156,7 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
             {
-                await endpoint.UpdateFromServerAsync(telemetry, ct).ConfigureAwait(false);
+                await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;
             }
@@ -1184,7 +1178,7 @@ namespace Opc.Ua.Client
                 clientCertificate = await LoadCertificateAsync(
                     configuration,
                     endpointDescription.SecurityPolicyUri,
-                    telemetry,
+                    messageContext.Telemetry,
                     ct)
                     .ConfigureAwait(false);
                 clientCertificateChain = await LoadCertificateChainAsync(
@@ -1204,8 +1198,7 @@ namespace Opc.Ua.Client
                     endpointConfiguration,
                     clientCertificate,
                     clientCertificateChain,
-                    messageContext,
-                    telemetry);
+                    messageContext);
             }
 
             return SessionChannel.Create(
@@ -1214,8 +1207,7 @@ namespace Opc.Ua.Client
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext,
-                telemetry);
+                messageContext);
         }
 
         /// <summary>
@@ -1255,7 +1247,6 @@ namespace Opc.Ua.Client
                     endpoint,
                     updateBeforeConnect,
                     checkDomain,
-                    sessionInstantiator.Telemetry,
                     ct)
                 .ConfigureAwait(false);
 
@@ -3728,8 +3719,7 @@ namespace Opc.Ua.Client
                 sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain
                     ? sessionTemplate.m_instanceCertificateChain
                     : null,
-                messageContext,
-                sessionTemplate.m_telemetry);
+                messageContext);
 
             // create the session object.
             Session session = sessionTemplate.CloneSession(channel, true);
@@ -3786,8 +3776,7 @@ namespace Opc.Ua.Client
                 sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain
                     ? sessionTemplate.m_instanceCertificateChain
                     : null,
-                messageContext,
-                sessionTemplate.m_telemetry);
+                messageContext);
 
             // create the session object.
             Session session = sessionTemplate.CloneSession(channel, true);
@@ -6349,8 +6338,7 @@ namespace Opc.Ua.Client
                         m_configuration.SecurityConfiguration.SendCertificateChain
                             ? m_instanceCertificateChain
                             : null,
-                        MessageContext,
-                        m_telemetry);
+                        MessageContext);
 
                     // disposes the existing channel.
                     TransportChannel = channel;
@@ -6381,8 +6369,7 @@ namespace Opc.Ua.Client
                         m_configuration.SecurityConfiguration.SendCertificateChain
                             ? m_instanceCertificateChain
                             : null,
-                        MessageContext,
-                        m_telemetry);
+                        MessageContext);
 
                     // disposes the existing channel.
                     TransportChannel = channel;

@@ -52,6 +52,28 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
+        [Obsolete("Use Create(ReadOnlyMemory<byte>, bool, ITelemetryContext) instead")]
+        public static X509Certificate2 Create(
+            ReadOnlyMemory<byte> encodedData,
+            bool useCache)
+        {
+            return Create(encodedData, useCache, null);
+        }
+
+        /// <summary>
+        /// Loads the cached version of a certificate.
+        /// </summary>
+        [Obsolete("Use Load(X509Certificate2, bool, ITelemetryContext) instead")]
+        public static X509Certificate2 Load(
+            X509Certificate2 certificate,
+            bool ensurePrivateKeyAccessible)
+        {
+            return Load(certificate, ensurePrivateKeyAccessible, null);
+        }
+
+        /// <summary>
+        /// Creates a certificate from a buffer with DER encoded certificate.
+        /// </summary>
         /// <param name="encodedData">The encoded data.</param>
         /// <param name="useCache">if set to <c>true</c> the copy of the certificate
         /// in the cache is used.</param>

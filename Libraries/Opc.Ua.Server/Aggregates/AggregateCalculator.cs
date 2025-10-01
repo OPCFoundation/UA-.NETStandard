@@ -39,6 +39,21 @@ namespace Opc.Ua.Server
     public class AggregateCalculator : IAggregateCalculator
     {
         /// <summary>
+        /// Create calculator
+        /// </summary>
+        [Obsolete("Use constructor with ITelemetryContext")]
+        public AggregateCalculator(
+            NodeId aggregateId,
+            DateTime startTime,
+            DateTime endTime,
+            double processingInterval,
+            bool stepped,
+            AggregateConfiguration configuration)
+            : this (aggregateId, startTime, endTime, processingInterval, stepped, configuration, null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the calculation stream.
         /// </summary>
         /// <param name="aggregateId">The aggregate function to apply.</param>

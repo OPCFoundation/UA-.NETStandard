@@ -127,6 +127,45 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
+        [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
+        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            bool useSecurity,
+            CancellationToken ct = default)
+        {
+            return SelectEndpointAsync(
+                application,
+                connection,
+                useSecurity,
+                DefaultDiscoverTimeout,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
+        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            bool useSecurity,
+            int discoverTimeout,
+            CancellationToken ct = default)
+        {
+            return SelectEndpointAsync(
+                application,
+                connection,
+                useSecurity,
+                discoverTimeout,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
         public static ValueTask<EndpointDescription> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
@@ -162,8 +201,7 @@ namespace Opc.Ua.Client
             using var client = DiscoveryClient.Create(
                 application,
                 connection,
-                endpointConfiguration,
-                telemetry);
+                endpointConfiguration);
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
@@ -223,7 +261,7 @@ namespace Opc.Ua.Client
             var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
-            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration, telemetry);
+            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =

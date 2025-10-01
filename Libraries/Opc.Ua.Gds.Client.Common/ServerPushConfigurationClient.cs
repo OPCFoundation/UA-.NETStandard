@@ -47,17 +47,15 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="sessionFactory">Used to create session to the server.</param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,
-            ITelemetryContext telemetry,
             ISessionFactory sessionFactory = null)
         {
             Configuration = configuration;
-            m_logger = telemetry.CreateLogger<ServerPushConfigurationClient>();
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(telemetry);
-            m_telemetry = telemetry;
+            MessageContext = configuration.CreateMessageContext(true);
+            m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
         }
 
         public NodeId DefaultApplicationGroup { get; private set; }
@@ -71,25 +69,21 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the application instance.
         /// </summary>
-        /// <value>
-        /// The application instance.
-        /// </value>
         public ApplicationConfiguration Configuration { get; }
+
+        /// <summary>
+        /// Message context
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Gets or sets the admin credentials.
         /// </summary>
-        /// <value>
-        /// The admin credentials.
-        /// </value>
         public IUserIdentity AdminCredentials { get; set; }
 
         /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
-        /// <value>
-        /// The endpoint URL.
-        /// </value>
         public string EndpointUrl { get; set; }
 
         /// <summary>
@@ -105,33 +99,24 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets or sets the preferred locales.
         /// </summary>
-        /// <value>
-        /// The preferred locales.
-        /// </value>
         public string[] PreferredLocales { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether the session is connected.
         /// </summary>
         /// <value>
-        ///   <c>true</c> if the session is connected; otherwise, <c>false</c>.
+        /// <c>true</c> if the session is connected; otherwise, <c>false</c>.
         /// </value>
         public bool IsConnected => Session != null && Session.Connected;
 
         /// <summary>
         /// Gets the session.
         /// </summary>
-        /// <value>
-        /// The session.
-        /// </value>
         public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets the endpoint.
         /// </summary>
-        /// <value>
-        /// The endpoint.
-        /// </value>
         /// <exception cref="InvalidOperationException"></exception>
         public ConfiguredEndpoint Endpoint
         {
@@ -229,7 +214,7 @@ namespace Opc.Ua.Gds.Client
                 Configuration,
                 endpointUrl,
                 true,
-                m_telemetry,
+                MessageContext.Telemetry,
                 ct).ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
@@ -1126,7 +1111,6 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private readonly ITelemetryContext m_telemetry;
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
         private ConfiguredEndpoint m_endpoint;

@@ -465,6 +465,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the diagnostic info and translates any strings.
         /// </summary>
+        [Obsolete("Use CreateDiagnosticInfo with ILogger")]
+        public static DiagnosticInfo CreateDiagnosticInfo(
+            IServerInternal server,
+            OperationContext context,
+            ServiceResult error)
+        {
+            return CreateDiagnosticInfo(server, context, error, Utils.Fallback.Logger);
+        }
+
+        /// <summary>
+        /// Creates the diagnostic info and translates any strings.
+        /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="context">The context containing the string stable.</param>
         /// <param name="error">The error to translate.</param>

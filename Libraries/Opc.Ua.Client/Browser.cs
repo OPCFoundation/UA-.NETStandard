@@ -52,6 +52,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates new instance of a browser and attaches it to a session.
         /// </summary>
+        public Browser(ISession session)
+            : this(session, session.MessageContext.Telemetry)
+        {
+        }
+
+        /// <summary>
+        /// Creates new instance of a browser and attaches it to a session.
+        /// </summary>
         public Browser(ISession session, ITelemetryContext telemetry)
         {
             m_telemetry = telemetry;

@@ -165,8 +165,7 @@ namespace Opc.Ua.Client.Tests
                 using var client = DiscoveryClient.Create(
                     config,
                     connection,
-                    endpointConfiguration,
-                    Telemetry);
+                    endpointConfiguration);
                 Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);

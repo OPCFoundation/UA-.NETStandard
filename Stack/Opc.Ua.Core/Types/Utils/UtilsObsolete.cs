@@ -72,7 +72,7 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext.CreateLogger and ILogger.LogTrace instead.")]
         public static void Trace(string message)
         {
-            LogInformation(message);
+            LogInfo(message);
         }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext.CreateLogger and ILogger.LogTrace instead.")]
         public static void Trace(string format, params object[] args)
         {
-            LogInformation(format, args);
+            LogInfo(format, args);
         }
 
         /// <summary>
@@ -318,9 +318,9 @@ namespace Opc.Ua
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>LogInformation(0, exception, "Error while processing request from {Address}", address)</example>
+        /// <example>LogInfo(0, exception, "Error while processing request from {Address}", address)</example>
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.LogInformation.")]
-        public static void LogInformation(
+        public static void LogInfo(
             EventId eventId,
             Exception exception,
             string message,
@@ -335,9 +335,9 @@ namespace Opc.Ua
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>LogInformation(0, "Processing request from {Address}", address)</example>
+        /// <example>LogInfo(0, "Processing request from {Address}", address)</example>
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.LogInformation.")]
-        public static void LogInformation(EventId eventId, string message, params object[] args)
+        public static void LogInfo(EventId eventId, string message, params object[] args)
         {
             Log(LogLevel.Information, eventId, message, args);
         }
@@ -348,9 +348,9 @@ namespace Opc.Ua
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>LogInformation(exception, "Error while processing request from {Address}", address)</example>
+        /// <example>LogInfo(exception, "Error while processing request from {Address}", address)</example>
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.LogInformation.")]
-        public static void LogInformation(Exception exception, string message, params object[] args)
+        public static void LogInfo(Exception exception, string message, params object[] args)
         {
             Log(LogLevel.Information, exception, message, args);
         }
@@ -360,9 +360,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>LogInformation("Processing request from {Address}", address)</example>
+        /// <example>LogInfo("Processing request from {Address}", address)</example>
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.LogInformation.")]
-        public static void LogInformation(string message, params object[] args)
+        public static void LogInfo(string message, params object[] args)
         {
             Log(LogLevel.Information, message, args);
         }
@@ -640,7 +640,7 @@ namespace Opc.Ua
             }
             else if ((traceMask & informationMask) != 0)
             {
-                LogInformation(traceMask, format, args);
+                LogInfo(traceMask, format, args);
             }
             else
             {

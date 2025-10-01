@@ -46,9 +46,8 @@ namespace Opc.Ua.Client
         public TraceableRequestHeaderClientSession(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            ITelemetryContext telemetry)
-            : this(channel as ITransportChannel, configuration, endpoint, null, telemetry)
+            ConfiguredEndpoint endpoint)
+            : this(channel as ITransportChannel, configuration, endpoint, null)
         {
         }
 
@@ -74,7 +73,6 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            ITelemetryContext telemetry,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
             : base(
@@ -82,7 +80,6 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
-                telemetry,
                 availableEndpoints,
                 discoveryProfileUris)
         {

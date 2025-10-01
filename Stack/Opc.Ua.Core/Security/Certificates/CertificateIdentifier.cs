@@ -454,6 +454,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Obsoleted open call
+        /// </summary>
+        [Obsolete("Use OpenStore(ITelemetryContext) instead")]
+        public ICertificateStore OpenStore()
+        {
+            return OpenStore(null);
+        }
+
+        /// <summary>
         /// Returns an object to access the store containing the certificate.
         /// </summary>
         /// <remarks>

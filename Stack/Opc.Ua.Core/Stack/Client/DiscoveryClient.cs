@@ -15,6 +15,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Opc.Ua
 {
@@ -35,19 +36,58 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        [Obsolete("Use Create with telemetry parameter instead.")]
+        public static DiscoveryClient Create(
+            Uri discoveryUrl)
+        {
+            return Create(discoveryUrl, null, (ITelemetryContext)null);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="configuration">The configuration.</param>
+        [Obsolete("Use Create with telemetry parameter instead.")]
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration configuration)
+        {
+            return Create(discoveryUrl, configuration, (ITelemetryContext)null);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        [Obsolete("Use Create with telemetry parameter instead.")]
+        public static DiscoveryClient Create(
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration)
+        {
+            return Create(connection, configuration, null);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
-            Uri discoveryUrl,
-            ITelemetryContext telemetry)
+            Uri discoveryUrl)
         {
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+
             var configuration = EndpointConfiguration.Create();
+            IServiceMessageContext messageContext = application.CreateMessageContext();
             ITransportChannel channel = DiscoveryChannel.Create(
                 application,
                 discoveryUrl,
                 configuration,
-                new ServiceMessageContext(telemetry),
-                telemetry);
-            return new DiscoveryClient(channel, telemetry);
+                messageContext);
+            return new DiscoveryClient(channel, messageContext.Telemetry);
         }
 
         /// <summary>
@@ -56,18 +96,22 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             Uri discoveryUrl,
-            EndpointConfiguration configuration,
-            ITelemetryContext telemetry)
+            EndpointConfiguration configuration)
         {
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+
             configuration ??= EndpointConfiguration.Create();
 
+            IServiceMessageContext messageContext = application.CreateMessageContext();
             ITransportChannel channel = DiscoveryChannel.Create(
                 application,
                 discoveryUrl,
                 configuration,
-                application.CreateMessageContext(),
-                telemetry);
-            return new DiscoveryClient(channel, telemetry);
+                messageContext);
+            return new DiscoveryClient(channel, messageContext.Telemetry);
         }
 
         /// <summary>
@@ -76,41 +120,80 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration,
-            ITelemetryContext telemetry)
+            EndpointConfiguration configuration)
         {
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+
             configuration ??= EndpointConfiguration.Create();
 
+            IServiceMessageContext messageContext = application.CreateMessageContext();
             ITransportChannel channel = DiscoveryChannel.Create(
                 application,
                 connection,
                 configuration,
-                application.CreateMessageContext(),
-                telemetry);
-            return new DiscoveryClient(channel, telemetry);
+                messageContext);
+            return new DiscoveryClient(channel, messageContext.Telemetry);
         }
 
         /// <summary>
-        /// Creates a binding for to use for discovering servers.
+        /// Creates a binding to use for discovering servers.
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
-        public static DiscoveryClient Create(Uri discoveryUrl)
+        /// <param name="endpointConfiguration">The endpoint configuration.</param>
+        /// <param name="applicationConfiguration">The application configuration.</param>
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            ApplicationConfiguration applicationConfiguration)
         {
-            return Create(discoveryUrl, null, null);
+            if (applicationConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(applicationConfiguration));
+            }
+
+            endpointConfiguration ??= EndpointConfiguration.Create();
+
+            // check if application configuration contains instance certificate.
+            X509Certificate2 clientCertificate = null;
+
+            IServiceMessageContext messageContext = applicationConfiguration.CreateMessageContext();
+            try
+            {
+                // Will always use the first certificate
+                clientCertificate = applicationConfiguration
+                    .SecurityConfiguration?
+                    .ApplicationCertificate?
+                    .FindAsync(true, telemetry: messageContext.Telemetry)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch
+            {
+                //ignore errors
+            }
+
+            ITransportChannel channel = DiscoveryChannel.Create(
+                applicationConfiguration,
+                discoveryUrl,
+                endpointConfiguration,
+                messageContext,
+                clientCertificate);
+            return new DiscoveryClient(channel, messageContext.Telemetry);
         }
 
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
-        /// <param name="configuration">The configuration.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public static DiscoveryClient Create(
             Uri discoveryUrl,
-            EndpointConfiguration configuration,
             ITelemetryContext telemetry)
         {
-            return Create(discoveryUrl, configuration, null, telemetry);
+            return Create(discoveryUrl, null, telemetry);
         }
 
         /// <summary>
@@ -127,8 +210,7 @@ namespace Opc.Ua
                 null,
                 connection,
                 configuration,
-                new ServiceMessageContext(telemetry),
-                telemetry);
+                new ServiceMessageContext(telemetry));
             return new DiscoveryClient(channel, telemetry);
         }
 
@@ -137,12 +219,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
-        /// <param name="applicationConfiguration">The application configuration.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public static DiscoveryClient Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ApplicationConfiguration applicationConfiguration,
             ITelemetryContext telemetry)
         {
             endpointConfiguration ??= EndpointConfiguration.Create();
@@ -150,27 +230,11 @@ namespace Opc.Ua
             // check if application configuration contains instance certificate.
             X509Certificate2 clientCertificate = null;
 
-            try
-            {
-                // Will always use the first certificate
-                clientCertificate = applicationConfiguration?
-                    .SecurityConfiguration?
-                    .ApplicationCertificate?
-                    .FindAsync(true, telemetry: telemetry)
-                    .GetAwaiter()
-                    .GetResult();
-            }
-            catch
-            {
-                //ignore errors
-            }
-
             ITransportChannel channel = DiscoveryChannel.Create(
-                applicationConfiguration,
+                null,
                 discoveryUrl,
                 endpointConfiguration,
                 new ServiceMessageContext(telemetry),
-                telemetry,
                 clientCertificate);
             return new DiscoveryClient(channel, telemetry);
         }
@@ -349,13 +413,11 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery url.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="clientCertificate">The client certificate to use.</param>
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            ITelemetryContext telemetry,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -373,8 +435,7 @@ namespace Opc.Ua
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
-                messageContext,
-                telemetry);
+                messageContext);
         }
 
         /// <summary>
@@ -385,7 +446,6 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            ITelemetryContext telemetry,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -405,8 +465,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext,
-                telemetry);
+                messageContext);
         }
 
         /// <summary>
@@ -417,7 +476,6 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            ITelemetryContext telemetry,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -436,8 +494,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext,
-                telemetry);
+                messageContext);
         }
     }
 }
