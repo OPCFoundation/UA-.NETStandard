@@ -66,7 +66,11 @@ namespace Opc.Ua.Client
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
-            : this(channel as ITransportChannel, configuration, endpoint, null)
+            : this(
+                  channel as ITransportChannel,
+                  configuration,
+                  endpoint,
+                  clientCertificate: null)
         {
         }
 
@@ -94,9 +98,12 @@ namespace Opc.Ua.Client
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
-            : base(channel)
+            : this(
+                  channel,
+                  configuration,
+                  endpoint,
+                  channel.MessageContext ?? configuration.CreateMessageContext(true))
         {
-            Initialize(channel, configuration, endpoint);
             LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
@@ -109,9 +116,12 @@ namespace Opc.Ua.Client
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         public Session(ITransportChannel channel, Session template, bool copyEventHandlers)
-            : base(channel)
+            : this(
+                  channel,
+                  template.m_configuration,
+                  template.ConfiguredEndpoint,
+                  channel.MessageContext ?? template.m_configuration.CreateMessageContext(true))
         {
-            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint);
             LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
             SessionFactory = template.SessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
@@ -154,15 +164,19 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Initializes the channel.
+        /// Initializes the session.
         /// </summary>
-        private void Initialize(
+        private Session(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
+            ConfiguredEndpoint endpoint,
+            IServiceMessageContext messageContext)
+            : base(channel, messageContext.Telemetry)
         {
-            // initialize the message context.
-            IServiceMessageContext messageContext = channel.MessageContext;
+            if (messageContext == null)
+            {
+                throw new ArgumentNullException(nameof(messageContext));
+            }
 
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
@@ -179,19 +193,9 @@ namespace Opc.Ua.Client
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
                 .MinSubscriptionLifetime;
 
-
-            if (messageContext != null)
-            {
-                NamespaceUris = messageContext.NamespaceUris;
-                ServerUris = messageContext.ServerUris;
-                Factory = messageContext.Factory;
-            }
-            else
-            {
-                NamespaceUris = new NamespaceTable();
-                ServerUris = new StringTable();
-                Factory = new EncodeableFactory(m_telemetry);
-            }
+            NamespaceUris = messageContext.NamespaceUris;
+            ServerUris = messageContext.ServerUris;
+            Factory = messageContext.Factory;
 
             // initialize the NodeCache late, it needs references to the namespaceUris
             m_nodeCache = new NodeCache(this, m_telemetry);
