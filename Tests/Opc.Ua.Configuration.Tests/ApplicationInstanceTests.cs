@@ -753,9 +753,11 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestAddTwoAppCertificatesToTrustedStoreAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var subjectName = SubjectName;
             //Arrange Application Instance
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration = await applicationInstance
                 .Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -770,7 +772,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.DoesNotThrowAsync(async() => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
 
             subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
-            var applicationInstance2 = new ApplicationInstance { ApplicationName = ApplicationName };
+            var applicationInstance2 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration2 = await applicationInstance2
                 .Build(ApplicationUri + "2", ProductUri + "2")
                 .AsClient()
