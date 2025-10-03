@@ -97,7 +97,6 @@ namespace Opc.Ua.Client.Tests
                 configuration,
                 endpoint,
                 clientCertificate,
-                telemetry,
                 availableEndpoints,
                 discoveryProfileUris)
         {

@@ -59,9 +59,9 @@ namespace Opc.Ua.Gds.Client
             ISessionFactory sessionFactory = null)
         {
             Configuration = configuration;
+            MessageContext = configuration.CreateMessageContext(true);
             EndpointUrl = endpointUrl;
-            m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<GlobalDiscoveryServerClient>();
+            m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
             m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(telemetry);
             // preset admin
             AdminCredentials = adminUserIdentity;
@@ -70,17 +70,16 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the application.
         /// </summary>
-        /// <value>
-        /// The application.
-        /// </value>
         public ApplicationConfiguration Configuration { get; }
+
+        /// <summary>
+        /// Message context
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Gets or sets the admin credentials.
         /// </summary>
-        /// <value>
-        /// The admin credentials.
-        /// </value>
         public IUserIdentity AdminCredentials { get; set; }
 
         /// <summary>
@@ -93,27 +92,16 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the session.
         /// </summary>
-        /// <value>
-        /// The session.
-        /// </value>
         public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
-        /// <value>
-        /// The endpoint URL.
-        /// </value>
         public string EndpointUrl { get; set; }
-
-        private readonly ITelemetryContext m_telemetry;
 
         /// <summary>
         /// Gets the endpoint.
         /// </summary>
-        /// <value>
-        /// The endpoint.
-        /// </value>
         /// <exception cref="InvalidOperationException"></exception>
         public ConfiguredEndpoint Endpoint
         {
@@ -190,7 +178,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration, m_telemetry);
+                lds ??= new LocalDiscoveryServerClient(Configuration);
 
                 (List<ServerOnNetwork> servers, DateTime _) = await lds.FindServersOnNetworkAsync(
                     0,
@@ -250,7 +238,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration, m_telemetry);
+                lds ??= new LocalDiscoveryServerClient(Configuration);
 
                 (List<ServerOnNetwork> servers, DateTime _) = await lds.FindServersOnNetworkAsync(
                     0,
@@ -335,7 +323,7 @@ namespace Opc.Ua.Gds.Client
                             Configuration,
                             endpointUrl,
                             true,
-                            m_telemetry,
+                            MessageContext.Telemetry,
                             ct).ConfigureAwait(false);
                     var endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     var endpoint = new ConfiguredEndpoint(

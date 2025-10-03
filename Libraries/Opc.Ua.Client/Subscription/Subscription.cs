@@ -50,6 +50,14 @@ namespace Opc.Ua.Client
         private const int kRepublishMessageExpiredTimeout = 10000;
 
         /// <summary>
+        /// Create subscription
+        /// </summary>
+        [Obsolete("Use Subscription(TelemetryContext) instead")]
+        public Subscription() : this(null)
+        {
+        }
+
+        /// <summary>
         /// Creates a empty object.
         /// </summary>
         public Subscription(ITelemetryContext telemetry)

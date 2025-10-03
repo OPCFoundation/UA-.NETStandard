@@ -248,7 +248,6 @@ namespace Opc.Ua.Client
                 endpoint,
                 updateBeforeConnect,
                 checkDomain,
-                Telemetry,
                 ct);
         }
 
@@ -305,7 +304,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new Session(channel, configuration, endpoint, Telemetry);
+            return new Session(channel, configuration, endpoint);
         }
 
         /// <inheritdoc/>
@@ -322,7 +321,6 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
-                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

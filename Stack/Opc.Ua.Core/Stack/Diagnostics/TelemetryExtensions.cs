@@ -204,7 +204,7 @@ namespace Opc.Ua
 
                     if (m_fileName == null)
                     {
-                        Debug.WriteLine(traceString);
+                        Debug.Fail(traceString);
                         return;
                     }
 

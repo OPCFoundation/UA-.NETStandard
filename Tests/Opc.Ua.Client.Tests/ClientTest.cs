@@ -1668,7 +1668,7 @@ namespace Opc.Ua.Client.Tests
                 ApplicationConfiguration configuration,
                 ConfiguredEndpoint endpoint,
                 ITelemetryContext telemetry)
-                : base(channel, configuration, endpoint, telemetry)
+                : base(channel, configuration, endpoint)
             {
             }
 

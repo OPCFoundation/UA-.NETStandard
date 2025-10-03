@@ -36,6 +36,14 @@ namespace Opc.Ua
         private const int kDefaultMaxRejectedCertificates = 5;
 
         /// <summary>
+        /// Create validator
+        /// </summary>
+        [Obsolete("Use CertificateValidator(ITelemetryContext) instead.")]
+        public CertificateValidator() : this(null)
+        {
+        }
+
+        /// <summary>
         /// The default constructor.
         /// </summary>
         public CertificateValidator(ITelemetryContext telemetry)
