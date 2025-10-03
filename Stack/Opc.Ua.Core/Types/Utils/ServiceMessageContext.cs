@@ -22,6 +22,14 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        [Obsolete("Use ServiceMessageContext(ITelemetryContext) instead.")]
+        public ServiceMessageContext() : this(null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with default values.
+        /// </summary>
         public ServiceMessageContext(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;

@@ -71,6 +71,11 @@ namespace Opc.Ua.Gds.Server
 
         protected string SubjectName { get; }
 
+        [Obsolete("Use CertificateGroup(TelemetryContext) instead")]
+        public CertificateGroup() : this(null)
+        {
+        }
+
         public CertificateGroup(ITelemetryContext telemetry)
         {
             m_telemetry = telemetry;

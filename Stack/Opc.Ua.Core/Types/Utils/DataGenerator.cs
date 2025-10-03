@@ -126,6 +126,14 @@ namespace Opc.Ua.Test
     public class DataGenerator
     {
         /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use DataGenerator(ITelemetryContext) instead.")]
+        public DataGenerator(IRandomSource random) : this(random, null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the data generator.
         /// </summary>
         public DataGenerator(IRandomSource random, ITelemetryContext telemetry)

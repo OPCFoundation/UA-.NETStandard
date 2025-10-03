@@ -1087,13 +1087,47 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public Task UpdateFromServerAsync(ITelemetryContext telemetry, CancellationToken ct = default)
+        [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
+        public Task UpdateFromServerAsync(CancellationToken ct = default)
+        {
+            return UpdateFromServerAsync(null, ct);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
+        public Task UpdateFromServerAsync(
+            Uri endpointUrl,
+            ITransportWaitingConnection connection,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
             return UpdateFromServerAsync(
-                EndpointUrl,
-                m_description.SecurityMode,
-                m_description.SecurityPolicyUri,
-                telemetry,
+                endpointUrl,
+                connection,
+                securityMode,
+                securityPolicyUri,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
+        public Task UpdateFromServerAsync(
+            Uri endpointUrl,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri,
+            CancellationToken ct = default)
+        {
+            return UpdateFromServerAsync(
+                endpointUrl,
+                securityMode,
+                securityPolicyUri,
+                null,
                 ct);
         }
 
@@ -1108,6 +1142,19 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, telemetry, ct);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        public Task UpdateFromServerAsync(ITelemetryContext telemetry, CancellationToken ct = default)
+        {
+            return UpdateFromServerAsync(
+                EndpointUrl,
+                m_description.SecurityMode,
+                m_description.SecurityPolicyUri,
+                telemetry,
+                ct);
         }
 
         /// <summary>

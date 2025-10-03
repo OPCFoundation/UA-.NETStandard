@@ -31,9 +31,16 @@ namespace Opc.Ua
         /// Initializes the object as an anonymous user.
         /// </summary>
         public UserIdentity()
+            : this(new AnonymousIdentityToken())
         {
-            var token = new AnonymousIdentityToken();
-            Initialize(token);
+        }
+
+        /// <summary>
+        /// Initializes the object as an anonymous user.
+        /// </summary>
+        public UserIdentity(AnonymousIdentityToken anonymousIdentityToken)
+        {
+            Initialize(anonymousIdentityToken);
         }
 
         /// <summary>
@@ -42,13 +49,20 @@ namespace Opc.Ua
         /// <param name="username">The user name.</param>
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
-        {
-            var token = new UserNameIdentityToken
+            : this (new UserNameIdentityToken
             {
                 UserName = username,
                 DecryptedPassword = password
-            };
-            Initialize(token);
+            })
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a username token.
+        /// </summary>
+        public UserIdentity(UserNameIdentityToken userNameToken)
+        {
+            Initialize(userNameToken);
         }
 
         /// <summary>
@@ -58,6 +72,15 @@ namespace Opc.Ua
         public UserIdentity(IssuedIdentityToken issuedToken)
         {
             Initialize(issuedToken);
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier
+        /// </summary>
+        [Obsolete("Use UserIdentityToken(X509IdentityToken, ITelemetryContext) instead.")]
+        public UserIdentity(X509IdentityToken x509Token)
+            : this (x509Token, null)
+        {
         }
 
         /// <summary>

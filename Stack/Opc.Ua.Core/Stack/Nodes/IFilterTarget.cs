@@ -119,6 +119,41 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the context.
         /// </summary>
+        [Obsolete("Use constructor with ITelemetryContext")]
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IOperationContext context)
+            : this(namespaceUris, typeTree, context, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the context.
+        /// </summary>
+        [Obsolete("Use constructor with ITelemetryContext")]
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree)
+            : this(namespaceUris, typeTree, (ITelemetryContext)null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the context.
+        /// </summary>
+        [Obsolete("Use constructor with ITelemetryContext")]
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IList<string> preferredLocales)
+            : this(namespaceUris, typeTree, preferredLocales, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the context.
+        /// </summary>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="context">The context.</param>
