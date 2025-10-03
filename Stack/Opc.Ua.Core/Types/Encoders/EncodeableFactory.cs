@@ -10,295 +10,96 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
-using System.Threading;
 using System.Xml;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Creates encodeable objects based on the type id.
+    /// The encodeable factory is now considered legacy and should not be
+    /// used anymore. Instead use the EncodeableRegistry directly. This
+    /// implementation wraps an encodable registry but at the expense that
+    /// the builder pattern is used very inefficiently.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// This factory is used to store and retrieve underlying OPC UA system types.
-    /// <br/></para>
-    /// <para>
-    /// You can manually add types. You can also import all types from a specified assembly.
-    /// Once the types exist within the factory, these types can be then easily queried.
-    /// <br/></para>
-    /// </remarks>
     public class EncodeableFactory : IEncodeableFactory
     {
         /// <summary>
         /// Creates a root factory initialized with the types in the core library.
         /// </summary>
-        public EncodeableFactory(ITelemetryContext telemetry)
+        public EncodeableFactory()
+            : this (EncodeableRegistry.Default)
         {
-            m_logger = telemetry.CreateLogger<EncodeableFactory>();
-            m_encodeableTypes = [];
-            AddEncodeableTypes(GetType().GetTypeInfo().Assembly);
         }
 
         /// <summary>
         /// Creates a factory by copying the table from another factory.
         /// </summary>
-        public EncodeableFactory(IEncodeableFactory factory, ITelemetryContext telemetry)
+        public EncodeableFactory(IEncodeableFactory factory)
+            : this (factory.AsRegistry())
         {
-            if (factory is EncodeableFactory encodeableFactory)
-            {
-                // If telemetry is null, use the original logger
-                m_logger = encodeableFactory.m_logger;
-                m_encodeableTypes = encodeableFactory.m_encodeableTypes;
-                m_copyOnWrite = true; // Copy on first write
-            }
-            else
-            {
-                m_encodeableTypes =
-                    new ConcurrentDictionary<ExpandedNodeId, Type>(factory.EncodeableTypes);
-                m_logger = telemetry.CreateLogger<EncodeableFactory>();
-            }
         }
 
         /// <summary>
-        /// The default factory for the process.
+        /// Creates a factory from a registry
         /// </summary>
-        /// <remarks>
-        /// The default factory for the process.
-        /// </remarks>
-        [Obsolete("Create a new root factory or clone an existing one")]
-        public static EncodeableFactory GlobalFactory { get; } = new(null);
-
-        /// <summary>
-        /// Returns the xml qualified name for the specified system type id.
-        /// </summary>
-        /// <remarks>
-        /// Returns the xml qualified name for the specified system type id.
-        /// </remarks>
-        /// <param name="systemType">The underlying type to query and return the Xml qualified name of</param>
-        public static XmlQualifiedName GetXmlName(Type systemType)
+        private EncodeableFactory(IImmutableEncodeableDictionary registry)
         {
-            if (systemType == null)
-            {
-                return null;
-            }
-
-            object[] attributes =
-            [
-                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)
-            ];
-
-            if (attributes != null)
-            {
-                for (int ii = 0; ii < attributes.Length; ii++)
-                {
-                    if (attributes[ii] is DataContractAttribute contract)
-                    {
-                        if (string.IsNullOrEmpty(contract.Name))
-                        {
-                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
-                        }
-
-                        return new XmlQualifiedName(contract.Name, contract.Namespace);
-                    }
-                }
-            }
-
-            attributes =
-            [
-                .. systemType.GetTypeInfo()
-                    .GetCustomAttributes(typeof(CollectionDataContractAttribute), true)
-            ];
-
-            if (attributes != null)
-            {
-                for (int ii = 0; ii < attributes.Length; ii++)
-                {
-                    if (attributes[ii] is CollectionDataContractAttribute contract)
-                    {
-                        if (string.IsNullOrEmpty(contract.Name))
-                        {
-                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
-                        }
-
-                        return new XmlQualifiedName(contract.Name, contract.Namespace);
-                    }
-                }
-            }
-
-            if (systemType == typeof(byte[]))
-            {
-                return new XmlQualifiedName("ByteString");
-            }
-
-            return new XmlQualifiedName(systemType.FullName);
+            m_registry = registry;
         }
 
         /// <summary>
-        /// Returns the xml qualified name for the specified object.
+        /// Adapt the registry as a factory.
         /// </summary>
-        /// <remarks>
-        /// Returns the xml qualified name for the specified object.
-        /// </remarks>
-        /// <param name="value">The object to query and return the Xml qualified name of</param>
-        /// <param name="context">Context</param>
-        public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
+        /// <param name="registry"></param>
+        /// <returns></returns>
+        public static EncodeableFactory From(IImmutableEncodeableDictionary registry)
         {
-            if (value is IDynamicComplexTypeInstance xmlEncodeable)
-            {
-                XmlQualifiedName xmlName = xmlEncodeable.GetXmlName(context);
-                if (xmlName != null)
-                {
-                    return xmlName;
-                }
-            }
-            return GetXmlName(value?.GetType());
+            return new EncodeableFactory(registry);
         }
 
-        /// <summary>
-        /// Adds an extension type to the factory.
-        /// </summary>
-        /// <param name="systemType">The underlying system type to add to the factory</param>
+        /// <inheritdoc/>
         public void AddEncodeableType(Type systemType)
         {
-            CopyOnWrite();
-            AddEncodeableType(systemType, null);
+            m_registry = m_registry
+                .Update(builder => builder.AddEncodeableType(systemType));
         }
 
-        /// <summary>
-        /// Associates an encodeable type with an encoding id.
-        /// </summary>
-        /// <param name="encodingId">A NodeId for a Data Type Encoding node</param>
-        /// <param name="systemType">The system type to use for the specified encoding.</param>
+        /// <inheritdoc/>
         public void AddEncodeableType(ExpandedNodeId encodingId, Type systemType)
         {
-            CopyOnWrite();
-            m_encodeableTypes[encodingId] = systemType;
+            m_registry = m_registry
+                .Update(builder => builder.AddEncodeableType(encodingId, systemType));
         }
 
-        /// <summary>
-        /// Adds all encodeable types exported from an assembly to the factory.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Adds all encodeable types exported from an assembly to the factory.
-        /// <br/></para>
-        /// <para>
-        /// This method uses reflection on the specified assembly to export all of the
-        /// types the assembly exposes, and automatically adds all types that implement
-        /// the <see cref="IEncodeable"/> interface, to the factory.
-        /// <br/></para>
-        /// </remarks>
-        /// <param name="assembly">The assembly containing the types to add to the factory</param>
+        /// <inheritdoc/>
         public void AddEncodeableTypes(Assembly assembly)
         {
-            if (assembly == null)
-            {
-                return;
-            }
-            CopyOnWrite();
-
-            Type[] systemTypes = assembly.GetExportedTypes();
-            var unboundTypeIds = new Dictionary<string, ExpandedNodeId>();
-
-            const string jsonEncodingSuffix = "_Encoding_DefaultJson";
-
-            for (int ii = 0; ii < systemTypes.Length; ii++)
-            {
-                if (systemTypes[ii].Name != "ObjectIds")
-                {
-                    continue;
-                }
-
-                foreach (
-                    FieldInfo field in systemTypes[ii].GetFields(
-                        BindingFlags.Static | BindingFlags.Public))
-                {
-                    if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
-                    {
-                        try
-                        {
-                            string name = field.Name[..^jsonEncodingSuffix.Length];
-                            object value = field.GetValue(null);
-
-                            if (value is NodeId nodeId)
-                            {
-                                unboundTypeIds[name] = new ExpandedNodeId(nodeId);
-                            }
-                            else
-                            {
-                                unboundTypeIds[name] = (ExpandedNodeId)value;
-                            }
-                        }
-                        catch
-                        {
-                            // ignore errors.
-                        }
-                    }
-                }
-            }
-
-            for (int ii = 0; ii < systemTypes.Length; ii++)
-            {
-                if (systemTypes[ii].GetTypeInfo().IsAbstract)
-                {
-                    continue;
-                }
-
-                AddEncodeableType(systemTypes[ii], unboundTypeIds);
-            }
-
-            // only needed while adding assembly types
-            unboundTypeIds.Clear();
+            m_registry = m_registry
+                .Update(builder => builder.AddEncodeableTypes(assembly));
         }
 
-        /// <summary>
-        /// Adds an enumerable of extension types to the factory.
-        /// </summary>
-        /// <param name="systemTypes">The underlying system types to add to the factory</param>
+        /// <inheritdoc/>
         public void AddEncodeableTypes(IEnumerable<Type> systemTypes)
         {
-            CopyOnWrite();
-
-            foreach (Type type in systemTypes)
-            {
-                if (type.GetTypeInfo().IsAbstract)
-                {
-                    continue;
-                }
-
-                AddEncodeableType(type, null);
-            }
+            m_registry = m_registry
+                .Update(builder => builder.AddEncodeableTypes(systemTypes));
         }
 
-        /// <summary>
-        /// Returns the system type for the specified type id.
-        /// </summary>
-        /// <remarks>
-        /// Returns the system type for the specified type id.
-        /// </remarks>
-        /// <param name="typeId">The type id to return the system-type of</param>
-        public Type GetSystemType(ExpandedNodeId typeId)
+        /// <inheritdoc/>
+        public Type? GetSystemType(ExpandedNodeId typeId)
         {
-            if (NodeId.IsNull(typeId) ||
-                !m_encodeableTypes.TryGetValue(typeId, out Type systemType))
-            {
-                return null;
-            }
-
-            return systemType;
+            return m_registry.GetSystemType(typeId);
         }
 
-        /// <summary>
-        /// The dictionary of encodeabe types.
-        /// </summary>
-        public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes => m_encodeableTypes;
+        /// <inheritdoc/>
+        public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes
+            => m_registry.EncodeableTypes;
 
         /// <inheritdoc/>
         public object Clone()
@@ -309,84 +110,277 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            return new EncodeableFactory(this, null);
+            return new EncodeableFactory(this);
         }
 
         /// <summary>
-        /// Adds an extension type to the factory.
+        /// The default factory for the process.
         /// </summary>
-        /// <param name="systemType">The underlying system type to add to the factory</param>
-        /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids referenced by object name.</param>
-        private void AddEncodeableType(
-            Type systemType,
-            Dictionary<string, ExpandedNodeId> unboundTypeIds)
+        [Obsolete("Create a new root factory or clone an existing one")]
+        public static EncodeableFactory GlobalFactory { get; } = new();
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified system type id.
+        /// </summary>
+        [Obsolete("Use TypeInfo.GetXmlName(Type) instead.")]
+        public static XmlQualifiedName GetXmlName(Type systemType)
         {
-            if (systemType == null)
+            return TypeInfo.GetXmlName(systemType);
+        }
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified object.
+        /// </summary>
+        [Obsolete("Use TypeInfo.GetXmlName(object, IServiceMessageContext) instead.")]
+        public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
+        {
+            return TypeInfo.GetXmlName(value, context);
+        }
+
+        /// <summary>
+        /// Get access to the internal registry implementation
+        /// </summary>
+        /// <returns></returns>
+        internal IImmutableEncodeableDictionary GetRegistry()
+        {
+            return m_registry;
+        }
+
+        private IImmutableEncodeableDictionary m_registry;
+    }
+
+    /// <summary>
+    /// Registers encodeable objects based on the type id to be used in encoders
+    /// and decoders.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This registry is used to store and retrieve underlying OPC UA system types.
+    /// <br/></para>
+    /// <para>
+    /// You can manually add types. You can also import all types from a specified
+    /// assembly. Once the types exist within the registry, these types can be then
+    /// easily queried.
+    /// <br/></para>
+    /// </remarks>
+    public sealed class EncodeableRegistry : IImmutableEncodeableDictionary
+    {
+        /// <summary>
+        /// Encodeable registry filled with all known encodeable types.
+        /// </summary>
+        public static IImmutableEncodeableDictionary Default { get; } = CreateDefaultRegistry();
+
+        /// <summary>
+        /// Create single instance of the encodeable registry.
+        /// </summary>
+        private EncodeableRegistry()
+        {
+            m_encodeableTypes = FrozenDictionary<ExpandedNodeId, Type>.Empty;
+        }
+
+        /// <summary>
+        /// Create single instance of the encodeable registry.
+        /// </summary>
+        private EncodeableRegistry(FrozenDictionary<ExpandedNodeId, Type> encodeableTypes)
+        {
+            m_encodeableTypes = encodeableTypes;
+        }
+
+        /// <inheritdoc/>
+        public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes => m_encodeableTypes;
+
+        /// <inheritdoc/>
+        public bool TryGetSystemType(ExpandedNodeId typeId, [NotNullWhen(true)] out Type? type)
+        {
+            return m_encodeableTypes.TryGetValue(typeId, out type);
+        }
+
+        /// <inheritdoc/>
+        public IImmutableEncodeableDictionary Update(Action<IImmutableEncodeableDictionaryBuilder> builder)
+        {
+            var registryBuilder = new EncodeableRegistryBuilder(this);
+            builder(registryBuilder);
+            return registryBuilder.Build();
+        }
+
+        /// <summary>
+        /// Registry builder
+        /// </summary>
+        private sealed class EncodeableRegistryBuilder : IImmutableEncodeableDictionaryBuilder
+        {
+            /// <summary>
+            /// Create builder based on existing registry
+            /// </summary>
+            public EncodeableRegistryBuilder(EncodeableRegistry registry)
             {
-                return;
+                m_registry = registry;
             }
 
-            if (!typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()))
+            /// <inheritdoc/>
+            public void AddEncodeableType(Type systemType)
             {
-                return;
+                AddEncodeableType(systemType, null);
             }
 
-            if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
+            /// <inheritdoc/>
+            public void AddEncodeableType(ExpandedNodeId encodingId, Type systemType)
             {
-                return;
+                m_encodeableTypes[encodingId] = systemType;
             }
 
-            ExpandedNodeId nodeId = encodeable.TypeId;
-
-            if (!NodeId.IsNull(nodeId))
+            /// <inheritdoc/>
+            public void AddEncodeableTypes(Assembly assembly)
             {
-                // check for default namespace.
-                if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                if (assembly == null)
                 {
-                    nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
+                    return;
                 }
 
-                m_encodeableTypes[nodeId] = systemType;
-            }
+                Type[] systemTypes = assembly.GetExportedTypes();
+                var unboundTypeIds = new Dictionary<string, ExpandedNodeId?>();
 
-            nodeId = encodeable.BinaryEncodingId;
+                const string jsonEncodingSuffix = "_Encoding_DefaultJson";
 
-            if (!NodeId.IsNull(nodeId))
-            {
-                // check for default namespace.
-                if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                for (int ii = 0; ii < systemTypes.Length; ii++)
                 {
-                    nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
+                    if (systemTypes[ii].Name != "ObjectIds")
+                    {
+                        continue;
+                    }
+
+                    foreach (
+                        FieldInfo field in systemTypes[ii].GetFields(
+                            BindingFlags.Static | BindingFlags.Public))
+                    {
+                        if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
+                        {
+                            try
+                            {
+                                string name = field.Name[..^jsonEncodingSuffix.Length];
+                                object? value = field.GetValue(null);
+
+                                if (value is NodeId nodeId)
+                                {
+                                    unboundTypeIds[name] = new ExpandedNodeId(nodeId);
+                                }
+                                else
+                                {
+                                    unboundTypeIds[name] = (ExpandedNodeId?)value;
+                                }
+                            }
+                            catch
+                            {
+                                // ignore errors.
+                            }
+                        }
+                    }
                 }
 
-                m_encodeableTypes[nodeId] = systemType;
-            }
-
-            try
-            {
-                nodeId = encodeable.XmlEncodingId;
-            }
-            catch (NotSupportedException)
-            {
-                nodeId = ExpandedNodeId.Null;
-            }
-
-            if (!NodeId.IsNull(nodeId))
-            {
-                // check for default namespace.
-                if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                for (int ii = 0; ii < systemTypes.Length; ii++)
                 {
-                    nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
+                    if (systemTypes[ii].GetTypeInfo().IsAbstract)
+                    {
+                        continue;
+                    }
+
+                    AddEncodeableType(systemTypes[ii], unboundTypeIds);
                 }
 
-                m_encodeableTypes[nodeId] = systemType;
+                // only needed while adding assembly types
+                unboundTypeIds.Clear();
             }
 
-            if (encodeable is IJsonEncodeable jsonEncodeable)
+            /// <inheritdoc/>
+            public void AddEncodeableTypes(IEnumerable<Type> systemTypes)
             {
+                foreach (Type type in systemTypes)
+                {
+                    if (type.GetTypeInfo().IsAbstract)
+                    {
+                        continue;
+                    }
+
+                    AddEncodeableType(type, null);
+                }
+            }
+
+            /// <summary>
+            /// Build the registry. Returns the original registry if nothing changed.
+            /// </summary>
+            /// <returns></returns>
+            internal IImmutableEncodeableDictionary Build()
+            {
+                if (m_encodeableTypes.Count == 0)
+                {
+                    return m_registry;
+                }
+                if (m_registry.m_encodeableTypes.Count == 0)
+                {
+                    return new EncodeableRegistry(m_encodeableTypes.ToFrozenDictionary());
+                }
+                var content = m_encodeableTypes.ToDictionary(k => k.Key, v => v.Value);
+                foreach (KeyValuePair<ExpandedNodeId, Type> item in m_registry.m_encodeableTypes)
+                {
+                    content[item.Key] = item.Value;
+                }
+                return new EncodeableRegistry(content.ToFrozenDictionary());
+            }
+
+            /// <summary>
+            /// Adds an extension type to the registry.
+            /// </summary>
+            /// <param name="systemType">The underlying system type to add to the registry</param>
+            /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
+            /// referenced by object name.</param>
+            private void AddEncodeableType(
+                Type systemType,
+                Dictionary<string, ExpandedNodeId?>? unboundTypeIds)
+            {
+                if (systemType == null)
+                {
+                    return;
+                }
+
+                if (!typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(
+                    systemType.GetTypeInfo()))
+                {
+                    return;
+                }
+
+                if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
+                {
+                    return;
+                }
+
+                ExpandedNodeId nodeId = encodeable.TypeId;
+
+                if (!NodeId.IsNull(nodeId))
+                {
+                    // check for default namespace.
+                    if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                    {
+                        nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
+                    }
+
+                    m_encodeableTypes[nodeId] = systemType;
+                }
+
+                nodeId = encodeable.BinaryEncodingId;
+
+                if (!NodeId.IsNull(nodeId))
+                {
+                    // check for default namespace.
+                    if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                    {
+                        nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
+                    }
+
+                    m_encodeableTypes[nodeId] = systemType;
+                }
+
                 try
                 {
-                    nodeId = jsonEncodeable.JsonEncodingId;
+                    nodeId = encodeable.XmlEncodingId;
                 }
                 catch (NotSupportedException)
                 {
@@ -403,41 +397,63 @@ namespace Opc.Ua
 
                     m_encodeableTypes[nodeId] = systemType;
                 }
-            }
-            else if (unboundTypeIds != null &&
-                unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId))
-            {
-                m_encodeableTypes[jsonEncodingId] = systemType;
-            }
-        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CopyOnWrite()
-        {
-            if (m_copyOnWrite)
-            {
-                CopyOnWriteLocked();
-
-                // Not inlined
-                void CopyOnWriteLocked()
+                if (encodeable is IJsonEncodeable jsonEncodeable)
                 {
-                    lock (m_lock)
+                    try
                     {
-                        if (!m_copyOnWrite)
+                        nodeId = jsonEncodeable.JsonEncodingId;
+                    }
+                    catch (NotSupportedException)
+                    {
+                        nodeId = ExpandedNodeId.Null;
+                    }
+
+                    if (!NodeId.IsNull(nodeId))
+                    {
+                        // check for default namespace.
+                        if (nodeId.NamespaceUri == Namespaces.OpcUa)
                         {
-                            return;
+                            nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
                         }
-                        m_encodeableTypes = new ConcurrentDictionary<ExpandedNodeId, Type>(
-                            m_encodeableTypes);
-                        m_copyOnWrite = false;
+
+                        m_encodeableTypes[nodeId] = systemType;
                     }
                 }
+                else if (unboundTypeIds != null &&
+                    unboundTypeIds.TryGetValue(systemType.Name,
+                        out ExpandedNodeId? jsonEncodingId) &&
+                    jsonEncodingId != null)
+                {
+                    m_encodeableTypes[jsonEncodingId] = systemType;
+                }
             }
+
+            private readonly EncodeableRegistry m_registry;
+            private readonly Dictionary<ExpandedNodeId, Type> m_encodeableTypes = [];
         }
 
-        private readonly Lock m_lock = new();
-        private readonly ILogger m_logger;
-        private ConcurrentDictionary<ExpandedNodeId, Type> m_encodeableTypes;
-        private bool m_copyOnWrite;
+        /// <summary>
+        /// Create a registry from a dictionary of encodeable types.
+        /// </summary>
+        /// <param name="encodeableTypes"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        internal static IImmutableEncodeableDictionary From(IReadOnlyDictionary<ExpandedNodeId, Type> encodeableTypes)
+        {
+            return new EncodeableRegistry(encodeableTypes.ToFrozenDictionary());
+        }
+
+        /// <summary>
+        /// Create default registry which contains all known encodeable types.
+        /// </summary>
+        private static IImmutableEncodeableDictionary CreateDefaultRegistry()
+        {
+            var builder = new EncodeableRegistryBuilder(new EncodeableRegistry());
+            builder.AddEncodeableTypes(typeof(EncodeableRegistry).Assembly);
+            return builder.Build();
+        }
+
+        private readonly FrozenDictionary<ExpandedNodeId, Type> m_encodeableTypes;
     }
 }
