@@ -127,45 +127,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
-            ApplicationConfiguration application,
-            ITransportWaitingConnection connection,
-            bool useSecurity,
-            CancellationToken ct = default)
-        {
-            return SelectEndpointAsync(
-                application,
-                connection,
-                useSecurity,
-                DefaultDiscoverTimeout,
-                null,
-                ct);
-        }
-
-        /// <summary>
-        /// Finds the endpoint that best matches the current settings.
-        /// </summary>
-        [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
-            ApplicationConfiguration application,
-            ITransportWaitingConnection connection,
-            bool useSecurity,
-            int discoverTimeout,
-            CancellationToken ct = default)
-        {
-            return SelectEndpointAsync(
-                application,
-                connection,
-                useSecurity,
-                discoverTimeout,
-                null,
-                ct);
-        }
-
-        /// <summary>
-        /// Finds the endpoint that best matches the current settings.
-        /// </summary>
         public static ValueTask<EndpointDescription> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
