@@ -136,7 +136,6 @@ namespace Opc.Ua.Client
                 null).AsTask().GetAwaiter().GetResult();
         }
 
-
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
