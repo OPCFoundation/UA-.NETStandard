@@ -26,7 +26,6 @@ namespace Opc.Ua.Test
         /// </summary>
         public DataComparer(IServiceMessageContext context)
         {
-            EncodeableFactory = new EncodeableFactory(context.Telemetry);
             m_context = context;
             ThrowOnError = true;
         }
@@ -1015,11 +1014,6 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
-        /// The factory to use when decoding extension objects.
-        /// </summary>
-        public IEncodeableFactory EncodeableFactory { get; }
-
-        /// <summary>
         /// Extracts the extension object body.
         /// </summary>
         /// <param name="value">Extension object.</param>
@@ -1033,22 +1027,17 @@ namespace Opc.Ua.Test
                 return encodeable;
             }
 
-            Type expectedType = EncodeableFactory.GetSystemType(value.TypeId);
+            Type expectedType = m_context.Factory.GetSystemType(value.TypeId);
 
             if (expectedType == null)
             {
                 return body;
             }
 
-            IServiceMessageContext context = new ServiceMessageContext(m_context.Telemetry)
-            {
-                Factory = EncodeableFactory
-            };
-
             if (body is XmlElement xml)
             {
-                XmlQualifiedName xmlName = Ua.EncodeableFactory.GetXmlName(expectedType);
-                using (var decoder = new XmlDecoder(xml, context))
+                XmlQualifiedName xmlName = Ua.TypeInfo.GetXmlName(expectedType);
+                using (var decoder = new XmlDecoder(xml, m_context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);
                     body = decoder.ReadEncodeable(xmlName.Name, expectedType);
@@ -1060,7 +1049,7 @@ namespace Opc.Ua.Test
 
             if (body is byte[] bytes)
             {
-                using (var decoder = new BinaryDecoder(bytes, context))
+                using (var decoder = new BinaryDecoder(bytes, m_context))
                 {
                     body = decoder.ReadEncodeable(null, expectedType);
                 }

@@ -41,7 +41,7 @@ namespace Opc.Ua
             MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
-            m_factory = new EncodeableFactory(telemetry);
+            m_factory = EncodeableFactory.Create();
         }
 
         /// <summary>
@@ -60,7 +60,7 @@ namespace Opc.Ua
             MaxDecoderRecoveries = context.MaxDecoderRecoveries;
             m_namespaceUris = new NamespaceTable(context.NamespaceUris);
             m_serverUris = new StringTable(context.ServerUris);
-            m_factory = new EncodeableFactory(context.Factory, telemetry);
+            m_factory = context.Factory;
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_factory = new EncodeableFactory(Telemetry);
+                    m_factory = EncodeableFactory.Create();
                     return;
                 }
 

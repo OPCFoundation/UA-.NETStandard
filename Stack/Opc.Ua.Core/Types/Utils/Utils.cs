@@ -2142,7 +2142,7 @@ namespace Opc.Ua
             if (elementName == null)
             {
                 // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
+                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
 
                 elementName =
                     qname ??
@@ -2229,7 +2229,7 @@ namespace Opc.Ua
             if (elementName == null)
             {
                 // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
+                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
 
                 elementName =
                     qname ??
