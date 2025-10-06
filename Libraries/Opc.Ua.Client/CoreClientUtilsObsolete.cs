@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -133,5 +135,71 @@ namespace Opc.Ua.Client
                 discoverTimeout,
                 null).AsTask().GetAwaiter().GetResult();
         }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
+        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            bool useSecurity,
+            CancellationToken ct = default)
+        {
+            return SelectEndpointAsync(
+                application,
+                connection,
+                useSecurity,
+                DefaultDiscoverTimeout,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
+        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            bool useSecurity,
+            int discoverTimeout,
+            CancellationToken ct = default)
+        {
+            return SelectEndpointAsync(
+                application,
+                connection,
+                useSecurity,
+                discoverTimeout,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Selects the endpoint that best matches the current settings.
+        /// </summary>
+        /// <param name="application"></param>
+        /// <param name="discoveryUrl"></param>
+        /// <param name="useSecurity"></param>
+        /// <param name="discoverTimeout"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
+        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+            ApplicationConfiguration application,
+            string discoveryUrl,
+            bool useSecurity,
+            int discoverTimeout,
+            CancellationToken ct = default)
+        {
+            return SelectEndpointAsync(
+                application,
+                discoveryUrl,
+                useSecurity,
+                discoverTimeout,
+                null,
+                ct);
+        }
+
     }
 }

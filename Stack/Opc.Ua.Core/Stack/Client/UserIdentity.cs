@@ -107,6 +107,14 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
+        [Obsolete("Use UserIdentityToken(X509Certificate2, ITelemetryContext) instead.")]
+        public UserIdentity(X509Certificate2 certificate) : this(certificate, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate
+        /// </summary>
         public UserIdentity(X509Certificate2 certificate, ITelemetryContext telemetry)
         {
             if (certificate == null)
