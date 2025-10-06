@@ -366,6 +366,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Picks the certificate with the longest duration.
+        /// If multiple certificates have the same duration, pick the one with the latest NotAfter date.
+        /// </summary>
+        /// <param name="collection"></param>
+        /// <returns></returns>
+        static X509Certificate2 PickLongestDuration(X509Certificate2Collection collection)
+        {
+            X509Certificate2 bestMatch = null;
+            TimeSpan bestAvailability = TimeSpan.MinValue;
+            DateTime bestNotAfter = DateTime.MinValue;
+
+            foreach (X509Certificate2 certificate in collection)
+            {
+                TimeSpan availability = certificate.NotAfter - certificate.NotBefore;
+
+                if (availability > bestAvailability ||
+                    (availability == bestAvailability && certificate.NotAfter > bestNotAfter))
+                {
+                    bestMatch = certificate;
+                    bestAvailability = availability;
+                    bestNotAfter = certificate.NotAfter;
+                }
+            }
+
+            return bestMatch;
+        }
+
+        /// <summary>
         /// Finds a certificate in the specified collection.
         /// </summary>
         /// <param name="collection">The collection.</param>
@@ -407,6 +435,9 @@ namespace Opc.Ua
 
                 return null;
             }
+
+            X509Certificate2Collection matchesOnCriteria = null;
+
             // find by subject name.
             if (!string.IsNullOrEmpty(subjectName))
             {
@@ -419,30 +450,62 @@ namespace Opc.Ua
                     {
                         if (!needPrivateKey || certificate.HasPrivateKey)
                         {
-                            return certificate;
+                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
                         }
                     }
                 }
-
-                var simpleNameMatches = collection.Find(X509FindType.FindBySubjectName, subjectName, false)
-                    .Cast<X509Certificate2>()
-                    .Where(cert => string.Equals(
-                        cert.GetNameInfo(X509NameType.SimpleName, forIssuer: false),
-                        subjectName,
-                        StringComparison.Ordinal))
-                    .ToArray();
-
-                if (simpleNameMatches.Length > 0)
+                if (matchesOnCriteria?.Count > 0)
                 {
-                    collection = [.. simpleNameMatches];
+                    return PickLongestDuration(matchesOnCriteria);
+                }
 
-                    foreach (X509Certificate2 certificate in collection)
+                bool hasCommonName = subjectName.IndexOf("CN=", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                if (hasCommonName)
+                {
+                    string commonNameEntry = subjectName2
+                        .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
+                    string commonName = commonNameEntry?.Length > 3
+                        ? commonNameEntry.Substring(3).Trim()
+                        : null;
+
+                    if (!string.IsNullOrEmpty(commonName))
+                    {
+                        foreach (X509Certificate2 certificate in collection)
+                        {
+                            if (ValidateCertificateType(certificate, certificateType) &&
+                                (!needPrivateKey || certificate.HasPrivateKey) &&
+                                string.Equals(
+                                    certificate.GetNameInfo(X509NameType.SimpleName, false),
+                                    commonName,
+                                    StringComparison.Ordinal))
+                            {
+                                (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                            }
+                        }
+                        if (matchesOnCriteria?.Count > 0)
+                        {
+                            return PickLongestDuration(matchesOnCriteria);
+                        }
+                    }
+                }
+                else
+                {
+                    X509Certificate2Collection fuzzyMatches = collection.Find(
+                        X509FindType.FindBySubjectName,
+                        subjectName,
+                        false);
+                    foreach (X509Certificate2 certificate in fuzzyMatches)
                     {
                         if (ValidateCertificateType(certificate, certificateType) &&
                             (!needPrivateKey || certificate.HasPrivateKey))
                         {
-                            return certificate;
+                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
                         }
+                    }
+                    if (matchesOnCriteria?.Count > 0)
+                    {
+                        return PickLongestDuration(matchesOnCriteria);
                     }
                 }
             }
@@ -456,8 +519,12 @@ namespace Opc.Ua
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {
-                        return certificate;
+                        (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
                     }
+                }
+                if (matchesOnCriteria?.Count > 0)
+                {
+                    return PickLongestDuration(matchesOnCriteria);
                 }
             }
 
