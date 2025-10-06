@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua
@@ -38,12 +39,12 @@ namespace Opc.Ua
     /// these types can then be easily queried.
     /// <br/></para>
     /// </remarks>
-    public class EncodeableFactory : IEncodeableFactory
+    public sealed class EncodeableFactory : IEncodeableFactory
     {
         /// <summary>
         /// The default factory for the process.
         /// </summary>
-        [Obsolete("Obtain a factory from a context")]
+        [Obsolete("Obtain a factory from a context or use EncodeableFactory.Create()")]
         public static EncodeableFactory GlobalFactory { get; } = new();
 
         /// <summary>
@@ -74,7 +75,7 @@ namespace Opc.Ua
         /// Create a new encodeble factory initialized with all known types.
         /// </summary>
         /// <returns></returns>
-        internal static IEncodeableFactory Create()
+        public static IEncodeableFactory Create()
         {
             return new EncodeableFactory(Root);
         }
@@ -83,14 +84,18 @@ namespace Opc.Ua
         public IEncodeableFactoryBuilder Builder => new EncodeableFactoryBuilder(this);
 
         /// <inheritdoc/>
-        public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes
-            => m_encodeableTypes;
+        public IEnumerable<ExpandedNodeId> KnownTypes => m_encodeableTypes.Keys;
 
         /// <inheritdoc/>
         public bool TryGetSystemType(
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out Type? systemType)
         {
+            if (NodeId.IsNull(typeId))
+            {
+                systemType = null;
+                return false;
+            }
             return m_encodeableTypes.TryGetValue(typeId, out systemType);
         }
 
@@ -152,7 +157,10 @@ namespace Opc.Ua
                 ExpandedNodeId encodingId,
                 Type systemType)
             {
-                m_encodeableTypes[encodingId] = systemType;
+                if (!NodeId.IsNull(encodingId))
+                {
+                    m_encodeableTypes[encodingId] = systemType;
+                }
                 return this;
             }
 
@@ -220,8 +228,25 @@ namespace Opc.Ua
                 return this;
             }
 
+            /// <inheritdoc/>
+            public bool TryGetSystemType(
+                ExpandedNodeId typeId,
+                [NotNullWhen(true)] out Type? systemType)
+            {
+                if (NodeId.IsNull(typeId))
+                {
+                    systemType = null;
+                    return false;
+                }
+                return m_encodeableTypes.TryGetValue(typeId, out systemType) ||
+                    m_factory.TryGetSystemType(typeId, out systemType);
+            }
+
             /// <summary>
             /// Build the factory. Returns the original factory if nothing changed.
+            /// Uses a lock free algorithm to update the factory which could be
+            /// rather heavy in case of multiple threads updating the factory at
+            /// the same time. We assume this is a rare case.
             /// </summary>
             /// <returns></returns>
             public void Commit()
@@ -230,23 +255,33 @@ namespace Opc.Ua
                 {
                     return;
                 }
-                lock (m_factory)
+                FrozenDictionary<ExpandedNodeId, Type> current;
+                FrozenDictionary<ExpandedNodeId, Type> replacement;
+                do
                 {
-                    if (m_factory.m_encodeableTypes.Count == 0)
+                    current = m_factory.m_encodeableTypes;
+                    if (current.Count == 0)
                     {
-                        m_factory.m_encodeableTypes =
-                            m_encodeableTypes.ToFrozenDictionary();
+                        // If empty just replace with a frozen copy
+                        replacement = m_encodeableTypes.ToFrozenDictionary();
                     }
-                    var encodeableTypes = m_factory.m_encodeableTypes
-                        .ToDictionary(k => k.Key, v => v.Value);
-                    foreach (KeyValuePair<ExpandedNodeId, Type> item in
-                        m_encodeableTypes)
+                    else
                     {
-                        encodeableTypes[item.Key] = item.Value;
+                        // Merge changes over the current state
+                        var encodeableTypes = current
+                            .ToDictionary(k => k.Key, v => v.Value);
+                        foreach (KeyValuePair<ExpandedNodeId, Type> item in
+                            m_encodeableTypes)
+                        {
+                            encodeableTypes[item.Key] = item.Value;
+                        }
+                        // Re-freeze
+                        replacement = encodeableTypes.ToFrozenDictionary();
                     }
-                    m_factory.m_encodeableTypes =
-                        encodeableTypes.ToFrozenDictionary();
                 }
+                while (Interlocked.CompareExchange(ref m_factory.m_encodeableTypes, replacement,
+                    current) != current);
+                m_encodeableTypes.Clear();
             }
 
             /// <summary>
@@ -375,6 +410,14 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Frozen dictionary perform well for > 100 items with hits
+        /// Lower sizes perform well in case of misses (no type found).
+        /// The default size of the root factory is 1.5k entries.
+        /// We assume most factories will be larger. More benchmarking
+        /// must be done and improvements can be made to ensure
+        /// ExpandedNodeId produces a good hash.
+        /// </summary>
         private FrozenDictionary<ExpandedNodeId, Type> m_encodeableTypes;
     }
 }

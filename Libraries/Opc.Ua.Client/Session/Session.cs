@@ -226,7 +226,7 @@ namespace Opc.Ua.Client
             m_sessionTimeout = 0;
             NamespaceUris = new NamespaceTable();
             ServerUris = new StringTable();
-            Factory = new EncodeableFactory(m_telemetry);
+            Factory = EncodeableFactory.Create();
             m_configuration = null;
             m_instanceCertificate = null;
             m_endpoint = null;

@@ -33,24 +33,30 @@ namespace Opc.Ua
     /// FrozenDictionary depending on the target runtime.
     /// </para>
     /// </summary>
-    public interface IEncodeableFactory
+    public interface IEncodeableFactory : ISystemTypeLookup
     {
         /// <summary>
         /// The dictionary of encodeable types.
         /// </summary>
-        IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes { get; }
+        IEnumerable<ExpandedNodeId> KnownTypes { get; }
 
         /// <summary>
         /// Get a factory builder.
         /// </summary>
         IEncodeableFactoryBuilder Builder { get; }
+    }
 
+    /// <summary>
+    /// Lookup encodeable system types by type id.
+    /// </summary>
+    public interface ISystemTypeLookup
+    {
         /// <summary>
         /// Returns the system type for the specified type id.
         /// </summary>
         /// <param name="typeId">The type id to return the type of</param>
-        /// <param name="systemType">The returned system type if found</param>
-        /// <returns><code>True</code> if found.</returns>
+        /// <param name="systemType">System type found</param>
+        /// <returns><c>True</c> if found.</returns>
         bool TryGetSystemType(
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out Type? systemType);
@@ -67,7 +73,7 @@ namespace Opc.Ua
     /// immutable encodeable factory.
     /// </para>
     /// </summary>
-    public interface IEncodeableFactoryBuilder
+    public interface IEncodeableFactoryBuilder : ISystemTypeLookup
     {
         /// <summary>
         /// Adds an extension type to the factory builder.
@@ -105,7 +111,8 @@ namespace Opc.Ua
         IEncodeableFactoryBuilder AddEncodeableTypes(Assembly assembly);
 
         /// <summary>
-        /// Commit the changes to the encodeable factory.
+        /// Commit the changes to the encodeable factory. The builder
+        /// can be re-used after commit to make more changes.
         /// </summary>
         void Commit();
     }
@@ -128,18 +135,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get system type
+        /// Returns the system type for the datatype.
         /// </summary>
-        /// <param name="factory"></param>
-        /// <param name="typeId"></param>
-        /// <returns></returns>
-        public static Type? GetSystemType(
-            this IEncodeableFactory factory,
-            ExpandedNodeId typeId)
+        /// <param name="lookup">The lookup capability.</param>
+        /// <param name="typeId">The type id.</param>
+        /// <returns>The system type for the <paramref name="typeId"/>.</returns>
+        public static Type? GetSystemType(this ISystemTypeLookup lookup, ExpandedNodeId typeId)
         {
-            return factory.TryGetSystemType(typeId, out Type? type)
-                ? type
-                : null;
+            return lookup.TryGetSystemType(typeId, out Type? systemType) ? systemType : null;
         }
 
         /// <summary>
@@ -160,8 +163,7 @@ namespace Opc.Ua
             ExpandedNodeId encodingId,
             Type systemType)
         {
-
-            factory.Builder.AddEncodeableType(systemType).Commit();
+            factory.Builder.AddEncodeableType(encodingId, systemType).Commit();
         }
 
         /// <summary>
@@ -183,7 +185,7 @@ namespace Opc.Ua
             IEnumerable<Type> systemTypes)
         {
             var builder = factory.Builder;
-            foreach (var systemType in systemTypes)
+            foreach (Type systemType in systemTypes)
             {
                 builder.AddEncodeableType(systemType);
             }

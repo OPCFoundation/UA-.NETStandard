@@ -617,7 +617,7 @@ namespace Opc.Ua
         /// <param name="datatypeId">The datatype id.</param>
         /// <param name="factory">The factory used to store and retrieve underlying OPC UA system types.</param>
         /// <returns>The system type for the <paramref name="datatypeId"/>.</returns>
-        public static Type GetSystemType(ExpandedNodeId datatypeId, IEncodeableFactory factory)
+        public static Type GetSystemType(ExpandedNodeId datatypeId, ISystemTypeLookup factory)
         {
             if (datatypeId == null)
             {
