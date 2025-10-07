@@ -363,180 +363,195 @@ namespace Opc.Ua.Client.Tests
             const uint expectedHours = 1;
             const uint expectedLifetime = 36000;
 
-            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            ISession transferSession = null;
+
+            try
             {
-                KeepAliveCount = keepAliveCount,
-                LifetimeCount = lifetimeCount,
-                PublishingInterval = publishingInterval,
-                MinLifetimeInterval = 1500
-            };
 
-            subscription.StateChanged += (s, e) =>
-                TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
-
-            Assert.True(Session.AddSubscription(subscription));
-            await subscription.CreateAsync().ConfigureAwait(false);
-
-            // Give some time to allow for the true browse of items
-            await Task.Delay(500).ConfigureAwait(false);
-
-            Dictionary<string, NodeId> desiredNodeIds =
-                await GetDesiredNodeIdsAsync(subscription.Id).ConfigureAwait(false);
-            Dictionary<string, object> initialValues =
-                await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
-
-            if (setSubscriptionDurable)
-            {
-                (bool success, uint revisedLifetimeInHours) =
-                    await subscription.SetSubscriptionDurableAsync(requestedHours).ConfigureAwait(false);
-                Assert.True(success);
-                Assert.AreEqual(expectedHours, revisedLifetimeInHours);
-
-                await ValidateDataValueAsync(desiredNodeIds, "MaxLifetimeCount", expectedLifetime)
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                await ValidateDataValueAsync(desiredNodeIds, "MaxLifetimeCount", lifetimeCount)
-                    .ConfigureAwait(false);
-            }
-
-            var testSet = new List<NodeId>();
-            testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
-            var valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
-
-            var monitoredItemsList = new List<MonitoredItem>();
-            foreach (NodeId nodeId in testSet)
-            {
-                if (nodeId.IdType == IdType.String)
+                var subscription = new TestableSubscription(Session.DefaultSubscription)
                 {
-                    valueTimeStamps.Add(nodeId, []);
-                    var monitoredItem = new MonitoredItem(subscription.DefaultItem)
-                    {
-                        StartNodeId = nodeId,
-                        SamplingInterval = 1000,
-                        QueueSize = 100
-                    };
-                    monitoredItem.Notification += (item, _) =>
-                    {
-                        List<DateTime> list = valueTimeStamps[nodeId];
+                    KeepAliveCount = keepAliveCount,
+                    LifetimeCount = lifetimeCount,
+                    PublishingInterval = publishingInterval,
+                    MinLifetimeInterval = 1500
+                };
 
-                        foreach (DataValue value in item.DequeueValues())
-                        {
-                            list.Add(value.SourceTimestamp);
-                        }
-                    };
+                subscription.StateChanged += (s, e) =>
+                    TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
 
-                    monitoredItemsList.Add(monitoredItem);
+                Assert.True(Session.AddSubscription(subscription));
+                await subscription.CreateAsync().ConfigureAwait(false);
+
+                // Give some time to allow for the true browse of items
+                await Task.Delay(500).ConfigureAwait(false);
+
+                Dictionary<string, NodeId> desiredNodeIds =
+                    await GetDesiredNodeIdsAsync(subscription.Id).ConfigureAwait(false);
+                Dictionary<string, object> initialValues =
+                    await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
+
+                if (setSubscriptionDurable)
+                {
+                    (bool success, uint revisedLifetimeInHours) =
+                        await subscription.SetSubscriptionDurableAsync(requestedHours).ConfigureAwait(false);
+                    Assert.True(success);
+                    Assert.AreEqual(expectedHours, revisedLifetimeInHours);
+
+                    await ValidateDataValueAsync(desiredNodeIds, "MaxLifetimeCount", expectedLifetime)
+                        .ConfigureAwait(false);
                 }
-            }
-
-            //Add Event Monitored Item
-            monitoredItemsList.Add(CreateEventMonitoredItem(100));
-
-            DateTime startTime = DateTime.UtcNow;
-
-            subscription.AddItems(monitoredItemsList);
-            await subscription.ApplyChangesAsync().ConfigureAwait(false);
-            await Task.Delay(2000).ConfigureAwait(false);
-
-            Dictionary<string, object> closeValues =
-                await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
-
-            var subscriptions = new SubscriptionCollection(Session.Subscriptions);
-            DateTime closeTime = DateTime.UtcNow;
-            TestContext.Out.WriteLine("Session Id {0} Closed at {1}",
-                Session.SessionId, closeTime);
-
-            await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
-
-            if (restartServer)
-            {
-                // if durable subscription the server will restore the subscription
-                ReferenceServer.Stop();
-                ReferenceServer.Start(ServerFixture.Config);
-            }
-            else
-            {
-                // Subscription should time out with initial lifetime count
-                await Task.Delay(3000).ConfigureAwait(false);
-            }
-
-            DateTime restartTime = DateTime.UtcNow;
-            ISession transferSession = await ClientFixture
-                .ConnectAsync(
-                    ServerUrl,
-                    SecurityPolicies.Basic256Sha256,
-                    null,
-                    new UserIdentity("sysadmin", "demo"))
-                .ConfigureAwait(false);
-
-            bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
-                .ConfigureAwait(false);
-
-            Assert.AreEqual(
-                setSubscriptionDurable,
-                result,
-                "SetSubscriptionDurable = " +
-                setSubscriptionDurable.ToString() +
-                " Transfer Result " +
-                result.ToString() +
-                " Expected " +
-                setSubscriptionDurable);
-
-            if (setSubscriptionDurable && !restartServer)
-            {
-                // New Session and Transfer
-                await Task.Delay(4000).ConfigureAwait(false);
-
-                DateTime completionTime = DateTime.UtcNow;
-
-                await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
-
-                const double tolerance = 2500;
-
-                TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
-                TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
-                TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
-                TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
-
-                // Validate
-                foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
+                else
                 {
-                    DateTime previous = startTime;
+                    await ValidateDataValueAsync(desiredNodeIds, "MaxLifetimeCount", lifetimeCount)
+                        .ConfigureAwait(false);
+                }
 
-                    for (int index = 0; index < pair.Value.Count; index++)
+                var testSet = new List<NodeId>();
+                testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
+                var valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
+
+                var monitoredItemsList = new List<MonitoredItem>();
+                foreach (NodeId nodeId in testSet)
+                {
+                    if (nodeId.IdType == IdType.String)
                     {
-                        DateTime timestamp = pair.Value[index];
-
-                        TimeSpan timeSpan = timestamp - previous;
-                        TestContext.Out.WriteLine(
-                            $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} " +
-                            $"Previous: {DateTimeMs(previous)} " +
-                            $"Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
-
-                        Assert.Less(
-                            Math.Abs(timeSpan.TotalMilliseconds),
-                            tolerance,
-                            $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
-
-                        previous = timestamp;
-
-                        if (index == pair.Value.Count - 1)
+                        valueTimeStamps.Add(nodeId, []);
+                        var monitoredItem = new MonitoredItem(subscription.DefaultItem)
                         {
-                            TimeSpan finalTimeSpan = completionTime - timestamp;
+                            StartNodeId = nodeId,
+                            SamplingInterval = 1000,
+                            QueueSize = 100
+                        };
+                        monitoredItem.Notification += (item, _) =>
+                        {
+                            List<DateTime> list = valueTimeStamps[nodeId];
+
+                            foreach (DataValue value in item.DequeueValues())
+                            {
+                                list.Add(value.SourceTimestamp);
+                            }
+                        };
+
+                        monitoredItemsList.Add(monitoredItem);
+                    }
+                }
+
+                //Add Event Monitored Item
+                monitoredItemsList.Add(CreateEventMonitoredItem(100));
+
+                DateTime startTime = DateTime.UtcNow;
+
+                subscription.AddItems(monitoredItemsList);
+                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+                await Task.Delay(2000).ConfigureAwait(false);
+
+                Dictionary<string, object> closeValues =
+                    await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
+
+                var subscriptions = new SubscriptionCollection(Session.Subscriptions);
+                DateTime closeTime = DateTime.UtcNow;
+                TestContext.Out.WriteLine("Session Id {0} Closed at {1}",
+                    Session.SessionId, closeTime);
+
+                await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
+                Session = null;
+
+                if (restartServer)
+                {
+                    // if durable subscription the server will restore the subscription
+                    ReferenceServer.Stop();
+                    ReferenceServer.Start(ServerFixture.Config);
+                }
+                else
+                {
+                    // Subscription should time out with initial lifetime count
+                    await Task.Delay(3000).ConfigureAwait(false);
+                }
+
+                DateTime restartTime = DateTime.UtcNow;
+                transferSession = await ClientFixture
+                    .ConnectAsync(
+                        ServerUrl,
+                        SecurityPolicies.Basic256Sha256,
+                        null,
+                        new UserIdentity("sysadmin", "demo"))
+                    .ConfigureAwait(false);
+
+                bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
+                    .ConfigureAwait(false);
+
+                Assert.AreEqual(
+                    setSubscriptionDurable,
+                    result,
+                    "SetSubscriptionDurable = " +
+                    setSubscriptionDurable.ToString() +
+                    " Transfer Result " +
+                    result.ToString() +
+                    " Expected " +
+                    setSubscriptionDurable);
+
+                if (setSubscriptionDurable && !restartServer)
+                {
+                    // New Session and Transfer
+                    await Task.Delay(4000).ConfigureAwait(false);
+
+                    DateTime completionTime = DateTime.UtcNow;
+
+                    await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
+
+                    const double tolerance = 2500;
+
+                    TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
+                    TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
+                    TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
+                    TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
+
+                    // Validate
+                    foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
+                    {
+                        DateTime previous = startTime;
+
+                        for (int index = 0; index < pair.Value.Count; index++)
+                        {
+                            DateTime timestamp = pair.Value[index];
+
+                            TimeSpan timeSpan = timestamp - previous;
+                            TestContext.Out.WriteLine(
+                                $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} " +
+                                $"Previous: {DateTimeMs(previous)} " +
+                                $"Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
+
                             Assert.Less(
-                                Math.Abs(finalTimeSpan.TotalMilliseconds),
-                                tolerance * 2,
-                                $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
+                                Math.Abs(timeSpan.TotalMilliseconds),
+                                tolerance,
+                                $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
+
+                            previous = timestamp;
+
+                            if (index == pair.Value.Count - 1)
+                            {
+                                TimeSpan finalTimeSpan = completionTime - timestamp;
+                                Assert.Less(
+                                    Math.Abs(finalTimeSpan.TotalMilliseconds),
+                                    tolerance * 2,
+                                    $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
+                            }
                         }
                     }
                 }
+                else if (setSubscriptionDurable)
+                {
+                    Assert.True(await transferSession.RemoveSubscriptionAsync(subscription)
+                        .ConfigureAwait(false));
+                }
             }
-            else if (setSubscriptionDurable)
+            finally
             {
-                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription)
-                    .ConfigureAwait(false));
+                if (transferSession != null)
+                {
+                    await transferSession.CloseAsync().ConfigureAwait(false);
+                    transferSession.Dispose();
+                }
             }
         }
 
@@ -795,4 +810,25 @@ namespace Opc.Ua.Client.Tests
                 dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
         }
     }
+
+#if DEBUG // Force failure on loop test in debug mode
+    [TestFixture]
+    public class DurableSubscriptionTestLooper
+    {
+        [Test]
+        public async Task TransferLoopTestAsync()
+        {
+            var test = new DurableSubscriptionTest();
+            await test.OneTimeSetUpAsync().ConfigureAwait(false);
+            for (int i = 0; i < 100; i++)
+            {
+                await test.SetUpAsync().ConfigureAwait(false);
+                await test.TestSessionTransferAsync(true, false).ConfigureAwait(false);
+                await test.TearDownAsync().ConfigureAwait(false);
+                TestContext.Out.WriteLine($"Completed {i} loop of TransferLoopTestAsync");
+            }
+            await test.OneTimeTearDownAsync().ConfigureAwait(false);
+        }
+    }
+#endif
 }
