@@ -95,7 +95,13 @@ namespace Opc.Ua
                 var keyValuePairs = new Dictionary<uint, string>();
                 foreach (FieldInfo field in fields)
                 {
-                    keyValuePairs.Add((uint)field.GetValue(typeof(StatusCodes)), field.Name);
+                    if (field.FieldType == typeof(uint))
+                    {
+                        uint value = Convert.ToUInt32(
+                            field.GetValue(typeof(StatusCodes)),
+                            System.Globalization.CultureInfo.InvariantCulture);
+                        keyValuePairs.Add(value, field.Name);
+                    }
                 }
 #if NET8_0_OR_GREATER
                 return keyValuePairs.ToFrozenDictionary();
@@ -116,8 +122,14 @@ namespace Opc.Ua
                 var keyValuePairs = new Dictionary<uint, byte[]>();
                 foreach (FieldInfo field in fields)
                 {
-                    keyValuePairs.Add((uint)field.GetValue(typeof(StatusCodes)),
-                        System.Text.Encoding.UTF8.GetBytes(field.Name));
+                    if (field.FieldType == typeof(uint))
+                    {
+                        uint value = Convert.ToUInt32(
+                            field.GetValue(typeof(StatusCodes)),
+                            System.Globalization.CultureInfo.InvariantCulture);
+                        keyValuePairs.Add(value,
+                            System.Text.Encoding.UTF8.GetBytes(field.Name));
+                    }
                 }
 
 #if NET8_0_OR_GREATER
