@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// </summary>
         private EncodeableFactory()
         {
-            m_encodeableTypes = FrozenDictionary<ExpandedNodeId, Type>.Empty;
+            m_encodeableTypes = FrozenDictionary<ExpandedNodeId, IEncodeableType>.Empty;
         }
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create single instance of the encodeable factory.
         /// </summary>
-        private EncodeableFactory(FrozenDictionary<ExpandedNodeId, Type> encodeableTypes)
+        private EncodeableFactory(FrozenDictionary<ExpandedNodeId, IEncodeableType> encodeableTypes)
         {
             m_encodeableTypes = encodeableTypes;
         }
@@ -84,12 +84,12 @@ namespace Opc.Ua
         public IEncodeableFactoryBuilder Builder => new EncodeableFactoryBuilder(this);
 
         /// <inheritdoc/>
-        public IEnumerable<ExpandedNodeId> KnownTypes => m_encodeableTypes.Keys;
+        public IEnumerable<ExpandedNodeId> KnownTypeIds => m_encodeableTypes.Keys;
 
         /// <inheritdoc/>
-        public bool TryGetSystemType(
+        public bool TryGetEncodeableType(
             ExpandedNodeId typeId,
-            [NotNullWhen(true)] out Type? systemType)
+            [NotNullWhen(true)] out IEncodeableType? systemType)
         {
             if (NodeId.IsNull(typeId))
             {
@@ -159,8 +159,37 @@ namespace Opc.Ua
             {
                 if (!NodeId.IsNull(encodingId))
                 {
-                    m_encodeableTypes[encodingId] = systemType;
+                    IEncodeableType? type = ReflectionBasedType.From(systemType);
+                    if (type != null)
+                    {
+                        m_encodeableTypes[encodingId] = type;
+                    }
                 }
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEncodeableType(IEncodeableType type)
+            {
+                if (type == null)
+                {
+                    throw new ArgumentNullException(nameof(type));
+                }
+                AddEncodeableType(type, null);
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEncodeableType(
+                ExpandedNodeId encodingId,
+                IEncodeableType type)
+            {
+                if (NodeId.IsNull(encodingId))
+                {
+                    throw new ArgumentNullException(nameof(encodingId));
+                }
+                m_encodeableTypes[encodingId] = type ??
+                    throw new ArgumentNullException(nameof(type));
                 return this;
             }
 
@@ -229,9 +258,9 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public bool TryGetSystemType(
+            public bool TryGetEncodeableType(
                 ExpandedNodeId typeId,
-                [NotNullWhen(true)] out Type? systemType)
+                [NotNullWhen(true)] out IEncodeableType? systemType)
             {
                 if (NodeId.IsNull(typeId))
                 {
@@ -239,7 +268,7 @@ namespace Opc.Ua
                     return false;
                 }
                 return m_encodeableTypes.TryGetValue(typeId, out systemType) ||
-                    m_factory.TryGetSystemType(typeId, out systemType);
+                    m_factory.TryGetEncodeableType(typeId, out systemType);
             }
 
             /// <summary>
@@ -255,8 +284,8 @@ namespace Opc.Ua
                 {
                     return;
                 }
-                FrozenDictionary<ExpandedNodeId, Type> current;
-                FrozenDictionary<ExpandedNodeId, Type> replacement;
+                FrozenDictionary<ExpandedNodeId, IEncodeableType> current;
+                FrozenDictionary<ExpandedNodeId, IEncodeableType> replacement;
                 do
                 {
                     current = m_factory.m_encodeableTypes;
@@ -270,7 +299,7 @@ namespace Opc.Ua
                         // Merge changes over the current state
                         var encodeableTypes = current
                             .ToDictionary(k => k.Key, v => v.Value);
-                        foreach (KeyValuePair<ExpandedNodeId, Type> item in
+                        foreach (KeyValuePair<ExpandedNodeId, IEncodeableType> item in
                             m_encodeableTypes)
                         {
                             encodeableTypes[item.Key] = item.Value;
@@ -293,27 +322,27 @@ namespace Opc.Ua
             private void AddEncodeableType(Type systemType,
                 Dictionary<string, ExpandedNodeId?>? unboundTypeIds)
             {
-                if (systemType == null)
+                IEncodeableType? encodeableType = ReflectionBasedType.From(systemType);
+                if (encodeableType == null)
                 {
                     return;
                 }
+                AddEncodeableType(encodeableType, unboundTypeIds);
+            }
 
-                if (systemType.GetTypeInfo().IsAbstract)
-                {
-                    return;
-                }
-
-                if (!typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(
-                    systemType.GetTypeInfo()))
-                {
-                    return;
-                }
-
-                if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
-                {
-                    return;
-                }
-
+            /// <summary>
+            /// Adds an encodeable type to the factory.
+            /// </summary>
+            /// <param name="encodeableType">The encodeable type to add to the factory</param>
+            /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
+            /// referenced by object name.</param>
+            /// <exception cref="InvalidOperationException"></exception>
+            private void AddEncodeableType(IEncodeableType encodeableType,
+                Dictionary<string, ExpandedNodeId?>? unboundTypeIds)
+            {
+                IEncodeable encodeable = encodeableType.CreateInstance() ??
+                    throw new InvalidOperationException(
+                        $"Encodeable type {encodeableType} cannot create instance");
                 ExpandedNodeId nodeId = encodeable.TypeId;
 
                 if (!NodeId.IsNull(nodeId))
@@ -324,7 +353,7 @@ namespace Opc.Ua
                         nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
                     }
 
-                    m_encodeableTypes[nodeId] = systemType;
+                    m_encodeableTypes[nodeId] = encodeableType;
                 }
 
                 nodeId = encodeable.BinaryEncodingId;
@@ -337,7 +366,7 @@ namespace Opc.Ua
                         nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
                     }
 
-                    m_encodeableTypes[nodeId] = systemType;
+                    m_encodeableTypes[nodeId] = encodeableType;
                 }
 
                 try
@@ -357,7 +386,7 @@ namespace Opc.Ua
                         nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
                     }
 
-                    m_encodeableTypes[nodeId] = systemType;
+                    m_encodeableTypes[nodeId] = encodeableType;
                 }
 
                 if (encodeable is IJsonEncodeable jsonEncodeable)
@@ -379,20 +408,84 @@ namespace Opc.Ua
                             nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
                         }
 
-                        m_encodeableTypes[nodeId] = systemType;
+                        m_encodeableTypes[nodeId] = encodeableType;
                     }
                 }
                 else if (unboundTypeIds != null &&
-                    unboundTypeIds.TryGetValue(systemType.Name,
+                    unboundTypeIds.TryGetValue(encodeableType.Type.Name,
                         out ExpandedNodeId? jsonEncodingId) &&
                     jsonEncodingId != null)
                 {
-                    m_encodeableTypes[jsonEncodingId] = systemType;
+                    m_encodeableTypes[jsonEncodingId] = encodeableType;
                 }
             }
 
             private readonly EncodeableFactory m_factory;
-            private readonly Dictionary<ExpandedNodeId, Type> m_encodeableTypes = [];
+            private readonly Dictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes = [];
+        }
+
+        /// <summary>
+        /// Default reflection based implementation of an encodeable types.
+        /// </summary>
+        internal sealed class ReflectionBasedType : IEncodeableType
+        {
+            /// <inheritdoc/>
+            public Type Type { get; }
+
+            private ReflectionBasedType(Type type)
+            {
+                Type = type;
+            }
+
+            /// <summary>
+            /// Create type wrapper from system type.
+            /// </summary>
+            /// <param name="systemType"></param>
+            /// <returns></returns>
+            public static ReflectionBasedType? From(Type? systemType)
+            {
+                if (systemType == null)
+                {
+                    return null;
+                }
+                System.Reflection.TypeInfo typeInfo = systemType.GetTypeInfo();
+                if (typeInfo.IsAbstract ||
+                    !typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(typeInfo) ||
+                    typeInfo.GetConstructor([]) == null) // Need a default constructor
+                {
+                    return null;
+                }
+                return new ReflectionBasedType(systemType);
+            }
+
+            /// <inheritdoc/>
+            public override string ToString()
+            {
+                return Type.FullName ?? Type.Name;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeable CreateInstance()
+            {
+                if (Activator.CreateInstance(Type) is not IEncodeable encodeable)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot create instance of type {Type.FullName ?? Type.Name}");
+                }
+                return encodeable;
+            }
+
+            /// <inheritdoc/>
+            public override bool Equals(object? obj)
+            {
+                return Type.Equals((obj as IEncodeableType)?.Type);
+            }
+
+            /// <inheritdoc/>
+            public override int GetHashCode()
+            {
+                return Type.GetHashCode();
+            }
         }
 
         /// <summary>
@@ -411,13 +504,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Frozen dictionary perform well for > 100 items with hits
-        /// Lower sizes perform well in case of misses (no type found).
-        /// The default size of the root factory is 1.5k entries.
-        /// We assume most factories will be larger. More benchmarking
-        /// must be done and improvements can be made to ensure
-        /// ExpandedNodeId produces a good hash.
+        /// <para>
+        /// Frozen dictionary perform well for > 100 items with hits.
+        /// Lower sizes perform even better in case of misses. The
+        /// default size of the root factory is 1.5k entries. We assume
+        /// most factories will be larger.
+        /// </para>
+        /// <para>
+        /// Lookup of one existing item and one that does not exist
+        /// in the root encodeablefactory shows 15-20% improvements
+        /// in lookup performance and slightly lower allocation on
+        /// .NET 9.0 which match other public benchmarks when the key
+        /// of the frozen dictionary is a reference type. Note that
+        /// past implementation's use of reader/writer lock is not
+        /// factored in.
+        /// </para>
+        /// <para>
+        /// | Method     | Mean     | Ratio | Alloc Ratio |
+        /// |----------- |---------:|------:|------------:|
+        /// | Dictionary | 720.6 us |  1.00 |        1.00 |
+        /// | Frozen     | 621.1 us |  0.86 |        0.94 |
+        /// </para>
         /// </summary>
-        private FrozenDictionary<ExpandedNodeId, Type> m_encodeableTypes;
+        private FrozenDictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes;
     }
 }

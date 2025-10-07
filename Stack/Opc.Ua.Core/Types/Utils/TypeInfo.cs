@@ -19,7 +19,6 @@ using System.Xml;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
 #else
@@ -617,7 +616,7 @@ namespace Opc.Ua
         /// <param name="datatypeId">The datatype id.</param>
         /// <param name="factory">The factory used to store and retrieve underlying OPC UA system types.</param>
         /// <returns>The system type for the <paramref name="datatypeId"/>.</returns>
-        public static Type GetSystemType(ExpandedNodeId datatypeId, ISystemTypeLookup factory)
+        public static Type GetSystemType(ExpandedNodeId datatypeId, IEncodeableTypeLookup factory)
         {
             if (datatypeId == null)
             {

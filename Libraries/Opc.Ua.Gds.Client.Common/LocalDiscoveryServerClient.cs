@@ -532,7 +532,7 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("Not a valid URL.", nameof(endpointUrl));
             }
 
-            IServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
+            ServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
 
             var configuration = EndpointConfiguration.Create(ApplicationConfiguration);
 

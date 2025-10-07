@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Test
 
             if (body is XmlElement xml)
             {
-                XmlQualifiedName xmlName = Ua.TypeInfo.GetXmlName(expectedType);
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(expectedType);
                 using (var decoder = new XmlDecoder(xml, m_context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);

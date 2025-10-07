@@ -124,7 +124,7 @@ namespace Opc.Ua.Fuzzing
                         string typeName = reader.LocalName;
                         string namespaceUri = reader.NamespaceURI;
                         systemType = MessageContext
-                            .Factory.KnownTypes
+                            .Factory.KnownTypeIds
                                 .Select(MessageContext.Factory.GetSystemType)
                                 .FirstOrDefault(entry => entry.Name == typeName
                                     /* && entry.Key.NamespaceUri == namespaceUri*/);

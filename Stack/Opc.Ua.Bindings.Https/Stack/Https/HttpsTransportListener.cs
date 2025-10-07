@@ -286,10 +286,9 @@ namespace Opc.Ua.Bindings
                     : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
-                ClientCertificateValidation = ValidateClientCertificate
+                ClientCertificateValidation = ValidateClientCertificate,
+                SslProtocols = SslProtocols.None
             };
-
-            httpsOptions.SslProtocols = SslProtocols.None;
 
             UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
             if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)

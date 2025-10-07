@@ -1346,7 +1346,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_inner = factory;
             }
 
-            public IEnumerable<ExpandedNodeId> KnownTypes => m_inner.KnownTypes;
+            public IEnumerable<ExpandedNodeId> KnownTypeIds => m_inner.KnownTypeIds;
 
             public IEncodeableFactoryBuilder Builder => m_inner.Builder;
 
@@ -1374,9 +1374,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_inner.AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
             }
 
-            public bool TryGetSystemType(ExpandedNodeId typeId, [NotNullWhen(true)] out Type systemType)
+            public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType systemType)
             {
-                return m_inner.TryGetSystemType(typeId, out systemType);
+                return m_inner.TryGetEncodeableType(typeId, out systemType);
             }
 
             private IEncodeableFactory m_inner;

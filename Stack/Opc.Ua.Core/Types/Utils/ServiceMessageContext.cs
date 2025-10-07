@@ -23,7 +23,8 @@ namespace Opc.Ua
         /// Initializes the object with default values.
         /// </summary>
         [Obsolete("Use ServiceMessageContext(ITelemetryContext) instead.")]
-        public ServiceMessageContext() : this(null)
+        public ServiceMessageContext()
+            : this(null)
         {
         }
 

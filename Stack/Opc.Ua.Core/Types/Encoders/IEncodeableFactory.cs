@@ -33,12 +33,12 @@ namespace Opc.Ua
     /// FrozenDictionary depending on the target runtime.
     /// </para>
     /// </summary>
-    public interface IEncodeableFactory : ISystemTypeLookup
+    public interface IEncodeableFactory : IEncodeableTypeLookup
     {
         /// <summary>
-        /// The dictionary of encodeable types.
+        /// Known types in the factory.
         /// </summary>
-        IEnumerable<ExpandedNodeId> KnownTypes { get; }
+        IEnumerable<ExpandedNodeId> KnownTypeIds { get; }
 
         /// <summary>
         /// Get a factory builder.
@@ -47,19 +47,37 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Lookup encodeable system types by type id.
+    /// Represents a real encodeable object factory managed
+    /// by the encodeable factory registry.
     /// </summary>
-    public interface ISystemTypeLookup
+    public interface IEncodeableType
+    {
+        /// <summary>
+        /// System type of the encodeable.
+        /// </summary>
+        Type Type { get; }
+
+        /// <summary>
+        /// Create instance of type
+        /// </summary>
+        /// <returns></returns>
+        IEncodeable CreateInstance();
+    }
+
+    /// <summary>
+    /// Lookup encodeable types by type id.
+    /// </summary>
+    public interface IEncodeableTypeLookup
     {
         /// <summary>
         /// Returns the system type for the specified type id.
         /// </summary>
         /// <param name="typeId">The type id to return the type of</param>
-        /// <param name="systemType">System type found</param>
+        /// <param name="encodeableType">The encodeable type found</param>
         /// <returns><c>True</c> if found.</returns>
-        bool TryGetSystemType(
+        bool TryGetEncodeableType(
             ExpandedNodeId typeId,
-            [NotNullWhen(true)] out Type? systemType);
+            [NotNullWhen(true)] out IEncodeableType? encodeableType);
     }
 
     /// <summary>
@@ -73,10 +91,41 @@ namespace Opc.Ua
     /// immutable encodeable factory.
     /// </para>
     /// </summary>
-    public interface IEncodeableFactoryBuilder : ISystemTypeLookup
+    public interface IEncodeableFactoryBuilder : IEncodeableTypeLookup
     {
         /// <summary>
-        /// Adds an extension type to the factory builder.
+        /// Adds a encodeable type to the factory builder. The factory
+        /// builder will call <see cref="IEncodeableType.CreateInstance"/>
+        /// to obtain an instance from which to obtain the type and
+        /// encoding ids. All exceptions during this process are
+        /// propagated to the caller.
+        /// </summary>
+        /// <param name="type">A encodeable type to add.</param>
+        IEncodeableFactoryBuilder AddEncodeableType(
+            IEncodeableType type);
+
+        /// <summary>
+        /// Associates an encodeable type with an encoding id. The builder
+        /// does not check the <see cref="IEncodeableType.CreateInstance"/>
+        /// method works when adding.
+        /// </summary>
+        /// <param name="encodingId">A NodeId for a Data Type Encoding
+        /// node</param>
+        /// <param name="type">The encodeable type to use for the
+        /// specified encoding.</param>
+        IEncodeableFactoryBuilder AddEncodeableType(
+            ExpandedNodeId encodingId,
+            IEncodeableType type);
+
+        /// <summary>
+        /// Adds a .net type to the factory builder. The factory
+        /// builder will use reflection to extract the type ids.The
+        /// builder will add a wrapper to wrap the system type so it
+        /// can be instantiated using Activator.CreateInstance. The
+        /// factory silently discards the type if it does not match
+        /// the requirements of Activator.CreateInstance returning
+        /// an <see cref="IEncodeable"/> or if a null argument is
+        /// passed (legacy behavior).
         /// </summary>
         /// <param name="systemType">The underlying system type to add to
         /// the factory builder</param>
@@ -84,7 +133,13 @@ namespace Opc.Ua
             Type systemType);
 
         /// <summary>
-        /// Associates an encodeable type with an encoding id.
+        /// Associates an .net system type with an encoding id. The
+        /// builder will add a wrapper to wrap the system type so it
+        /// can be instantiated using Activator.CreateInstance. The
+        /// factory silently discards the type if it does not match
+        /// the requirements of Activator.CreateInstance returning
+        /// an <see cref="IEncodeable"/> or if null arguments are
+        /// passed (legacy behavior).
         /// </summary>
         /// <param name="encodingId">A NodeId for a Data Type Encoding
         /// node</param>
@@ -96,8 +151,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// <para>
-        /// Adds all encodeable types exported from an assembly to the
-        /// factory builder.
+        /// Adds all encodeable .net types exported from an assembly to
+        /// the factory builder. Any errors are silently discarded.
         /// </para>
         /// <para>
         /// This method uses reflection on the specified assembly to
@@ -140,9 +195,13 @@ namespace Opc.Ua
         /// <param name="lookup">The lookup capability.</param>
         /// <param name="typeId">The type id.</param>
         /// <returns>The system type for the <paramref name="typeId"/>.</returns>
-        public static Type? GetSystemType(this ISystemTypeLookup lookup, ExpandedNodeId typeId)
+        public static Type? GetSystemType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId)
         {
-            return lookup.TryGetSystemType(typeId, out Type? systemType) ? systemType : null;
+            return lookup.TryGetEncodeableType(typeId, out IEncodeableType? encodeableType) ?
+                encodeableType.Type :
+                null;
         }
 
         /// <summary>
@@ -180,11 +239,17 @@ namespace Opc.Ua
         /// <summary>
         /// Adds an enumerable of extension types to the factory builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void AddEncodeableTypes(
             this IEncodeableFactory factory,
             IEnumerable<Type> systemTypes)
         {
-            var builder = factory.Builder;
+            if (systemTypes is null)
+            {
+                throw new ArgumentNullException(nameof(systemTypes));
+            }
+
+            IEncodeableFactoryBuilder builder = factory.Builder;
             foreach (Type systemType in systemTypes)
             {
                 builder.AddEncodeableType(systemType);

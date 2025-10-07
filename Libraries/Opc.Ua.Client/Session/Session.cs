@@ -1155,7 +1155,7 @@ namespace Opc.Ua.Client
             }
 
             // create message context.
-            IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
 
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
@@ -7239,7 +7239,7 @@ namespace Opc.Ua.Client
 #endif
         private List<Subscription> m_subscriptions;
         private uint m_maxRequestMessageSize;
-        private SystemContext m_systemContext;
+        private readonly SystemContext m_systemContext;
         private NodeCache m_nodeCache;
         private List<IUserIdentity> m_identityHistory;
         private byte[] m_serverNonce;
