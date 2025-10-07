@@ -50,22 +50,26 @@ namespace Opc.Ua
     /// Represents a real encodeable object factory managed
     /// by the encodeable factory registry.
     /// </summary>
+    [Experimental("UA_NETStandard_1")]
     public interface IEncodeableType
     {
         /// <summary>
-        /// System type of the encodeable.
+        /// System type (either enum or reference type)
+        /// Used when using reflection emit to emit other
+        /// encodeable types.
         /// </summary>
         Type Type { get; }
 
         /// <summary>
-        /// Create instance of type
+        /// Create instance of structure type during
+        /// decoding. Will change in future iterations.
         /// </summary>
         /// <returns></returns>
         IEncodeable CreateInstance();
     }
 
     /// <summary>
-    /// Lookup encodeable types by type id.
+    /// Lookup encodeable types by type or encoding id.
     /// </summary>
     public interface IEncodeableTypeLookup
     {

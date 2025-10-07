@@ -24,8 +24,10 @@ using System.Xml;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Registry of encodeable objects based on the type id to be used
-    /// in encoders and decoders.
+    /// Registry of encodeable object factories that can be retrieved
+    /// using the type id or encoding ids in encoders and decoders.
+    /// Can be used to register custom types or types from a model
+    /// compiler inside an assembly.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -340,6 +342,13 @@ namespace Opc.Ua
             private void AddEncodeableType(IEncodeableType encodeableType,
                 Dictionary<string, ExpandedNodeId?>? unboundTypeIds)
             {
+                if (encodeableType.Type.IsEnum)
+                {
+                    // Cannot yet reflect on enums - todo: Add attributes to generated
+                    // enums To get type id of the data type
+                    return;
+                }
+
                 IEncodeable encodeable = encodeableType.CreateInstance() ??
                     throw new InvalidOperationException(
                         $"Encodeable type {encodeableType} cannot create instance");
@@ -450,8 +459,10 @@ namespace Opc.Ua
                 }
                 System.Reflection.TypeInfo typeInfo = systemType.GetTypeInfo();
                 if (typeInfo.IsAbstract ||
-                    !typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(typeInfo) ||
-                    typeInfo.GetConstructor([]) == null) // Need a default constructor
+                    // Either enum or encodable with default constructor
+                    (!typeInfo.IsEnum &&
+                        (!typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(typeInfo) ||
+                            typeInfo.GetConstructor([]) == null)))
                 {
                     return null;
                 }
