@@ -649,11 +649,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "CN=Opc.Ua.Core.Tests",
                 "urn:localhost:UA:Opc.Ua.Core.Tests",
                 validityMonths: 36);
-            X509Certificate2 certLongestDurationLatestNotAfter = CreateDuplicateCertificate(
+            X509Certificate2 certLongestDurationLatestNotAfterValid = CreateDuplicateCertificate(
                 "CN=Opc.Ua.Core.Tests",
                 "urn:localhost:UA:Opc.Ua.Core.Tests",
                 validityMonths: 36,
+                startingFromDays: -1);
+            X509Certificate2 certLongestDurationLatestNotAfterInValid = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                validityMonths: 42,
                 startingFromDays: 1);
+
 
             var testCertificatesCollection = new[]
             {
@@ -662,13 +668,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certSubjectWithoutCnDuplicate,
                 certApplicationUriDuplicate,
                 certLongestDuration,
-                certLongestDurationLatestNotAfter
+                certLongestDurationLatestNotAfterValid,
+                certLongestDurationLatestNotAfterInValid, // Never to be picked, just poisoned value
             };
 
             X509Certificate2 CreateDuplicateCertificate(string subjectName,
                 string applicationUri,
                 int validityMonths = 2,
-                int startingFromDays = -1)
+                int startingFromDays = -2)
             {
                 var certificateFactory = CertificateFactory.CreateCertificate(subjectName)
                     .SetNotBefore(startCreation.AddDays(startingFromDays))
@@ -740,7 +747,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 false);
             Assert.NotNull(resultSubjectWithCnDuplicate);
-            Assert.AreEqual(certLongestDurationLatestNotAfter.Thumbprint,
+            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
              resultSubjectWithCnDuplicate.Thumbprint);
 
             // Test that longest duration certificate is selected when multiple matches exist
@@ -753,7 +760,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 false);
             Assert.NotNull(resultLongestDuration);
-            Assert.AreEqual(certLongestDurationLatestNotAfter.Thumbprint,
+            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
              resultLongestDuration.Thumbprint);
 
             // Test search by applicationUri works for single match
@@ -776,7 +783,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 false);
             Assert.NotNull(resultApplicationUriDuplicate);
-            Assert.AreEqual(certLongestDurationLatestNotAfter.Thumbprint,
+            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
              resultApplicationUriDuplicate.Thumbprint);
         }
 

@@ -371,13 +371,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="collection"></param>
         /// <returns></returns>
-        static X509Certificate2 PickLongestDuration(X509Certificate2Collection collection)
+        static X509Certificate2 PickLongestDurationValidCerts(X509Certificate2Collection collection)
         {
             X509Certificate2 bestMatch = null;
             TimeSpan bestAvailability = TimeSpan.MinValue;
             DateTime bestNotAfter = DateTime.MinValue;
 
-            foreach (X509Certificate2 certificate in collection)
+            // Filter Valid certificates by time
+            X509Certificate2Collection validCertificates = collection.Find(X509FindType.FindByTimeValid, DateTime.Now, false);
+
+            foreach (X509Certificate2 certificate in validCertificates)
             {
                 TimeSpan availability = certificate.NotAfter - certificate.NotBefore;
 
@@ -456,7 +459,7 @@ namespace Opc.Ua
                 }
                 if (matchesOnCriteria?.Count > 0)
                 {
-                    return PickLongestDuration(matchesOnCriteria);
+                    return PickLongestDurationValidCerts(matchesOnCriteria);
                 }
 
                 bool hasCommonName = subjectName.IndexOf("CN=", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -485,7 +488,7 @@ namespace Opc.Ua
                         }
                         if (matchesOnCriteria?.Count > 0)
                         {
-                            return PickLongestDuration(matchesOnCriteria);
+                            return PickLongestDurationValidCerts(matchesOnCriteria);
                         }
                     }
                 }
@@ -505,7 +508,7 @@ namespace Opc.Ua
                     }
                     if (matchesOnCriteria?.Count > 0)
                     {
-                        return PickLongestDuration(matchesOnCriteria);
+                        return PickLongestDurationValidCerts(matchesOnCriteria);
                     }
                 }
             }
@@ -524,7 +527,7 @@ namespace Opc.Ua
                 }
                 if (matchesOnCriteria?.Count > 0)
                 {
-                    return PickLongestDuration(matchesOnCriteria);
+                    return PickLongestDurationValidCerts(matchesOnCriteria);
                 }
             }
 
