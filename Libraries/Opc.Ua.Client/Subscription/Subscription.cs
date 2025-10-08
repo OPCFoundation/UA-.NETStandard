@@ -752,6 +752,10 @@ namespace Opc.Ua.Client
         {
             get
             {
+                if (!Session.Connected)
+                {
+                    return true;
+                }
                 int timeSinceLastNotification = HiResClock.TickCount - m_lastNotificationTickCount;
                 return timeSinceLastNotification > m_keepAliveInterval + kKeepAliveTimerMargin;
             }

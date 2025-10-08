@@ -2346,10 +2346,9 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
-                        "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception {Message}",
-                        subscriptions.Count,
-                        ex.Message);
+                    m_logger.LogError(ex,
+                        "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception",
+                        subscriptions.Count);
                     failedSubscriptions++;
                 }
                 finally
@@ -5510,8 +5509,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public IAsyncResult BeginPublish(int timeout)
         {
-            // do not publish if reconnecting.
-            if (m_reconnecting)
+            // do not publish if reconnecting or the session is in closed state.
+            if (m_reconnecting || !Connected)
             {
                 m_logger.LogWarning("Publish skipped due to reconnect");
                 return null;
@@ -5671,6 +5670,12 @@ namespace Opc.Ua.Client
                         // only show the first error as warning
                         logLevel = LogLevel.Trace;
                     }
+                }
+
+                // nothing more to do if we were never connected
+                if (NodeId.IsNull(sessionId))
+                {
+                    return;
                 }
 
                 // nothing more to do if session changed.

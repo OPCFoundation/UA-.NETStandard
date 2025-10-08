@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError("ChannelId {ChannelId}: Reconnect Failed {Message}.", ChannelId, e.Message);
+                m_logger.LogError("ChannelId {ChannelId}: Reconnect Failed.", ChannelId);
                 ForceReconnect(
                     ServiceResult.Create(
                         e,
@@ -1124,7 +1124,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "ChannelId {ChannelId}: Handshake Failed {Message}", ChannelId, e.Message);
+                    m_logger.LogError(e, "ChannelId {ChannelId}: Handshake Failed", ChannelId);
 
                     error = ServiceResult.Create(
                         e,

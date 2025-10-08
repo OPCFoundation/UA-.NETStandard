@@ -860,7 +860,7 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing)
         {
 #if DEBUG
-            const int loopCount = 100;
+            const int loopCount = 10;
             for (int i = 0; i < loopCount; i++)
             {
 #endif

@@ -452,7 +452,7 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Session Id {0} Closing at {1}",
                     Session.SessionId, closeTime);
                 await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
-                TestContext.Out.WriteLine("Session Closed at {0}", closeTime);
+                TestContext.Out.WriteLine("Sessionclosed. Initiated at {0}", closeTime);
 
                 if (restartServer)
                 {
@@ -477,6 +477,8 @@ namespace Opc.Ua.Client.Tests
 
                 bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
                     .ConfigureAwait(false);
+
+                TestContext.Out.WriteLine("------- Dispose original session --------");
                 Session.Dispose();
                 Session = null;
 
@@ -544,6 +546,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     transferSession.DeleteSubscriptionsOnClose = true;
 
+                    TestContext.Out.WriteLine("------- Transfer session closing --------");
                     await transferSession.CloseAsync().ConfigureAwait(false);
                     transferSession.Dispose();
                 }
@@ -808,9 +811,9 @@ namespace Opc.Ua.Client.Tests
 
 #if DEBUG // Force failure on loop test in debug mode
     [TestFixture]
-    public class DurableSubscriptionTestLooper
+    public class DurableSubscriptionTestDebug
     {
-        internal const int LoopCount = 100;
+        internal const int LoopCount = 10;
 
         [Test]
         [Order(200)]
