@@ -775,7 +775,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (m_xmlName == null)
                 {
-                    m_xmlName = EncodeableFactory.GetXmlName(GetType());
+                    m_xmlName = TypeInfo.GetXmlName(GetType());
                 }
 
                 return m_xmlName != null ? m_xmlName.Namespace : string.Empty;

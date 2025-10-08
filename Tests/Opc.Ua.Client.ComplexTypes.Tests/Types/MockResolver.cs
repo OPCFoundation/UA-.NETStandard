@@ -47,7 +47,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             DataTypeSystem = [];
             DataTypeNodes = [];
-            m_factory = new EncodeableFactory(telemetry);
+            Factory = EncodeableFactory.Create();
+            FactoryBuilder = Factory.Builder;
             NamespaceUris = new NamespaceTable();
 
             NamespaceUris.Append("urn:This:is:my:test:encoder");
@@ -55,6 +56,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
             NamespaceUris.Append(Namespaces.MockResolverUrl);
         }
+
+        internal IEncodeableFactory Factory { get; }
 
         public NodeIdDictionary<INode> DataTypeNodes { get; }
 
@@ -65,7 +68,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public NamespaceTable NamespaceUris { get; }
 
         /// <inheritdoc/>
-        public IEncodeableFactory Factory => m_factory;
+        public IEncodeableFactoryBuilder FactoryBuilder { get; }
 
         /// <inheritdoc/>
         public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
@@ -240,7 +243,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, NamespaceUris);
         }
-
-        private readonly EncodeableFactory m_factory;
     }
 }

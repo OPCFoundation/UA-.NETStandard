@@ -89,6 +89,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_session = lruNodeCache.Session;
             m_lruNodeCache = lruNodeCache;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
+            FactoryBuilder = m_session.Factory.Builder;
         }
 #else
         /// <summary>
@@ -98,6 +99,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_session = session;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
+            FactoryBuilder = m_session.Factory.Builder;
         }
 #endif
 
@@ -105,7 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
         /// <inheritdoc/>
-        public IEncodeableFactory Factory => m_session.Factory;
+        public IEncodeableFactoryBuilder FactoryBuilder { get; }
 
         /// <inheritdoc/>
         public NodeIdDictionary<DataDictionary> DataTypeSystem { get; } = [];

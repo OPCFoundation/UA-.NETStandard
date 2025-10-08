@@ -49,7 +49,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-            : this (aggregateId, startTime, endTime, processingInterval, stepped, configuration, null)
+            : this(aggregateId, startTime, endTime, processingInterval, stepped, configuration, null)
         {
         }
 

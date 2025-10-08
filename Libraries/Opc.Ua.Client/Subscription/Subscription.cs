@@ -53,7 +53,8 @@ namespace Opc.Ua.Client
         /// Create subscription
         /// </summary>
         [Obsolete("Use Subscription(TelemetryContext) instead")]
-        public Subscription() : this(null)
+        public Subscription()
+            : this(null)
         {
         }
 

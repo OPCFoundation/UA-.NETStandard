@@ -171,8 +171,7 @@ namespace Opc.Ua.Gds.Tests
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
             GDSClient = new GlobalDiscoveryServerClient(
                 Configuration,
-                gdsClientConfiguration.GlobalDiscoveryServerUrl,
-                m_telemetry)
+                gdsClientConfiguration.GlobalDiscoveryServerUrl)
             {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                     gdsClientConfiguration.GlobalDiscoveryServerUrl,

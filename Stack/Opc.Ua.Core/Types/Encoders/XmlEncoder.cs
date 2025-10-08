@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
         public XmlEncoder(Type systemType, XmlWriter writer, IServiceMessageContext context)
-            : this(EncodeableFactory.GetXmlName(systemType), writer, context)
+            : this(TypeInfo.GetXmlName(systemType), writer, context)
         {
         }
 
@@ -1749,7 +1749,7 @@ namespace Opc.Ua
 
                 // get name for type being encoded.
                 XmlQualifiedName xmlName =
-                    EncodeableFactory.GetXmlName(systemType)
+                    TypeInfo.GetXmlName(systemType)
                     ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
@@ -1799,7 +1799,7 @@ namespace Opc.Ua
 
                 // get name for type being encoded.
                 XmlQualifiedName xmlName =
-                    EncodeableFactory.GetXmlName(systemType) ??
+                    TypeInfo.GetXmlName(systemType) ??
                     new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
@@ -2107,7 +2107,7 @@ namespace Opc.Ua
             }
 
             // encode extension object in xml.
-            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, Context);
+            XmlQualifiedName xmlName = TypeInfo.GetXmlName(encodeable, Context);
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
             encodeable.Encode(this);
             m_writer.WriteEndElement();

@@ -124,11 +124,10 @@ namespace Opc.Ua.Fuzzing
                         string typeName = reader.LocalName;
                         string namespaceUri = reader.NamespaceURI;
                         systemType = MessageContext
-                            .Factory.EncodeableTypes.Where(entry =>
-                                entry.Value
-                                    .Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/)
-                            .Select(entry => entry.Value)
-                            .FirstOrDefault();
+                            .Factory.KnownTypeIds
+                                .Select(MessageContext.Factory.GetSystemType)
+                                .FirstOrDefault(entry => entry.Name == typeName
+                                    /* && entry.Key.NamespaceUri == namespaceUri*/);
                     }
                     catch (XmlException ex)
                     {

@@ -1457,10 +1457,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     { "Foo", (1, "bar_1") },
                     { "Foo2", (2, "bar_2") } });
 
-            // Register in the context's Factory, make it a custom factory so the dynamic type can look up its type information when instantiated during encoding/decoding
+            // Register in the context's Factory, make it a custom factory so the dynamic type can
+            // look up its type information when instantiated during encoding/decoding
             var dynamicContext = new ServiceMessageContext(m_telemetry)
             {
-                Factory = new DynamicEncodeableFactory(Context.Factory, m_telemetry),
+                Factory = new DynamicEncodeableFactory(Context.Factory),
                 NamespaceUris = Context.NamespaceUris
             };
             (dynamicContext.Factory as DynamicEncodeableFactory)?.AddDynamicEncodeable(encodeable);

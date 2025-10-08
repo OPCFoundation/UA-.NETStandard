@@ -64,7 +64,7 @@ namespace Opc.Ua
 
             if (systemType != null)
             {
-                XmlQualifiedName typeName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName typeName = TypeInfo.GetXmlName(systemType);
                 ns = typeName.Namespace;
                 name = typeName.Name;
             }
@@ -659,7 +659,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(expectedType));
             }
 
-            XmlQualifiedName typeName = EncodeableFactory.GetXmlName(expectedType);
+            XmlQualifiedName typeName = TypeInfo.GetXmlName(expectedType);
             string ns = typeName.Namespace;
             string name = typeName.Name;
 
@@ -1444,7 +1444,7 @@ namespace Opc.Ua
             {
                 if (BeginField(fieldName, true))
                 {
-                    XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(value, Context);
+                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(value, Context);
 
                     PushNamespace(xmlName.Namespace);
                     value.Decode(this);
@@ -2357,7 +2357,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true, out bool isNil))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(systemType);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
@@ -2405,7 +2405,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true, out bool isNil))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(enumType);
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(enumType);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
