@@ -2323,7 +2323,9 @@ namespace Opc.Ua
             {
                 if (field.Name == name)
                 {
-                    return (uint)field.GetValue(constants);
+                    return Convert.ToUInt32(
+                        field.GetValue(constants),
+                        System.Globalization.CultureInfo.InvariantCulture);
                 }
             }
 

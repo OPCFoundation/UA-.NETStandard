@@ -918,12 +918,16 @@ namespace Opc.Ua.Test
                 foreach (FieldInfo field in typeof(StatusCodes).GetFields(
                     BindingFlags.Public | BindingFlags.Static))
                 {
-                    if (field.Name.StartsWith("Good") ||
+                    if (field.FieldType == typeof(uint) &&
+                        (field.Name.StartsWith("Good") ||
                         field.Name.StartsWith("Uncertain") ||
-                        field.Name.StartsWith("Bad"))
+                        field.Name.StartsWith("Bad")))
                     {
+                        uint value = Convert.ToUInt32(
+                            field.GetValue(null),
+                            System.Globalization.CultureInfo.InvariantCulture);
                         m_knownStatusCodes.Add(
-                            new KeyValuePair<uint, string>((uint)field.GetValue(null), field.Name));
+                            new KeyValuePair<uint, string>(value, field.Name));
                     }
                 }
             }
