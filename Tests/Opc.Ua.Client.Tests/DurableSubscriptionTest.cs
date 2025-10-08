@@ -367,7 +367,6 @@ namespace Opc.Ua.Client.Tests
 
             try
             {
-
                 var subscription = new TestableSubscription(Session.DefaultSubscription)
                 {
                     KeepAliveCount = keepAliveCount,
@@ -450,11 +449,10 @@ namespace Opc.Ua.Client.Tests
 
                 var subscriptions = new SubscriptionCollection(Session.Subscriptions);
                 DateTime closeTime = DateTime.UtcNow;
-                TestContext.Out.WriteLine("Session Id {0} Closed at {1}",
+                TestContext.Out.WriteLine("Session Id {0} Closing at {1}",
                     Session.SessionId, closeTime);
-
                 await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
-                Session = null;
+                TestContext.Out.WriteLine("Session Closed at {0}", closeTime);
 
                 if (restartServer)
                 {
@@ -479,25 +477,25 @@ namespace Opc.Ua.Client.Tests
 
                 bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
                     .ConfigureAwait(false);
+                Session.Dispose();
+                Session = null;
 
+                bool expected = setSubscriptionDurable; // Otherwise we close the session above and then transfer fails.
                 Assert.AreEqual(
-                    setSubscriptionDurable,
+                    expected,
                     result,
-                    "SetSubscriptionDurable = " +
-                    setSubscriptionDurable.ToString() +
-                    " Transfer Result " +
-                    result.ToString() +
-                    " Expected " +
-                    setSubscriptionDurable);
+                    $"SetSubscriptionDurable = {setSubscriptionDurable} => Transfer Result: {result} != Expected {expected}");
 
                 if (setSubscriptionDurable && !restartServer)
                 {
-                    // New Session and Transfer
+                    // New Session and Transfer - consume 4 seconds of messages then turn off.
                     await Task.Delay(4000).ConfigureAwait(false);
+
+                    await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
 
                     DateTime completionTime = DateTime.UtcNow;
 
-                    await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
+                    await Task.Delay(1000).ConfigureAwait(false); // Let last notifications trickle through
 
                     const double tolerance = 2500;
 
@@ -539,16 +537,13 @@ namespace Opc.Ua.Client.Tests
                         }
                     }
                 }
-                else if (setSubscriptionDurable)
-                {
-                    Assert.True(await transferSession.RemoveSubscriptionAsync(subscription)
-                        .ConfigureAwait(false));
-                }
             }
             finally
             {
                 if (transferSession != null)
                 {
+                    transferSession.DeleteSubscriptionsOnClose = true;
+
                     await transferSession.CloseAsync().ConfigureAwait(false);
                     transferSession.Dispose();
                 }
@@ -815,17 +810,27 @@ namespace Opc.Ua.Client.Tests
     [TestFixture]
     public class DurableSubscriptionTestLooper
     {
+        internal const int LoopCount = 100;
+
         [Test]
-        public async Task TransferLoopTestAsync()
+        [Order(200)]
+        [TestCase(false, false, TestName = "Validate Session Close")]
+        [TestCase(true, false, TestName = "Validate Transfer")]
+        [TestCase(true, true, TestName = "Restart of Server")]
+        public async Task TransferLoopTestAsync(bool setSubscriptionDurable, bool restartServer)
         {
             var test = new DurableSubscriptionTest();
             await test.OneTimeSetUpAsync().ConfigureAwait(false);
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < LoopCount; i++)
             {
                 await test.SetUpAsync().ConfigureAwait(false);
-                await test.TestSessionTransferAsync(true, false).ConfigureAwait(false);
+                await test.TestSessionTransferAsync(setSubscriptionDurable, restartServer).ConfigureAwait(false);
                 await test.TearDownAsync().ConfigureAwait(false);
-                TestContext.Out.WriteLine($"Completed {i} loop of TransferLoopTestAsync");
+                TestContext.Out.WriteLine("===========================================");
+                TestContext.Out.WriteLine("===========================================");
+                TestContext.Out.WriteLine($"Completed {i}th iteration.");
+                TestContext.Out.WriteLine("===========================================");
+                TestContext.Out.WriteLine("===========================================");
             }
             await test.OneTimeTearDownAsync().ConfigureAwait(false);
         }

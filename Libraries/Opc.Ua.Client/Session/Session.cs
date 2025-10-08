@@ -1772,9 +1772,9 @@ namespace Opc.Ua.Client
                 base.SessionCreated(sessionId, sessionCookie);
             }
 
-            m_logger.LogInformation("Revised session timeout value: {SessionTimeout}. ", m_sessionTimeout);
+            m_logger.LogInformation("Revised session timeout value: {SessionTimeout}.", m_sessionTimeout);
             m_logger.LogInformation(
-                "Max response message size value: {MaxMessageSize}. Max request message size: {MaxRequestSize} ",
+                "Max response message size value: {MaxMessageSize}. Max request message size: {MaxRequestSize}",
                 MessageContext.MaxMessageSize,
                 m_maxRequestMessageSize);
 
@@ -2299,13 +2299,12 @@ namespace Opc.Ua.Client
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
                         {
-                            if (await subscriptions[ii]
-                                    .TransferAsync(
-                                        this,
-                                        subscriptionIds[ii],
-                                        results[ii].AvailableSequenceNumbers,
-                                        ct)
-                                    .ConfigureAwait(false))
+                            if (await subscriptions[ii].TransferAsync(
+                                    this,
+                                    subscriptionIds[ii],
+                                    results[ii].AvailableSequenceNumbers,
+                                    ct)
+                                .ConfigureAwait(false))
                             {
                                 lock (m_acknowledgementsToSendLock)
                                 {
@@ -2319,6 +2318,13 @@ namespace Opc.Ua.Client
                                             sequenceNumber);
                                     }
                                 }
+                            }
+                            else
+                            {
+                                m_logger.LogInformation(
+                                    "SubscriptionId {SubscriptionId} could not be moved to session.",
+                                    subscriptionIds[ii]);
+                                failedSubscriptions++;
                             }
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
