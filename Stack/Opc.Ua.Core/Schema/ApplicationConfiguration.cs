@@ -656,6 +656,7 @@ namespace Opc.Ua
             AddAppCertToTrustedStore = true;
             SendCertificateChain = true;
             SuppressNonceValidationErrors = false;
+            RejectCertificateUriMismatch = false;
             IsDeprecatedConfiguration = false;
         }
 
@@ -736,13 +737,31 @@ namespace Opc.Ua
                     }
                 }
 
-                // Remove any duplicates
+                // Remove any duplicates based on thumbprint or subject name
+                // also since CertificateType can be null (implicitly RSA)
                 for (int i = 0; i < m_applicationCertificates.Count; i++)
                 {
                     for (int j = m_applicationCertificates.Count - 1; j > i; j--)
                     {
-                        if (m_applicationCertificates[i]
-                                .CertificateType == m_applicationCertificates[j].CertificateType)
+                        // Compare by thumbprint (should always be present), otherwise by subject name and store path
+                        bool isDuplicate = false;
+                        if (!string.IsNullOrEmpty(m_applicationCertificates[i].Thumbprint) &&
+                            !string.IsNullOrEmpty(m_applicationCertificates[j].Thumbprint))
+                        {
+                            isDuplicate = m_applicationCertificates[i].Thumbprint.Equals(
+                                m_applicationCertificates[j].Thumbprint,
+                                StringComparison.OrdinalIgnoreCase);
+                        }
+                        else if (!string.IsNullOrEmpty(m_applicationCertificates[i].SubjectName) &&
+                                 !string.IsNullOrEmpty(m_applicationCertificates[j].SubjectName))
+                        {
+                            isDuplicate = m_applicationCertificates[i].SubjectName.Equals(
+                                              m_applicationCertificates[j].SubjectName,
+                                              StringComparison.OrdinalIgnoreCase) &&
+                                          m_applicationCertificates[i].StorePath == m_applicationCertificates[j].StorePath;
+                        }
+
+                        if (isDuplicate)
                         {
                             m_applicationCertificates.RemoveAt(j);
                         }
@@ -926,6 +945,17 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
         public bool SuppressNonceValidationErrors { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether certificate ApplicationUri mismatches should be rejected.
+        /// </summary>
+        /// <remarks>
+        /// If set to true, the application will throw an exception when the ApplicationUri in the configuration
+        /// does not match the ApplicationUri in the certificate, similar to the server behavior for client certificates.
+        /// If set to false (default), the configuration ApplicationUri will be updated to match the certificate for backward compatibility.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 22)]
+        public bool RejectCertificateUriMismatch { get; set; }
 
         /// <summary>
         /// The type of Configuration (deprecated or not)

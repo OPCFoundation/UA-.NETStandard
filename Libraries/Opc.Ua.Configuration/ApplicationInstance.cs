@@ -358,6 +358,10 @@ namespace Opc.Ua.Configuration
                     "Need at least one Application Certificate.");
             }
 
+            // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
+            // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
+            // doesn't match ApplicationConfiguration.ApplicationUri. Therefore, we must explicitly validate that
+            // all loaded certificates have the same ApplicationUri.
             bool result = true;
             foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
             {
@@ -372,11 +376,47 @@ namespace Opc.Ua.Configuration
                 result = result && nextResult;
             }
 
+            // When there are multiple certificates, validate they all have the same ApplicationUri.
+            // Note: Individual certificate URI validation against the configuration happens in
+            // CheckApplicationInstanceCertificateAsync (called via CheckCertificateTypeAsync above).
+            // This additional check ensures consistency across multiple certificates.
+            if (securityConfiguration.ApplicationCertificates.Count > 1)
+            {
+                string firstApplicationUri = null;
+                foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
+                {
+                    if (certId.Certificate != null)
+                    {
+                        string certApplicationUri = X509Utils.GetApplicationUriFromCertificate(certId.Certificate);
+
+                        if (!string.IsNullOrEmpty(certApplicationUri))
+                        {
+                            if (firstApplicationUri == null)
+                            {
+                                firstApplicationUri = certApplicationUri;
+                            }
+                            else if (!firstApplicationUri.Equals(certApplicationUri, StringComparison.Ordinal))
+                            {
+                                // Multiple certificates with different URIs - always reject
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadCertificateUriInvalid,
+                                    "All application certificates must have the same ApplicationUri. Certificate with subject '{0}' has URI '{1}' but expected '{2}'.",
+                                    certId.Certificate.Subject,
+                                    certApplicationUri,
+                                    firstApplicationUri);
+                            }
+                        }
+                    }
+                }
+            }
+
             return result;
         }
 
         /// <summary>
-        /// Check certificate type
+        /// Check certificate type.
+        /// Note: FindAsync searches certificates in order: thumbprint, subjectName, applicationUri.
+        /// The applicationUri parameter is only used if thumbprint and subjectName don't find a match.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private async Task<bool> CheckCertificateTypeAsync(
@@ -402,7 +442,7 @@ namespace Opc.Ua.Configuration
             await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri, m_telemetry, ct)
                 .ConfigureAwait(false);
 
-            // load the certificate
+            // load the certificate 
             X509Certificate2 certificate = await id.FindAsync(
                 true,
                 configuration.ApplicationUri,
@@ -752,6 +792,15 @@ namespace Opc.Ua.Configuration
             }
             else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.Ordinal))
             {
+                if (configuration.SecurityConfiguration.RejectCertificateUriMismatch)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "The URI specified in the ApplicationConfiguration {0} does not match the URI in the Certificate: {1}.",
+                        configuration.ApplicationUri,
+                        applicationUri);
+                }
+
                 m_logger.LogInformation(
                     "Updated the ApplicationUri: {PreviousApplicationUri} --> {NewApplicationUri}",
                     configuration.ApplicationUri,

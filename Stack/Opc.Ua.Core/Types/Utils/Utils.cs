@@ -2790,6 +2790,19 @@ namespace Opc.Ua
         /// <param name="certificateType">The certificate type to check.</param>
         public static bool IsSupportedCertificateType(NodeId certificateType)
         {
+            // Handle null or NodeId.Null certificate types
+            // This occurs when:
+            // 1. CertificateIdentifier.CertificateType was never set (property is null)
+            // 2. GetCertificateType() returned NodeId.Null for unknown signature algorithms
+            // 
+            // Return true (don't reject) to allow further certificate validation to proceed.
+            // The actual certificate signature and validity checks will still happen elsewhere.
+            // Older code that doesn't set CertificateType should still work.
+            if (certificateType == null || NodeId.IsNull(certificateType))
+            {
+                return true;
+            }
+
             if (certificateType.Identifier is uint identifier)
             {
                 switch (identifier)
