@@ -28,7 +28,8 @@ namespace Opc.Ua.Security
         /// Obsolete default constructor
         /// </summary>
         [Obsolete("Use SecurityConfigurationManager(ITelemetryContext) instead.")]
-        public SecurityConfigurationManager() : this (null)
+        public SecurityConfigurationManager()
+            : this(null)
         {
         }
 

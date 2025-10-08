@@ -70,6 +70,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             Uri discoveryUrl)
@@ -80,7 +81,7 @@ namespace Opc.Ua
             }
 
             var configuration = EndpointConfiguration.Create();
-            IServiceMessageContext messageContext = application.CreateMessageContext();
+            ServiceMessageContext messageContext = application.CreateMessageContext();
             ITransportChannel channel = DiscoveryChannel.Create(
                 application,
                 discoveryUrl,
@@ -92,6 +93,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             Uri discoveryUrl,
@@ -104,7 +106,7 @@ namespace Opc.Ua
 
             configuration ??= EndpointConfiguration.Create();
 
-            IServiceMessageContext messageContext = application.CreateMessageContext();
+            ServiceMessageContext messageContext = application.CreateMessageContext();
             ITransportChannel channel = DiscoveryChannel.Create(
                 application,
                 discoveryUrl,
@@ -116,6 +118,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
@@ -128,7 +131,7 @@ namespace Opc.Ua
 
             configuration ??= EndpointConfiguration.Create();
 
-            IServiceMessageContext messageContext = application.CreateMessageContext();
+            ServiceMessageContext messageContext = application.CreateMessageContext();
             ITransportChannel channel = DiscoveryChannel.Create(
                 application,
                 connection,
@@ -143,6 +146,7 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="applicationConfiguration"/> is <c>null</c>.</exception>
         public static DiscoveryClient Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
@@ -158,7 +162,7 @@ namespace Opc.Ua
             // check if application configuration contains instance certificate.
             X509Certificate2 clientCertificate = null;
 
-            IServiceMessageContext messageContext = applicationConfiguration.CreateMessageContext();
+            ServiceMessageContext messageContext = applicationConfiguration.CreateMessageContext();
             try
             {
                 // Will always use the first certificate

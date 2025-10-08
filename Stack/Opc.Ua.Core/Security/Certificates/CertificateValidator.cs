@@ -39,7 +39,8 @@ namespace Opc.Ua
         /// Create validator
         /// </summary>
         [Obsolete("Use CertificateValidator(ITelemetryContext) instead.")]
-        public CertificateValidator() : this(null)
+        public CertificateValidator()
+            : this(null)
         {
         }
 

@@ -59,8 +59,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             Telemetry = NUnitTelemetryContext.Create();
             EncoderContext = new ServiceMessageContext(Telemetry);
-            // create private copy of factory
-            EncoderContext.Factory = new EncodeableFactory(EncoderContext.Factory, Telemetry);
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);

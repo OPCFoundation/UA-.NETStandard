@@ -48,13 +48,11 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="endpointUrl">The endpoint Url.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
-            ITelemetryContext telemetry,
             IUserIdentity adminUserIdentity = null,
             ISessionFactory sessionFactory = null)
         {
@@ -62,7 +60,7 @@ namespace Opc.Ua.Gds.Client
             MessageContext = configuration.CreateMessageContext(true);
             EndpointUrl = endpointUrl;
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(telemetry);
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
             // preset admin
             AdminCredentials = adminUserIdentity;
         }

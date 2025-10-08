@@ -348,7 +348,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
-                mockResolver.Factory,
+                mockResolver.FactoryBuilder,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
                 typeof(NamingRuleType));
@@ -592,7 +592,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
-                mockResolver.Factory,
+                mockResolver.FactoryBuilder,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
                 typeof(NamingRuleType));
@@ -668,7 +668,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(testType.ToString());
 
             object value;
-            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.Factory);
+            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
             {
@@ -910,7 +910,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         protected void AddEncodeableType(
-            IEncodeableFactory factory,
+            IEncodeableFactoryBuilder factory,
             NamespaceTable namespaceUris,
             ExpandedNodeId typeId,
             Type enumType)

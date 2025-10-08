@@ -208,6 +208,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                     }
                 }
+                // Commit the changes to the factory
+                m_complexTypeResolver.FactoryBuilder.Commit();
                 return GetSystemType(nodeId);
             }
             catch (Exception ex)
@@ -271,6 +273,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     return await LoadDictionaryDataTypesAsync(serverEnumTypes, false, ct)
                         .ConfigureAwait(false);
                 }
+                // Commit the changes to the factory
+                m_complexTypeResolver.FactoryBuilder.Commit();
                 return true;
             }
             catch (Exception ex)
@@ -343,6 +347,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     return await LoadDictionaryDataTypesAsync(serverEnumTypes, true, ct)
                         .ConfigureAwait(false);
                 }
+                // Commit the changes to the factory
+                m_complexTypeResolver.FactoryBuilder.Commit();
                 return true;
             }
             catch (Exception ex)
@@ -1064,7 +1070,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 nodeId = NormalizeExpandedNodeId(nodeId);
             }
-            return m_complexTypeResolver.Factory.GetSystemType(nodeId);
+            return m_complexTypeResolver.FactoryBuilder.GetSystemType(nodeId);
         }
 
         /// <summary>
@@ -1154,7 +1160,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(nodeId);
             m_logger.LogDebug("Adding Type {DataType} as: {NodeId}", type.FullName, internalNodeId);
-            m_complexTypeResolver.Factory.AddEncodeableType(internalNodeId, type);
+            m_complexTypeResolver.FactoryBuilder.AddEncodeableType(internalNodeId, type);
         }
 
         /// <summary>
@@ -1336,7 +1342,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             Type fieldType =
                 field.DataType.NamespaceIndex == 0
-                    ? TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.Factory)
+                    ? TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.FactoryBuilder)
                     : GetSystemType(field.DataType);
 
             if (fieldType == null)

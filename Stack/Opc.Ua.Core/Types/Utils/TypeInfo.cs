@@ -17,6 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -615,7 +616,7 @@ namespace Opc.Ua
         /// <param name="datatypeId">The datatype id.</param>
         /// <param name="factory">The factory used to store and retrieve underlying OPC UA system types.</param>
         /// <returns>The system type for the <paramref name="datatypeId"/>.</returns>
-        public static Type GetSystemType(ExpandedNodeId datatypeId, IEncodeableFactory factory)
+        public static Type GetSystemType(ExpandedNodeId datatypeId, IEncodeableTypeLookup factory)
         {
             if (datatypeId == null)
             {
@@ -736,6 +737,92 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The constant representing an unknown type.</value>
         public static TypeInfo Unknown { get; } = new TypeInfo();
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified system type id.
+        /// </summary>
+        /// <remarks>
+        /// Returns the xml qualified name for the specified system type id.
+        /// </remarks>
+        /// <param name="systemType">The underlying type to query and return the Xml qualified name of</param>
+        public static XmlQualifiedName GetXmlName(Type systemType)
+        {
+            if (systemType == null)
+            {
+                return null;
+            }
+
+            object[] attributes =
+            [
+                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)
+            ];
+
+            if (attributes != null)
+            {
+                for (int ii = 0; ii < attributes.Length; ii++)
+                {
+                    if (attributes[ii] is DataContractAttribute contract)
+                    {
+                        if (string.IsNullOrEmpty(contract.Name))
+                        {
+                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
+                        }
+
+                        return new XmlQualifiedName(contract.Name, contract.Namespace);
+                    }
+                }
+            }
+
+            attributes =
+            [
+                .. systemType.GetTypeInfo()
+                    .GetCustomAttributes(typeof(CollectionDataContractAttribute), true)
+            ];
+
+            if (attributes != null)
+            {
+                for (int ii = 0; ii < attributes.Length; ii++)
+                {
+                    if (attributes[ii] is CollectionDataContractAttribute contract)
+                    {
+                        if (string.IsNullOrEmpty(contract.Name))
+                        {
+                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
+                        }
+
+                        return new XmlQualifiedName(contract.Name, contract.Namespace);
+                    }
+                }
+            }
+
+            if (systemType == typeof(byte[]))
+            {
+                return new XmlQualifiedName("ByteString");
+            }
+
+            return new XmlQualifiedName(systemType.FullName);
+        }
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified object.
+        /// </summary>
+        /// <remarks>
+        /// Returns the xml qualified name for the specified object.
+        /// </remarks>
+        /// <param name="value">The object to query and return the Xml qualified name of</param>
+        /// <param name="context">Context</param>
+        public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
+        {
+            if (value is IDynamicComplexTypeInstance xmlEncodeable)
+            {
+                XmlQualifiedName xmlName = xmlEncodeable.GetXmlName(context);
+                if (xmlName != null)
+                {
+                    return xmlName;
+                }
+            }
+            return GetXmlName(value?.GetType());
+        }
 
         /// <summary>
         /// The built-in type.

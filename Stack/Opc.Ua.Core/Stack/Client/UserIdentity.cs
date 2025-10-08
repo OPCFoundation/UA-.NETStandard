@@ -17,7 +17,6 @@ using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -49,7 +48,7 @@ namespace Opc.Ua
         /// <param name="username">The user name.</param>
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
-            : this (new UserNameIdentityToken
+            : this(new UserNameIdentityToken
             {
                 UserName = username,
                 DecryptedPassword = password
@@ -79,7 +78,7 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use UserIdentityToken(X509IdentityToken, ITelemetryContext) instead.")]
         public UserIdentity(X509IdentityToken x509Token)
-            : this (x509Token, null)
+            : this(x509Token, null)
         {
         }
 

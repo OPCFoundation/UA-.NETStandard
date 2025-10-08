@@ -15,7 +15,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -30,7 +29,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Microsoft.Extensions.Logging;
 #if !NETFRAMEWORK
 using Opc.Ua.Security.Certificates;
 #endif
@@ -2142,7 +2140,7 @@ namespace Opc.Ua
             if (elementName == null)
             {
                 // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
+                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
 
                 elementName =
                     qname ??
@@ -2229,7 +2227,7 @@ namespace Opc.Ua
             if (elementName == null)
             {
                 // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
+                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
 
                 elementName =
                     qname ??
@@ -2323,7 +2321,9 @@ namespace Opc.Ua
             {
                 if (field.Name == name)
                 {
-                    return (uint)field.GetValue(constants);
+                    return Convert.ToUInt32(
+                        field.GetValue(constants),
+                        System.Globalization.CultureInfo.InvariantCulture);
                 }
             }
 
