@@ -894,10 +894,6 @@ namespace Opc.Ua.Client.Tests
             bool sendInitialValues,
             bool sequentialPublishing)
         {
-            const int kTestSubscriptions = 5;
-            const int kDelay = 2_000;
-            const int kQueueSize = 10;
-
             // create test session and subscription
             ISession originSession = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
@@ -905,331 +901,349 @@ namespace Opc.Ua.Client.Tests
             ISession targetSession = null;
             try
             {
-                if (transferType == TransferType.DisconnectedRepublishDelayedAck)
-                {
-                    originSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
-                }
-
-                bool originSessionOpen = transferType == TransferType.KeepOpen;
-
-                // create subscriptions
-                var originSubscriptions = new SubscriptionCollection(kTestSubscriptions);
-                int[] originSubscriptionCounters = new int[kTestSubscriptions];
-                int[] originSubscriptionFastDataCounters = new int[kTestSubscriptions];
-                int[] targetSubscriptionCounters = new int[kTestSubscriptions];
-                int[] targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
-                int[] originSubscriptionTransferred = new int[kTestSubscriptions];
-                var subscriptionTemplate = new TestableSubscription(originSession.DefaultSubscription)
-                {
-                    PublishingInterval = 1_000,
-                    LifetimeCount = 30,
-                    KeepAliveCount = 5,
-                    PublishingEnabled = true,
-                    RepublishAfterTransfer = transferType >= TransferType.DisconnectedRepublish,
-                    SequentialPublishing = sequentialPublishing
-                };
-
-                await CreateSubscriptionsAsync(
+                targetSession = await InternalTransferSubscriptionAsync(
                     originSession,
-                    subscriptionTemplate,
-                    originSubscriptions,
-                    originSubscriptionCounters,
-                    originSubscriptionFastDataCounters,
-                    kTestSubscriptions,
-                    kQueueSize).ConfigureAwait(false);
-
-                if (TransferType.KeepOpen == transferType)
-                {
-                    foreach (Subscription subscription in originSubscriptions)
-                    {
-                        subscription.PublishStatusChanged += (s, e) =>
-                        {
-                            TestContext.Out.WriteLine(
-                                $"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
-                            if ((e.Status & PublishStateChangedMask.Transferred) != 0)
-                            {
-                                // subscription transferred
-                                Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle]);
-                            }
-                        };
-                    }
-                }
-
-                // settle
-                await Task.Delay(kDelay).ConfigureAwait(false);
-
-                // persist the subscription state
-                string filePath = Path.GetTempFileName();
-
-                // close session, do not delete subscription
-                if (transferType != TransferType.KeepOpen)
-                {
-                    originSession.DeleteSubscriptionsOnClose = false;
-
-                    // save with custom Subscription subclass information
-                    originSession.Save(filePath, [typeof(TestableSubscription)]);
-
-                    if (transferType == TransferType.CloseSession)
-                    {
-                        // graceful close
-                        StatusCode close = await originSession.CloseAsync().ConfigureAwait(false);
-                        Assert.True(ServiceResult.IsGood(close));
-                    }
-                    else
-                    {
-                        // force a socket dispose, to emulate network disconnect
-                        // without closing session on server
-                        originSession.TransportChannel.Dispose();
-                    }
-                }
-
-                // wait
-                await Task.Delay(kDelay).ConfigureAwait(false);
-
-                // close session, do not delete subscription
-                if (transferType > TransferType.CloseSession)
-                {
-                    StatusCode closeResult2 = await originSession
-                        .CloseAsync()
-                        .ConfigureAwait(false);
-                }
-
-                // create target session
-                targetSession = await ClientFixture
-                    .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
-                    .ConfigureAwait(false);
-                if (transferType == TransferType.DisconnectedRepublishDelayedAck)
-                {
-                    targetSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
-                }
-
-                // restore client state
-                var transferSubscriptions = new SubscriptionCollection();
-                if (transferType != TransferType.KeepOpen)
-                {
-                    // load subscriptions for transfer
-                    transferSubscriptions.AddRange(
-                        targetSession.Load(filePath, true, [typeof(TestableSubscription)]));
-
-                    // hook notifications for log output
-                    int ii = 0;
-                    foreach (Subscription subscription in transferSubscriptions)
-                    {
-                        subscription.Handle = ii;
-                        subscription.FastDataChangeCallback = (s, n, _) =>
-                        {
-                            TestContext.Out.WriteLine(
-                                $"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
-                            targetSubscriptionFastDataCounters[(int)subscription.Handle]++;
-                        };
-                        subscription
-                            .MonitoredItems.ToList()
-                            .ForEach(i =>
-                                i.Notification += (item, _) =>
-                                {
-                                    targetSubscriptionCounters[(int)subscription.Handle]++;
-                                    foreach (DataValue value in item.DequeueValues())
-                                    {
-                                        TestContext.Out.WriteLine(
-                                            "Tra:{0}: {1:20}, {2}, {3}, {4}",
-                                            subscription.Id,
-                                            item.DisplayName,
-                                            value.Value,
-                                            value.SourceTimestamp,
-                                            value.StatusCode);
-                                    }
-                                });
-                        ii++;
-                    }
-
-                    // wait
-                    await Task.Delay(kDelay).ConfigureAwait(false);
-                }
-                else
-                {
-                    // wait
-                    await Task.Delay(kDelay).ConfigureAwait(false);
-
-                    transferSubscriptions.AddRange((SubscriptionCollection)originSubscriptions.Clone());
-                    int ii = 0;
-                    transferSubscriptions.ForEach(s =>
-                    {
-                        targetSession.AddSubscription(s);
-                        s.Handle = ii++;
-                        s.FastDataChangeCallback = (sub, n, _) =>
-                        {
-                            TestContext.Out.WriteLine(
-                                $"FastDataChangeHandlerTarget: {sub.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
-                            targetSubscriptionFastDataCounters[(int)s.Handle]++;
-                        };
-                        s.MonitoredItems.ToList()
-                            .ForEach(i =>
-                                i.Notification += (item, _) =>
-                                {
-                                    targetSubscriptionCounters[(int)s.Handle]++;
-                                    foreach (DataValue value in item.DequeueValues())
-                                    {
-                                        TestContext.Out.WriteLine(
-                                            "Tra:{0}: {1:20}, {2}, {3}, {4}",
-                                            s.Id,
-                                            item.DisplayName,
-                                            value.Value,
-                                            value.SourceTimestamp,
-                                            value.StatusCode);
-                                    }
-                                });
-                        s.StateChanged += (su, e) =>
-                            TestContext.Out
-                                .WriteLine($"StateChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
-                        s.PublishStatusChanged += (su, e) =>
-                            TestContext.Out.WriteLine(
-                                $"PublishStatusChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
-                    });
-                }
-
-                // transfer restored subscriptions
-                bool result = await targetSession
-                    .TransferSubscriptionsAsync(transferSubscriptions, sendInitialValues)
-                    .ConfigureAwait(false);
-                Assert.IsTrue(result);
-
-                // validate results
-                for (int ii = 0; ii < transferSubscriptions.Count; ii++)
-                {
-                    Assert.IsTrue(transferSubscriptions[ii].Created);
-                }
-
-                TestContext.Out
-                    .WriteLine("TargetSession is now SessionId={0}", targetSession.SessionId);
-
-                // wait for some events
-                await Task.Delay(2 * kDelay).ConfigureAwait(false);
-
-                if (TransferType.KeepOpen == transferType)
-                {
-                    foreach (Subscription subscription in originSubscriptions)
-                    {
-                        // assert if originSubscriptionTransferred is incremented
-                        Assert.AreEqual(1, originSubscriptionTransferred[(int)subscription.Handle]);
-                    }
-                }
-
-                // stop publishing
-                foreach (Subscription subscription in transferSubscriptions)
-                {
-                    TestContext.Out.WriteLine(
-                        "SetPublishingMode(false) for SessionId={0}, SubscriptionId={1}",
-                        subscription.Session.SessionId,
-                        subscription.Id);
-                    await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
-                }
-
-                // validate expected counts
-                for (int jj = 0; jj < kTestSubscriptions; jj++)
-                {
-                    TestContext.Out.WriteLine(
-                        "-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
-                        jj,
-                        originSubscriptionCounters[jj],
-                        targetSubscriptionCounters[jj]);
-                    TestContext.Out.WriteLine(
-                        "-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
-                        jj,
-                        originSubscriptionFastDataCounters[jj],
-                        targetSubscriptionFastDataCounters[jj]);
-                    uint monitoredItemCount = transferSubscriptions[jj].MonitoredItemCount;
-                    uint originExpectedCount = monitoredItemCount;
-                    uint targetExpectedCount = sendInitialValues ? monitoredItemCount : 0;
-                    if (jj == 0)
-                    {
-                        // correct for delayed ack and republish count
-                        if (transferType == TransferType.DisconnectedRepublishDelayedAck)
-                        {
-                            targetExpectedCount += monitoredItemCount;
-                        }
-
-                        // static nodes, expect only one set of changes, another one if send initial values was set
-                        Assert.AreEqual(originExpectedCount, originSubscriptionCounters[jj]);
-                        Assert.AreEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
-                    }
-                    else
-                    {
-                        // dynamic nodes, expect only one set of changes, another one if send initial values was set
-                        Assert.LessOrEqual(originExpectedCount, originSubscriptionCounters[jj]);
-                        Assert.LessOrEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
-                    }
-                }
-
-                // reset counters
-                Array.Clear(originSubscriptionCounters, 0, kTestSubscriptions);
-                Array.Clear(originSubscriptionFastDataCounters, 0, kTestSubscriptions);
-                Array.Clear(targetSubscriptionCounters, 0, kTestSubscriptions);
-                Array.Clear(targetSubscriptionFastDataCounters, 0, kTestSubscriptions);
-
-                // restart publishing
-                foreach (Subscription subscription in transferSubscriptions)
-                {
-                    TestContext.Out.WriteLine(
-                        "SetPublishingMode(true) for SessionId={0}, SubscriptionId={1}",
-                        subscription.Session.SessionId,
-                        subscription.Id);
-                    await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
-                }
-
-                // wait for some events
-                await Task.Delay(2 * kDelay).ConfigureAwait(false);
-
-                // validate expected counts
-                for (int jj = 0; jj < kTestSubscriptions; jj++)
-                {
-                    TestContext.Out.WriteLine(
-                        "-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
-                        jj,
-                        originSubscriptionCounters[jj],
-                        targetSubscriptionCounters[jj]);
-                    TestContext.Out.WriteLine(
-                        "-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
-                        jj,
-                        originSubscriptionFastDataCounters[jj],
-                        targetSubscriptionFastDataCounters[jj]);
-
-                    int[] testCounter = targetSubscriptionCounters;
-                    int[] testFastDataCounter = targetSubscriptionFastDataCounters;
-
-                    if (jj == 0)
-                    {
-                        // static nodes, expect no activity
-                        Assert.AreEqual(0, testCounter[jj]);
-                        Assert.AreEqual(0, testFastDataCounter[jj]);
-                    }
-                    else
-                    {
-                        // dynamic nodes, expect changes in target counters
-                        Assert.Less(0, testCounter[jj]);
-                        Assert.Less(0, testFastDataCounter[jj]);
-                    }
-                }
-
-                targetSession.DeleteSubscriptionsOnClose = true;
-
-                // close sessions
-                StatusCode closeResult = await targetSession.CloseAsync().ConfigureAwait(false);
-                Assert.True(ServiceResult.IsGood(closeResult));
-
-                if (originSessionOpen)
-                {
-                    closeResult = await originSession.CloseAsync().ConfigureAwait(false);
-                    Assert.True(ServiceResult.IsGood(closeResult));
-                }
-
-                // cleanup
-                File.Delete(filePath);
+                    transferType,
+                    sendInitialValues,
+                    sequentialPublishing).ConfigureAwait(false);
             }
             finally
             {
                 Utils.SilentDispose(originSession);
                 Utils.SilentDispose(targetSession);
             }
+        }
+
+        private async Task<ISession> InternalTransferSubscriptionAsync(
+            ISession originSession,
+            TransferType transferType,
+            bool sendInitialValues,
+            bool sequentialPublishing)
+        {
+            const int kTestSubscriptions = 5;
+            const int kDelay = 2_000;
+            const int kQueueSize = 10;
+
+            if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+            {
+                originSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
+            }
+
+            bool originSessionOpen = transferType == TransferType.KeepOpen;
+
+            // create subscriptions
+            var originSubscriptions = new SubscriptionCollection(kTestSubscriptions);
+            int[] originSubscriptionCounters = new int[kTestSubscriptions];
+            int[] originSubscriptionFastDataCounters = new int[kTestSubscriptions];
+            int[] targetSubscriptionCounters = new int[kTestSubscriptions];
+            int[] targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
+            int[] originSubscriptionTransferred = new int[kTestSubscriptions];
+            var subscriptionTemplate = new TestableSubscription(originSession.DefaultSubscription)
+            {
+                PublishingInterval = 1_000,
+                LifetimeCount = 30,
+                KeepAliveCount = 5,
+                PublishingEnabled = true,
+                RepublishAfterTransfer = transferType >= TransferType.DisconnectedRepublish,
+                SequentialPublishing = sequentialPublishing
+            };
+
+            await CreateSubscriptionsAsync(
+                originSession,
+                subscriptionTemplate,
+                originSubscriptions,
+                originSubscriptionCounters,
+                originSubscriptionFastDataCounters,
+                kTestSubscriptions,
+                kQueueSize).ConfigureAwait(false);
+
+            if (TransferType.KeepOpen == transferType)
+            {
+                foreach (Subscription subscription in originSubscriptions)
+                {
+                    subscription.PublishStatusChanged += (s, e) =>
+                    {
+                        TestContext.Out.WriteLine(
+                            $"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                        if ((e.Status & PublishStateChangedMask.Transferred) != 0)
+                        {
+                            // subscription transferred
+                            Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle]);
+                        }
+                    };
+                }
+            }
+
+            // settle
+            await Task.Delay(kDelay).ConfigureAwait(false);
+
+            // persist the subscription state
+            string filePath = Path.GetTempFileName();
+
+            // close session, do not delete subscription
+            if (transferType != TransferType.KeepOpen)
+            {
+                originSession.DeleteSubscriptionsOnClose = false;
+
+                // save with custom Subscription subclass information
+                originSession.Save(filePath, [typeof(TestableSubscription)]);
+
+                if (transferType == TransferType.CloseSession)
+                {
+                    // graceful close
+                    StatusCode close = await originSession.CloseAsync().ConfigureAwait(false);
+                    Assert.True(ServiceResult.IsGood(close));
+                }
+                else
+                {
+                    // force a socket dispose, to emulate network disconnect
+                    // without closing session on server
+                    originSession.TransportChannel.Dispose();
+                }
+            }
+
+            // wait
+            await Task.Delay(kDelay).ConfigureAwait(false);
+
+            // close session, do not delete subscription
+            if (transferType > TransferType.CloseSession)
+            {
+                StatusCode closeResult2 = await originSession
+                    .CloseAsync()
+                    .ConfigureAwait(false);
+            }
+
+            // create target session
+            ISession targetSession = await ClientFixture
+                .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
+                .ConfigureAwait(false);
+            if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+            {
+                targetSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
+            }
+
+            // restore client state
+            var transferSubscriptions = new SubscriptionCollection();
+            if (transferType != TransferType.KeepOpen)
+            {
+                // load subscriptions for transfer
+                transferSubscriptions.AddRange(
+                    targetSession.Load(filePath, true, [typeof(TestableSubscription)]));
+
+                // hook notifications for log output
+                int ii = 0;
+                foreach (Subscription subscription in transferSubscriptions)
+                {
+                    subscription.Handle = ii;
+                    subscription.FastDataChangeCallback = (s, n, _) =>
+                    {
+                        TestContext.Out.WriteLine(
+                            $"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
+                        targetSubscriptionFastDataCounters[(int)subscription.Handle]++;
+                    };
+                    subscription
+                        .MonitoredItems.ToList()
+                        .ForEach(i =>
+                            i.Notification += (item, _) =>
+                            {
+                                targetSubscriptionCounters[(int)subscription.Handle]++;
+                                foreach (DataValue value in item.DequeueValues())
+                                {
+                                    TestContext.Out.WriteLine(
+                                        "Tra:{0}: {1:20}, {2}, {3}, {4}",
+                                        subscription.Id,
+                                        item.DisplayName,
+                                        value.Value,
+                                        value.SourceTimestamp,
+                                        value.StatusCode);
+                                }
+                            });
+                    ii++;
+                }
+
+                // wait
+                await Task.Delay(kDelay).ConfigureAwait(false);
+            }
+            else
+            {
+                // wait
+                await Task.Delay(kDelay).ConfigureAwait(false);
+
+                transferSubscriptions.AddRange((SubscriptionCollection)originSubscriptions.Clone());
+                int ii = 0;
+                transferSubscriptions.ForEach(s =>
+                {
+                    targetSession.AddSubscription(s);
+                    s.Handle = ii++;
+                    s.FastDataChangeCallback = (sub, n, _) =>
+                    {
+                        TestContext.Out.WriteLine(
+                            $"FastDataChangeHandlerTarget: {sub.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
+                        targetSubscriptionFastDataCounters[(int)s.Handle]++;
+                    };
+                    s.MonitoredItems.ToList()
+                        .ForEach(i =>
+                            i.Notification += (item, _) =>
+                            {
+                                targetSubscriptionCounters[(int)s.Handle]++;
+                                foreach (DataValue value in item.DequeueValues())
+                                {
+                                    TestContext.Out.WriteLine(
+                                        "Tra:{0}: {1:20}, {2}, {3}, {4}",
+                                        s.Id,
+                                        item.DisplayName,
+                                        value.Value,
+                                        value.SourceTimestamp,
+                                        value.StatusCode);
+                                }
+                            });
+                    s.StateChanged += (su, e) =>
+                        TestContext.Out
+                            .WriteLine($"StateChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
+                    s.PublishStatusChanged += (su, e) =>
+                        TestContext.Out.WriteLine(
+                            $"PublishStatusChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
+                });
+            }
+
+            // transfer restored subscriptions
+            bool result = await targetSession
+                .TransferSubscriptionsAsync(transferSubscriptions, sendInitialValues)
+                .ConfigureAwait(false);
+            Assert.IsTrue(result);
+
+            // validate results
+            for (int ii = 0; ii < transferSubscriptions.Count; ii++)
+            {
+                Assert.IsTrue(transferSubscriptions[ii].Created);
+            }
+
+            TestContext.Out
+                .WriteLine("TargetSession is now SessionId={0}", targetSession.SessionId);
+
+            // wait for some events
+            await Task.Delay(2 * kDelay).ConfigureAwait(false);
+
+            if (TransferType.KeepOpen == transferType)
+            {
+                foreach (Subscription subscription in originSubscriptions)
+                {
+                    // assert if originSubscriptionTransferred is incremented
+                    Assert.AreEqual(1, originSubscriptionTransferred[(int)subscription.Handle]);
+                }
+            }
+
+            // stop publishing
+            foreach (Subscription subscription in transferSubscriptions)
+            {
+                TestContext.Out.WriteLine(
+                    "SetPublishingMode(false) for SessionId={0}, SubscriptionId={1}",
+                    subscription.Session.SessionId,
+                    subscription.Id);
+                await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
+            }
+
+            // validate expected counts
+            for (int jj = 0; jj < kTestSubscriptions; jj++)
+            {
+                TestContext.Out.WriteLine(
+                    "-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
+                    jj,
+                    originSubscriptionCounters[jj],
+                    targetSubscriptionCounters[jj]);
+                TestContext.Out.WriteLine(
+                    "-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
+                    jj,
+                    originSubscriptionFastDataCounters[jj],
+                    targetSubscriptionFastDataCounters[jj]);
+                uint monitoredItemCount = transferSubscriptions[jj].MonitoredItemCount;
+                uint originExpectedCount = monitoredItemCount;
+                uint targetExpectedCount = sendInitialValues ? monitoredItemCount : 0;
+                if (jj == 0)
+                {
+                    // correct for delayed ack and republish count
+                    if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+                    {
+                        targetExpectedCount += monitoredItemCount;
+                    }
+
+                    // static nodes, expect only one set of changes, another one if send initial values was set
+                    Assert.AreEqual(originExpectedCount, originSubscriptionCounters[jj]);
+                    Assert.AreEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
+                }
+                else
+                {
+                    // dynamic nodes, expect only one set of changes, another one if send initial values was set
+                    Assert.LessOrEqual(originExpectedCount, originSubscriptionCounters[jj]);
+                    Assert.LessOrEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
+                }
+            }
+
+            // reset counters
+            Array.Clear(originSubscriptionCounters, 0, kTestSubscriptions);
+            Array.Clear(originSubscriptionFastDataCounters, 0, kTestSubscriptions);
+            Array.Clear(targetSubscriptionCounters, 0, kTestSubscriptions);
+            Array.Clear(targetSubscriptionFastDataCounters, 0, kTestSubscriptions);
+
+            // restart publishing
+            foreach (Subscription subscription in transferSubscriptions)
+            {
+                TestContext.Out.WriteLine(
+                    "SetPublishingMode(true) for SessionId={0}, SubscriptionId={1}",
+                    subscription.Session.SessionId,
+                    subscription.Id);
+                await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
+            }
+
+            // wait for some events
+            await Task.Delay(2 * kDelay).ConfigureAwait(false);
+
+            // validate expected counts
+            for (int jj = 0; jj < kTestSubscriptions; jj++)
+            {
+                TestContext.Out.WriteLine(
+                    "-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
+                    jj,
+                    originSubscriptionCounters[jj],
+                    targetSubscriptionCounters[jj]);
+                TestContext.Out.WriteLine(
+                    "-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
+                    jj,
+                    originSubscriptionFastDataCounters[jj],
+                    targetSubscriptionFastDataCounters[jj]);
+
+                int[] testCounter = targetSubscriptionCounters;
+                int[] testFastDataCounter = targetSubscriptionFastDataCounters;
+
+                if (jj == 0)
+                {
+                    // static nodes, expect no activity
+                    Assert.AreEqual(0, testCounter[jj]);
+                    Assert.AreEqual(0, testFastDataCounter[jj]);
+                }
+                else
+                {
+                    // dynamic nodes, expect changes in target counters
+                    Assert.Less(0, testCounter[jj]);
+                    Assert.Less(0, testFastDataCounter[jj]);
+                }
+            }
+
+            targetSession.DeleteSubscriptionsOnClose = true;
+
+            // close sessions
+            StatusCode closeResult = await targetSession.CloseAsync().ConfigureAwait(false);
+            Assert.True(ServiceResult.IsGood(closeResult));
+
+            if (originSessionOpen)
+            {
+                closeResult = await originSession.CloseAsync().ConfigureAwait(false);
+                Assert.True(ServiceResult.IsGood(closeResult));
+            }
+
+            // cleanup
+            File.Delete(filePath);
+            return targetSession;
         }
 
         [Test]
