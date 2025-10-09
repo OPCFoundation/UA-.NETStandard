@@ -817,6 +817,324 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Test RejectCertificateUriMismatch flag with matching ApplicationUri.
+        /// When flag is true and URIs match, should succeed.
+        /// </summary>
+        [Test]
+        public async Task TestRejectCertificateUriMismatchMatchingUriSucceedsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            CertificateIdentifierCollection applicationCerts =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    SubjectName,
+                    CertificateStoreType.Directory,
+                    m_pkiRoot);
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                .SetRejectCertificateUriMismatch(true)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+            Assert.True(config.SecurityConfiguration.RejectCertificateUriMismatch);
+
+            // This should succeed because the URIs match
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
+            Assert.True(certOK);
+        }
+
+        /// <summary>
+        /// Test RejectCertificateUriMismatch flag with mismatched ApplicationUri.
+        /// When flag is true and URIs don't match, should throw exception.
+        /// </summary>
+        [Test]
+        public async Task TestRejectCertificateUriMismatchMismatchedUriThrowsExceptionAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create a certificate with a different ApplicationUri
+            const string differentUri = "urn:localhost:opcfoundation.org:DifferentApp";
+            X509Certificate2 cert = CertificateFactory
+                .CreateCertificate(differentUri, ApplicationName, SubjectName, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .CreateForRSA();
+
+            // Save the certificate to a store
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert).ConfigureAwait(false);
+                certStore.Close();
+            }
+
+            var certId = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri) // Using ApplicationUri, but cert has differentUri
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .SetRejectCertificateUriMismatch(true)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+            Assert.True(config.SecurityConfiguration.RejectCertificateUriMismatch);
+
+            // Load the certificate into the identifier
+            await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
+
+            // Replace the application certificate with our custom one
+            config.SecurityConfiguration.ApplicationCertificate = certId;
+
+            // This should throw because the URIs don't match and flag is true
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
+                    .ConfigureAwait(false));
+            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, sre.StatusCode);
+            Assert.That(sre.Message, Does.Contain("does not match"));
+        }
+
+        /// <summary>
+        /// Test RejectCertificateUriMismatch flag disabled (default behavior).
+        /// When flag is false and URIs don't match, should update the config Uri.
+        /// </summary>
+        [Test]
+        public async Task TestRejectCertificateUriMismatchDisabledUpdatesConfigUriAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create a certificate with a different ApplicationUri
+            const string differentUri = "urn:localhost:opcfoundation.org:DifferentApp";
+            X509Certificate2 cert = CertificateFactory
+                .CreateCertificate(differentUri, ApplicationName, SubjectName, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .CreateForRSA();
+
+            // Save the certificate to a store
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert).ConfigureAwait(false);
+                certStore.Close();
+            }
+
+            var certId = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri) // Using ApplicationUri, but cert has differentUri
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .SetRejectCertificateUriMismatch(false) // Explicitly set to false (default)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+            Assert.False(config.SecurityConfiguration.RejectCertificateUriMismatch);
+
+            // Load the certificate into the identifier
+            await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
+
+            // Replace the application certificate with our custom one
+            config.SecurityConfiguration.ApplicationCertificate = certId;
+
+            string originalUri = config.ApplicationUri;
+            Assert.AreEqual(ApplicationUri, originalUri);
+
+            // This should succeed and update the ApplicationUri to match the certificate
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
+            Assert.True(certOK);
+
+            // Verify that the ApplicationUri was updated to match the certificate
+            Assert.AreNotEqual(originalUri, config.ApplicationUri);
+            Assert.AreEqual(differentUri, config.ApplicationUri);
+        }
+
+        /// <summary>
+        /// Test that multiple certificates with different ApplicationUris throw an exception.
+        /// Even though FindAsync might load certificates by SubjectName without checking ApplicationUri,
+        /// the explicit validation ensures all loaded certificates have the same URI.
+        /// </summary>
+        [Test]
+        public async Task TestMultipleCertificatesDifferentUrisThrowsExceptionAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create two certificates with different ApplicationUris
+            const string uri1 = "urn:localhost:opcfoundation.org:App1";
+            const string uri2 = "urn:localhost:opcfoundation.org:App2";
+
+            X509Certificate2 cert1 = CertificateFactory
+                .CreateCertificate(uri1, ApplicationName, SubjectName, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .CreateForRSA();
+
+            const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
+            X509Certificate2 cert2 = CertificateFactory
+                .CreateCertificate(uri2, ApplicationName, subjectName2, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+
+            // Save certificates to stores
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert1).ConfigureAwait(false);
+                await certStore.AddAsync(cert2).ConfigureAwait(false);
+                certStore.Close();
+            }
+
+            var certId1 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName
+            };
+
+            var certId2 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = subjectName2
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(uri1, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .SetRejectCertificateUriMismatch(false)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            // Set multiple certificates
+            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection
+            {
+                certId1,
+                certId2
+            };
+
+            // This should throw because all certificates must have the same ApplicationUri
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
+                    .ConfigureAwait(false));
+            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, sre.StatusCode);
+            Assert.That(sre.Message, Does.Contain("must have the same ApplicationUri"));
+        }
+
+        /// <summary>
+        /// Test that multiple certificates with the same ApplicationUri succeed.
+        /// </summary>
+        [Test]
+        public async Task TestMultipleCertificatesSameUriSucceedsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create two certificates with the same ApplicationUri
+            X509Certificate2 cert1 = CertificateFactory
+                .CreateCertificate(ApplicationUri, ApplicationName, SubjectName, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .CreateForRSA();
+
+            const string subjectName2 = "CN=UA Configuration Test RSA, O=OPC Foundation, C=US, S=Arizona";
+            X509Certificate2 cert2 = CertificateFactory
+                .CreateCertificate(ApplicationUri, ApplicationName, subjectName2, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+
+            // Save certificates to stores
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert1).ConfigureAwait(false);
+                await certStore.AddAsync(cert2).ConfigureAwait(false);
+                certStore.Close();
+            }
+
+            var certId1 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName
+            };
+
+            var certId2 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = subjectName2
+            };
+
+            // Load the certificates
+            await certId1.FindAsync(false, null, telemetry).ConfigureAwait(false);
+            await certId2.FindAsync(false, null, telemetry).ConfigureAwait(false);
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            // Set multiple certificates with same URI
+            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection
+            {
+                certId1,
+                certId2
+            };
+
+            // This should succeed because all certificates have the same ApplicationUri
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
+            Assert.True(certOK);
+        }
+
         private static X509Certificate2 CreateInvalidCert(InvalidCertType certType)
         {
             // reasonable defaults
