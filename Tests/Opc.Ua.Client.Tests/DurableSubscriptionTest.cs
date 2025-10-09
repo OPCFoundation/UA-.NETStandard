@@ -808,35 +808,4 @@ namespace Opc.Ua.Client.Tests
                 dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
         }
     }
-
-#if DEBUG // Force failure on loop test in debug mode
-    [TestFixture]
-    public class DurableSubscriptionTestDebug
-    {
-        internal const int LoopCount = 10;
-
-        [Test]
-        [Order(200)]
-        [TestCase(false, false, TestName = "Validate Session Close")]
-        [TestCase(true, false, TestName = "Validate Transfer")]
-        [TestCase(true, true, TestName = "Restart of Server")]
-        public async Task TransferLoopTestAsync(bool setSubscriptionDurable, bool restartServer)
-        {
-            var test = new DurableSubscriptionTest();
-            await test.OneTimeSetUpAsync().ConfigureAwait(false);
-            for (int i = 0; i < LoopCount; i++)
-            {
-                await test.SetUpAsync().ConfigureAwait(false);
-                await test.TestSessionTransferAsync(setSubscriptionDurable, restartServer).ConfigureAwait(false);
-                await test.TearDownAsync().ConfigureAwait(false);
-                TestContext.Out.WriteLine("===========================================");
-                TestContext.Out.WriteLine("===========================================");
-                TestContext.Out.WriteLine($"Completed {i}th iteration.");
-                TestContext.Out.WriteLine("===========================================");
-                TestContext.Out.WriteLine("===========================================");
-            }
-            await test.OneTimeTearDownAsync().ConfigureAwait(false);
-        }
-    }
-#endif
 }

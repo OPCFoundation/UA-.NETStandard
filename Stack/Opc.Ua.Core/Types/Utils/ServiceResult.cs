@@ -796,16 +796,42 @@ namespace Opc.Ua
         /// </summary>
         private static string GetDefaultMessage(Exception exception)
         {
-            if (exception != null && exception.Message != null)
+            if (exception == null)
             {
-                if (exception.Message.StartsWith('[') || exception is ServiceResultException)
+                return string.Empty;
+            }
+            if (exception.Message != null)
+            {
+                if (exception.Message.StartsWith('['))
                 {
                     return exception.Message;
                 }
-
-                return Utils.Format("[{0}] {1}", exception.GetType().Name, exception.Message);
+#if !DEBUG
+                if (exception is ServiceResultException)
+                {
+                    return exception.Message;
+                }
+                return Utils.Format("[{0}] {1}",
+                    exception.GetType().Name,
+                    exception.Message);
+#else
+                return Utils.Format("[{0}] {1}\n-----\n{2}\n-----",
+                    exception.GetType().Name,
+                    exception.Message,
+                    exception.StackTrace);
+#endif
             }
-
+            if (exception is not ServiceResultException)
+            {
+#if !DEBUG
+                return Utils.Format("[{0}]",
+                    exception.GetType().Name);
+#else
+                return Utils.Format("[{0}]\n-----\n{1}\n-----",
+                    exception.GetType().Name,
+                    exception.StackTrace);
+#endif
+            }
             return string.Empty;
         }
     }

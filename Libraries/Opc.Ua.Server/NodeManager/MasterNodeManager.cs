@@ -2928,7 +2928,7 @@ namespace Opc.Ua.Server
                         nodeManager.SyncNodeManager,
                         handle,
                         subscriptionId,
-                        monitoredItemIdFactory.GetNextId(),
+                        monitoredItemIdFactory,
                         timestampsToReturn,
                         publishingInterval,
                         itemToCreate,

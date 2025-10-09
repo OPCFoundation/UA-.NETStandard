@@ -1023,20 +1023,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the identifier to a new start value. Thread safe.
+        /// Sets the identifier to a new value. Thread safe.
         /// </summary>
         /// <returns>Returns the new value.</returns>
         public static uint SetIdentifier(ref uint identifier, uint newIdentifier)
         {
-            uint value;
-            uint exchangedValue;
-            do
-            {
-                value = identifier;
-                ref int id = ref Unsafe.As<uint, int>(ref identifier);
-                exchangedValue = (uint)Interlocked.CompareExchange(ref id, (int)newIdentifier, (int)value);
-            } while (exchangedValue != value);
-            return value;
+            Debug.Assert(newIdentifier != 0);
+#if NET8_0_OR_GREATER
+            return Interlocked.Exchange(ref identifier, newIdentifier);
+#else
+            ref int id = ref Unsafe.As<uint, int>(ref identifier);
+            return (uint)Interlocked.Exchange(ref id, (int)newIdentifier);
+#endif
         }
 
         /// <summary>
@@ -1044,11 +1042,15 @@ namespace Opc.Ua
         /// </summary>
         public static uint IncrementIdentifier(ref uint identifier)
         {
-            ref int id = ref Unsafe.As<uint, int>(ref identifier);
             uint result;
             do
             {
+#if NET8_0_OR_GREATER
+                result = Interlocked.Increment(ref identifier);
+#else
+                ref int id = ref Unsafe.As<uint, int>(ref identifier);
                 result = (uint)Interlocked.Increment(ref id);
+#endif
             }
             while (result == 0);
             return result;

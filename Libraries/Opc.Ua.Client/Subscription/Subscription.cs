@@ -1491,12 +1491,10 @@ namespace Opc.Ua.Client
 
             lock (m_cache)
             {
-                if (m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
+                if (!m_monitoredItems.TryAdd(monitoredItem.ClientHandle, monitoredItem))
                 {
                     return;
                 }
-
-                m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
                 monitoredItem.Subscription = this;
             }
 
@@ -1521,14 +1519,8 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in monitoredItems)
                 {
-#if NETFRAMEWORK || NETSTANDARD2_0
-                    if (!m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
-                    {
-                        m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
-#else
                     if (m_monitoredItems.TryAdd(monitoredItem.ClientHandle, monitoredItem))
                     {
-#endif
                         monitoredItem.Subscription = this;
                         added = true;
                     }

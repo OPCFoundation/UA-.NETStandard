@@ -854,28 +854,39 @@ namespace Opc.Ua.Client.Tests
 
         [Theory]
         [Order(811)]
-        public async Task TransferSubscriptionOnlyAsync(
+        public Task TransferSubscriptionOnlyAsync(
             TransferType transferType,
             bool sendInitialValues,
             bool sequentialPublishing)
         {
-#if DEBUG
-            const int loopCount = 10;
+            return InternalTransferSubscriptionAsync(
+                transferType,
+                sendInitialValues,
+                sequentialPublishing);
+        }
+
+        [Theory]
+        [Order(812)]
+        [Explicit]
+        public async Task TransferSubscriptionOnlyDebugAsync(
+            TransferType transferType,
+            bool sendInitialValues,
+            bool sequentialPublishing)
+        {
+            const int loopCount = 30;
             for (int i = 0; i < loopCount; i++)
             {
-#endif
                 await InternalTransferSubscriptionAsync(
                     transferType,
                     sendInitialValues,
                     sequentialPublishing).ConfigureAwait(false);
-#if DEBUG
+
                 TestContext.Out.WriteLine("===========================================");
                 TestContext.Out.WriteLine("===========================================");
                 TestContext.Out.WriteLine($"Completed {i}th iteration.");
                 TestContext.Out.WriteLine("===========================================");
                 TestContext.Out.WriteLine("===========================================");
             }
-#endif
         }
 
         public async Task InternalTransferSubscriptionAsync(

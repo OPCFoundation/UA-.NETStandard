@@ -72,7 +72,7 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint revisedQueueSize,
             bool createDurable,
-            uint monitoredItemId,
+            MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache);
 
         /// <summary>
