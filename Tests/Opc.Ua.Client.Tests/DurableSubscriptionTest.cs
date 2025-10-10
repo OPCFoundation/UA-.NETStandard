@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -472,13 +473,15 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("Session Id {0} Closing at {1}",
                 Session.SessionId, closeTime);
             await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
-            TestContext.Out.WriteLine("Sessionclosed. Initiated at {0}", closeTime);
+            TestContext.Out.WriteLine("Session closed. Initiated at {0}", closeTime);
 
             if (restartServer)
             {
                 // if durable subscription the server will restore the subscription
+                TestContext.Out.WriteLine("------- Server stopping --------");
                 ReferenceServer.Stop();
                 ReferenceServer.Start(ServerFixture.Config);
+                TestContext.Out.WriteLine("------- Server restarted --------");
             }
             else
             {
@@ -487,14 +490,45 @@ namespace Opc.Ua.Client.Tests
             }
 
             DateTime restartTime = DateTime.UtcNow;
-            ISession transferSession = await ClientFixture
+#if !DEBUG
+            ISession transferSession= await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,
                     null,
                     new UserIdentity("sysadmin", "demo"))
                 .ConfigureAwait(false);
+#else // TODO: Remove once failure is understood.
+            ISession transferSession;
+            for (int i = 0; ; i++)
+            {
+                try
+                {
+                    transferSession = await ClientFixture
+                        .ConnectAsync(
+                            ServerUrl,
+                            SecurityPolicies.Basic256Sha256,
+                            null,
+                            new UserIdentity("sysadmin", "demo"))
+                        .ConfigureAwait(false);
+                    if (i != 0)
+                    {
+                        Debugger.Break();
+                    }
+                    break;
+                }
+                catch
+                {
+                    TestContext.Out.WriteLine("------- Transfer session failed to connect --------");
+                    while (!Debugger.IsAttached)
+                    {
+                        System.Threading.Thread.Sleep(5000);
+                    }
 
+                    Debugger.Break();
+                }
+            }
+#endif
             bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
                 .ConfigureAwait(false);
 

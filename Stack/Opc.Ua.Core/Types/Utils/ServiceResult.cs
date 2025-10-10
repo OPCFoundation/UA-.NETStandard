@@ -628,11 +628,15 @@ namespace Opc.Ua
             {
                 if (buffer.Length > 0)
                 {
-                    buffer.AppendLine()
-                        .AppendLine();
+                    buffer
+                        .AppendLine()
+                        .AppendLine(">>>> (Inner) >>>>");
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ">>> {0}", exception.Message);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "[{0}]",
+                    exception.Message ?? exception.GetType().Name);
 
                 if (!string.IsNullOrEmpty(exception.StackTrace))
                 {
@@ -641,7 +645,8 @@ namespace Opc.Ua
                     {
                         if (!string.IsNullOrEmpty(trace[ii]))
                         {
-                            buffer.AppendLine()
+                            buffer
+                                .AppendLine()
                                 .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
                         }
                     }
@@ -811,25 +816,22 @@ namespace Opc.Ua
                 {
                     return exception.Message;
                 }
+#endif
                 return Utils.Format("[{0}] {1}",
                     exception.GetType().Name,
+#if !DEBUG
                     exception.Message);
 #else
-                return Utils.Format("[{0}] {1}\n-----\n{2}\n-----",
-                    exception.GetType().Name,
-                    exception.Message,
-                    exception.StackTrace);
+                    BuildExceptionTrace(exception));
 #endif
             }
             if (exception is not ServiceResultException)
             {
-#if !DEBUG
                 return Utils.Format("[{0}]",
+#if !DEBUG
                     exception.GetType().Name);
 #else
-                return Utils.Format("[{0}]\n-----\n{1}\n-----",
-                    exception.GetType().Name,
-                    exception.StackTrace);
+                    BuildExceptionTrace(exception));
 #endif
             }
             return string.Empty;

@@ -752,10 +752,6 @@ namespace Opc.Ua.Client
         {
             get
             {
-                if (!Session.Connected)
-                {
-                    return true;
-                }
                 int timeSinceLastNotification = HiResClock.TickCount - m_lastNotificationTickCount;
                 return timeSinceLastNotification > m_keepAliveInterval + kKeepAliveTimerMargin;
             }
@@ -1871,15 +1867,31 @@ namespace Opc.Ua.Client
         {
             // check if a publish has arrived.
             PublishStateChangedEventHandler callback = m_PublishStatusChanged;
+            ISession session = Session;
 
             Interlocked.Increment(ref m_publishLateCount);
 
-            TraceState("PUBLISHING STOPPED");
+            bool connected =
+                session != null &&
+                session.Connected &&
+                !session.Reconnecting;
 
-            PublishingStateChanged(callback, PublishStateChangedMask.Stopped);
+            if (connected)
+            {
+                TraceState("PUBLISHING STOPPED");
 
-            // try to send a publish to recover stopped publishing.
-            Session?.BeginPublish(BeginPublishTimeout());
+                PublishingStateChanged(callback,
+                    PublishStateChangedMask.Stopped);
+
+                // try to send a publish to recover stopped publishing.
+                session.BeginPublish(BeginPublishTimeout());
+            }
+            else
+            {
+                PublishingStateChanged(callback,
+                    PublishStateChangedMask.Stopped |
+                    PublishStateChangedMask.SessionNotConnected);
+            }
         }
 
         /// <summary>
@@ -3021,7 +3033,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The publishing was timed out
         /// </summary>
-        Timeout = 0x20
+        Timeout = 0x20,
+
+        /// <summary>
+        /// Session is not connected
+        /// </summary>
+        SessionNotConnected = 0x40
     }
 
     /// <summary>

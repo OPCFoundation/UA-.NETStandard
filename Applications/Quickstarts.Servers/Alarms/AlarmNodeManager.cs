@@ -78,6 +78,7 @@ namespace Alarms
                   server.Telemetry.CreateLogger<AlarmNodeManager>(),
                   namespaceUris)
         {
+            m_logger.LogInformation("Alarms: Created AlarmNodeManager");
         }
 
         /// <summary>
@@ -88,6 +89,8 @@ namespace Alarms
             if (disposing)
             {
                 DisposeTimer();
+
+                m_logger.LogInformation("Alarms: Disposed AlarmNodeManager");
             }
         }
 
@@ -958,7 +961,7 @@ namespace Alarms
         {
             byte[] eventId = null;
 
-            // Bad magic Numbers here
+            // Bad magic Numbers hereStart
             if (request.InputArguments != null &&
                 request.InputArguments.Count == 2 &&
                 request.InputArguments[0].TypeInfo.BuiltInType.Equals(BuiltInType.ByteString))
@@ -973,6 +976,8 @@ namespace Alarms
         /// </summary>
         private void StartTimer()
         {
+            m_logger.LogInformation("Alarms: Starting simulation");
+
             Utils.SilentDispose(m_simulationTimer);
             m_simulationTimer = new Timer(
                 DoSimulation,
@@ -988,6 +993,8 @@ namespace Alarms
         {
             Utils.SilentDispose(m_simulationTimer);
             m_simulationTimer = null;
+
+            m_logger.LogInformation("Alarms: Stopped simulation");
         }
 
         private readonly Dictionary<string, AlarmHolder> m_alarms = [];
