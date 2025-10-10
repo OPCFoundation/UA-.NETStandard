@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError("ChannelId {ChannelId}: Reconnect Failed.", ChannelId);
+                m_logger.LogError(e, "ChannelId {ChannelId}: Reconnect Failed.", ChannelId);
                 ForceReconnect(
                     ServiceResult.Create(
                         e,
