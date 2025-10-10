@@ -785,6 +785,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(resultApplicationUriDuplicate);
             Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
              resultApplicationUriDuplicate.Thumbprint);
+
+            // Test that CA-signed certificate is prioritized over self-signed certificate
+            // --------------------------------------------------------------------------
+            // Create a CA certificate
+            X509Certificate2 caCertificate = CertificateFactory.CreateCertificate("CN=Test CA")
+                .SetNotBefore(startCreation.AddDays(-2))
+                .SetNotAfter(startCreation.AddDays(-2).AddYears(5))
+                .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                .SetCAConstraint()
+                .CreateForRSA();
+
+            // Create a CA-signed certificate with shorter duration than the self-signed ones
+            X509Certificate2 caSignedCert = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+                .SetNotBefore(startCreation.AddDays(-2))
+                .SetNotAfter(startCreation.AddDays(-2).AddMonths(18))
+                .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests", new[] { "CN=Opc.Ua.Core.Tests" }))
+                .SetIssuer(caCertificate)
+                .CreateForRSA();
+
+            var collectionWithCASigned = new X509Certificate2Collection();
+            collectionWithCASigned.AddRange(testCertificatesCollection);
+            collectionWithCASigned.Add(caSignedCert);
+
+            // Test that CA-signed certificate is picked over self-signed even with shorter duration
+            X509Certificate2 resultCASigned = CertificateIdentifier.Find(
+                collectionWithCASigned,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultCASigned);
+            Assert.AreEqual(caSignedCert.Thumbprint, resultCASigned.Thumbprint);
+
+            // Test that CA-signed certificate is picked by applicationUri over self-signed
+            X509Certificate2 resultCASignedByUri = CertificateIdentifier.Find(
+                collectionWithCASigned,
+                null,
+                null,
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                null,
+                false);
+            Assert.NotNull(resultCASignedByUri);
+            Assert.AreEqual(caSignedCert.Thumbprint, resultCASignedByUri.Thumbprint);
         }
 
         private X509Certificate2 GetTestCert()

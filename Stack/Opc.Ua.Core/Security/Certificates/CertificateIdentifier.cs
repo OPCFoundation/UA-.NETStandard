@@ -368,6 +368,7 @@ namespace Opc.Ua
         /// <summary>
         /// Picks the certificate with the longest duration.
         /// If multiple certificates have the same duration, pick the one with the latest NotAfter date.
+        /// Prioritizes CA-signed certificates over self-signed certificates.
         /// </summary>
         /// <param name="collection"></param>
         /// <returns></returns>
@@ -376,20 +377,27 @@ namespace Opc.Ua
             X509Certificate2 bestMatch = null;
             TimeSpan bestAvailability = TimeSpan.MinValue;
             DateTime bestNotAfter = DateTime.MinValue;
+            bool bestIsCASigned = false;
 
             // Filter Valid certificates by time
-            X509Certificate2Collection validCertificates = collection.Find(X509FindType.FindByTimeValid, DateTime.Now, false);
+            X509Certificate2Collection validCertificates = collection.Find(X509FindType.FindByTimeValid, DateTime.UtcNow, false);
 
             foreach (X509Certificate2 certificate in validCertificates)
             {
                 TimeSpan availability = certificate.NotAfter - certificate.NotBefore;
+                bool isCASigned = !X509Utils.IsSelfSigned(certificate);
 
-                if (availability > bestAvailability ||
-                    (availability == bestAvailability && certificate.NotAfter > bestNotAfter))
+                // Prioritize CA-signed over self-signed, then duration, then NotAfter date
+                bool isBetter = isCASigned && !bestIsCASigned ||
+                                (isCASigned == bestIsCASigned && availability > bestAvailability) ||
+                                (isCASigned == bestIsCASigned && availability == bestAvailability && certificate.NotAfter > bestNotAfter);
+
+                if (isBetter)
                 {
                     bestMatch = certificate;
                     bestAvailability = availability;
                     bestNotAfter = certificate.NotAfter;
+                    bestIsCASigned = isCASigned;
                 }
             }
 
