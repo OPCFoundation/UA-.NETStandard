@@ -178,6 +178,13 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public int PublishRequestCancelWaitTimeout
+        {
+            get => Session.PublishRequestCancelWaitTimeout;
+            set => Session.PublishRequestCancelWaitTimeout = value;
+        }
+
+        /// <inheritdoc/>
         public Subscription DefaultSubscription
         {
             get => Session.DefaultSubscription;

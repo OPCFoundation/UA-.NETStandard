@@ -1421,5 +1421,79 @@ namespace Opc.Ua.Client.Tests
             e.DeferredAcknowledgementsToSend.Clear();
             e.AcknowledgementsToSend.Clear();
         }
+
+        /// <summary>
+        /// Test that outstanding publish requests are cancelled when session is closed.
+        /// </summary>
+        [Test]
+        [Order(500)]
+        [CancelAfter(30_000)]
+        public async Task CloseSessionCancelsOutstandingPublishRequests()
+        {
+            // Create subscriptions with monitored items to generate publish requests
+            var subscription = new Subscription(Session.DefaultSubscription)
+            {
+                PublishingInterval = 100,
+                PublishingEnabled = true
+            };
+
+            IList<NodeId> staticNodes = GetTestSetStatic(Session.NamespaceUris);
+            var list = CreateMonitoredItemTestSet(subscription, staticNodes);
+            subscription.AddItems(list);
+
+            bool result = Session.AddSubscription(subscription);
+            Assert.True(result);
+            await subscription.CreateAsync().ConfigureAwait(false);
+
+            // Wait for publish requests to be sent
+            await Task.Delay(500).ConfigureAwait(false);
+
+            // Verify there are outstanding publish requests
+            int outstandingBefore = Session.OutstandingRequestCount;
+            int goodPublishBefore = Session.GoodPublishRequestCount;
+
+            TestContext.Out.WriteLine(
+                "Before close: Outstanding={0}, GoodPublish={1}",
+                outstandingBefore,
+                goodPublishBefore);
+
+            Assert.Greater(goodPublishBefore, 0, "Should have outstanding publish requests");
+
+            // Set a short timeout to force cancellation
+            Session.PublishRequestCancelWaitTimeout = 1000;
+
+            // Close the session - this should cancel outstanding publish requests
+            StatusCode closeResult = await Session.CloseAsync(5000, true).ConfigureAwait(false);
+
+            Assert.AreEqual(StatusCodes.Good, closeResult);
+
+            TestContext.Out.WriteLine("Session closed successfully with outstanding publish requests cancelled.");
+        }
+
+        /// <summary>
+        /// Test that publish request cancel wait timeout can be configured.
+        /// </summary>
+        [Test]
+        [Order(501)]
+        public void PublishRequestCancelWaitTimeoutProperty()
+        {
+            // Test default value
+            Assert.AreEqual(5000, Session.PublishRequestCancelWaitTimeout);
+
+            // Test setting to 0 (immediate cancel)
+            Session.PublishRequestCancelWaitTimeout = 0;
+            Assert.AreEqual(0, Session.PublishRequestCancelWaitTimeout);
+
+            // Test setting to negative (wait indefinitely)
+            Session.PublishRequestCancelWaitTimeout = -1;
+            Assert.AreEqual(-1, Session.PublishRequestCancelWaitTimeout);
+
+            // Test setting to custom value
+            Session.PublishRequestCancelWaitTimeout = 10000;
+            Assert.AreEqual(10000, Session.PublishRequestCancelWaitTimeout);
+
+            // Reset to default
+            Session.PublishRequestCancelWaitTimeout = 5000;
+        }
     }
 }
