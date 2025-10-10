@@ -756,6 +756,10 @@ namespace Opc.Ua.Server
                     DefaultSystemContext,
                     m_configuration);
 
+                // Initialize history capabilities and update Server EventNotifier accordingly
+                DiagnosticsNodeManager.GetDefaultHistoryCapabilities();
+                DiagnosticsNodeManager.UpdateServerEventNotifier();
+
                 Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
                 PropertyState<bool> auditing = serverObject.Auditing;
                 auditing.OnSimpleWriteValue += OnWriteAuditing;
