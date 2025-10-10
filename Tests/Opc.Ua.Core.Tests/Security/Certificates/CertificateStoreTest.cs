@@ -612,6 +612,226 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Add the test for public static X509Certificate2 Find(X509Certificate2Collection collection,
+        ///     string thumbprint,
+        ///     string subjectName,
+        ///     string applicationUri,
+        ///     NodeId certificateType,
+        ///     bool needPrivateKey)
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        [Order(100)]
+        public void FindInCollectionTest()
+        {
+            // DateTime.UtcNow is used in certificate creation, so ensure all certs
+            // have different NotAfter values by creating them in sequence.
+            DateTime startCreation = DateTime.UtcNow;
+
+            X509Certificate2 certSubjectSubstring = CreateDuplicateCertificate(
+                "CN=Ua.Core.Tests",
+                "urn:localhost:UA:Ua.Core.Tests",
+                validityMonths: 12);
+            X509Certificate2 certSubjectWithCnDuplicate = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                validityMonths: 12);
+            X509Certificate2 certSubjectWithoutCnDuplicate = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                validityMonths: 6);
+            X509Certificate2 certApplicationUriDuplicate = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests Duplicate",
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                validityMonths: 24);
+            X509Certificate2 certLongestDuration = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                validityMonths: 36);
+            X509Certificate2 certLongestDurationLatestNotAfterValid = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                validityMonths: 36,
+                startingFromDays: -1);
+            X509Certificate2 certLongestDurationLatestNotAfterInValid = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                validityMonths: 42,
+                startingFromDays: 1);
+
+
+            var testCertificatesCollection = new[]
+            {
+                certSubjectSubstring,
+                certSubjectWithCnDuplicate,
+                certSubjectWithoutCnDuplicate,
+                certApplicationUriDuplicate,
+                certLongestDuration,
+                certLongestDurationLatestNotAfterValid,
+                certLongestDurationLatestNotAfterInValid, // Never to be picked, just poisoned value
+            };
+
+            X509Certificate2 CreateDuplicateCertificate(string subjectName,
+                string applicationUri,
+                int validityMonths = 2,
+                int startingFromDays = -2)
+            {
+                var certificateFactory = CertificateFactory.CreateCertificate(subjectName)
+                    .SetNotBefore(startCreation.AddDays(startingFromDays))
+                    .SetNotAfter(startCreation.AddDays(startingFromDays).AddMonths(validityMonths))
+                    .SetHashAlgorithm(HashAlgorithmName.SHA256);
+
+                if (!string.IsNullOrEmpty(applicationUri))
+                {
+                    certificateFactory.AddExtension(new X509SubjectAltNameExtension(applicationUri, [subjectName]));
+                }
+
+                return certificateFactory.CreateForRSA();
+            }
+
+            var collection = new X509Certificate2Collection();
+            collection.AddRange(testCertificatesCollection);
+
+            // Test that searching by thumbprint works
+            X509Certificate2 resultThumbprint = CertificateIdentifier.Find(
+                collection,
+                certSubjectSubstring.Thumbprint,
+                null,
+                null,
+                null,
+                false);
+            Assert.NotNull(resultThumbprint);
+            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultThumbprint.Thumbprint);
+
+            // Test that searching by existing thumbprint and subject name works
+            X509Certificate2 resultThumbprintAndSubject = CertificateIdentifier.Find(
+                collection,
+                certSubjectSubstring.Thumbprint,
+                "CN=Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultThumbprintAndSubject);
+            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultThumbprintAndSubject.Thumbprint);
+
+            // Test that searching by existing thumbprint and non-matching subject name fails
+            X509Certificate2 resultThumbprintAndNonMatchingSubject = CertificateIdentifier.Find(
+                collection,
+                certSubjectSubstring.Thumbprint,
+                "CN=NonMatching",
+                null,
+                null,
+                false);
+            Assert.Null(resultThumbprintAndNonMatchingSubject);
+
+            // Test that exact match is done if CN is in subject name and 
+            // subject name is substring of other subject names
+            X509Certificate2 resultSubjectSubstring = CertificateIdentifier.Find(
+                collection,
+                null,
+                "CN=Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultSubjectSubstring);
+            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultSubjectSubstring.Thumbprint);
+
+            // Test that exact match is done if CN is in subject name and multiple matches exist
+            // and the longest duration certificate is selected in that case
+            X509Certificate2 resultSubjectWithCnDuplicate = CertificateIdentifier.Find(
+                collection,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultSubjectWithCnDuplicate);
+            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
+             resultSubjectWithCnDuplicate.Thumbprint);
+
+            // Test that longest duration certificate is selected when multiple matches exist
+            // and CN is not in subject name
+            X509Certificate2 resultLongestDuration = CertificateIdentifier.Find(
+                collection,
+                null,
+                "Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultLongestDuration);
+            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
+             resultLongestDuration.Thumbprint);
+
+            // Test search by applicationUri works for single match
+            X509Certificate2 resultApplicationUri = CertificateIdentifier.Find(
+                collection,
+                null,
+                null,
+                "urn:localhost:UA:Ua.Core.Tests",
+                null,
+                false);
+            Assert.NotNull(resultApplicationUri);
+            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultApplicationUri.Thumbprint);
+
+            // Test search by applicationUri works for multiple matches and longest duration is selected
+            X509Certificate2 resultApplicationUriDuplicate = CertificateIdentifier.Find(
+                collection,
+                null,
+                null,
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                null,
+                false);
+            Assert.NotNull(resultApplicationUriDuplicate);
+            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
+             resultApplicationUriDuplicate.Thumbprint);
+
+            // Test that CA-signed certificate is prioritized over self-signed certificate
+            // --------------------------------------------------------------------------
+            // Create a CA certificate
+            X509Certificate2 caCertificate = CertificateFactory.CreateCertificate("CN=Test CA")
+                .SetNotBefore(startCreation.AddDays(-2))
+                .SetNotAfter(startCreation.AddDays(-2).AddYears(5))
+                .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                .SetCAConstraint()
+                .CreateForRSA();
+
+            // Create a CA-signed certificate with shorter duration than the self-signed ones
+            X509Certificate2 caSignedCert = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+                .SetNotBefore(startCreation.AddDays(-2))
+                .SetNotAfter(startCreation.AddDays(-2).AddMonths(18))
+                .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests", new[] { "CN=Opc.Ua.Core.Tests" }))
+                .SetIssuer(caCertificate)
+                .CreateForRSA();
+
+            var collectionWithCASigned = new X509Certificate2Collection();
+            collectionWithCASigned.AddRange(testCertificatesCollection);
+            collectionWithCASigned.Add(caSignedCert);
+
+            // Test that CA-signed certificate is picked over self-signed even with shorter duration
+            X509Certificate2 resultCASigned = CertificateIdentifier.Find(
+                collectionWithCASigned,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultCASigned);
+            Assert.AreEqual(caSignedCert.Thumbprint, resultCASigned.Thumbprint);
+
+            // Test that CA-signed certificate is picked by applicationUri over self-signed
+            X509Certificate2 resultCASignedByUri = CertificateIdentifier.Find(
+                collectionWithCASigned,
+                null,
+                null,
+                "urn:localhost:UA:Opc.Ua.Core.Tests",
+                null,
+                false);
+            Assert.NotNull(resultCASignedByUri);
+            Assert.AreEqual(caSignedCert.Thumbprint, resultCASignedByUri.Thumbprint);
+        }
+
         private X509Certificate2 GetTestCert()
         {
             return m_testCertificate ??= CertificateFactory.CreateCertificate(X509StoreSubject)

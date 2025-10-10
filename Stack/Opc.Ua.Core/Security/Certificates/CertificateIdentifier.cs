@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -365,6 +366,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Picks the certificate with the longest duration.
+        /// If multiple certificates have the same duration, pick the one with the latest NotAfter date.
+        /// Prioritizes CA-signed certificates over self-signed certificates.
+        /// </summary>
+        /// <param name="collection"></param>
+        /// <returns></returns>
+        static X509Certificate2 PickLongestDurationValidCerts(X509Certificate2Collection collection)
+        {
+            X509Certificate2 bestMatch = null;
+            TimeSpan bestAvailability = TimeSpan.MinValue;
+            DateTime bestNotAfter = DateTime.MinValue;
+            bool bestIsCASigned = false;
+
+            // Filter Valid certificates by time
+            X509Certificate2Collection validCertificates = collection.Find(X509FindType.FindByTimeValid, DateTime.UtcNow, false);
+
+            foreach (X509Certificate2 certificate in validCertificates)
+            {
+                TimeSpan availability = certificate.NotAfter - certificate.NotBefore;
+                bool isCASigned = !X509Utils.IsSelfSigned(certificate);
+
+                // Prioritize CA-signed over self-signed, then duration, then NotAfter date
+                bool isBetter = isCASigned && !bestIsCASigned ||
+                                (isCASigned == bestIsCASigned && availability > bestAvailability) ||
+                                (isCASigned == bestIsCASigned && availability == bestAvailability && certificate.NotAfter > bestNotAfter);
+
+                if (isBetter)
+                {
+                    bestMatch = certificate;
+                    bestAvailability = availability;
+                    bestNotAfter = certificate.NotAfter;
+                    bestIsCASigned = isCASigned;
+                }
+            }
+
+            return bestMatch;
+        }
+
+        /// <summary>
         /// Finds a certificate in the specified collection.
         /// </summary>
         /// <param name="collection">The collection.</param>
@@ -406,6 +446,9 @@ namespace Opc.Ua
 
                 return null;
             }
+
+            X509Certificate2Collection matchesOnCriteria = null;
+
             // find by subject name.
             if (!string.IsNullOrEmpty(subjectName))
             {
@@ -418,19 +461,62 @@ namespace Opc.Ua
                     {
                         if (!needPrivateKey || certificate.HasPrivateKey)
                         {
-                            return certificate;
+                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
                         }
                     }
                 }
-
-                collection = collection.Find(X509FindType.FindBySubjectName, subjectName, false);
-
-                foreach (X509Certificate2 certificate in collection)
+                if (matchesOnCriteria?.Count > 0)
                 {
-                    if (ValidateCertificateType(certificate, certificateType) &&
-                        (!needPrivateKey || certificate.HasPrivateKey))
+                    return PickLongestDurationValidCerts(matchesOnCriteria);
+                }
+
+                bool hasCommonName = subjectName.IndexOf("CN=", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                if (hasCommonName)
+                {
+                    string commonNameEntry = subjectName2
+                        .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
+                    string commonName = commonNameEntry?.Length > 3
+                        ? commonNameEntry.Substring(3).Trim()
+                        : null;
+
+                    if (!string.IsNullOrEmpty(commonName))
                     {
-                        return certificate;
+                        foreach (X509Certificate2 certificate in collection)
+                        {
+                            if (ValidateCertificateType(certificate, certificateType) &&
+                                (!needPrivateKey || certificate.HasPrivateKey) &&
+                                string.Equals(
+                                    certificate.GetNameInfo(X509NameType.SimpleName, false),
+                                    commonName,
+                                    StringComparison.Ordinal))
+                            {
+                                (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                            }
+                        }
+                        if (matchesOnCriteria?.Count > 0)
+                        {
+                            return PickLongestDurationValidCerts(matchesOnCriteria);
+                        }
+                    }
+                }
+                else
+                {
+                    X509Certificate2Collection fuzzyMatches = collection.Find(
+                        X509FindType.FindBySubjectName,
+                        subjectName,
+                        false);
+                    foreach (X509Certificate2 certificate in fuzzyMatches)
+                    {
+                        if (ValidateCertificateType(certificate, certificateType) &&
+                            (!needPrivateKey || certificate.HasPrivateKey))
+                        {
+                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                        }
+                    }
+                    if (matchesOnCriteria?.Count > 0)
+                    {
+                        return PickLongestDurationValidCerts(matchesOnCriteria);
                     }
                 }
             }
@@ -444,8 +530,12 @@ namespace Opc.Ua
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {
-                        return certificate;
+                        (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
                     }
+                }
+                if (matchesOnCriteria?.Count > 0)
+                {
+                    return PickLongestDurationValidCerts(matchesOnCriteria);
                 }
             }
 
