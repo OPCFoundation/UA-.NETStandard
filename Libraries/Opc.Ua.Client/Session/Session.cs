@@ -127,6 +127,7 @@ namespace Opc.Ua.Client
             m_defaultSubscription = template.m_defaultSubscription;
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
+            PublishRequestCancelWaitTimeout = template.PublishRequestCancelWaitTimeout;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_minPublishRequestCount = template.m_minPublishRequestCount;
@@ -244,6 +245,7 @@ namespace Opc.Ua.Client
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_sessionName = string.Empty;
             DeleteSubscriptionsOnClose = true;
+            PublishRequestCancelWaitTimeout = 5000; // 5 seconds default
             TransferSubscriptionsOnReconnect = false;
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
@@ -581,6 +583,9 @@ namespace Opc.Ua.Client
         /// be transferred or for durable subscriptions.
         /// </remarks>
         public bool DeleteSubscriptionsOnClose { get; set; }
+
+        /// <inheritdoc/>
+        public int PublishRequestCancelWaitTimeout { get; set; }
 
         /// <summary>
         /// If the subscriptions are transferred when a session is reconnected.
@@ -3921,6 +3926,9 @@ namespace Opc.Ua.Client
             {
                 try
                 {
+                    // Wait for or cancel outstanding publish requests before closing session.
+                    await WaitForOrCancelOutstandingPublishRequestsAsync(ct).ConfigureAwait(false);
+
                     // close the session and delete all subscriptions if specified.
                     var requestHeader = new RequestHeader
                     {
@@ -4341,6 +4349,130 @@ namespace Opc.Ua.Client
         {
             Utils.SilentDispose(m_keepAliveTimer);
             m_keepAliveTimer = null;
+        }
+
+        /// <summary>
+        /// Waits for outstanding publish requests to complete or cancels them.
+        /// </summary>
+        private async Task WaitForOrCancelOutstandingPublishRequestsAsync(CancellationToken ct)
+        {
+            // Get outstanding publish requests
+            List<uint> publishRequestHandles = new List<uint>();
+            lock (m_outstandingRequests)
+            {
+                foreach (AsyncRequestState state in m_outstandingRequests)
+                {
+                    if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                    {
+                        publishRequestHandles.Add(state.RequestId);
+                    }
+                }
+            }
+
+            if (publishRequestHandles.Count == 0)
+            {
+                m_logger.LogDebug("No outstanding publish requests to cancel.");
+                return;
+            }
+
+            m_logger.LogInformation(
+                "Waiting for {Count} outstanding publish requests to complete before closing session.",
+                publishRequestHandles.Count);
+
+            // Wait for outstanding requests with timeout
+            if (PublishRequestCancelWaitTimeout != 0)
+            {
+                int waitTimeout = PublishRequestCancelWaitTimeout < 0 
+                    ? int.MaxValue 
+                    : PublishRequestCancelWaitTimeout;
+                
+                var startTime = HiResClock.TickCount;
+                while (true)
+                {
+                    // Check if all publish requests completed
+                    int remainingCount = 0;
+                    lock (m_outstandingRequests)
+                    {
+                        foreach (AsyncRequestState state in m_outstandingRequests)
+                        {
+                            if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                            {
+                                remainingCount++;
+                            }
+                        }
+                    }
+
+                    if (remainingCount == 0)
+                    {
+                        m_logger.LogDebug("All outstanding publish requests completed.");
+                        return;
+                    }
+
+                    // Check timeout
+                    int elapsed = HiResClock.TickCount - startTime;
+                    if (elapsed >= waitTimeout)
+                    {
+                        m_logger.LogWarning(
+                            "Timeout waiting for {Count} publish requests to complete. Cancelling them.",
+                            remainingCount);
+                        break;
+                    }
+
+                    // Check cancellation
+                    if (ct.IsCancellationRequested)
+                    {
+                        m_logger.LogWarning("Cancellation requested while waiting for publish requests.");
+                        break;
+                    }
+
+                    // Wait a bit before checking again
+                    await Task.Delay(100, ct).ConfigureAwait(false);
+                }
+            }
+
+            // Cancel remaining outstanding publish requests
+            List<uint> requestsToCancel = new List<uint>();
+            lock (m_outstandingRequests)
+            {
+                foreach (AsyncRequestState state in m_outstandingRequests)
+                {
+                    if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                    {
+                        requestsToCancel.Add(state.RequestId);
+                    }
+                }
+            }
+
+            if (requestsToCancel.Count > 0)
+            {
+                m_logger.LogInformation(
+                    "Cancelling {Count} outstanding publish requests.",
+                    requestsToCancel.Count);
+
+                // Cancel each outstanding publish request
+                foreach (uint requestHandle in requestsToCancel)
+                {
+                    try
+                    {
+                        var requestHeader = new RequestHeader
+                        {
+                            TimeoutHint = (uint)OperationTimeout
+                        };
+
+                        await CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
+
+                        m_logger.LogDebug("Cancelled publish request with handle {Handle}.", requestHandle);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log but don't throw - we're closing anyway
+                        m_logger.LogWarning(
+                            ex,
+                            "Error cancelling publish request with handle {Handle}.",
+                            requestHandle);
+                    }
+                }
+            }
         }
 
         /// <summary>
