@@ -128,6 +128,9 @@ namespace Opc.Ua
                             element.ReferenceTypeName);
                         parsedElement.IsInverse = true;
                         break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                            Utils.Format("Unexpected ElementType value: {0}", element.ElementType));
                 }
 
                 if (NodeId.IsNull(parsedElement.ReferenceTypeId))
@@ -194,6 +197,9 @@ namespace Opc.Ua
                                 .ElementType
                                 .InverseReference;
                         break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                            Utils.Format("Unexpected ElementType value: {0}", element.ElementType));
                 }
 
                 if (NodeId.IsNull(parsedElement.ReferenceTypeId))
@@ -632,6 +638,9 @@ namespace Opc.Ua
                             }
 
                             break;
+                        default:
+                            throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                                Utils.Format("Unexpected ElementType value: {0}", ElementType));
                     }
 
                     // write the target browse name component.
