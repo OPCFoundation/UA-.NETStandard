@@ -4426,7 +4426,15 @@ namespace Opc.Ua.Client
                     }
 
                     // Wait a bit before checking again
-                    await Task.Delay(100, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(100, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        m_logger.LogWarning("Cancellation requested while waiting for publish requests.");
+                        break;
+                    }
                 }
             }
 
