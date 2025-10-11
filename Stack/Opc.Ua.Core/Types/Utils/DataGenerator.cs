@@ -1105,7 +1105,7 @@ namespace Opc.Ua.Test
         /// <inheritdoc/>
         public object GetRandomInteger()
         {
-            switch (m_random.NextInt32(4))
+            switch (m_random.NextInt32(3))
             {
                 case 0:
                     return GetRandomSByte();
