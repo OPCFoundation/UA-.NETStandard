@@ -164,18 +164,20 @@ namespace Opc.Ua.Security.Certificates
             byte[] pemDataBlob,
             ReadOnlySpan<char> password)
         {
-            PemReader pemReader;
             using var pemStreamReader = new StreamReader(
                 new MemoryStream(pemDataBlob),
                 Encoding.UTF8,
                 true);
+
+            using var pwFinder = new Password(password); // Clears its copy on return
+
+            PemReader pemReader;
             if (password.IsEmpty)
             {
                 pemReader = new PemReader(pemStreamReader);
             }
             else
             {
-                var pwFinder = new Password(password.ToArray());
                 pemReader = new PemReader(pemStreamReader, pwFinder);
             }
 
@@ -263,18 +265,31 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Wrapper for a password string.
         /// </summary>
-        internal class Password : IPasswordFinder
+        internal class Password : IPasswordFinder, IDisposable
         {
             private readonly char[] m_password;
 
-            public Password(char[] word)
+            public Password(ReadOnlySpan<char> word)
             {
-                m_password = (char[])word.Clone();
+                // Make a real copy of the password
+                if (!word.IsEmpty)
+                {
+                    m_password = new char[word.Length];
+                    word.CopyTo(m_password);
+                }
             }
 
             public char[] GetPassword()
             {
-                return (char[])m_password.Clone();
+                return m_password;
+            }
+
+            public void Dispose()
+            {
+                if (m_password != null)
+                {
+                    Array.Clear(m_password, 0, m_password.Length);
+                }
             }
         }
     }
