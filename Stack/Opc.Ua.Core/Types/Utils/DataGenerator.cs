@@ -869,7 +869,7 @@ namespace Opc.Ua.Test
         {
             ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
 
-            switch ((IdType)m_random.NextInt32(4))
+            switch ((IdType)m_random.NextInt32(3))
             {
                 case IdType.Numeric:
                     return new NodeId(GetRandomUInt32(), ns);
