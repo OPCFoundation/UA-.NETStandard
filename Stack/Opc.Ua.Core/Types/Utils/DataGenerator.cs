@@ -869,17 +869,20 @@ namespace Opc.Ua.Test
         {
             ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
 
-            switch ((IdType)m_random.NextInt32(4))
+            switch ((IdType)m_random.NextInt32(3))
             {
+                case IdType.Numeric:
+                    return new NodeId(GetRandomUInt32(), ns);
                 case IdType.String:
                     return new NodeId(CreateString(GetRandomLocale(), true), ns);
                 case IdType.Guid:
                     return new NodeId(GetRandomGuid(), ns);
                 case IdType.Opaque:
                     return new NodeId(GetRandomByteString(), ns);
+                default:
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        "Unexpected IdType value");
             }
-
-            return new NodeId(GetRandomUInt32(), ns);
         }
 
         /// <inheritdoc/>
@@ -1110,8 +1113,11 @@ namespace Opc.Ua.Test
                     return GetRandomInt16();
                 case 2:
                     return GetRandomInt32();
-                default:
+                case 3:
                     return GetRandomInt64();
+                default:
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        "Unexpected random value");
             }
         }
 
@@ -1126,8 +1132,11 @@ namespace Opc.Ua.Test
                     return GetRandomUInt16();
                 case 2:
                     return GetRandomUInt32();
-                default:
+                case 3:
                     return GetRandomUInt64();
+                default:
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        "Unexpected random value");
             }
         }
 

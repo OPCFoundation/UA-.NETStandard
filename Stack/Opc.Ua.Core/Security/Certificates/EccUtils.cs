@@ -324,12 +324,15 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                     return HashAlgorithmName.SHA256;
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
                 default:
-                    return HashAlgorithmName.SHA256;
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        Utils.Format("Unexpected security policy URI for ECC: {0}", securityPolicyUri));
             }
         }
 
@@ -1436,12 +1439,15 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                     return HashAlgorithmName.SHA256;
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
                 default:
-                    return HashAlgorithmName.SHA256;
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        Utils.Format("Unexpected security policy URI for ECC: {0}", securityPolicyUri));
             }
         }
 

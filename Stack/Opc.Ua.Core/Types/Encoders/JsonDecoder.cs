@@ -874,6 +874,8 @@ namespace Opc.Ua
                 {
                     switch (idType)
                     {
+                        case IdType.Numeric:
+                            return new NodeId(ReadUInt32("Id"), namespaceIndex);
                         case IdType.Opaque:
                             return new NodeId(ReadByteString("Id"), namespaceIndex);
                         case IdType.String:
@@ -881,7 +883,8 @@ namespace Opc.Ua
                         case IdType.Guid:
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
                         default:
-                            return new NodeId(ReadUInt32("Id"), namespaceIndex);
+                            throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                                Utils.Format("Unexpected IdType value: {0}", idType));
                     }
                 }
                 return DefaultNodeId(idType, namespaceIndex);
@@ -986,6 +989,12 @@ namespace Opc.Ua
                 {
                     switch (idType)
                     {
+                        case IdType.Numeric:
+                            return new ExpandedNodeId(
+                                ReadUInt32("Id"),
+                                namespaceIndex,
+                                namespaceUri,
+                                serverIndex);
                         case IdType.Opaque:
                             return new ExpandedNodeId(
                                 ReadByteString("Id"),
@@ -1005,11 +1014,8 @@ namespace Opc.Ua
                                 namespaceUri,
                                 serverIndex);
                         default:
-                            return new ExpandedNodeId(
-                                ReadUInt32("Id"),
-                                namespaceIndex,
-                                namespaceUri,
-                                serverIndex);
+                            throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                                Utils.Format("Unexpected IdType value: {0}", idType));
                     }
                 }
 
@@ -3337,6 +3343,8 @@ namespace Opc.Ua
         {
             switch (idType)
             {
+                case IdType.Numeric:
+                    return new NodeId(0U, namespaceIndex);
                 case IdType.Opaque:
                     return new NodeId([], namespaceIndex);
                 case IdType.String:
@@ -3344,7 +3352,8 @@ namespace Opc.Ua
                 case IdType.Guid:
                     return new NodeId(Guid.Empty, namespaceIndex);
                 default:
-                    return new NodeId(0U, namespaceIndex);
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        Utils.Format("Unexpected IdType value: {0}", idType));
             }
         }
 
