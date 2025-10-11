@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1359,14 +1360,21 @@ namespace Opc.Ua.Server
                         }
                     }
 
+                    // Allocate the monitored item id
+                    uint monitoredItemId;
+                    do
+                    {
+                        monitoredItemId = monitoredItemIdFactory.GetNextId();
+                    } while (!m_monitoredItems.TryAdd(monitoredItemId, null));
+
                     // create monitored item.
-                    ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager
-                        .CreateMonitoredItem(
+                    ISampledDataChangeMonitoredItem monitoredItem =
+                        m_samplingGroupManager.CreateMonitoredItem(
                             context,
                             subscriptionId,
                             publishingInterval,
                             timestampsToReturn,
-                            monitoredItemIdFactory.GetNextId(),
+                            monitoredItemId,
                             node,
                             itemToCreate,
                             range,
@@ -1385,8 +1393,9 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // save monitored item.
-                    m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
+                    // now save monitored item.
+                    Debug.Assert(m_monitoredItems[monitoredItemId] == null);
+                    m_monitoredItems[monitoredItemId] = monitoredItem;
 
                     // update monitored item list.
                     monitoredItems[ii] = monitoredItem;

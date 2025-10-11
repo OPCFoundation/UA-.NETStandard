@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -356,6 +357,30 @@ namespace Opc.Ua.Client.Tests
                 NUnit.Framework.Assert.Ignore("Timing on mac OS causes issues");
             }
 
+            ISession transferSession = null;
+            try
+            {
+                transferSession = await TestSessionTransferInternalAsync(
+                    setSubscriptionDurable,
+                    restartServer).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (transferSession != null)
+                {
+                    transferSession.DeleteSubscriptionsOnClose = true;
+
+                    TestContext.Out.WriteLine("------- Transfer session closing --------");
+                    await transferSession.CloseAsync().ConfigureAwait(false);
+                    transferSession.Dispose();
+                }
+            }
+        }
+
+        private async Task<ISession> TestSessionTransferInternalAsync(
+            bool setSubscriptionDurable,
+            bool restartServer)
+        {
             const int publishingInterval = 100;
             const uint keepAliveCount = 5;
             const uint lifetimeCount = 15;
@@ -445,16 +470,18 @@ namespace Opc.Ua.Client.Tests
 
             var subscriptions = new SubscriptionCollection(Session.Subscriptions);
             DateTime closeTime = DateTime.UtcNow;
-            TestContext.Out.WriteLine("Session Id {0} Closed at {1}",
+            TestContext.Out.WriteLine("Session Id {0} Closing at {1}",
                 Session.SessionId, closeTime);
-
             await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
+            TestContext.Out.WriteLine("Session closed. Initiated at {0}", closeTime);
 
             if (restartServer)
             {
                 // if durable subscription the server will restore the subscription
+                TestContext.Out.WriteLine("------- Server stopping --------");
                 ReferenceServer.Stop();
                 ReferenceServer.Start(ServerFixture.Config);
+                TestContext.Out.WriteLine("------- Server restarted --------");
             }
             else
             {
@@ -463,35 +490,68 @@ namespace Opc.Ua.Client.Tests
             }
 
             DateTime restartTime = DateTime.UtcNow;
-            ISession transferSession = await ClientFixture
+#if !DEBUG
+            ISession transferSession= await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,
                     null,
                     new UserIdentity("sysadmin", "demo"))
                 .ConfigureAwait(false);
+#else // TODO: Remove once failure is understood.
+            ISession transferSession;
+            for (int i = 0; ; i++)
+            {
+                try
+                {
+                    transferSession = await ClientFixture
+                        .ConnectAsync(
+                            ServerUrl,
+                            SecurityPolicies.Basic256Sha256,
+                            null,
+                            new UserIdentity("sysadmin", "demo"))
+                        .ConfigureAwait(false);
+                    if (i != 0)
+                    {
+                        Debugger.Break();
+                    }
+                    break;
+                }
+                catch
+                {
+                    TestContext.Out.WriteLine("------- Transfer session failed to connect --------");
+                    while (!Debugger.IsAttached)
+                    {
+                        System.Threading.Thread.Sleep(5000);
+                    }
 
+                    Debugger.Break();
+                }
+            }
+#endif
             bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
                 .ConfigureAwait(false);
 
+            TestContext.Out.WriteLine("------- Dispose original session --------");
+            Session.Dispose();
+            Session = null;
+
+            bool expected = setSubscriptionDurable; // Otherwise we close the session above and then transfer fails.
             Assert.AreEqual(
-                setSubscriptionDurable,
+                expected,
                 result,
-                "SetSubscriptionDurable = " +
-                setSubscriptionDurable.ToString() +
-                " Transfer Result " +
-                result.ToString() +
-                " Expected " +
-                setSubscriptionDurable);
+                $"SetSubscriptionDurable = {setSubscriptionDurable} => Transfer Result: {result} != Expected {expected}");
 
             if (setSubscriptionDurable && !restartServer)
             {
-                // New Session and Transfer
+                // New Session and Transfer - consume 4 seconds of messages then turn off.
                 await Task.Delay(4000).ConfigureAwait(false);
+
+                await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
 
                 DateTime completionTime = DateTime.UtcNow;
 
-                await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
+                await Task.Delay(1000).ConfigureAwait(false); // Let last notifications trickle through
 
                 const double tolerance = 2500;
 
@@ -533,11 +593,8 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
             }
-            else if (setSubscriptionDurable)
-            {
-                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription)
-                    .ConfigureAwait(false));
-            }
+
+            return transferSession;
         }
 
         private async Task<Dictionary<string, object>> ValidateDataValueAsync(

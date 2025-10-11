@@ -77,7 +77,7 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint revisedQueueSize,
             bool createDurable,
-            uint monitoredItemId,
+            MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache)
         {
             // set min sampling interval if 0
@@ -86,9 +86,11 @@ namespace Opc.Ua.Server
                 samplingInterval = 1;
             }
 
+            uint monitoredItemId = monitoredItemIdFactory.GetNextId();
+
             // create monitored item.
-            ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager
-                .CreateMonitoredItem(
+            ISampledDataChangeMonitoredItem monitoredItem =
+                m_samplingGroupManager.CreateMonitoredItem(
                     context.OperationContext,
                     subscriptionId,
                     publishingInterval,
