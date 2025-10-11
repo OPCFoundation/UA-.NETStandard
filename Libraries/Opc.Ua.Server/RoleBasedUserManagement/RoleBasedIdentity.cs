@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Xml;
 
 namespace Opc.Ua.Server
@@ -37,6 +38,7 @@ namespace Opc.Ua.Server
     /// The well known roles in a server.
     /// https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9.2
     /// </summary>
+    [DataContract(Namespace = Namespaces.Roles)]
     public class Role : IEquatable<Role>
     {
         /// <summary>
@@ -106,14 +108,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// the NodeId of the role
+        /// The name of the role.
         /// </summary>
-        public NodeId RoleId { get; }
+        [DataMember(Name = "Name", IsRequired = true, Order = 10)]
+        public string Name { get; private set; }
 
         /// <summary>
-        /// the name of the role
+        /// The NodeId of the role.
         /// </summary>
-        public string Name { get; }
+        [DataMember(Name = "RoleId", IsRequired = true, Order = 20)]
+        public NodeId RoleId { get; set; }
 
         /// <inheritdoc/>
         public bool Equals(Role other)
@@ -158,6 +162,7 @@ namespace Opc.Ua.Server
                 // Only the left side is null.
                 return false;
             }
+
             // Equals handles case of null on right side.
             return lhs.Equals(rhs);
         }
@@ -169,9 +174,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// returns the name of the role
+        /// Returns the name of the role.
         /// </summary>
-        /// <returns>the name of the role</returns>
         public override string ToString()
         {
             return Name;

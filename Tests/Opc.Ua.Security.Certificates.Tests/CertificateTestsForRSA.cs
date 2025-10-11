@@ -517,7 +517,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .CreateForRSA(generator);
             });
 
-            CheckPEMWriter(signingCert, password: "123");
+            CheckPEMWriter(signingCert, password: "123".ToCharArray());
         }
 
         private static void WriteCertificate(X509Certificate2 cert, string message)
@@ -530,7 +530,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
         }
 
-        private static void CheckPEMWriter(X509Certificate2 certificate, string password = null)
+        private static void CheckPEMWriter(X509Certificate2 certificate, ReadOnlySpan<char> password = default)
         {
             PEMWriter.ExportCertificateAsPEM(certificate);
             if (certificate.HasPrivateKey)

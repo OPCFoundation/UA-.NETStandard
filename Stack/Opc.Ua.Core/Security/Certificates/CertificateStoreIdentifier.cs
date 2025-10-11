@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// <summary>
     /// Describes a certificate store.
     /// </summary>
-    public partial class CertificateStoreIdentifier : IFormattable, ICloneable
+    public partial class CertificateStoreIdentifier : IOpenStore, IFormattable, ICloneable
     {
         /// <summary>
         /// Ctor of a certificate store.

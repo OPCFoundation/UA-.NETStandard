@@ -574,7 +574,7 @@ namespace Opc.Ua.Server.Tests
             if (m_systemContext == null)
             {
                 m_systemContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-                m_systemContext.NamespaceUris.Append(Namespaces.OpcUa);
+                m_systemContext.NamespaceUris.Append(Opc.Ua.Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
                 typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
                 typeTable.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);

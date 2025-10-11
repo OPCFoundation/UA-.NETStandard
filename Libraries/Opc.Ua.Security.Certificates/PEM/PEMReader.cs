@@ -139,12 +139,14 @@ namespace Opc.Ua.Security.Certificates
         /// Import a PKCS#8 private key or RSA private key from PEM.
         /// The PKCS#8 private key may be encrypted using a password.
         /// </summary>
-        /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
+        /// <param name="pemDataBlob">The PEM datablob as byte span.</param>
         /// <param name="password">The password to use (optional).</param>
         /// <returns>The RSA private key.</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="CryptographicException"></exception>
-        public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
+        public static RSA ImportRsaPrivateKeyFromPEM(
+            ReadOnlySpan<byte> pemDataBlob,
+            ReadOnlySpan<char> password)
         {
             string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"];
             try
@@ -176,13 +178,13 @@ namespace Opc.Ua.Security.Certificates
                         switch (count)
                         {
                             case 1:
-                                if (string.IsNullOrEmpty(password))
+                                if (password.IsEmpty || password.IsWhiteSpace())
                                 {
                                     throw new ArgumentException(
                                         "Need password for encrypted private key.");
                                 }
                                 rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(
-                                    password.ToCharArray(),
+                                    password,
                                     pemDecoded,
                                     out bytesRead);
                                 break;
@@ -217,7 +219,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>ECDsa instance containing the private key</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="CryptographicException"></exception>
-        public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(
+            byte[] pemDataBlob,
+            ReadOnlySpan<char> password)
         {
             // PEM labels for EC keys. Probably need adjustment
             string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "EC PRIVATE KEY"];
@@ -260,13 +264,13 @@ namespace Opc.Ua.Security.Certificates
                         {
                             case 1:
                                 // ENCRYPTED PRIVATE KEY
-                                if (string.IsNullOrEmpty(password))
+                                if (password.IsEmpty || password.IsWhiteSpace())
                                 {
                                     throw new ArgumentException(
                                         "A password is required for an encrypted private key.");
                                 }
                                 ecdsaKey.ImportEncryptedPkcs8PrivateKey(
-                                    password.ToCharArray(),
+                                    password,
                                     decodedBytes,
                                     out _);
                                 break;

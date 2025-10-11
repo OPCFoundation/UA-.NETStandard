@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
@@ -92,19 +93,19 @@ namespace Opc.Ua.Gds.Tests
                 // always start with clean cert store
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.ApplicationCertificate.OpenStore(telemetry))
+                        Config.SecurityConfiguration.ApplicationCertificate, telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore(telemetry))
+                        Config.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore(telemetry))
+                        Config.SecurityConfiguration.TrustedPeerCertificates, telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.RejectedCertificateStore.OpenStore(telemetry))
+                        Config.SecurityConfiguration.RejectedCertificateStore, telemetry)
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
@@ -156,14 +157,16 @@ namespace Opc.Ua.Gds.Tests
             }
 
             var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
-            var usersDatabase = JsonUserDatabase.Load(usersDatabaseStorePath);
+            IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath, telemetry);
+
+            GlobalDiscoveryTestServer.RegisterDefaultUsers(userDatabase);
 
             // start the server.
             Server = new GlobalDiscoverySampleServer(
                 applicationsDatabase,
                 applicationsDatabase,
                 new CertificateGroup(telemetry),
-                usersDatabase);
+                userDatabase);
             await Application.StartAsync(Server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;
@@ -202,6 +205,32 @@ namespace Opc.Ua.Gds.Tests
                     Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates the default GDS users.
+        /// </summary>
+        private static void RegisterDefaultUsers(IUserDatabase userDatabase)
+        {
+            userDatabase.CreateUser(
+                "sysadmin",
+                "demo"u8,
+                [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin]);
+            userDatabase.CreateUser(
+                "appadmin", "demo"u8,
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]);
+            userDatabase.CreateUser(
+                "appuser",
+                "demo"u8,
+                [Role.AuthenticatedUser]);
+
+            userDatabase.CreateUser(
+                "DiscoveryAdmin",
+                "demo"u8,
+                [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
+            userDatabase.CreateUser(
+                "CertificateAuthorityAdmin", "demo"u8,
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]);
         }
 
         private static async Task<ApplicationConfiguration> LoadAsync(

@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -236,7 +237,7 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword,
+            char[] privateKeyPassword,
             CancellationToken ct = default)
         {
             if (application == null)
@@ -256,7 +257,7 @@ namespace Opc.Ua.Gds.Server
 
             using X509Certificate2 signingKey = await LoadSigningKeyAsync(
                 Certificates[certificateType],
-                string.Empty,
+                null,
                 m_telemetry,
                 ct)
                 .ConfigureAwait(false);
@@ -282,7 +283,20 @@ namespace Opc.Ua.Gds.Server
             byte[] privateKey;
             if (privateKeyFormat == "PFX")
             {
-                privateKey = certificate.Export(X509ContentType.Pfx, privateKeyPassword);
+                if (privateKeyPassword == null || privateKeyPassword.Length == 0)
+                {
+                    privateKey = certificate.Export(X509ContentType.Pfx);
+                }
+                else
+                {
+                    using var passwordString = new SecureString();
+                    foreach (char c in privateKeyPassword)
+                    {
+                        passwordString.AppendChar(c);
+                    }
+                    passwordString.MakeReadOnly();
+                    privateKey = certificate.Export(X509ContentType.Pfx, passwordString);
+                }
             }
             else if (privateKeyFormat == "PEM")
             {
@@ -420,7 +434,7 @@ namespace Opc.Ua.Gds.Server
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using X509Certificate2 signingKey = await LoadSigningKeyAsync(
                     Certificates[certificateType],
-                    string.Empty,
+                    null,
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false);
@@ -550,7 +564,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         public virtual Task<X509Certificate2> LoadSigningKeyAsync(
             X509Certificate2 signingCertificate,
-            string signingKeyPassword,
+            char[] signingKeyPassword,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
@@ -573,7 +587,7 @@ namespace Opc.Ua.Gds.Server
         public static async Task<X509CRL> RevokeCertificateAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2 certificate,
-            string issuerKeyFilePassword = null,
+            char[] issuerKeyFilePassword = null,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {

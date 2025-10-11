@@ -51,11 +51,11 @@ namespace Opc.Ua.PubSub.Transport
         public MqttTlsCertificates(
             string caCertificatePath = null,
             string clientCertificatePath = null,
-            string clientCertificatePassword = null)
+            char[] clientCertificatePassword = null)
         {
             CaCertificatePath = caCertificatePath ?? string.Empty;
             ClientCertificatePath = clientCertificatePath ?? string.Empty;
-            ClientCertificatePassword = clientCertificatePassword ?? string.Empty;
+            ClientCertificatePassword = clientCertificatePassword;
 
             if (!string.IsNullOrEmpty(CaCertificatePath))
             {
@@ -85,7 +85,7 @@ namespace Opc.Ua.PubSub.Transport
             KeyValuePairs.Add(new KeyValuePair
             {
                 Key = qClientCertificatePassword,
-                Value = ClientCertificatePassword
+                Value = ClientCertificatePassword?.ToString() ?? string.Empty
             });
         }
 
@@ -112,14 +112,14 @@ namespace Opc.Ua.PubSub.Transport
                         .Equals(qClientCertificatePath.Name, StringComparison.Ordinal))?
                     .Value.Value as string;
 
-            ClientCertificatePassword = string.Empty;
+            ClientCertificatePassword = null;
             QualifiedName qClientCertificatePassword = nameof(
                 EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePassword);
             ClientCertificatePassword =
-                keyValuePairs
+                ((keyValuePairs
                     .Find(kvp => kvp.Key.Name
                         .Equals(qClientCertificatePassword.Name, StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.Value as string)?.ToCharArray());
 
             KeyValuePairs = keyValuePairs;
 
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Transport
 
         internal string CaCertificatePath { get; set; }
         internal string ClientCertificatePath { get; set; }
-        internal string ClientCertificatePassword { get; set; }
+        internal char[] ClientCertificatePassword { get; set; }
 
         internal KeyValuePairCollection KeyValuePairs { get; set; }
 

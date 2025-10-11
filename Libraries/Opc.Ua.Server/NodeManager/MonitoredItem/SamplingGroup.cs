@@ -304,16 +304,15 @@ namespace Opc.Ua.Server
 
             if (m_session == null && context?.SessionId == null)
             {
-                //fallback to compare user Identity if session is not set.
-                if (savedOwnerIdentity?.GetIdentityToken() != m_effectiveIdentity
-                    .GetIdentityToken())
+                // fallback to compare user Identity if session is not set.
+                if (!m_effectiveIdentity.Equals(savedOwnerIdentity))
                 {
                     return false;
                 }
             }
             else
             {
-                //compare session
+                // compare session
                 if (context?.SessionId != m_session?.Id)
                 {
                     return false;

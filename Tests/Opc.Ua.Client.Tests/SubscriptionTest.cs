@@ -510,7 +510,7 @@ namespace Opc.Ua.Client.Tests
 
             UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
-                : new UserIdentity("user1", "password");
+                : new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture

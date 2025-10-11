@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Gds.Server
 {
     /// <summary>
@@ -105,7 +107,7 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword,
+            ReadOnlySpan<char> privateKeyPassword,
             string authorityId);
 
         /// <summary>
@@ -160,6 +162,6 @@ namespace Opc.Ua.Gds.Server
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,
-            out string privateKeyPassword);
+            out ReadOnlySpan<char> privateKeyPassword);
     }
 }

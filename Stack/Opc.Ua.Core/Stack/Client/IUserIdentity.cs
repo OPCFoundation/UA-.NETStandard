@@ -55,7 +55,13 @@ namespace Opc.Ua
         NodeIdCollection GrantedRoleIds { get; }
 
         /// <summary>
-        /// Returns a UA user identity token containing the user information.
+        /// <para>Returns a UA user identity token containing the user information and
+        /// any secrets.</para>
+        /// <para>
+        /// IMPORTANT: the returned token should not be disposed by the caller as its
+        /// lifetime is owned by the user identity. Because of this fact this is an
+        /// unsafe operation and might be removed in future versions.
+        /// </para>
         /// </summary>
         /// <returns>UA user identity token containing the user information.</returns>
         UserIdentityToken GetIdentityToken();

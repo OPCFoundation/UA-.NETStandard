@@ -10,6 +10,9 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
+using System.Text;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -21,7 +24,7 @@ namespace Opc.Ua
         /// Return the password for a certificate private key.
         /// </summary>
         /// <param name="certificateIdentifier">The certificate identifier for which the password is needed.</param>
-        string GetPassword(CertificateIdentifier certificateIdentifier);
+        char[] GetPassword(CertificateIdentifier certificateIdentifier);
     }
 
     /// <summary>
@@ -30,21 +33,73 @@ namespace Opc.Ua
     public class CertificatePasswordProvider : ICertificatePasswordProvider
     {
         /// <summary>
-        /// Constructor which takes a password string.
+        /// Default constructor.
         /// </summary>
-        public CertificatePasswordProvider(string password)
+        public CertificatePasswordProvider()
         {
-            m_password = password;
+            m_password = [];
+        }
+
+        /// <summary>
+        /// Constructor which takes a raw or UTF8 encoded password. If not utf8
+        /// the buffer is assumed raw token and will be base64 encoded.
+        /// </summary>
+        /// <param name="password">The raw password.</param>
+        /// <param name="isUtf8String">Whether the password is utf8 string</param>
+        public CertificatePasswordProvider(byte[] password, bool isUtf8String = true)
+        {
+            if (password != null)
+            {
+                if (isUtf8String)
+                {
+                    m_password = Encoding.UTF8.GetString(password).ToCharArray();
+                }
+                else
+                {
+                    char[] charToken = new char[password.Length * 3];
+                    int length = Convert.ToBase64CharArray(
+                        password,
+                        0,
+                        password.Length,
+                        charToken,
+                        0,
+                        Base64FormattingOptions.None);
+                    char[] passcode = new char[length];
+                    charToken.CopyTo(passcode, 0);
+                    Array.Clear(charToken, 0, charToken.Length);
+                    m_password = passcode;
+                }
+            }
+            else
+            {
+                m_password = [];
+            }
+        }
+
+        /// <summary>
+        /// Constructor which takes a password string
+        /// </summary>
+        /// <param name="password"></param>
+        public CertificatePasswordProvider(ReadOnlySpan<char> password)
+        {
+            if (!password.IsEmpty && !password.IsWhiteSpace())
+            {
+                m_password = password.ToArray();
+            }
+            else
+            {
+                m_password = [];
+            }
         }
 
         /// <summary>
         /// Return the password used for the certificate.
         /// </summary>
-        public string GetPassword(CertificateIdentifier certificateIdentifier)
+        public char[] GetPassword(CertificateIdentifier certificateIdentifier)
         {
             return m_password;
         }
 
-        private readonly string m_password;
+        private readonly char[] m_password;
     }
 }

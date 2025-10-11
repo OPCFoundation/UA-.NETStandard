@@ -72,9 +72,9 @@ namespace Quickstarts.ConsoleReferenceClient
             bool showHelp = false;
             bool autoAccept = false;
             string username = null;
-            string userpassword = null;
+            byte[] userpassword = null;
             string userCertificateThumbprint = null;
-            string userCertificatePassword = null;
+            byte[] userCertificatePassword = null;
             bool logConsole = false;
             bool appLog = false;
             bool renewCertificate = false;
@@ -86,7 +86,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool verbose = false;
             bool subscribe = false;
             bool noSecurity = false;
-            string password = null;
+            byte[] pfxPassword = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
             string reverseConnectUrlString = null;
@@ -114,7 +114,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 {
                     "up|userpassword=",
                     "the password of the user identity for the connection",
-                    u => userpassword = u },
+                    u => userpassword = Encoding.UTF8.GetBytes(u) },
                 {
                     "uc|usercertificate=",
                     "the thumbprint of the user certificate for the user identity",
@@ -122,12 +122,16 @@ namespace Quickstarts.ConsoleReferenceClient
                 },
                 {
                     "ucp|usercertificatepassword=",
-                    "the password of the  user certificate for the user identity",
-                    u => userCertificatePassword = u
+                    "the password of the user certificate for the user identity",
+                    u => userCertificatePassword = Encoding.UTF8.GetBytes(u)
                 },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
-                { "p|password=", "optional password for private key", p => password = p },
+                {
+                    "p|password=",
+                    "optional password for private key",
+                    p => pfxPassword = Encoding.UTF8.GetBytes(p)
+                },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 {
                     "t|timeout=",
@@ -290,7 +294,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 // Define the UA Client application
                 ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-                var passwordProvider = new CertificatePasswordProvider(password);
+                var passwordProvider = new CertificatePasswordProvider(pfxPassword);
                 var application = new ApplicationInstance(telemetry)
                 {
                     ApplicationName = applicationName,
@@ -359,8 +363,60 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
-                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
                 CancellationToken ct = quitCTS.Token;
+                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                var userIdentity = new UserIdentity();
+
+                // set user identity of type username/pw
+                if (!string.IsNullOrEmpty(username))
+                {
+                    if (userpassword == null)
+                    {
+                        logger.LogInformation(
+                            "No password provided for user {Username}, using empty password.",
+                            username);
+                    }
+
+                    userIdentity = new UserIdentity(username, userpassword ?? ""u8);
+                    logger.LogInformation(
+                        "Connect with user identity for user {Username}",
+                        username);
+                }
+
+                // set user identity of type certificate
+                if (!string.IsNullOrEmpty(userCertificateThumbprint))
+                {
+                    CertificateIdentifier userCertificateIdentifier
+                            = await FindUserCertificateIdentifierAsync(
+                                userCertificateThumbprint,
+                                application.ApplicationConfiguration.SecurityConfiguration
+                                    .TrustedUserCertificates,
+                                telemetry,
+                                ct
+                            )
+                            .ConfigureAwait(true);
+
+                    if (userCertificateIdentifier != null)
+                    {
+                        userIdentity = UserIdentity.CreateAsync(
+                            userCertificateIdentifier,
+                            new CertificatePasswordProvider(userCertificatePassword),
+                            telemetry,
+                            ct
+                        ).GetAwaiter().GetResult();
+
+                        logger.LogInformation(
+                            "Connect with user certificate with Thumbprint {UserCertificateThumbprint}",
+                            userCertificateThumbprint);
+                    }
+                    else
+                    {
+                        logger.LogInformation(
+                            "Failed to load user certificate with Thumbprint {UserCertificateThumbprint}",
+                            userCertificateThumbprint);
+                    }
+                }
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -396,46 +452,9 @@ namespace Quickstarts.ConsoleReferenceClient
                     )
                     {
                         AutoAccept = autoAccept,
-                        SessionLifeTime = 60_000
+                        SessionLifeTime = 60_000,
+                        UserIdentity = userIdentity
                     };
-                    // set user identity of type username/pw
-                    if (!string.IsNullOrEmpty(username))
-                    {
-                        uaClient.UserIdentity = new UserIdentity(
-                            username,
-                            userpassword ?? string.Empty);
-                    }
-
-                    // set user identity of type certificate
-                    if (!string.IsNullOrEmpty(userCertificateThumbprint))
-                    {
-                        CertificateIdentifier userCertificateIdentifier
-                            = await FindUserCertificateIdentifierAsync(
-                                userCertificateThumbprint,
-                                application.ApplicationConfiguration.SecurityConfiguration
-                                    .TrustedUserCertificates,
-                                telemetry,
-                                ct
-                            )
-                            .ConfigureAwait(true);
-
-                        if (userCertificateIdentifier != null)
-                        {
-                            uaClient.UserIdentity = UserIdentity.CreateAsync(
-                                userCertificateIdentifier,
-                                new CertificatePasswordProvider(userCertificatePassword ?? string.Empty),
-                                telemetry,
-                                ct
-                            ).GetAwaiter().GetResult();
-                        }
-                        else
-                        {
-                            logger.LogInformation(
-                                "Failed to load user certificate with Thumbprint {UserCertificateThumbprint}",
-                                userCertificateThumbprint
-                            );
-                        }
-                    }
 
                     if (enableDurableSubscriptions)
                     {

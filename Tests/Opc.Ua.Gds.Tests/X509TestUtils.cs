@@ -42,7 +42,7 @@ namespace Opc.Ua.Gds.Tests
         public static void VerifyApplicationCertIntegrity(
             byte[] certificate,
             byte[] privateKey,
-            string privateKeyPassword,
+            char[] privateKeyPassword,
             string privateKeyFormat,
             byte[][] issuerCertificates,
             ITelemetryContext telemetry)

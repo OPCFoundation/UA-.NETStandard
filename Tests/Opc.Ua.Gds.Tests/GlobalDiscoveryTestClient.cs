@@ -32,6 +32,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
@@ -138,19 +139,19 @@ namespace Opc.Ua.Gds.Tests
                 // always start with clean cert store
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore(m_telemetry))
+                        Configuration.SecurityConfiguration.ApplicationCertificate, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore(m_telemetry))
+                        Configuration.SecurityConfiguration.TrustedIssuerCertificates, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry))
+                        Configuration.SecurityConfiguration.TrustedPeerCertificates, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.RejectedCertificateStore.OpenStore(m_telemetry))
+                        Configuration.SecurityConfiguration.RejectedCertificateStore, m_telemetry)
                     .ConfigureAwait(false);
             }
 
@@ -189,11 +190,11 @@ namespace Opc.Ua.Gds.Tests
             {
                 AppUser = new UserIdentity(
                     gdsClientConfiguration.AppUserName,
-                    gdsClientConfiguration.AppPassword);
+                    Encoding.UTF8.GetBytes(gdsClientConfiguration.AppPassword));
             }
             AdminUser = new UserIdentity(
                 gdsClientConfiguration.AdminUserName,
-                gdsClientConfiguration.AdminPassword);
+                Encoding.UTF8.GetBytes(gdsClientConfiguration.AdminPassword));
             Anonymous = new UserIdentity();
         }
 

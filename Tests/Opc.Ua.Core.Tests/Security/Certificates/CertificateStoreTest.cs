@@ -156,7 +156,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
 
-            string password = Guid.NewGuid().ToString();
+            char[] password = Guid.NewGuid().ToString().ToCharArray();
+
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
@@ -190,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 // check invalid password fails to load
                 X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(
-                    "123",
+                    "123".ToCharArray(),
                     telemetry: telemetry)
                     .ConfigureAwait(false);
                 Assert.IsNull(nullKey);
@@ -199,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 // check invalid password fails to load
                 X509Certificate2 nullKey = await id.LoadPrivateKeyExAsync(
-                    new CertificatePasswordProvider("123"),
+                    new CertificatePasswordProvider("123".ToCharArray()),
                     telemetry: telemetry)
                     .ConfigureAwait(false);
                 Assert.IsNull(nullKey);
@@ -388,11 +389,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
-                appCertificate.AddToStoreAsync(
+            _ = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
                     "User\\UA_MachineDefault",
-                    telemetry: telemetry));
+                    telemetry: telemetry).ConfigureAwait(false));
+            _ = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await appCertificate.AddToStoreAsync(
+                    CertificateStoreType.X509Store,
+                    "System\\UA_MachineDefault",
+                    telemetry: telemetry).ConfigureAwait(false));
         }
 
         /// <summary>

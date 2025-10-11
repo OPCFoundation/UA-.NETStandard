@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_AllStandardAttributes_ReturnsValidNames()
         {
             // Test all standard attribute IDs
-            uint[] attributeIds = {
+            uint[] attributeIds = [
                 Attributes.NodeId,
                 Attributes.NodeClass,
                 Attributes.BrowseName,
@@ -75,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
                 Attributes.UserRolePermissions,
                 Attributes.AccessRestrictions,
                 Attributes.AccessLevelEx
-            };
+            ];
 
             foreach (uint id in attributeIds)
             {
@@ -111,14 +111,14 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetIdentifier_AllStandardAttributes_ReturnsValidIds()
         {
-            string[] attributeNames = {
+            string[] attributeNames = [
                 "NodeId", "NodeClass", "BrowseName", "DisplayName", "Description",
                 "WriteMask", "UserWriteMask", "IsAbstract", "Symmetric", "InverseName",
                 "ContainsNoLoops", "EventNotifier", "Value", "DataType", "ValueRank",
                 "ArrayDimensions", "AccessLevel", "UserAccessLevel", "MinimumSamplingInterval",
                 "Historizing", "Executable", "UserExecutable", "DataTypeDefinition",
                 "RolePermissions", "UserRolePermissions", "AccessRestrictions", "AccessLevelEx"
-            };
+            ];
 
             foreach (string name in attributeNames)
             {
@@ -153,10 +153,10 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetBrowseName_GetIdentifier_AreInverseOperations()
         {
-            uint[] attributeIds = {
+            uint[] attributeIds = [
                 Attributes.NodeId, Attributes.Value, Attributes.DisplayName,
                 Attributes.Executable, Attributes.AccessLevelEx
-            };
+            ];
 
             foreach (uint id in attributeIds)
             {

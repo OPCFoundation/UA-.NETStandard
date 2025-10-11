@@ -142,7 +142,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -235,7 +235,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             return Task.FromResult<X509Certificate2>(null);

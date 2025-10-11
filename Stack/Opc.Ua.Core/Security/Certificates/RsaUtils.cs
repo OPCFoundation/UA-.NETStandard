@@ -169,7 +169,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         internal static byte[] Encrypt(
-            byte[] dataToEncrypt,
+            ReadOnlySpan<byte> dataToEncrypt,
             X509Certificate2 encryptingCertificate,
             Padding padding,
             ILogger logger)
@@ -194,7 +194,7 @@ namespace Opc.Ua
             plainText[3] = (byte)((0xFF000000 & dataToEncrypt.Length) >> 24);
 
             // copy data.
-            Array.Copy(dataToEncrypt, 0, plainText, 4, dataToEncrypt.Length);
+            dataToEncrypt.CopyTo(plainText.AsSpan(4, dataToEncrypt.Length));
 
             byte[] buffer = new byte[cipherTextSize];
             ArraySegment<byte> cipherText = Encrypt(
@@ -204,6 +204,7 @@ namespace Opc.Ua
                 new ArraySegment<byte>(buffer),
                 logger);
             System.Diagnostics.Debug.Assert(cipherText.Count == buffer.Length);
+            Array.Clear(plainText, 0, plainText.Length);
 
             return buffer;
         }
@@ -303,6 +304,7 @@ namespace Opc.Ua
 
             byte[] decryptedData = new byte[length];
             Array.Copy(plainText.Array, plainText.Offset + 4, decryptedData, 0, length);
+            Array.Clear(buffer, 0, buffer.Length);
 
             return decryptedData;
         }

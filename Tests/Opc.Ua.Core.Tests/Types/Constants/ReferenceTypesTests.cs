@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_StandardReferenceTypes_ReturnsValidNames()
         {
             // Test a few standard reference type IDs
-            uint[] referenceTypeIds = {
+            uint[] referenceTypeIds = [
                 ReferenceTypes.References,
                 ReferenceTypes.HierarchicalReferences,
                 ReferenceTypes.NonHierarchicalReferences,
@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
                 ReferenceTypes.HasSubtype,
                 ReferenceTypes.HasProperty,
                 ReferenceTypes.HasComponent
-            };
+            ];
 
             foreach (uint id in referenceTypeIds)
             {
@@ -99,13 +99,13 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetIdentifier_StandardReferenceTypes_ReturnsValidIds()
         {
-            string[] referenceTypeNames = {
+            string[] referenceTypeNames = [
                 "References", "HierarchicalReferences", "NonHierarchicalReferences",
                 "HasChild", "Organizes", "HasEventSource", "HasModellingRule",
                 "HasEncoding", "HasDescription", "HasTypeDefinition",
                 "GeneratesEvent", "Aggregates", "HasSubtype",
                 "HasProperty", "HasComponent"
-            };
+            ];
 
             foreach (string name in referenceTypeNames)
             {
@@ -140,11 +140,11 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetBrowseName_GetIdentifier_AreInverseOperations()
         {
-            uint[] referenceTypeIds = {
+            uint[] referenceTypeIds = [
                 ReferenceTypes.References, ReferenceTypes.HasChild,
                 ReferenceTypes.HasTypeDefinition, ReferenceTypes.HasProperty,
                 ReferenceTypes.Organizes
-            };
+            ];
 
             foreach (uint id in referenceTypeIds)
             {

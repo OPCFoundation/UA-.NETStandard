@@ -60,7 +60,6 @@ namespace Opc.Ua.Client.Tests
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
         public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
-
         public bool SingleSession { get; set; } = true;
         public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; }

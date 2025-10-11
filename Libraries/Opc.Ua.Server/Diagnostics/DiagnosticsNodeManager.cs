@@ -66,7 +66,11 @@ namespace Opc.Ua.Server
         {
             AliasRoot = "Core";
 
-            string[] namespaceUris = [Namespaces.OpcUa, Namespaces.OpcUa + "Diagnostics"];
+            string[] namespaceUris =
+            [
+                Opc.Ua.Namespaces.OpcUa,
+                Opc.Ua.Namespaces.OpcUa + "Diagnostics"
+            ];
             SetNamespaces(namespaceUris);
 
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);

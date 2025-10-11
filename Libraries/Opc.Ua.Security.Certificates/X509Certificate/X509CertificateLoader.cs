@@ -67,10 +67,32 @@ namespace System.Security.Cryptography.X509Certificates
         /// </summary>
         public static X509Certificate2 LoadPkcs12(
             byte[] data,
-            string password,
+            ReadOnlySpan<char> password,
             X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet)
         {
+#if NETFRAMEWORK
+            if (password.IsEmpty)
+            {
+                return new X509Certificate2(data, string.Empty, keyStorageFlags);
+            }
+
+            using var passwordString = new SecureString();
+            foreach (char c in password)
+            {
+                passwordString.AppendChar(c);
+            }
+            passwordString.MakeReadOnly();
+
+            return new X509Certificate2(data, passwordString, keyStorageFlags);
+#else
+#if NET6_0_OR_GREATER
             return new X509Certificate2(data, password, keyStorageFlags);
+#else
+            // .NET Standard does not support ReadOnlySpan<char> for password,
+            // creates a string artifact of the password in memory.
+            return new X509Certificate2(data, password.ToString(), keyStorageFlags);
+#endif
+#endif
         }
 
         /// <summary>
@@ -78,10 +100,32 @@ namespace System.Security.Cryptography.X509Certificates
         /// </summary>
         public static X509Certificate2 LoadPkcs12FromFile(
             string filename,
-            string password,
+            ReadOnlySpan<char> password,
             X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet)
         {
+#if NETFRAMEWORK
+            if (password.IsEmpty)
+            {
+                return new X509Certificate2(filename, string.Empty, keyStorageFlags);
+            }
+
+            using var passwordString = new SecureString();
+            foreach (char c in password)
+            {
+                passwordString.AppendChar(c);
+            }
+            passwordString.MakeReadOnly();
+
+            return new X509Certificate2(filename, passwordString, keyStorageFlags);
+#else
+#if NET6_0_OR_GREATER
             return new X509Certificate2(filename, password, keyStorageFlags);
+#else
+            // .NET Standard does not support ReadOnlySpan<char> for password,
+            // creates a string artifact of the password in memory.
+            return new X509Certificate2(filename, password.ToString(), keyStorageFlags);
+#endif
+#endif
         }
     }
 }

@@ -140,7 +140,7 @@ namespace Opc.Ua.Client.Tests
                             ServerUrl,
                             SecurityPolicies.Basic256Sha256,
                             null,
-                            new UserIdentity("sysadmin", "demo"))
+                            new UserIdentity("sysadmin", "demo"u8))
                         .ConfigureAwait(false);
                     Session.DeleteSubscriptionsOnClose = false;
                 }
@@ -496,7 +496,7 @@ namespace Opc.Ua.Client.Tests
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,
                     null,
-                    new UserIdentity("sysadmin", "demo"))
+                    new UserIdentity("sysadmin", "demo"u8))
                 .ConfigureAwait(false);
 #else // TODO: Remove once failure is understood.
             ISession transferSession;

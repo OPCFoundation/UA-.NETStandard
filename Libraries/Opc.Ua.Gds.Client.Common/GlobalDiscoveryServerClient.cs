@@ -1090,7 +1090,7 @@ namespace Opc.Ua.Gds.Client
             string subjectName,
             IList<string> domainNames,
             string privateKeyFormat,
-            string privateKeyPassword)
+            char[] privateKeyPassword)
         {
             return StartNewKeyPairRequestAsync(
                 applicationId,
@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Gds.Client
             string subjectName,
             IList<string> domainNames,
             string privateKeyFormat,
-            string privateKeyPassword,
+            char[] privateKeyPassword,
             CancellationToken ct = default)
         {
             if (!IsConnected)

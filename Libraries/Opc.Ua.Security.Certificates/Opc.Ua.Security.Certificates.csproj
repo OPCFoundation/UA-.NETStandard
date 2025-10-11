@@ -17,6 +17,7 @@
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="System.Formats.Asn1" />
+    <PackageReference Include="System.Text.Json" />
   </ItemGroup>
   <!-- Add additional crypto library version -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.0'">
