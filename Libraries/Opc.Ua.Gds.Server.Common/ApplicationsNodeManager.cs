@@ -1242,7 +1242,7 @@ namespace Opc.Ua.Gds.Server
                 subjectName,
                 domainNames,
                 privateKeyFormat,
-                privateKeyPassword,
+                privateKeyPassword?.ToCharArray(),
                 context.UserIdentity?.DisplayName);
 
             if (m_autoApprove)
@@ -1450,7 +1450,7 @@ namespace Opc.Ua.Gds.Server
                     out string subjectName,
                     out string[] domainNames,
                     out string privateKeyFormat,
-                    out string privateKeyPassword);
+                    out ReadOnlySpan<char> privateKeyPassword);
 
                 result.ServiceResult = VerifyApprovedState(state);
                 if (result.ServiceResult != null)
@@ -1501,7 +1501,7 @@ namespace Opc.Ua.Gds.Server
                                 subjectName,
                                 domainNames,
                                 privateKeyFormat,
-                                privateKeyPassword,
+                                privateKeyPassword.ToArray(),
                                 cancellationToken)
                             .Result;
                     }

@@ -33,7 +33,6 @@ using System.Linq;
 using System.Reflection;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -50,17 +49,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [DisassemblyDiagnoser]
     public class EncodeableFactoryTests
     {
-        private IEncodeableFactoryBuilder _builder;
-        private IEncodeableFactory _encodeableFactory;
-
         [OneTimeSetUp]
         [GlobalSetup]
         public void OneTimeAndGlobalSetUp()
         {
             IEncodeableFactory encodeableFactory = EncodeableFactory.Create();
-            _builder = encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly);
-            _encodeableFactory = EncodeableFactory.Create();
-            _encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly).Commit();
+            m_builder = encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly);
+            m_encodeableFactory = EncodeableFactory.Create();
+            m_encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly).Commit();
         }
 
         /// <summary>
@@ -73,11 +69,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // lookup a type that exists and one that does not
             for (int i = 0; i < 1000; i++)
             {
-                _ = _builder.TryGetEncodeableType(
+                _ = m_builder.TryGetEncodeableType(
                     new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary),
                     out IEncodeableType encodeableType);
                 Assert.NotNull(encodeableType);
-                _ = _builder.TryGetEncodeableType(
+                _ = m_builder.TryGetEncodeableType(
                     new ExpandedNodeId(Guid.NewGuid()),
                     out encodeableType);
                 Assert.Null(encodeableType);
@@ -94,11 +90,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // lookup a type that exists and one that does not
             for (int i = 0; i < 1000; i++)
             {
-                _ = _encodeableFactory.TryGetEncodeableType(
+                _ = m_encodeableFactory.TryGetEncodeableType(
                     new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary),
                     out IEncodeableType encodeableType);
                 Assert.NotNull(encodeableType);
-                _ = _encodeableFactory.TryGetEncodeableType(
+                _ = m_encodeableFactory.TryGetEncodeableType(
                     new ExpandedNodeId(Guid.NewGuid()),
                     out encodeableType);
                 Assert.Null(encodeableType);
@@ -278,7 +274,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();
             IEncodeableFactoryBuilder builder = factory.Builder;
-            Assembly currentAssembly = Assembly.GetExecutingAssembly();
+            var currentAssembly = Assembly.GetExecutingAssembly();
 
             // Act
             builder.AddEncodeableTypes(currentAssembly);
@@ -305,7 +301,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Assert - Should add our concrete test types but skip abstract and no-default-constructor types
             int addedTypes = factory.KnownTypeIds.Count() - knownTypesCount;
             Assert.Greater(addedTypes, 0); // Should have added some types
-            
+
             // Verify abstract types are not added
             Assert.False(factory.TryGetEncodeableType(new ExpandedNodeId(110000), out _));
             Assert.False(factory.TryGetEncodeableType(new ExpandedNodeId(110001), out _));
@@ -343,7 +339,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Assert
             bool foundTest = factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType testType);
-            bool foundJsonTest = factory.TryGetEncodeableType(new ExpandedNodeId(100004), out IEncodeableType jsonTestType);
+            bool foundJsonTest = factory.TryGetEncodeableType(new ExpandedNodeId(100004), out _);
 
             Assert.True(foundTest);
             Assert.True(foundJsonTest);
@@ -372,7 +368,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         for (uint j = 0; j < operationsPerThread; j++)
                         {
                             IEncodeableFactoryBuilder builder = factory.Builder;
-                            builder.AddEncodeableType(new ExpandedNodeId((threadId * 1000) + j + 10000), typeof(TestEncodeable));
+                            builder.AddEncodeableType(
+                                new ExpandedNodeId((threadId * 1000) + j + 10000),
+                                typeof(TestEncodeable));
                             builder.Commit();
                         }
                     }
@@ -690,7 +688,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         public class TestEncodeable : IEncodeable
         {
-            public TestEncodeable() { }
+            public TestEncodeable()
+            {
+            }
 
             public TestEncodeable(string value)
             {
@@ -703,8 +703,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public ExpandedNodeId BinaryEncodingId => new(100001);
             public ExpandedNodeId XmlEncodingId => new(100002);
 
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
             public bool IsEqual(IEncodeable encodeable)
             {
                 return encodeable is TestEncodeable test && test.Value == Value;
@@ -721,8 +727,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         public class TestJsonEncodeable : TestEncodeable, IJsonEncodeable
         {
-            public TestJsonEncodeable() { }
-            public TestJsonEncodeable(string value) : base(value) { }
+            public TestJsonEncodeable()
+            {
+            }
+
+            public TestJsonEncodeable(string value)
+                : base(value)
+            {
+            }
 
             public override ExpandedNodeId TypeId => new(100004);
 
@@ -740,16 +752,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 Value = value;
             }
+
             public string Value { get; set; }
             public ExpandedNodeId TypeId => new(110000);
             public ExpandedNodeId BinaryEncodingId => new(110001);
             public ExpandedNodeId XmlEncodingId => new(110002);
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
             public bool IsEqual(IEncodeable encodeable)
             {
                 return encodeable is TestNoDefaultConstructorEncodeable test && test.Value == Value;
             }
+
             public object Clone()
             {
                 return new TestNoDefaultConstructorEncodeable(Value);
@@ -765,8 +786,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public abstract ExpandedNodeId BinaryEncodingId { get; }
             public abstract ExpandedNodeId XmlEncodingId { get; }
 
-            public virtual void Encode(IEncoder encoder) { }
-            public virtual void Decode(IDecoder decoder) { }
+            public virtual void Encode(IEncoder encoder)
+            {
+            }
+
+            public virtual void Decode(IDecoder decoder)
+            {
+            }
+
             public virtual bool IsEqual(IEncodeable encodeable)
             {
                 return false;
@@ -1045,7 +1072,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Assert - Should be findable with normalized NodeId (without namespace URI)
             bool foundWithoutNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000), out IEncodeableType typeWithoutNs);
-            bool foundWithNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000, Namespaces.OpcUa), out IEncodeableType typeWithNs);
+            bool foundWithNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000, Namespaces.OpcUa), out _);
 
             Assert.True(foundWithoutNs);
             Assert.False(foundWithNs);
@@ -1101,10 +1128,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public ExpandedNodeId BinaryEncodingId => new(120001);
             public ExpandedNodeId XmlEncodingId => throw new NotSupportedException("XML encoding not supported");
 
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
-            public bool IsEqual(IEncodeable encodeable) => encodeable is TestEncodeableWithoutXml;
-            public object Clone() => new TestEncodeableWithoutXml();
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithoutXml;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithoutXml();
+            }
         }
 
         /// <summary>
@@ -1117,10 +1157,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public ExpandedNodeId XmlEncodingId => new(130002);
             public ExpandedNodeId JsonEncodingId => throw new NotSupportedException("JSON encoding not supported");
 
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
-            public bool IsEqual(IEncodeable encodeable) => encodeable is TestEncodeableWithoutJson;
-            public object Clone() => new TestEncodeableWithoutJson();
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithoutJson;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithoutJson();
+            }
         }
 
         /// <summary>
@@ -1132,10 +1185,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public ExpandedNodeId BinaryEncodingId => new(140001, Namespaces.OpcUa);
             public ExpandedNodeId XmlEncodingId => new(140002, Namespaces.OpcUa);
 
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
-            public bool IsEqual(IEncodeable encodeable) => encodeable is TestEncodeableWithDefaultNamespace;
-            public object Clone() => new TestEncodeableWithDefaultNamespace();
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithDefaultNamespace;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithDefaultNamespace();
+            }
         }
 
         [Test]
@@ -1144,7 +1210,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Arrange - Create a minimal assembly structure to test JSON ID resolution
             IEncodeableFactory factory = EncodeableFactory.Create();
             IEncodeableFactoryBuilder builder = factory.Builder;
-            
+
             // Act - Add types from current assembly which should include our test types
             builder.AddEncodeableTypes(Assembly.GetExecutingAssembly());
             builder.Commit();
@@ -1159,11 +1225,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // This test verifies the JSON encoding suffix parsing logic in AddEncodeableTypes
             // The method looks for fields ending with "_Encoding_DefaultJson" in ObjectIds classes
-            
+
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();
             IEncodeableFactoryBuilder builder = factory.Builder;
-            
+
             // Act - This should process ObjectIds classes and parse JSON encoding suffixes
             builder.AddEncodeableTypes(typeof(EncodeableFactory).Assembly);
             builder.Commit();
@@ -1199,7 +1265,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void Builder_AddEncodeableType_WithNullNodeIds_SkipsGracefully()
         {
             // Test the behavior when an encodeable type returns null NodeIds
-            
+
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();
             IEncodeableFactoryBuilder builder = factory.Builder;
@@ -1217,34 +1283,37 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.False(found);
         }
 
-        [Test] 
+        [Test]
         public void EncodeableFactory_FrozenDictionary_Performance_CharacteristicsVerification()
         {
             // This test verifies that the FrozenDictionary is actually being used
             // and has the expected performance characteristics mentioned in the comments
-            
+
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();
-            
+
             // Act - Perform multiple lookups to verify frozen dictionary performance
             var readRequestId = new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary);
             var nonExistentId = new ExpandedNodeId(Guid.NewGuid());
-            
+
             // Time the lookups (though we won't assert on timing, just verify functionality)
             bool found1 = factory.TryGetEncodeableType(readRequestId, out IEncodeableType type1);
             bool found2 = factory.TryGetEncodeableType(nonExistentId, out IEncodeableType type2);
-            
+
             // Assert
             Assert.True(found1);
             Assert.NotNull(type1);
             Assert.AreEqual(typeof(ReadRequest), type1.Type);
-            
+
             Assert.False(found2);
             Assert.Null(type2);
-            
+
             // Verify we have a substantial number of types (mentioned as ~1.5k in comments)
             Assert.Greater(factory.KnownTypeIds.Count(), 1000);
         }
+
+        private IEncodeableFactoryBuilder m_builder;
+        private IEncodeableFactory m_encodeableFactory;
 
         /// <summary>
         /// Test encodeable with null NodeIds to test edge case handling.
@@ -1255,10 +1324,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
-            public bool IsEqual(IEncodeable encodeable) => encodeable is TestEncodeableWithNullIds;
-            public object Clone() => new TestEncodeableWithNullIds();
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithNullIds;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithNullIds();
+            }
         }
     }
 }

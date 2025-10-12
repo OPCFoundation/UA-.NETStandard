@@ -924,8 +924,8 @@ namespace Opc.Ua.Test
                 {
                     if (field.FieldType == typeof(uint) &&
                         (field.Name.StartsWith("Good") ||
-                        field.Name.StartsWith("Uncertain") ||
-                        field.Name.StartsWith("Bad")))
+                            field.Name.StartsWith("Uncertain") ||
+                            field.Name.StartsWith("Bad")))
                     {
                         uint value = Convert.ToUInt32(
                             field.GetValue(null),

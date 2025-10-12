@@ -177,7 +177,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -201,7 +201,7 @@ namespace Opc.Ua
                 bool writePrivateKey = !NoPrivateKeys && certificate.HasPrivateKey;
                 if (writePrivateKey)
                 {
-                    string passcode = password ?? string.Empty;
+                    string passcode = password == null || password.Length == 0 ? string.Empty : new string(password);
                     data = certificate.Export(X509ContentType.Pkcs12, passcode);
                 }
                 else
@@ -500,7 +500,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             if (NoPrivateKeys ||
@@ -620,7 +620,6 @@ namespace Opc.Ua
 
                             var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
                             var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
-                            password ??= string.Empty;
                             if (privateKeyFilePfx.Exists)
                             {
                                 certificateFound = true;

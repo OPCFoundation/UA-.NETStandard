@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
@@ -136,6 +137,7 @@ namespace Opc.Ua.Gds.Tests
                     clientConfiguration.ServerUrl,
                     port)
             };
+
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
                 AppUser = new UserIdentity();
@@ -144,11 +146,11 @@ namespace Opc.Ua.Gds.Tests
             {
                 AppUser = new UserIdentity(
                     clientConfiguration.AppUserName,
-                    clientConfiguration.AppPassword);
+                    Encoding.UTF8.GetBytes(clientConfiguration.AppPassword));
             }
             SysAdminUser = new UserIdentity(
                 clientConfiguration.SysAdminUserName,
-                clientConfiguration.SysAdminPassword);
+                Encoding.UTF8.GetBytes(clientConfiguration.SysAdminPassword));
             TempStorePath = clientConfiguration.TempStorePath;
         }
 
