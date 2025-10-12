@@ -388,7 +388,7 @@ namespace Opc.Ua
                     {
                         var builder = new UriBuilder(discoveryEndPointUri)
                         {
-                            Host = endpointUrl.DnsSafeHost
+                            Host = endpointUrl.IdnHost
                         };
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }

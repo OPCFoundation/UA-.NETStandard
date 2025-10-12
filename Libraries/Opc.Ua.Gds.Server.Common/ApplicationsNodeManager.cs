@@ -972,7 +972,7 @@ namespace Opc.Ua.Gds.Server
                         var url = new Uri(discoveryUrl);
 
                         if (url.Scheme == Utils.UriSchemeHttps &&
-                            Utils.AreDomainsEqual(commonName, url.DnsSafeHost))
+                            Utils.AreDomainsEqual(commonName, url.IdnHost))
                         {
                             found = true;
                             break;
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Gds.Server
 
                         if (url.Scheme == Utils.UriSchemeHttps)
                         {
-                            return url.DnsSafeHost;
+                            return url.IdnHost;
                         }
                     }
                 }
@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Gds.Server
 
                         foreach (string name in names)
                         {
-                            if (Utils.AreDomainsEqual(name, url.DnsSafeHost))
+                            if (Utils.AreDomainsEqual(name, url.IdnHost))
                             {
                                 url = null;
                                 break;
@@ -1090,7 +1090,7 @@ namespace Opc.Ua.Gds.Server
 
                         if (url != null)
                         {
-                            names.Add(url.DnsSafeHost);
+                            names.Add(url.IdnHost);
                         }
                     }
                 }
