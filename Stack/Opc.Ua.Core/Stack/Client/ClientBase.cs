@@ -167,6 +167,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public int DefaultTimeoutHint { get; set; }
+
+        /// <inheritdoc/>
         public virtual void AttachChannel(ITransportChannel channel)
         {
             InitializeChannel(channel);
@@ -314,7 +317,14 @@ namespace Opc.Ua
 
                 if (request.RequestHeader.TimeoutHint == 0)
                 {
-                    request.RequestHeader.TimeoutHint = (uint)OperationTimeout;
+                    if (DefaultTimeoutHint > 0)
+                    {
+                        request.RequestHeader.TimeoutHint = (uint)DefaultTimeoutHint;
+                    }
+                    else if (OperationTimeout > 0)
+                    {
+                        request.RequestHeader.TimeoutHint = (uint)OperationTimeout;
+                    }
                 }
 
                 request.RequestHeader.Timestamp = DateTime.UtcNow;
