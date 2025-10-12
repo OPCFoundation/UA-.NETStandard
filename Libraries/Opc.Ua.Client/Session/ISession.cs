@@ -221,14 +221,14 @@ namespace Opc.Ua.Client
         bool DeleteSubscriptionsOnClose { get; set; }
 
         /// <summary>
-        /// Gets or sets the timeout in milliseconds to wait for outstanding publish requests to complete before canceling them during session close.
+        /// Gets or sets the time in milliseconds to wait for outstanding publish requests to complete before canceling them during session close.
         /// </summary>
         /// <remarks>
         /// A value of 0 means no waiting - outstanding requests are canceled immediately.
         /// A negative value means wait indefinitely for all outstanding requests to complete.
         /// The default value is 5000 milliseconds (5 seconds).
         /// </remarks>
-        int PublishRequestCancelWaitTimeout { get; set; }
+        int PublishRequestCancelDelayOnCloseSession { get; set; }
 
         /// <summary>
         /// Gets or Sets the default subscription for the session.

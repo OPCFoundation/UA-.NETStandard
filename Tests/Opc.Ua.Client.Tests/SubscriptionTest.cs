@@ -1460,7 +1460,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Greater(goodPublishBefore, 0, "Should have outstanding publish requests");
 
             // Set a short timeout to force cancellation
-            Session.PublishRequestCancelWaitTimeout = 1000;
+            Session.PublishRequestCancelDelayOnCloseSession = 1000;
 
             // Close the session - this should cancel outstanding publish requests
             StatusCode closeResult = await Session.CloseAsync(5000, true).ConfigureAwait(false);
@@ -1475,25 +1475,25 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(501)]
-        public void PublishRequestCancelWaitTimeoutProperty()
+        public void PublishRequestCancelDelayOnCloseSessionProperty()
         {
             // Test default value
-            Assert.AreEqual(5000, Session.PublishRequestCancelWaitTimeout);
+            Assert.AreEqual(5000, Session.PublishRequestCancelDelayOnCloseSession);
 
             // Test setting to 0 (immediate cancel)
-            Session.PublishRequestCancelWaitTimeout = 0;
-            Assert.AreEqual(0, Session.PublishRequestCancelWaitTimeout);
+            Session.PublishRequestCancelDelayOnCloseSession = 0;
+            Assert.AreEqual(0, Session.PublishRequestCancelDelayOnCloseSession);
 
             // Test setting to negative (wait indefinitely)
-            Session.PublishRequestCancelWaitTimeout = -1;
-            Assert.AreEqual(-1, Session.PublishRequestCancelWaitTimeout);
+            Session.PublishRequestCancelDelayOnCloseSession = -1;
+            Assert.AreEqual(-1, Session.PublishRequestCancelDelayOnCloseSession);
 
             // Test setting to custom value
-            Session.PublishRequestCancelWaitTimeout = 10000;
-            Assert.AreEqual(10000, Session.PublishRequestCancelWaitTimeout);
+            Session.PublishRequestCancelDelayOnCloseSession = 10000;
+            Assert.AreEqual(10000, Session.PublishRequestCancelDelayOnCloseSession);
 
             // Reset to default
-            Session.PublishRequestCancelWaitTimeout = 5000;
+            Session.PublishRequestCancelDelayOnCloseSession = 5000;
         }
     }
 }

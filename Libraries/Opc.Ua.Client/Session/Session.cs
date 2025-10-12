@@ -127,7 +127,7 @@ namespace Opc.Ua.Client
             m_defaultSubscription = template.m_defaultSubscription;
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
-            PublishRequestCancelWaitTimeout = template.PublishRequestCancelWaitTimeout;
+            PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_minPublishRequestCount = template.m_minPublishRequestCount;
@@ -245,7 +245,7 @@ namespace Opc.Ua.Client
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_sessionName = string.Empty;
             DeleteSubscriptionsOnClose = true;
-            PublishRequestCancelWaitTimeout = 5000; // 5 seconds default
+            PublishRequestCancelDelayOnCloseSession = 5000; // 5 seconds default
             TransferSubscriptionsOnReconnect = false;
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
@@ -585,7 +585,7 @@ namespace Opc.Ua.Client
         public bool DeleteSubscriptionsOnClose { get; set; }
 
         /// <inheritdoc/>
-        public int PublishRequestCancelWaitTimeout { get; set; }
+        public int PublishRequestCancelDelayOnCloseSession { get; set; }
 
         /// <summary>
         /// If the subscriptions are transferred when a session is reconnected.
@@ -4357,7 +4357,7 @@ namespace Opc.Ua.Client
         private async Task WaitForOrCancelOutstandingPublishRequestsAsync(CancellationToken ct)
         {
             // Get outstanding publish requests
-            List<uint> publishRequestHandles = new List<uint>();
+            List<uint> publishRequestHandles = [];
             lock (m_outstandingRequests)
             {
                 foreach (AsyncRequestState state in m_outstandingRequests)
@@ -4380,13 +4380,13 @@ namespace Opc.Ua.Client
                 publishRequestHandles.Count);
 
             // Wait for outstanding requests with timeout
-            if (PublishRequestCancelWaitTimeout != 0)
+            if (PublishRequestCancelDelayOnCloseSession != 0)
             {
-                int waitTimeout = PublishRequestCancelWaitTimeout < 0 
-                    ? int.MaxValue 
-                    : PublishRequestCancelWaitTimeout;
-                
-                var startTime = HiResClock.TickCount;
+                int waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
+                    ? int.MaxValue
+                    : PublishRequestCancelDelayOnCloseSession;
+
+                int startTime = HiResClock.TickCount;
                 while (true)
                 {
                     // Check if all publish requests completed
@@ -4439,7 +4439,7 @@ namespace Opc.Ua.Client
             }
 
             // Cancel remaining outstanding publish requests
-            List<uint> requestsToCancel = new List<uint>();
+            List<uint> requestsToCancel = [];
             lock (m_outstandingRequests)
             {
                 foreach (AsyncRequestState state in m_outstandingRequests)

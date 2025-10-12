@@ -178,10 +178,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public int PublishRequestCancelWaitTimeout
+        public int PublishRequestCancelDelayOnCloseSession
         {
-            get => Session.PublishRequestCancelWaitTimeout;
-            set => Session.PublishRequestCancelWaitTimeout = value;
+            get => Session.PublishRequestCancelDelayOnCloseSession;
+            set => Session.PublishRequestCancelDelayOnCloseSession = value;
         }
 
         /// <inheritdoc/>
