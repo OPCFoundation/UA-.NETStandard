@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -47,15 +48,33 @@ namespace Opc.Ua.Server
         public DiagnosticsNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : base(server, configuration)
+            : this(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<DiagnosticsNodeManager>())
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager.
+        /// </summary>
+        public DiagnosticsNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger)
+            : base(server, configuration, logger)
         {
             AliasRoot = "Core";
 
-            string[] namespaceUris = [Namespaces.OpcUa, Namespaces.OpcUa + "Diagnostics"];
+            string[] namespaceUris =
+            [
+                Opc.Ua.Namespaces.OpcUa,
+                Opc.Ua.Namespaces.OpcUa + "Diagnostics"
+            ];
             SetNamespaces(namespaceUris);
 
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
-            m_lastUsedId = DateTime.UtcNow.Ticks & 0x7FFFFFFF;
+            m_lastUsedId = (uint)DateTime.UtcNow.Ticks & 0x7FFFFFFF;
             m_sessions = [];
             m_subscriptions = [];
             DiagnosticsEnabled = true;
@@ -1738,7 +1757,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
@@ -2127,12 +2146,12 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
         private readonly ushort m_namespaceIndex;
-        private long m_lastUsedId;
+        private uint m_lastUsedId;
         private Timer m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
         private bool m_doScanBusy;

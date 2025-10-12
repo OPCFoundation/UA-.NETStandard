@@ -37,6 +37,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 using Opc.Ua.X509StoreExtensions;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -66,9 +67,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeTearDown]
         protected async Task OneTimeTearDownAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             foreach (string certStore in CertStores)
             {
-                using var x509Store = new X509CertificateStore();
+                using var x509Store = new X509CertificateStore(telemetry);
                 x509Store.Open(certStore);
                 X509Certificate2Collection collection = await x509Store.EnumerateAsync()
                     .ConfigureAwait(false);
@@ -108,10 +110,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(10)]
         public async Task VerifyAppCertX509StoreAsync(string storePath)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
-            appCertificate.AddToStore(CertificateStoreType.X509Store, storePath);
+            await appCertificate.AddToStoreAsync(
+                CertificateStoreType.X509Store,
+                storePath,
+                telemetry: telemetry)
+                .ConfigureAwait(false);
             using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
                 appCertificate.RawData);
             Assert.NotNull(publicKey);
@@ -123,13 +130,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 StorePath = storePath,
                 StoreType = CertificateStoreType.X509Store
             };
-            X509Certificate2 privateKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
+            X509Certificate2 privateKey = await id.LoadPrivateKeyAsync(
+                password: null,
+                telemetry: telemetry).ConfigureAwait(false);
             Assert.NotNull(privateKey);
             Assert.True(privateKey.HasPrivateKey);
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
-            using var x509Store = new X509CertificateStore();
+            using var x509Store = new X509CertificateStore(telemetry);
             x509Store.Open(storePath);
             await x509Store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
         }
@@ -142,11 +151,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(20)]
         public async Task VerifyAppCertDirectoryStoreAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
 
-            string password = Guid.NewGuid().ToString();
+            char[] password = Guid.NewGuid().ToString().ToCharArray();
+
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
@@ -154,7 +165,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string storePath = pkiRoot + "own";
             var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, false);
             const string storeType = CertificateStoreType.Directory;
-            appCertificate.AddToStore(certificateStoreIdentifier, password);
+            await appCertificate.AddToStoreAsync(certificateStoreIdentifier, password, telemetry: telemetry)
+                .ConfigureAwait(false);
 
             using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
                 appCertificate.RawData);
@@ -170,13 +182,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             {
                 // check no password fails to load
-                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
+                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(
+                    password: null,
+                    telemetry: telemetry).ConfigureAwait(false);
                 Assert.IsNull(nullKey);
             }
 
             {
                 // check invalid password fails to load
-                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync("123")
+                X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(
+                    "123".ToCharArray(),
+                    telemetry: telemetry)
                     .ConfigureAwait(false);
                 Assert.IsNull(nullKey);
             }
@@ -184,13 +200,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 // check invalid password fails to load
                 X509Certificate2 nullKey = await id.LoadPrivateKeyExAsync(
-                    new CertificatePasswordProvider("123"))
+                    new CertificatePasswordProvider("123".ToCharArray()),
+                    telemetry: telemetry)
                     .ConfigureAwait(false);
                 Assert.IsNull(nullKey);
             }
 
             X509Certificate2 privateKey = await id.LoadPrivateKeyExAsync(
-                new CertificatePasswordProvider(password))
+                new CertificatePasswordProvider(password),
+                telemetry: telemetry)
                 .ConfigureAwait(false);
 
             Assert.NotNull(privateKey);
@@ -198,7 +216,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
-            using ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType);
+            using ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType, telemetry);
             store.Open(storePath, false);
             await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
         }
@@ -217,6 +235,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
@@ -228,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Directory.CreateDirectory(certPath);
             Directory.CreateDirectory(privatePath);
 
-            var store = new DirectoryCertificateStore(false);
+            var store = new DirectoryCertificateStore(false, telemetry);
 
             try
             {
@@ -300,6 +320,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
@@ -311,7 +333,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Directory.CreateDirectory(certPath);
             Directory.CreateDirectory(privatePath);
 
-            var store = new DirectoryCertificateStore(false);
+            var store = new DirectoryCertificateStore(false, telemetry);
 
             try
             {
@@ -365,15 +387,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(30)]
         public void VerifyInvalidAppCertX509Store()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
-            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                appCertificate.AddToStore(
+            _ = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
-                    "User\\UA_MachineDefault"));
-            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                appCertificate.AddToStore(
+                    "User\\UA_MachineDefault",
+                    telemetry: telemetry).ConfigureAwait(false));
+            _ = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
-                    "System\\UA_MachineDefault"));
+                    "System\\UA_MachineDefault",
+                    telemetry: telemetry).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -383,7 +408,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(40)]
         public void VerifyNoCrlSupportOnLinuxOrMacOsX509Store(string storePath)
         {
-            using var x509Store = new X509CertificateStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var x509Store = new X509CertificateStore(telemetry);
             x509Store.Open(storePath);
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -408,7 +434,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
-            using var x509Store = new X509CertificateStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var x509Store = new X509CertificateStore(telemetry);
             x509Store.Open(storePath);
 
             Assert.True(x509Store.SupportsCRLs);
@@ -447,7 +474,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
-            using var x509Store = new X509CertificateStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var x509Store = new X509CertificateStore(telemetry);
             x509Store.Open(storePath);
             //enumerate Crls
             X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false))[0];
@@ -486,7 +514,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
-            using var x509Store = new X509CertificateStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var x509Store = new X509CertificateStore(telemetry);
             x509Store.Open(storePath);
             //add issuer to store
             await x509Store.AddAsync(GetTestCert2()).ConfigureAwait(false);
@@ -514,7 +543,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
-            using var x509Store = new X509CertificateStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var x509Store = new X509CertificateStore(telemetry);
             x509Store.Open(storePath);
 
             //Delete first crl with revoked certificates
@@ -551,23 +581,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(90)]
         public void X509StoreExtensionsThrowException(string storePath)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Microsoft.Extensions.Logging.ILogger logger = telemetry.CreateLogger<CertificateStoreTest>();
             using (var x509Store = new X509Store(storePath))
             {
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     NUnit.Framework.Assert
-                        .Throws<PlatformNotSupportedException>(() => x509Store.AddCrl([]));
+                        .Throws<PlatformNotSupportedException>(() => x509Store.AddCrl([], logger));
                     NUnit.Framework.Assert
-                        .Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls());
+                        .Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls(logger));
                     NUnit.Framework.Assert
-                        .Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl([]));
+                        .Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl([], logger));
                 }
                 else
                 {
                     NUnit.Framework.Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
-            using (var x509Store = new X509CertificateStore())
+            using (var x509Store = new X509CertificateStore(telemetry))
             {
                 x509Store.Open(storePath);
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

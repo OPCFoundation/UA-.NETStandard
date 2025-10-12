@@ -7,7 +7,23 @@
     the rest of the build system.
 #>
 
-$version = & (Join-Path $PSScriptRoot "get-version.ps1")
+# Try install tool
+# Note: Keep Version 3.7.115, it is known working for 4 digit versioning
+& dotnet @("tool", "install", "--tool-path", "./tools", "--version", "3.7.115", "--framework", "net80", "nbgv") 2>&1 
+
+$props = (& ./tools/nbgv  @("get-version", "-f", "json")) | ConvertFrom-Json
+if ($LastExitCode -ne 0) {
+   throw "Error: 'nbgv get-version -f json' failed with $($LastExitCode)."
+}
+
+$version = [pscustomobject] @{ 
+   Full = $props.CloudBuildAllVars.NBGV_Version
+   Pre = $props.CloudBuildAllVars.NBGV_PrereleaseVersion
+   Public = $props.CloudBuildAllVars.NBGV_PublicRelease
+   Nuget = $props.CloudBuildAllVars.NBGV_NuGetPackageVersion
+   Prefix = $props.CloudBuildAllVars.NBGV_SimpleVersion
+   Revision = $props.CloudBuildAllVars.NBGV_VersionRevision
+}
 
 # Call versioning for build
 if ($version.Public -eq 'True')
@@ -20,7 +36,7 @@ else
 }
 
 if ($LastExitCode -ne 0) {
-   Write-Warning "Error: 'nbgv cloud -c -a' failed with $($LastExitCode)."
+   throw "Error: 'nbgv cloud -c -a' failed with $($LastExitCode)."
 }
 
 # Set build environment version numbers in pipeline context

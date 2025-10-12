@@ -19,6 +19,17 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua
 {
     /// <summary>
+    /// An interface to open a certificate store.
+    /// </summary>
+    public interface IOpenStore
+    {
+        /// <summary>
+        /// Returns an object to access the store containing the certificates.
+        /// </summary>
+        ICertificateStore OpenStore(ITelemetryContext telemetry);
+    }
+
+    /// <summary>
     /// An abstract interface to certificate stores.
     /// </summary>
     public interface ICertificateStore : IDisposable
@@ -69,7 +80,7 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -123,7 +134,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default);
 
         /// <summary>

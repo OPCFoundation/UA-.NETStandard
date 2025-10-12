@@ -43,16 +43,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// The mock resolver emulates data type definitions
         /// which are stored in the server address space.
         /// </summary>
-        public MockResolver()
-        {
-            Initialize();
-        }
-
-        private void Initialize()
+        public MockResolver(ITelemetryContext telemetry)
         {
             DataTypeSystem = [];
             DataTypeNodes = [];
-            m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
+            Factory = EncodeableFactory.Create();
+            FactoryBuilder = Factory.Builder;
             NamespaceUris = new NamespaceTable();
 
             NamespaceUris.Append("urn:This:is:my:test:encoder");
@@ -61,16 +57,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             NamespaceUris.Append(Namespaces.MockResolverUrl);
         }
 
-        public NodeIdDictionary<INode> DataTypeNodes { get; private set; }
+        internal IEncodeableFactory Factory { get; }
+
+        public NodeIdDictionary<INode> DataTypeNodes { get; }
 
         /// <inheritdoc/>
-        public NodeIdDictionary<DataDictionary> DataTypeSystem { get; private set; }
+        public NodeIdDictionary<DataDictionary> DataTypeSystem { get; }
 
         /// <inheritdoc/>
-        public NamespaceTable NamespaceUris { get; private set; }
+        public NamespaceTable NamespaceUris { get; }
 
         /// <inheritdoc/>
-        public IEncodeableFactory Factory => m_factory;
+        public IEncodeableFactoryBuilder FactoryBuilder { get; }
 
         /// <inheritdoc/>
         public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
@@ -245,7 +243,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, NamespaceUris);
         }
-
-        private EncodeableFactory m_factory;
     }
 }

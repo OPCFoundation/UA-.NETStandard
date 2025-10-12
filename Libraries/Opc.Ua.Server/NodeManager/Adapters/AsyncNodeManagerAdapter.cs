@@ -1,3 +1,32 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -32,7 +61,7 @@ namespace Opc.Ua.Server
     /// This allows synchronous, or only partially asynchronous node managers to be treated as asynchronous, which can help
     /// unify the calling logic within the MasterNodeManager.
     /// </remarks>
-    public class AsyncNodeManagerAdapter : IAsyncNodeManager
+    public class AsyncNodeManagerAdapter : IAsyncNodeManager, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncNodeManagerAdapter"/> class.
@@ -41,28 +70,26 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="nodeManager"/> is <c>null</c>.</exception>
         public AsyncNodeManagerAdapter(INodeManager nodeManager)
         {
-            NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            SyncNodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
         }
 
         /// <inheritdoc/>
-        public IEnumerable<string> NamespaceUris => NodeManager.NamespaceUris;
+        public IEnumerable<string> NamespaceUris => SyncNodeManager.NamespaceUris;
 
-        /// <summary>
-        ///  The node manager being adapted.
-        /// </summary>
-        public INodeManager NodeManager { get; }
+        /// <inheritdoc/>
+        public INodeManager SyncNodeManager { get; }
 
         /// <inheritdoc/>
         public ValueTask AddReferencesAsync(
             IDictionary<NodeId, IList<IReference>> references,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.AddReferencesAsync(references, cancellationToken);
             }
 
-            NodeManager.AddReferences(references);
+            SyncNodeManager.AddReferences(references);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -75,12 +102,12 @@ namespace Opc.Ua.Server
             IList<ReferenceDescription> references,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IBrowseAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IBrowseAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.BrowseAsync(context, continuationPoint, references, cancellationToken);
             }
 
-            NodeManager.Browse(context, ref continuationPoint, references);
+            SyncNodeManager.Browse(context, ref continuationPoint, references);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return new ValueTask<ContinuationPoint>(continuationPoint);
@@ -94,12 +121,12 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is ICallAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is ICallAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.CallAsync(context, methodsToCall, results, errors, cancellationToken);
             }
 
-            NodeManager.Call(context, methodsToCall, results, errors);
+            SyncNodeManager.Call(context, methodsToCall, results, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -111,12 +138,12 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IConditionRefreshAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IConditionRefreshAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken);
             }
 
-            NodeManager.ConditionRefresh(context, monitoredItems);
+            SyncNodeManager.ConditionRefresh(context, monitoredItems);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -127,12 +154,12 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.CreateAddressSpaceAsync(externalReferences, cancellationToken);
             }
 
-            NodeManager.CreateAddressSpace(externalReferences);
+            SyncNodeManager.CreateAddressSpace(externalReferences);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -151,7 +178,7 @@ namespace Opc.Ua.Server
                                                    MonitoredItemIdFactory monitoredItemIdFactory,
                                                    CancellationToken cancellationToken = default)
         {
-            if (NodeManager is ICreateMonitoredItemsAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is ICreateMonitoredItemsAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.CreateMonitoredItemsAsync(context,
                                                                   subscriptionId,
@@ -166,7 +193,7 @@ namespace Opc.Ua.Server
                                                                   cancellationToken);
             }
 
-            NodeManager.CreateMonitoredItems(context,
+            SyncNodeManager.CreateMonitoredItems(context,
                                               subscriptionId,
                                               publishingInterval,
                                               timestampsToReturn,
@@ -184,12 +211,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.DeleteAddressSpaceAsync(cancellationToken);
             }
 
-            NodeManager.DeleteAddressSpace();
+            SyncNodeManager.DeleteAddressSpace();
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -202,12 +229,12 @@ namespace Opc.Ua.Server
                                                    IList<ServiceResult> errors,
                                                    CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IDeleteMonitoredItemsAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IDeleteMonitoredItemsAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.DeleteMonitoredItemsAsync(context, monitoredItems, processedItems, errors, cancellationToken);
             }
 
-            NodeManager.DeleteMonitoredItems(context, monitoredItems, processedItems, errors);
+            SyncNodeManager.DeleteMonitoredItems(context, monitoredItems, processedItems, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -222,7 +249,7 @@ namespace Opc.Ua.Server
             bool deleteBidirectional,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.DeleteReferenceAsync(sourceHandle,
                                                              referenceTypeId,
@@ -232,7 +259,7 @@ namespace Opc.Ua.Server
                                                              cancellationToken);
             }
 
-            ServiceResult result = NodeManager.DeleteReference(sourceHandle,
+            ServiceResult result = SyncNodeManager.DeleteReference(sourceHandle,
                                                                  referenceTypeId,
                                                                  isInverse,
                                                                  targetId,
@@ -245,12 +272,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.GetManagerHandleAsync(nodeId, cancellationToken);
             }
 
-            object handle = NodeManager.GetManagerHandle(nodeId);
+            object handle = SyncNodeManager.GetManagerHandle(nodeId);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return new ValueTask<object>(handle);
@@ -263,12 +290,12 @@ namespace Opc.Ua.Server
             BrowseResultMask resultMask,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.GetNodeMetadataAsync(context, targetHandle, resultMask, cancellationToken);
             }
 
-            NodeMetadata nodeMetadata = NodeManager.GetNodeMetadata(context, targetHandle, resultMask);
+            NodeMetadata nodeMetadata = SyncNodeManager.GetNodeMetadata(context, targetHandle, resultMask);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return new ValueTask<NodeMetadata>(nodeMetadata);
@@ -283,7 +310,7 @@ namespace Opc.Ua.Server
             bool permissionsOnly,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.GetPermissionMetadataAsync(
                     context,
@@ -293,7 +320,7 @@ namespace Opc.Ua.Server
                     permissionsOnly,
                     cancellationToken);
             }
-            if (NodeManager is INodeManager2 nodeManager2)
+            if (SyncNodeManager is INodeManager2 nodeManager2)
             {
                 NodeMetadata nodeMetadata = nodeManager2.GetPermissionMetadata(
                     context,
@@ -318,7 +345,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IHistoryReadAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IHistoryReadAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.HistoryReadAsync(context,
                                                          details,
@@ -330,7 +357,7 @@ namespace Opc.Ua.Server
                                                          cancellationToken);
             }
 
-            NodeManager.HistoryRead(context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors);
+            SyncNodeManager.HistoryRead(context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -345,7 +372,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IHistoryUpdateAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IHistoryUpdateAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.HistoryUpdateAsync(context,
                                                            detailsType,
@@ -355,7 +382,7 @@ namespace Opc.Ua.Server
                                                            cancellationToken);
             }
 
-            NodeManager.HistoryUpdate(context, detailsType, nodesToUpdate, results, errors);
+            SyncNodeManager.HistoryUpdate(context, detailsType, nodesToUpdate, results, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -368,12 +395,12 @@ namespace Opc.Ua.Server
             object nodeHandle,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.IsNodeInViewAsync(context, viewId, nodeHandle, cancellationToken);
             }
 
-            if (NodeManager is INodeManager2 nodeManager2)
+            if (SyncNodeManager is INodeManager2 nodeManager2)
             {
                 bool result = nodeManager2.IsNodeInView(context, viewId, nodeHandle);
                 return new ValueTask<bool>(result);
@@ -391,7 +418,7 @@ namespace Opc.Ua.Server
                                                    IList<MonitoringFilterResult> filterErrors,
                                                    CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IModifyMonitoredItemsAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IModifyMonitoredItemsAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.ModifyMonitoredItemsAsync(
                     context,
@@ -403,7 +430,7 @@ namespace Opc.Ua.Server
                     cancellationToken);
             }
 
-            NodeManager.ModifyMonitoredItems(context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors);
+            SyncNodeManager.ModifyMonitoredItems(context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -417,12 +444,12 @@ namespace Opc.Ua.Server
                                    IList<ServiceResult> errors,
                                    CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IReadAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IReadAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.ReadAsync(context, maxAge, nodesToRead, values, errors, cancellationToken);
             }
 
-            NodeManager.Read(context, maxAge, nodesToRead, values, errors);
+            SyncNodeManager.Read(context, maxAge, nodesToRead, values, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -434,12 +461,12 @@ namespace Opc.Ua.Server
                                                     IUserIdentity savedOwnerIdentity,
                                                     CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.RestoreMonitoredItemsAsync(itemsToRestore, monitoredItems, savedOwnerIdentity, cancellationToken);
             }
 
-            NodeManager.RestoreMonitoredItems(itemsToRestore, monitoredItems, savedOwnerIdentity);
+            SyncNodeManager.RestoreMonitoredItems(itemsToRestore, monitoredItems, savedOwnerIdentity);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -452,12 +479,12 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
             }
 
-            if (NodeManager is INodeManager2 nodeManager2)
+            if (SyncNodeManager is INodeManager2 nodeManager2)
             {
                 nodeManager2.SessionClosing(context, sessionId, deleteSubscriptions);
             }
@@ -474,12 +501,12 @@ namespace Opc.Ua.Server
                                                 IList<ServiceResult> errors,
                                                 CancellationToken cancellationToken = default)
         {
-            if (NodeManager is ISetMonitoringModeAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is ISetMonitoringModeAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.SetMonitoringModeAsync(context, monitoringMode, monitoredItems, processedItems, errors, cancellationToken);
             }
 
-            NodeManager.SetMonitoringMode(context, monitoringMode, monitoredItems, processedItems, errors);
+            SyncNodeManager.SetMonitoringMode(context, monitoringMode, monitoredItems, processedItems, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -492,12 +519,12 @@ namespace Opc.Ua.Server
                                                                   bool unsubscribe,
                                                                   CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
             }
 
-            ServiceResult result = NodeManager.SubscribeToAllEvents(context, subscriptionId, monitoredItem, unsubscribe);
+            ServiceResult result = SyncNodeManager.SubscribeToAllEvents(context, subscriptionId, monitoredItem, unsubscribe);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return new ValueTask<ServiceResult>(result);
@@ -511,12 +538,12 @@ namespace Opc.Ua.Server
                                                                bool unsubscribe,
                                                                CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.SubscribeToEventsAsync(context, sourceId, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
             }
 
-            ServiceResult result = NodeManager.SubscribeToEvents(context, sourceId, subscriptionId, monitoredItem, unsubscribe);
+            ServiceResult result = SyncNodeManager.SubscribeToEvents(context, sourceId, subscriptionId, monitoredItem, unsubscribe);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return new ValueTask<ServiceResult>(result);
@@ -530,12 +557,12 @@ namespace Opc.Ua.Server
                                                      IList<ServiceResult> errors,
                                                      CancellationToken cancellationToken = default)
         {
-            if (NodeManager is ITransferMonitoredItemsAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is ITransferMonitoredItemsAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.TransferMonitoredItemsAsync(context, sendInitialValues, monitoredItems, processedItems, errors, cancellationToken);
             }
 
-            NodeManager.TransferMonitoredItems(context, sendInitialValues, monitoredItems, processedItems, errors);
+            SyncNodeManager.TransferMonitoredItems(context, sendInitialValues, monitoredItems, processedItems, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -550,12 +577,12 @@ namespace Opc.Ua.Server
             IList<NodeId> unresolvedTargetIds,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is ITranslateBrowsePathAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is ITranslateBrowsePathAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.TranslateBrowsePathAsync(context, sourceHandle, relativePath, targetIds, unresolvedTargetIds, cancellationToken);
             }
 
-            NodeManager.TranslateBrowsePath(context, sourceHandle, relativePath, targetIds, unresolvedTargetIds);
+            SyncNodeManager.TranslateBrowsePath(context, sourceHandle, relativePath, targetIds, unresolvedTargetIds);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
@@ -568,15 +595,35 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            if (NodeManager is IWriteAsyncNodeManager asyncNodeManager)
+            if (SyncNodeManager is IWriteAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager.WriteAsync(context, nodesToWrite, errors, cancellationToken);
             }
 
-            NodeManager.Write(context, nodesToWrite, errors);
+            SyncNodeManager.Write(context, nodesToWrite, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
+        }
+
+        /// <summary>
+        /// Frees any unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(SyncNodeManager);
+            }
         }
     }
 }

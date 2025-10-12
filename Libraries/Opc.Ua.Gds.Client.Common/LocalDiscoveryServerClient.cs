@@ -36,7 +36,8 @@ namespace Opc.Ua.Gds.Client
 {
     public class LocalDiscoveryServerClient
     {
-        public LocalDiscoveryServerClient(ApplicationConfiguration configuration)
+        public LocalDiscoveryServerClient(
+            ApplicationConfiguration configuration)
         {
             ApplicationConfiguration = configuration;
             MessageContext = configuration.CreateMessageContext();
@@ -531,7 +532,7 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("Not a valid URL.", nameof(endpointUrl));
             }
 
-            IServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
+            ServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
 
             var configuration = EndpointConfiguration.Create(ApplicationConfiguration);
 
@@ -545,7 +546,7 @@ namespace Opc.Ua.Gds.Client
                 configuration,
                 context);
 
-            return new DiscoveryClient(channel);
+            return new DiscoveryClient(channel, context.Telemetry);
         }
 
         private const string kDefaultUrl = "opc.tcp://localhost:4840";

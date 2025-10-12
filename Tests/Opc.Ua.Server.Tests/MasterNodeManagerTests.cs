@@ -32,6 +32,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
@@ -53,7 +54,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RegisterNamespaceManagerNewNamespaceAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -64,7 +66,7 @@ namespace Opc.Ua.Server.Tests
                 nodeManager.Setup(x => x.NamespaceUris).Returns([]);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -75,11 +77,11 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                (INodeManager Sync, IAsyncNodeManager Async)[] registeredManagers = [.. sut.NamespaceManagers[
+                IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
                 Assert.AreEqual(1, registeredManagers.Length);
-                Assert.Contains(nodeManager.Object, registeredManagers.Select(m => m.Sync).ToList());
+                Assert.Contains(nodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
             finally
             {
@@ -94,7 +96,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RegisterNamespaceManagerExistingNamespaceAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -109,7 +112,7 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -120,12 +123,12 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                (INodeManager Sync, IAsyncNodeManager Async)[] registeredManagers = [.. sut.NamespaceManagers[
+                IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
                 Assert.AreEqual(2, registeredManagers.Length);
-                Assert.Contains(originalNodeManager.Object, registeredManagers.Select(m => m.Sync).ToList());
-                Assert.Contains(newNodeManager.Object, registeredManagers.Select(m => m.Sync).ToList());
+                Assert.Contains(originalNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
+                Assert.Contains(newNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
             finally
             {
@@ -145,7 +148,8 @@ namespace Opc.Ua.Server.Tests
             int totalManagers,
             int indexToRemove)
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -165,7 +169,7 @@ namespace Opc.Ua.Server.Tests
                 INodeManager nodeManagerToRemove = additionalManagers[indexToRemove];
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -177,11 +181,11 @@ namespace Opc.Ua.Server.Tests
                 //-- Assert
                 Assert.IsTrue(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                (INodeManager Sync, IAsyncNodeManager Async)[] registeredManagers = [.. sut.NamespaceManagers[
+                IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
                 Assert.AreEqual(totalManagers - 1, registeredManagers.Length);
-                NUnit.Framework.Assert.That(registeredManagers.Select(m => m.Sync).ToList(), Has.No.Member(nodeManagerToRemove));
+                NUnit.Framework.Assert.That(registeredManagers.Select(m => m.SyncNodeManager).ToList(), Has.No.Member(nodeManagerToRemove));
             }
             finally
             {
@@ -196,7 +200,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task UnregisterNamespaceManagerNotInCollectionAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -214,7 +219,7 @@ namespace Opc.Ua.Server.Tests
                 thirdNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -228,12 +233,12 @@ namespace Opc.Ua.Server.Tests
                 //-- Assert
                 Assert.IsFalse(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                (INodeManager Sync, IAsyncNodeManager Async)[] registeredManagers = [.. sut.NamespaceManagers[
+                IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
                 Assert.AreEqual(2, registeredManagers.Length);
-                Assert.Contains(firstNodeManager.Object, registeredManagers.Select(m => m.Sync).ToList());
-                Assert.Contains(thirdNodeManager.Object, registeredManagers.Select(m => m.Sync).ToList());
+                Assert.Contains(firstNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
+                Assert.Contains(thirdNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
             finally
             {
@@ -249,7 +254,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task UnregisterNamespaceManagerUnknownNamespaceAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
 
             try
             {
@@ -264,7 +270,7 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns([originalNs, newNs]);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
@@ -279,11 +285,11 @@ namespace Opc.Ua.Server.Tests
                     .That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 
                 Assert.Contains(originalNs, server.CurrentInstance.NamespaceUris.ToArray());
-                (INodeManager Sync, IAsyncNodeManager Async)[] registeredManagers = [.. sut.NamespaceManagers[
+                IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(originalNs)
                 ]];
                 Assert.AreEqual(1, registeredManagers.Length);
-                Assert.Contains(originalNodeManager.Object, registeredManagers.Select(m => m.Sync).ToList());
+                Assert.Contains(originalNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
             finally
             {

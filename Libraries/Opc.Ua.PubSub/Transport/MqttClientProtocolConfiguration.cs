@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -50,11 +51,11 @@ namespace Opc.Ua.PubSub.Transport
         public MqttTlsCertificates(
             string caCertificatePath = null,
             string clientCertificatePath = null,
-            string clientCertificatePassword = null)
+            char[] clientCertificatePassword = null)
         {
             CaCertificatePath = caCertificatePath ?? string.Empty;
             ClientCertificatePath = clientCertificatePath ?? string.Empty;
-            ClientCertificatePassword = clientCertificatePassword ?? string.Empty;
+            ClientCertificatePassword = clientCertificatePassword;
 
             if (!string.IsNullOrEmpty(CaCertificatePath))
             {
@@ -84,7 +85,7 @@ namespace Opc.Ua.PubSub.Transport
             KeyValuePairs.Add(new KeyValuePair
             {
                 Key = qClientCertificatePassword,
-                Value = ClientCertificatePassword
+                Value = ClientCertificatePassword?.ToString() ?? string.Empty
             });
         }
 
@@ -111,14 +112,14 @@ namespace Opc.Ua.PubSub.Transport
                         .Equals(qClientCertificatePath.Name, StringComparison.Ordinal))?
                     .Value.Value as string;
 
-            ClientCertificatePassword = string.Empty;
+            ClientCertificatePassword = null;
             QualifiedName qClientCertificatePassword = nameof(
                 EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePassword);
             ClientCertificatePassword =
-                keyValuePairs
+                ((keyValuePairs
                     .Find(kvp => kvp.Key.Name
                         .Equals(qClientCertificatePassword.Name, StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.Value as string)?.ToCharArray());
 
             KeyValuePairs = keyValuePairs;
 
@@ -136,7 +137,7 @@ namespace Opc.Ua.PubSub.Transport
 
         internal string CaCertificatePath { get; set; }
         internal string ClientCertificatePath { get; set; }
-        internal string ClientCertificatePassword { get; set; }
+        internal char[] ClientCertificatePassword { get; set; }
 
         internal KeyValuePairCollection KeyValuePairs { get; set; }
 
@@ -444,6 +445,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="version">The version of the MQTT protocol (default V310)</param>
         /// <param name="mqttTlsOptions">Instance of <see cref="MqttTlsOptions"/></param>
         public MqttClientProtocolConfiguration(
+
             SecureString userName = null,
             SecureString password = null,
             string azureClientId = null,
@@ -500,7 +502,9 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Constructs a MqttClientProtocolConfiguration from given keyValuePairs
         /// </summary>
-        public MqttClientProtocolConfiguration(KeyValuePairCollection connectionProperties)
+        public MqttClientProtocolConfiguration(
+            KeyValuePairCollection connectionProperties,
+            ILogger logger)
         {
             UserName = new SecureString();
             QualifiedName qUserName = nameof(EnumMqttClientConfigurationParameters.UserName);
@@ -556,8 +560,7 @@ namespace Opc.Ua.PubSub.Transport
                     CultureInfo.InvariantCulture);
             if (ProtocolVersion == EnumMqttProtocolVersion.Unknown)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                logger.LogInformation(
                     "Mqtt protocol version is Unknown and it will default to V310");
                 ProtocolVersion = EnumMqttProtocolVersion.V310;
             }

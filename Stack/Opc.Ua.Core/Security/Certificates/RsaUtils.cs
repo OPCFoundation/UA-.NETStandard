@@ -14,6 +14,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -168,9 +169,10 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         internal static byte[] Encrypt(
-            byte[] dataToEncrypt,
+            ReadOnlySpan<byte> dataToEncrypt,
             X509Certificate2 encryptingCertificate,
-            Padding padding)
+            Padding padding,
+            ILogger logger)
         {
             using RSA rsa =
                 encryptingCertificate.GetRSAPublicKey()
@@ -192,15 +194,17 @@ namespace Opc.Ua
             plainText[3] = (byte)((0xFF000000 & dataToEncrypt.Length) >> 24);
 
             // copy data.
-            Array.Copy(dataToEncrypt, 0, plainText, 4, dataToEncrypt.Length);
+            dataToEncrypt.CopyTo(plainText.AsSpan(4, dataToEncrypt.Length));
 
             byte[] buffer = new byte[cipherTextSize];
             ArraySegment<byte> cipherText = Encrypt(
                 new ArraySegment<byte>(plainText),
                 rsa,
                 padding,
-                new ArraySegment<byte>(buffer));
+                new ArraySegment<byte>(buffer),
+                logger);
             System.Diagnostics.Debug.Assert(cipherText.Count == buffer.Length);
+            Array.Clear(plainText, 0, plainText.Length);
 
             return buffer;
         }
@@ -212,7 +216,8 @@ namespace Opc.Ua
             ArraySegment<byte> dataToEncrypt,
             RSA rsa,
             Padding padding,
-            ArraySegment<byte> outputBuffer)
+            ArraySegment<byte> outputBuffer,
+            ILogger logger)
         {
             int inputBlockSize = GetPlainTextBlockSize(rsa, padding);
             int outputBlockSize = GetCipherTextBlockSize(rsa);
@@ -220,8 +225,8 @@ namespace Opc.Ua
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
             {
-                Utils.LogError(
-                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                logger.LogError(
+                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
                     dataToEncrypt.Count,
                     inputBlockSize);
             }
@@ -261,7 +266,8 @@ namespace Opc.Ua
         internal static byte[] Decrypt(
             ArraySegment<byte> dataToDecrypt,
             X509Certificate2 encryptingCertificate,
-            Padding padding)
+            Padding padding,
+            ILogger logger)
         {
             using RSA rsa =
                 encryptingCertificate.GetRSAPrivateKey()
@@ -277,7 +283,8 @@ namespace Opc.Ua
                 dataToDecrypt,
                 rsa,
                 padding,
-                new ArraySegment<byte>(buffer));
+                new ArraySegment<byte>(buffer),
+                logger);
             System.Diagnostics.Debug.Assert(plainText.Count == buffer.Length);
 
             // decode length.
@@ -297,6 +304,7 @@ namespace Opc.Ua
 
             byte[] decryptedData = new byte[length];
             Array.Copy(plainText.Array, plainText.Offset + 4, decryptedData, 0, length);
+            Array.Clear(buffer, 0, buffer.Length);
 
             return decryptedData;
         }
@@ -308,7 +316,8 @@ namespace Opc.Ua
             ArraySegment<byte> dataToDecrypt,
             RSA rsa,
             Padding padding,
-            ArraySegment<byte> outputBuffer)
+            ArraySegment<byte> outputBuffer,
+            ILogger logger)
         {
             int inputBlockSize = GetCipherTextBlockSize(rsa);
             int outputBlockSize = GetPlainTextBlockSize(rsa, padding);
@@ -316,8 +325,8 @@ namespace Opc.Ua
             // verify the input data is the correct block size.
             if (dataToDecrypt.Count % inputBlockSize != 0)
             {
-                Utils.LogError(
-                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                logger.LogError(
+                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
                     dataToDecrypt.Count,
                     inputBlockSize);
             }

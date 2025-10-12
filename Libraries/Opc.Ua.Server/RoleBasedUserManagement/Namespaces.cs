@@ -27,46 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-using System;
-
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Adds IEncoder Extension Method for tests targeting a netstandard 2.0 assembly (no span support) but being run on net 8 or higher
+    /// Defines constants for all namespaces.
     /// </summary>
-    internal static class EncoderSpanExtensions
+    public static class Namespaces
     {
         /// <summary>
-        /// Bridges encoder.WriteByteString(string, ReadOnlySpan<byte>) to the byte[] overloads.
+        /// The URI for the UserDatabase namespace.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="encoder"/> is <c>null</c>.</exception>
-        public static void WriteByteString(this IEncoder encoder, string fieldName, ReadOnlySpan<byte> value)
-        {
-            if (encoder == null)
-            {
-                throw new ArgumentNullException(nameof(encoder));
-            }
-
-            // Preserve test expectations:
-            // - value == ReadOnlySpan<byte>.Empty (null/default span) => encode null
-            // - value.IsEmpty (but not Equal to .Empty) => encode empty array
-            // - otherwise => encode the span content
-            if (value == ReadOnlySpan<byte>.Empty)
-            {
-                encoder.WriteByteString(fieldName, null);
-                return;
-            }
-
-            if (value.IsEmpty)
-            {
-                encoder.WriteByteString(fieldName, []);
-                return;
-            }
-
-            encoder.WriteByteString(fieldName, value.ToArray());
-        }
+        public const string Roles = "http://opcfoundation.org/UA/Server/Roles/";
     }
 }
-#endif
-

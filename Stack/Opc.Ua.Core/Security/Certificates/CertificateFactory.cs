@@ -18,6 +18,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -51,13 +52,41 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
+        [Obsolete("Use Create(ReadOnlyMemory<byte>, bool, ITelemetryContext) instead")]
+        public static X509Certificate2 Create(
+            ReadOnlyMemory<byte> encodedData,
+            bool useCache)
+        {
+            return Create(encodedData, useCache, null);
+        }
+
+        /// <summary>
+        /// Loads the cached version of a certificate.
+        /// </summary>
+        [Obsolete("Use Load(X509Certificate2, bool, ITelemetryContext) instead")]
+        public static X509Certificate2 Load(
+            X509Certificate2 certificate,
+            bool ensurePrivateKeyAccessible)
+        {
+            return Load(certificate, ensurePrivateKeyAccessible, null);
+        }
+
+        /// <summary>
+        /// Creates a certificate from a buffer with DER encoded certificate.
+        /// </summary>
         /// <param name="encodedData">The encoded data.</param>
-        /// <param name="useCache">if set to <c>true</c> the copy of the certificate in the cache is used.</param>
+        /// <param name="useCache">if set to <c>true</c> the copy of the certificate
+        /// in the cache is used.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The certificate.</returns>
-        public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData, bool useCache)
+        public static X509Certificate2 Create(
+            ReadOnlyMemory<byte> encodedData,
+            bool useCache,
+            ITelemetryContext telemetry)
         {
 #if NET6_0_OR_GREATER
-            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(encodedData.Span);
+            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                encodedData.Span);
 #else
             X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                 encodedData.ToArray());
@@ -65,7 +94,7 @@ namespace Opc.Ua
 
             if (useCache)
             {
-                return Load(certificate, false);
+                return Load(certificate, false, telemetry);
             }
             return certificate;
         }
@@ -74,7 +103,9 @@ namespace Opc.Ua
         /// Loads the cached version of a certificate.
         /// </summary>
         /// <param name="certificate">The certificate to load.</param>
-        /// <param name="ensurePrivateKeyAccessible">If true a key container is created for a certificate that must be deleted by calling Cleanup.</param>
+        /// <param name="ensurePrivateKeyAccessible">If true a key container is created
+        /// for a certificate that must be deleted by calling Cleanup.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The cached certificate.</returns>
         /// <remarks>
         /// This function is necessary because all private keys used for cryptography
@@ -83,7 +114,8 @@ namespace Opc.Ua
         /// </remarks>
         public static X509Certificate2 Load(
             X509Certificate2 certificate,
-            bool ensurePrivateKeyAccessible)
+            bool ensurePrivateKeyAccessible,
+            ITelemetryContext telemetry)
         {
             if (certificate == null)
             {
@@ -115,7 +147,8 @@ namespace Opc.Ua
                 if (ensurePrivateKeyAccessible &&
                     !X509Utils.VerifyKeyPair(certificate, certificate))
                 {
-                    Utils.LogWarning(
+                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
+                    logger.LogWarning(
                         "Trying to add certificate to cache with invalid private key.");
                     return null;
                 }
@@ -125,8 +158,9 @@ namespace Opc.Ua
 
                 if (s_certificates.Count > 100)
                 {
-                    Utils.LogWarning(
-                        "Certificate cache has {0} certificates in it.",
+                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
+                    logger.LogWarning(
+                        "Certificate cache has {Count} certificates in it.",
                         s_certificates.Count);
                 }
             }
@@ -391,8 +425,19 @@ namespace Opc.Ua
         /// </summary>
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
             X509Certificate2 certificate,
+            byte[] pemDataBlob)
+        {
+            return CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, default);
+        }
+
+        /// <summary>
+        /// Create a X509Certificate2 with a private key by combining
+        /// the certificate with a private key from a PEM stream
+        /// </summary>
+        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
+            X509Certificate2 certificate,
             byte[] pemDataBlob,
-            string password = null)
+            ReadOnlySpan<char> password)
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
@@ -438,14 +483,21 @@ namespace Opc.Ua
                     "The public and the private key pair doesn't match.");
             }
 
-            string passcode = X509Utils.GeneratePasscode();
-            using RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
-            byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                certificate,
-                certificate.FriendlyName,
-                rsaPrivateKey,
-                passcode);
-            return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+            char[] passcode = X509Utils.GeneratePasscode();
+            try
+            {
+                using RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
+                byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
+                    certificate,
+                    certificate.FriendlyName,
+                    rsaPrivateKey,
+                    passcode);
+                return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+            }
+            finally
+            {
+                Array.Clear(passcode, 0, passcode.Length);
+            }
         }
 
         /// <summary>
@@ -456,7 +508,7 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
             X509Certificate2 certificate,
             byte[] pemDataBlob,
-            string password = null)
+            ReadOnlySpan<char> password)
         {
 #if ECC_SUPPORT
             if (X509Utils.IsECDsaSignature(certificate))
@@ -485,13 +537,20 @@ namespace Opc.Ua
                     ?? throw new ServiceResultException(
                         "PEM data blob does not contain a private key.");
 
-                string passcode = X509Utils.GeneratePasscode();
-                byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                    certificate,
-                    certificate.FriendlyName,
-                    privateKey,
-                    passcode);
-                return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                char[] passcode = X509Utils.GeneratePasscode();
+                try
+                {
+                    byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
+                        certificate,
+                        certificate.FriendlyName,
+                        privateKey,
+                        passcode);
+                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                }
+                finally
+                {
+                    Array.Clear(passcode, 0, passcode.Length);
+                }
             }
         }
 #endif

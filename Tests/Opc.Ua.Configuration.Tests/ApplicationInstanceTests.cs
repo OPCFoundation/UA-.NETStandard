@@ -33,6 +33,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NETCOREAPP2_1_OR_GREATER && !NET_STANDARD_TESTS
 using System.Runtime.InteropServices;
@@ -91,13 +92,14 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestFileConfigAsync()
         {
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
             string configPath = Utils.GetAbsoluteFilePath(
                 "Opc.Ua.Configuration.Tests.Config.xml",
-                true,
-                false,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             Assert.NotNull(configPath);
             ApplicationConfiguration applicationConfiguration = await applicationInstance
                 .LoadApplicationConfigurationAsync(configPath, true)
@@ -112,7 +114,9 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClientAsync()
         {
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -137,8 +141,10 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestBadApplicationInstanceAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // no app name
-            var applicationInstance = new ApplicationInstance();
+            var applicationInstance = new ApplicationInstance(telemetry);
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -155,7 +161,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false));
             // discoveryserver can not be combined with client/server
-            applicationInstance = new ApplicationInstance
+            applicationInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
@@ -175,7 +181,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false));
             // server overrides client settings
-            applicationInstance = new ApplicationInstance
+            applicationInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
@@ -190,7 +196,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
 
             // client overrides server setting
-            applicationInstance = new ApplicationInstance
+            applicationInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
@@ -205,7 +211,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
 
             // invalid sec policy testing
-            applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             // invalid use, use AddUnsecurePolicyNone instead
             NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
                 await applicationInstance
@@ -247,7 +253,9 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMinimalAsync()
         {
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -273,7 +281,9 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMaximalAsync()
         {
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -322,7 +332,9 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClientAndServerAsync()
         {
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -369,7 +381,9 @@ namespace Opc.Ua.Configuration.Tests
                 NUnit.Framework.Assert.Ignore("X509Store trust lists not supported on mac OS.");
             }
 #endif
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -406,7 +420,7 @@ namespace Opc.Ua.Configuration.Tests
                 ICertificateStore store =
                     applicationInstance.ApplicationConfiguration.SecurityConfiguration
                         .TrustedPeerCertificates
-                        .OpenStore())
+                        .OpenStore(telemetry))
             {
                 // store public key in trusted store
                 byte[] rawData = applicationCertificate.Certificate.RawData;
@@ -417,7 +431,7 @@ namespace Opc.Ua.Configuration.Tests
             if (deleteAfterUse)
             {
                 string thumbprint = applicationCertificate.Certificate.Thumbprint;
-                using (ICertificateStore store = applicationCertificate.OpenStore())
+                using (ICertificateStore store = applicationCertificate.OpenStore(telemetry))
                 {
                     bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
@@ -426,7 +440,7 @@ namespace Opc.Ua.Configuration.Tests
                     ICertificateStore store =
                         applicationInstance.ApplicationConfiguration.SecurityConfiguration
                             .TrustedPeerCertificates
-                            .OpenStore())
+                            .OpenStore(telemetry))
                 {
                     bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
@@ -437,7 +451,9 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerCustomAsync()
         {
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -488,12 +504,14 @@ namespace Opc.Ua.Configuration.Tests
             bool server,
             bool suppress)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
                 Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -535,9 +553,11 @@ namespace Opc.Ua.Configuration.Tests
             {
                 Assert.NotNull(testCert);
                 Assert.True(testCert.HasPrivateKey);
-                testCert.AddToStore(
+                await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
-                    applicationCertificate.StorePath);
+                    applicationCertificate.StorePath,
+                    password: null,
+                    telemetry).ConfigureAwait(false);
                 publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
             }
 
@@ -583,12 +603,14 @@ namespace Opc.Ua.Configuration.Tests
             bool server,
             bool suppress)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
                 Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
 
             CertificateIdentifierCollection applicationCerts =
@@ -630,7 +652,7 @@ namespace Opc.Ua.Configuration.Tests
                 using X509Certificate2 issuerCert = testCerts[1];
                 Assert.NotNull(issuerCert);
                 Assert.False(issuerCert.HasPrivateKey);
-                issuerCert.AddToStore(
+                await issuerCert.AddToStoreAsync(
                     applicationInstance
                         .ApplicationConfiguration
                         .SecurityConfiguration
@@ -640,7 +662,9 @@ namespace Opc.Ua.Configuration.Tests
                         .ApplicationConfiguration
                         .SecurityConfiguration
                         .TrustedIssuerCertificates
-                        .StorePath);
+                        .StorePath,
+                    password: null,
+                    telemetry).ConfigureAwait(false);
             }
 
             X509Certificate2 publicKey = null;
@@ -648,9 +672,11 @@ namespace Opc.Ua.Configuration.Tests
             {
                 Assert.NotNull(testCert);
                 Assert.True(testCert.HasPrivateKey);
-                testCert.AddToStore(
+                await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
-                    applicationCertificate.StorePath);
+                    applicationCertificate.StorePath,
+                    password: null,
+                    telemetry).ConfigureAwait(false);
                 publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
             }
 
@@ -683,8 +709,10 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestAddOwnCertificateToTrustedStoreAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             //Arrange Application Instance
-            var applicationInstance = new ApplicationInstance { ApplicationName = ApplicationName };
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration = await applicationInstance
                 .Build(ApplicationUri, ProductUri)
                 .SetOperationTimeout(10000)
@@ -708,7 +736,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken())
                 .ConfigureAwait(false);
             ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates
-                .OpenStore();
+                .OpenStore(telemetry);
             X509Certificate2Collection storedCertificates = await store
                 .FindByThumbprintAsync(cert.Thumbprint)
                 .ConfigureAwait(false);
@@ -725,12 +753,14 @@ namespace Opc.Ua.Configuration.Tests
             bool server,
             bool disableCertificateAutoCreation)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() +
                 Path.GetRandomFileName() +
                 Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance
+            var applicationInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 DisableCertificateAutoCreation = disableCertificateAutoCreation

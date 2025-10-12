@@ -416,7 +416,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         private static void CheckPEMWriterReader(
             X509Certificate2 certificate,
-            string password = null)
+            ReadOnlySpan<char> password = default)
         {
             PEMWriter.ExportCertificateAsPEM(certificate);
             if (certificate.HasPrivateKey)

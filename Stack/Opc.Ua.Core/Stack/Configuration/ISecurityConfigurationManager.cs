@@ -43,13 +43,14 @@ namespace Opc.Ua.Security
         /// Returns an instance of the type identified by the assembly qualified name.
         /// </summary>
         /// <param name="typeName">Name of the type.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The new instance.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static ISecurityConfigurationManager CreateInstance(string typeName)
+        public static ISecurityConfigurationManager CreateInstance(string typeName, ITelemetryContext telemetry)
         {
             if (string.IsNullOrEmpty(typeName))
             {
-                return new SecurityConfigurationManager();
+                return new SecurityConfigurationManager(telemetry);
             }
 
             Type type =
@@ -59,7 +60,7 @@ namespace Opc.Ua.Security
                     "Cannot load type: {0}",
                     typeName);
 
-            if (Activator.CreateInstance(type) is not ISecurityConfigurationManager configuration)
+            if (Activator.CreateInstance(type, telemetry) is not ISecurityConfigurationManager configuration)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,

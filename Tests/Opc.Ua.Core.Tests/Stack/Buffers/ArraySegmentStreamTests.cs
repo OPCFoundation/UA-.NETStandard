@@ -32,6 +32,7 @@ using System.Buffers;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Buffers.Tests
 {
@@ -47,10 +48,13 @@ namespace Opc.Ua.Buffers.Tests
         [Test]
         public void ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             var bufferManager = new BufferManager(
                 nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow),
-                0x10000 - 1);
+                0x10000 - 1,
+                telemetry);
             var stream = new ArraySegmentStream(bufferManager);
 
             // Act
@@ -140,6 +144,8 @@ namespace Opc.Ua.Buffers.Tests
             [Values(0, 1, 16, 17, 128, 333, 777, 1024, 4096)] int chunkSize,
             [Values(16, 128, 333, 1024, 4096, 65536)] int defaultBufferSize)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var random = new Random(42);
             int length;
             byte[] buffer = new byte[chunkSize];
@@ -147,7 +153,8 @@ namespace Opc.Ua.Buffers.Tests
             // Arrange
             var bufferManager = new BufferManager(
                 nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow),
-                defaultBufferSize);
+                defaultBufferSize,
+                telemetry);
             using var writer = new ArraySegmentStream(bufferManager);
             // Act
             for (int i = 0; i <= byte.MaxValue; i++)

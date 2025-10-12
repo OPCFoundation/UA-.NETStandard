@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -52,6 +53,7 @@ namespace Opc.Ua.Server
             IUserIdentity savedOwnerIdentity = null)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<SamplingGroup>();
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_samplingRates = samplingRates ??
                 throw new ArgumentNullException(nameof(samplingRates));
@@ -302,16 +304,15 @@ namespace Opc.Ua.Server
 
             if (m_session == null && context?.SessionId == null)
             {
-                //fallback to compare user Identity if session is not set.
-                if (savedOwnerIdentity?.GetIdentityToken() != m_effectiveIdentity
-                    .GetIdentityToken())
+                // fallback to compare user Identity if session is not set.
+                if (!m_effectiveIdentity.Equals(savedOwnerIdentity))
                 {
                     return false;
                 }
             }
             else
             {
-                //compare session
+                // compare session
                 if (context?.SessionId != m_session?.Id)
                 {
                     return false;
@@ -375,7 +376,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogTrace("Server: {0} Thread Started.", Thread.CurrentThread.Name);
+                m_logger.LogTrace("Server: {Name} Thread Started.", Thread.CurrentThread.Name);
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
                 int timeToWait = sleepCycle;
@@ -432,8 +433,8 @@ namespace Opc.Ua.Server
 
                         if (timeToWait < 0)
                         {
-                            Utils.LogWarning(
-                                "WARNING: SamplingGroup cannot sample fast enough. TimeToSample={0}ms, SamplingInterval={1}ms",
+                            m_logger.LogWarning(
+                                "WARNING: SamplingGroup cannot sample fast enough. TimeToSample={Delay}ms, SamplingInterval={SleepCycle}ms",
                                 delay,
                                 sleepCycle);
                             timeToWait = sleepCycle;
@@ -441,11 +442,11 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                Utils.LogTrace("Server: {0} Thread Exited Normally.", Thread.CurrentThread.Name);
+                m_logger.LogTrace("Server: {Name} Thread Exited Normally.", Thread.CurrentThread.Name);
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Server: SampleMonitoredItems Thread Exited Unexpectedly.");
+                m_logger.LogError(e, "Server: SampleMonitoredItems Thread Exited Unexpectedly.");
             }
         }
 
@@ -507,11 +508,12 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Server: Unexpected error sampling values.");
+                m_logger.LogError(e, "Server: Unexpected error sampling values.");
             }
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly INodeManager m_nodeManager;
         private ISession m_session;

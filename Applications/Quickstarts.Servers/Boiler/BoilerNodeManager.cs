@@ -285,7 +285,7 @@ namespace Boiler
         }
 
         private readonly ushort m_namespaceIndex;
-        private long m_lastUsedId;
+        private uint m_lastUsedId;
         private readonly List<BoilerState> m_boilers;
     }
 }

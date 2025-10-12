@@ -34,6 +34,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -179,10 +180,21 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use ReverseConnectManager(ITelemetryContext) instead.")]
+        public ReverseConnectManager()
+            : this(null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public ReverseConnectManager()
+        public ReverseConnectManager(ITelemetryContext telemetry)
         {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ReverseConnectManager>();
             m_state = ReverseConnectManagerState.New;
             m_registrations = [];
             m_endpointUrls = [];
@@ -230,14 +242,18 @@ namespace Opc.Ua.Client
             try
             {
                 ApplicationConfiguration configuration = await ApplicationConfiguration
-                    .LoadAsync(new FileInfo(args.FilePath), m_applicationType, m_configType)
+                    .LoadAsync(
+                        new FileInfo(args.FilePath),
+                        m_applicationType,
+                        m_configType,
+                        m_telemetry)
                     .ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Could not load updated configuration file from: {0}", args);
+                m_logger.LogError(e, "Could not load updated configuration file from: {FilePath}", args.FilePath);
             }
         }
 
@@ -319,7 +335,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Failed to Open {0}.", host.Key);
+                        m_logger.LogError(e, "Failed to Open {Uri}.", host.Key);
                         value.State = ReverseConnectHostState.Errored;
                     }
                 }
@@ -346,7 +362,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Failed to Close {0}.", host.Key);
+                        m_logger.LogError(e, "Failed to Close {Uri}.", host.Key);
                         value.State = ReverseConnectHostState.Errored;
                     }
                 }
@@ -416,13 +432,13 @@ namespace Opc.Ua.Client
                     // monitor the configuration file.
                     if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                     {
-                        m_configurationWatcher = new ConfigurationWatcher(configuration);
+                        m_configurationWatcher = new ConfigurationWatcher(configuration, m_telemetry);
                         m_configurationWatcher.Changed += OnConfigurationChangedAsync;
                     }
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Unexpected error starting reverse connect manager.");
+                    m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
                     var error = ServiceResult.Create(
                         e,
@@ -462,7 +478,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Unexpected error starting reverse connect manager.");
+                    m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
                     var error = ServiceResult.Create(
                         e,
@@ -647,7 +663,7 @@ namespace Opc.Ua.Client
         /// <param name="configEntry">Tf this is an entry in the application configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
-            var reverseConnectHost = new ReverseConnectHost();
+            var reverseConnectHost = new ReverseConnectHost(m_telemetry);
             var info = new ReverseConnectInfo(reverseConnectHost, configEntry);
             try
             {
@@ -659,7 +675,7 @@ namespace Opc.Ua.Client
             }
             catch (ArgumentException ae)
             {
-                Utils.LogError(ae, "No listener was found for endpoint {0}.", endpointUrl);
+                m_logger.LogError(ae, "No listener was found for endpoint {EndpointUrl}.", endpointUrl);
                 info.State = ReverseConnectHostState.Errored;
             }
         }
@@ -676,7 +692,7 @@ namespace Opc.Ua.Client
             bool matched = MatchRegistration(sender, e);
             while (!matched)
             {
-                Utils.LogInfo("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
+                m_logger.LogInformation("Holding reverse connection: {ServerUri} {EndpointUrl}", e.ServerUri, e.EndpointUrl);
                 CancellationToken ct;
                 lock (m_registrationsLock)
                 {
@@ -693,8 +709,8 @@ namespace Opc.Ua.Client
                                 matched = MatchRegistration(sender, e);
                                 if (matched)
                                 {
-                                    Utils.LogInfo(
-                                        "Matched reverse connection {0} {1} after {2}ms",
+                                    m_logger.LogInformation(
+                                        "Matched reverse connection {ServerUri} {EndpointUrl} after {Duration}ms",
                                         e.ServerUri,
                                         e.EndpointUrl,
                                         HiResClock.TickCount - startTime);
@@ -706,8 +722,8 @@ namespace Opc.Ua.Client
                 break;
             }
 
-            Utils.LogInfo(
-                "{0} reverse connection: {1} {2} after {3}ms",
+            m_logger.LogInformation(
+                "{Action} reverse connection: {ServerUri} {EndpointUrl} after {Duration}ms",
                 e.Accepted ? "Accepted" : "Rejected",
                 e.ServerUri,
                 e.EndpointUrl,
@@ -739,8 +755,8 @@ namespace Opc.Ua.Client
                         callbackRegistration = registration;
                         e.Accepted = true;
                         found = true;
-                        Utils.LogInfo(
-                            "Accepted reverse connection: {0} {1}",
+                        m_logger.LogInformation(
+                            "Accepted reverse connection: {ServerUri} {EndpointUrl}",
                             e.ServerUri,
                             e.EndpointUrl);
                         break;
@@ -759,8 +775,8 @@ namespace Opc.Ua.Client
                             callbackRegistration = registration;
                             e.Accepted = true;
                             found = true;
-                            Utils.LogInfo(
-                                "Accept any reverse connection for approval: {0} {1}",
+                            m_logger.LogInformation(
+                                "Accept any reverse connection for approval: {ServerUri} {EndpointUrl}",
                                 e.ServerUri,
                                 e.EndpointUrl);
                             break;
@@ -786,7 +802,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
         {
-            Utils.LogInfo("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
+            m_logger.LogInformation("Channel status: {EndpointUrl} {ChannelStatus} {Closed}", e.EndpointUrl, e.ChannelStatus, e.Closed);
         }
 
         /// <summary>
@@ -801,6 +817,8 @@ namespace Opc.Ua.Client
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher m_configurationWatcher;
         private ApplicationType m_applicationType;
         private Type m_configType;

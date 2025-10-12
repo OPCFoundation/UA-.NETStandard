@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Tests
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
-            return OneTimeSetUpAsync(writer: null, securityNone: true);
+            return OneTimeSetUpCoreAsync(securityNone: true);
         }
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Tests
         [Order(100)]
         public async Task AddSubscriptionAsync()
         {
-            var subscription = new TestableSubscription();
+            var subscription = new TestableSubscription(Telemetry);
 
             // check keepAlive
             int keepAlive = 0;
@@ -510,7 +510,7 @@ namespace Opc.Ua.Client.Tests
 
             UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
-                : new UserIdentity("user1", "password");
+                : new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -587,7 +587,9 @@ namespace Opc.Ua.Client.Tests
 
             // read the session configuration
             var loadConfigurationStream = new MemoryStream(configStreamArray);
-            var sessionConfiguration = SessionConfiguration.Create(loadConfigurationStream);
+            var sessionConfiguration = SessionConfiguration.Create(
+                loadConfigurationStream,
+                Telemetry);
 
             // create the inactive channel
             ITransportChannel channel2 = await ClientFixture
@@ -863,7 +865,57 @@ namespace Opc.Ua.Client.Tests
                 sequentialPublishing);
         }
 
+        [Theory]
+        [Order(812)]
+        [Explicit]
+        public async Task TransferSubscriptionOnlyDebugAsync(
+            TransferType transferType,
+            bool sendInitialValues,
+            bool sequentialPublishing)
+        {
+            const int loopCount = 30;
+            for (int i = 0; i < loopCount; i++)
+            {
+                await InternalTransferSubscriptionAsync(
+                    transferType,
+                    sendInitialValues,
+                    sequentialPublishing).ConfigureAwait(false);
+
+                TestContext.Out.WriteLine("===========================================");
+                TestContext.Out.WriteLine("===========================================");
+                TestContext.Out.WriteLine($"Completed {i}th iteration.");
+                TestContext.Out.WriteLine("===========================================");
+                TestContext.Out.WriteLine("===========================================");
+            }
+        }
+
         public async Task InternalTransferSubscriptionAsync(
+            TransferType transferType,
+            bool sendInitialValues,
+            bool sequentialPublishing)
+        {
+            // create test session and subscription
+            ISession originSession = await ClientFixture
+                .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
+                .ConfigureAwait(false);
+            ISession targetSession = null;
+            try
+            {
+                targetSession = await InternalTransferSubscriptionAsync(
+                    originSession,
+                    transferType,
+                    sendInitialValues,
+                    sequentialPublishing).ConfigureAwait(false);
+            }
+            finally
+            {
+                Utils.SilentDispose(originSession);
+                Utils.SilentDispose(targetSession);
+            }
+        }
+
+        private async Task<ISession> InternalTransferSubscriptionAsync(
+            ISession originSession,
             TransferType transferType,
             bool sendInitialValues,
             bool sequentialPublishing)
@@ -872,10 +924,6 @@ namespace Opc.Ua.Client.Tests
             const int kDelay = 2_000;
             const int kQueueSize = 10;
 
-            // create test session and subscription
-            ISession originSession = await ClientFixture
-                .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
-                .ConfigureAwait(false);
             if (transferType == TransferType.DisconnectedRepublishDelayedAck)
             {
                 originSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
@@ -1195,6 +1243,7 @@ namespace Opc.Ua.Client.Tests
 
             // cleanup
             File.Delete(filePath);
+            return targetSession;
         }
 
         [Test]

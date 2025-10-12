@@ -79,6 +79,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [Test]
         public void ArrayDimensionsValidationTest()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string bufferPath = "./ArrayDimensionsValidationTest.xml";
             const string importBuffer =
                 @"<?xml version='1.0' encoding='utf-8'?>
@@ -137,7 +139,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             var importedNodeSet = Export.UANodeSet.Read(importStream);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext { NamespaceUris = new NamespaceTable() };
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
             foreach (string namespaceUri in importedNodeSet.NamespaceUris)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
@@ -213,17 +215,18 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [TestCase("Applications/Quickstarts.Servers/Boiler/Generated/Boiler.NodeSet2.xml")]
         public void NodeSet2ValidationTest(string nodeset2File)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             string assetPath = Utils.GetAbsoluteFilePath(
                 "../../../../../" + nodeset2File,
-                true,
-                false,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             using var importStream = new FileStream(assetPath, FileMode.Open);
             var importedNodeSet = Export.UANodeSet.Read(importStream);
             Assert.NotNull(importedNodeSet);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext { NamespaceUris = new NamespaceTable() };
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
             if (importedNodeSet.NamespaceUris != null)
             {
                 foreach (string namespaceUri in importedNodeSet.NamespaceUris)
@@ -240,12 +243,14 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [Theory]
         public void NodeSet2ValidationTest(NodeSet2Asset nodeset2Asset)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             using var importStream = new MemoryStream(nodeset2Asset.Xml);
             var importedNodeSet = Export.UANodeSet.Read(importStream);
             Assert.NotNull(importedNodeSet);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext { NamespaceUris = new NamespaceTable() };
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
             if (importedNodeSet.NamespaceUris != null)
             {
                 foreach (string namespaceUri in importedNodeSet.NamespaceUris)

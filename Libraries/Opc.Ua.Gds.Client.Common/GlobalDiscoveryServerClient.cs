@@ -33,6 +33,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Gds.Client
@@ -56,8 +57,10 @@ namespace Opc.Ua.Gds.Client
             ISessionFactory sessionFactory = null)
         {
             Configuration = configuration;
+            MessageContext = configuration.CreateMessageContext(true);
             EndpointUrl = endpointUrl;
-            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
+            m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
             // preset admin
             AdminCredentials = adminUserIdentity;
         }
@@ -65,17 +68,16 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the application.
         /// </summary>
-        /// <value>
-        /// The application.
-        /// </value>
         public ApplicationConfiguration Configuration { get; }
+
+        /// <summary>
+        /// Message context
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Gets or sets the admin credentials.
         /// </summary>
-        /// <value>
-        /// The admin credentials.
-        /// </value>
         public IUserIdentity AdminCredentials { get; set; }
 
         /// <summary>
@@ -88,25 +90,16 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the session.
         /// </summary>
-        /// <value>
-        /// The session.
-        /// </value>
         public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
-        /// <value>
-        /// The endpoint URL.
-        /// </value>
         public string EndpointUrl { get; set; }
 
         /// <summary>
         /// Gets the endpoint.
         /// </summary>
-        /// <value>
-        /// The endpoint.
-        /// </value>
         /// <exception cref="InvalidOperationException"></exception>
         public ConfiguredEndpoint Endpoint
         {
@@ -208,7 +201,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError(exception, "Unexpected error connecting to LDS");
+                m_logger.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return serverUrls;
@@ -261,7 +254,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError(exception, "Unexpected error connecting to LDS");
+                m_logger.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return gdsUrls;
@@ -328,6 +321,7 @@ namespace Opc.Ua.Gds.Client
                             Configuration,
                             endpointUrl,
                             true,
+                            MessageContext.Telemetry,
                             ct).ConfigureAwait(false);
                     var endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     var endpoint = new ConfiguredEndpoint(
@@ -451,7 +445,7 @@ namespace Opc.Ua.Gds.Client
 
         private void Session_SessionClosing(object sender, EventArgs e)
         {
-            Utils.LogInfo("The GDS Client session is closing.");
+            m_logger.LogInformation("The GDS Client session is closing.");
         }
 
         /// <summary>
@@ -1096,7 +1090,7 @@ namespace Opc.Ua.Gds.Client
             string subjectName,
             IList<string> domainNames,
             string privateKeyFormat,
-            string privateKeyPassword)
+            char[] privateKeyPassword)
         {
             return StartNewKeyPairRequestAsync(
                 applicationId,
@@ -1129,7 +1123,7 @@ namespace Opc.Ua.Gds.Client
             string subjectName,
             IList<string> domainNames,
             string privateKeyFormat,
-            string privateKeyPassword,
+            char[] privateKeyPassword,
             CancellationToken ct = default)
         {
             if (!IsConnected)
@@ -1495,5 +1489,6 @@ namespace Opc.Ua.Gds.Client
 
         private ConfiguredEndpoint m_endpoint;
         private readonly ISessionFactory m_sessionFactory;
+        private readonly ILogger m_logger;
     }
 }

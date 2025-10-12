@@ -55,9 +55,10 @@ namespace Opc.Ua.Server
             bool publishingEnabled,
             uint maxMessageCount)
         {
-            m_server = server ?? throw new ArgumentNullException(nameof(server));
-            Session = session ?? throw new ArgumentNullException(nameof(session));
             Id = subscriptionId;
+            Session = session ?? throw new ArgumentNullException(nameof(session));
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<Subscription>();
             m_publishingInterval = publishingInterval;
             m_maxLifetimeCount = maxLifetimeCount;
             m_maxKeepAliveCount = maxKeepAliveCount;
@@ -113,7 +114,7 @@ namespace Opc.Ua.Server
                 MonitoredItemCount = 0,
                 DisabledMonitoredItemCount = 0,
                 MonitoringQueueOverflowCount = 0,
-                NextSequenceNumber = (uint)m_sequenceNumber
+                NextSequenceNumber = m_sequenceNumber
             };
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(session);
@@ -138,6 +139,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server;
+            m_logger = server.Telemetry.CreateLogger<Subscription>();
             Session = null;
             Id = storedSubscription.Id;
             m_publishingInterval = storedSubscription.PublishingInterval;
@@ -155,7 +157,9 @@ namespace Opc.Ua.Server
             m_sentMessages = storedSubscription.SentMessages;
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
-            m_savedOwnerIdentity = new UserIdentity(storedSubscription.UserIdentityToken);
+            m_savedOwnerIdentity = new UserIdentity(
+                storedSubscription.UserIdentityToken,
+                m_server.Telemetry);
             m_sequenceNumber = storedSubscription.SequenceNumber;
             m_lastSentMessage = storedSubscription.LastSentMessage;
 
@@ -194,7 +198,7 @@ namespace Opc.Ua.Server
                 MonitoredItemCount = 0,
                 DisabledMonitoredItemCount = 0,
                 MonitoringQueueOverflowCount = 0,
-                NextSequenceNumber = (uint)m_sequenceNumber
+                NextSequenceNumber = m_sequenceNumber
             };
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy();
@@ -404,7 +408,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Delete items for subscription failed.");
+                    m_logger.LogError(e, "Delete items for subscription failed.");
                 }
             }
         }
@@ -583,7 +587,7 @@ namespace Opc.Ua.Server
 
             if (badTransfers > 0)
             {
-                Utils.LogTrace("Failed to transfer {0} Monitored Items", badTransfers);
+                m_logger.LogTrace("Failed to transfer {Count} Monitored Items", badTransfers);
             }
 
             lock (DiagnosticsWriteLock)
@@ -781,7 +785,7 @@ namespace Opc.Ua.Server
 
                 message = new NotificationMessage
                 {
-                    SequenceNumber = (uint)m_sequenceNumber,
+                    SequenceNumber = m_sequenceNumber,
                     PublishTime = DateTime.UtcNow
                 };
 
@@ -789,7 +793,7 @@ namespace Opc.Ua.Server
 
                 lock (DiagnosticsWriteLock)
                 {
-                    Diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                    Diagnostics.NextSequenceNumber = m_sequenceNumber;
                 }
 
                 var notification = new StatusChangeNotification { Status = StatusCodes.BadTimeout };
@@ -810,7 +814,7 @@ namespace Opc.Ua.Server
             {
                 message = new NotificationMessage
                 {
-                    SequenceNumber = (uint)m_sequenceNumber,
+                    SequenceNumber = m_sequenceNumber,
                     PublishTime = DateTime.UtcNow
                 };
 
@@ -818,7 +822,7 @@ namespace Opc.Ua.Server
 
                 lock (DiagnosticsWriteLock)
                 {
-                    Diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                    Diagnostics.NextSequenceNumber = m_sequenceNumber;
                 }
 
                 var notification = new StatusChangeNotification
@@ -898,7 +902,8 @@ namespace Opc.Ua.Server
                             context,
                             datachanges,
                             datachangeDiagnostics,
-                            maxNotificationsPerMonitoredItem);
+                            maxNotificationsPerMonitoredItem,
+                            m_logger);
                     }
                     else
                     {
@@ -983,7 +988,7 @@ namespace Opc.Ua.Server
                 // check for missing notifications.
                 if (!keepAliveIfNoData && messages.Count == 0)
                 {
-                    Utils.LogError("Oops! MonitoredItems queued but no notifications available.");
+                    m_logger.LogError("Oops! MonitoredItems queued but no notifications available.");
 
                     m_waitingForPublish = false;
 
@@ -1010,7 +1015,7 @@ namespace Opc.Ua.Server
                 var message = new NotificationMessage
                 {
                     // use the sequence number for the next message.
-                    SequenceNumber = (uint)m_sequenceNumber,
+                    SequenceNumber = m_sequenceNumber,
                     PublishTime = DateTime.UtcNow
                 };
 
@@ -1028,8 +1033,8 @@ namespace Opc.Ua.Server
             int overflowCount = messages.Count - (int)m_maxMessageCount;
             if (overflowCount > 0)
             {
-                Utils.LogWarning(
-                    "WARNING: QUEUE OVERFLOW. Dropping {0} Messages. Increase MaxMessageQueueSize. SubId={1}, MaxMessageQueueSize={2}",
+                m_logger.LogWarning(
+                    "WARNING: QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}",
                     overflowCount,
                     Id,
                     m_maxMessageCount);
@@ -1101,7 +1106,7 @@ namespace Opc.Ua.Server
 
             var message = new NotificationMessage
             {
-                SequenceNumber = (uint)m_sequenceNumber,
+                SequenceNumber = m_sequenceNumber,
                 PublishTime = DateTime.UtcNow
             };
 
@@ -1109,7 +1114,7 @@ namespace Opc.Ua.Server
 
             lock (DiagnosticsWriteLock)
             {
-                Diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                Diagnostics.NextSequenceNumber = m_sequenceNumber;
             }
 
             // add events.
@@ -1410,7 +1415,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                removeResults[ii]);
+                                removeResults[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             removeDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1442,7 +1448,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                addResults[ii]);
+                                addResults[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             addDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1462,7 +1469,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                addResults[ii]);
+                                addResults[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             addDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1627,7 +1635,8 @@ namespace Opc.Ua.Server
                             diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                         }
 
@@ -1783,7 +1792,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1866,7 +1876,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -1964,7 +1975,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -2053,7 +2065,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2130,7 +2143,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]);
+                                errors[ii],
+                                m_logger);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -2192,7 +2206,8 @@ namespace Opc.Ua.Server
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
-                            error);
+                            error,
+                            m_logger);
                         diagnosticsExist = true;
                     }
                 }
@@ -2439,8 +2454,8 @@ namespace Opc.Ua.Server
             {
                 if (!m_supportsDurable)
                 {
-                    Utils.LogError(
-                        "SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered",
+                    m_logger.LogError(
+                        "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no IMonitoredItemQueueFactory that supports durable queues was registered",
                         Id);
                     TraceState(
                         LogLevel.Information,
@@ -2618,16 +2633,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TraceState(LogLevel logLevel, TraceStateId id, string context)
         {
-            const string deletedMessage
-                = "Subscription {0}, SessionId={1}, Id={2}, SeqNo={3}, MessageCount={4}";
-            const string configMessage =
-                "Subscription {0}, SessionId={1}, Id={2}, Priority={3}, Publishing={4}, KeepAlive={5}, LifeTime={6}, MaxNotifications={7}, Enabled={8}";
-            const string monitorMessage =
-                "Subscription {0}, Id={1}, KeepAliveCount={2}, LifeTimeCount={3}, WaitingForPublish={4}, SeqNo={5}, ItemCount={6}, ItemsToCheck={7}, ItemsToPublish={8}, MessageCount={9}";
-            const string itemsMessage
-                = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
-
-            if (!Utils.Logger.IsEnabled(logLevel))
+            if (!m_logger.IsEnabled(logLevel))
             {
                 return;
             }
@@ -2648,9 +2654,9 @@ namespace Opc.Ua.Server
             switch (id)
             {
                 case TraceStateId.Deleted:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        deletedMessage,
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, SeqNo={SequenceNumber}, MessageCount={MessageCount}",
                         context,
                         Session?.Id,
                         Id,
@@ -2658,9 +2664,9 @@ namespace Opc.Ua.Server
                         sentMessages);
                     break;
                 case TraceStateId.Config:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        configMessage,
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, Priority={Priority}, Publishing={Publishing}, KeepAlive={KeepAlive}, LifeTime={LifeTime}, MaxNotifications={MaxNotifications}, Enabled={Enabled}",
                         context,
                         Session?.Id,
                         Id,
@@ -2672,9 +2678,9 @@ namespace Opc.Ua.Server
                         publishingEnabled);
                     break;
                 case TraceStateId.Items:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        itemsMessage,
+                        "Subscription {Subscription}, Id={SubscriptionId}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}",
                         context,
                         Id,
                         monitoredItems,
@@ -2683,9 +2689,9 @@ namespace Opc.Ua.Server
                     break;
                 case TraceStateId.Publish:
                 case TraceStateId.Monitor:
-                    Utils.Log(
+                    m_logger.Log(
                         logLevel,
-                        monitorMessage,
+                        "Subscription {Subscription}, Id={SubscriptionId}, KeepAliveCounter={keepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
                         context,
                         Id,
                         m_keepAliveCounter,
@@ -2714,7 +2720,7 @@ namespace Opc.Ua.Server
         private bool m_waitingForPublish;
         private readonly List<NotificationMessage> m_sentMessages;
         private int m_lastSentMessage;
-        private long m_sequenceNumber;
+        private uint m_sequenceNumber;
         private readonly uint m_maxMessageCount;
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
@@ -2724,5 +2730,6 @@ namespace Opc.Ua.Server
         private bool m_expired;
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
+        private readonly ILogger m_logger;
     }
 }

@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
@@ -41,9 +42,10 @@ namespace Opc.Ua.Gds.Tests
         public ServerPushConfigurationClient PushClient { get; private set; }
         public static bool AutoAccept { get; set; }
 
-        public ServerConfigurationPushTestClient(bool autoAccept)
+        public ServerConfigurationPushTestClient(bool autoAccept, ITelemetryContext telemetry)
         {
             AutoAccept = autoAccept;
+            m_telemetry = telemetry;
         }
 
         public IUserIdentity AppUser { get; private set; }
@@ -54,7 +56,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            var application = new ApplicationInstance
+            var application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
@@ -135,19 +137,20 @@ namespace Opc.Ua.Gds.Tests
                     clientConfiguration.ServerUrl,
                     port)
             };
+
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
-                AppUser = new UserIdentity(new AnonymousIdentityToken());
+                AppUser = new UserIdentity();
             }
             else
             {
                 AppUser = new UserIdentity(
                     clientConfiguration.AppUserName,
-                    clientConfiguration.AppPassword);
+                    Encoding.UTF8.GetBytes(clientConfiguration.AppPassword));
             }
             SysAdminUser = new UserIdentity(
                 clientConfiguration.SysAdminUserName,
-                clientConfiguration.SysAdminPassword);
+                Encoding.UTF8.GetBytes(clientConfiguration.SysAdminPassword));
             TempStorePath = clientConfiguration.TempStorePath;
         }
 
@@ -202,7 +205,10 @@ namespace Opc.Ua.Gds.Tests
             }
             await PushClient.DisconnectAsync().ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Config);
-            var discoveryClient = DiscoveryClient.Create(new Uri(PushClient.EndpointUrl), endpointConfiguration);
+            using var discoveryClient = DiscoveryClient.Create(
+                new Uri(PushClient.EndpointUrl),
+                endpointConfiguration,
+                m_telemetry);
             EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
             await discoveryClient.CloseAsync().ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;
@@ -222,6 +228,8 @@ namespace Opc.Ua.Gds.Tests
 
             await PushClient.ConnectAsync().ConfigureAwait(false);
         }
+
+        private readonly ITelemetryContext m_telemetry;
     }
 
     /// <summary>

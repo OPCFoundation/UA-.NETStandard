@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-#if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
+#if NETSTANDARD2_0
 
 using System;
 using System.Collections.Generic;
@@ -93,9 +93,17 @@ namespace Opc.Ua.Security.Certificates
             {
                 return CreateForRSAWithPublicKey();
             }
-            string passcode = X509Utils.GeneratePasscode();
-
-            return X509PfxUtils.CreateCertificateFromPKCS12(CreatePfxForRSA(passcode), passcode);
+            char[] passcode = X509Utils.GeneratePasscode();
+            try
+            {
+                return X509PfxUtils.CreateCertificateFromPKCS12(
+                    CreatePfxForRSA(passcode),
+                    passcode);
+            }
+            finally
+            {
+                Array.Clear(passcode, 0, passcode.Length);
+            }
         }
 
         /// <inheritdoc/>
@@ -113,11 +121,17 @@ namespace Opc.Ua.Security.Certificates
             {
                 return CreateForRSAWithPublicKey(signatureFactory);
             }
-            string passcode = X509Utils.GeneratePasscode();
-
-            return X509PfxUtils.CreateCertificateFromPKCS12(
-                CreatePfxForRSA(passcode, signatureFactory),
-                passcode);
+            char[] passcode = X509Utils.GeneratePasscode();
+            try
+            {
+                return X509PfxUtils.CreateCertificateFromPKCS12(
+                    CreatePfxForRSA(passcode, signatureFactory),
+                    passcode);
+            }
+            finally
+            {
+                Array.Clear(passcode, 0, passcode.Length);
+            }
         }
 
         /// <inheritdoc/>
@@ -147,7 +161,7 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 certificate,
             string friendlyName,
             RSA privateKey,
-            string passcode)
+            ReadOnlySpan<char> passcode)
         {
             Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser()
                 .ReadCertificate(
@@ -496,7 +510,9 @@ namespace Opc.Ua.Security.Certificates
         /// Returns the Pfx with certificate and private key.
         /// </returns>
         /// <exception cref="NotSupportedException"></exception>
-        private byte[] CreatePfxForRSA(string passcode, ISignatureFactory signatureFactory = null)
+        private byte[] CreatePfxForRSA(
+            ReadOnlySpan<char> passcode,
+            ISignatureFactory signatureFactory = null)
         {
             // Cases locked out by API flow
             Debug.Assert(

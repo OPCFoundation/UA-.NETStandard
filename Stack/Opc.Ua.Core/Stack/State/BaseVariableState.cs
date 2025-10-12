@@ -17,6 +17,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -44,6 +45,15 @@ namespace Opc.Ua
             m_historizing = false;
             CopyPolicy = VariableCopyPolicy.CopyOnRead;
             m_valueTouched = false;
+        }
+
+        /// <summary>
+        /// Consume the telemetry context
+        /// </summary>
+        protected override void Initialize(ITelemetryContext telemetry)
+        {
+            m_logger = telemetry.CreateLogger<BaseVariableState>();
+            base.Initialize(telemetry);
         }
 
         /// <summary>
@@ -358,7 +368,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes the contents of an extension object.
         /// </summary>
-        /// <param name="context">The context (uses ServiceMessageContext.GlobalContext if null).</param>
+        /// <param name="context">The context (uses MessageContextExtension.Current.MessageContext if null).</param>
         /// <param name="targetType">The type that the ExtensionObject must be converted to.</param>
         /// <param name="extension">The ExtensionObject to convert.</param>
         /// <param name="throwOnError">Whether to throw an exception on error.</param>
@@ -380,16 +390,19 @@ namespace Opc.Ua
                 IDecoder decoder = null;
                 try
                 {
-                    ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
-
+                    IServiceMessageContext messageContext;
                     if (context != null)
                     {
-                        messageContext = new ServiceMessageContext
+                        messageContext = new ServiceMessageContext(context.Telemetry)
                         {
                             NamespaceUris = context.NamespaceUris,
                             ServerUris = context.ServerUris,
                             Factory = context.EncodeableFactory
                         };
+                    }
+                    else
+                    {
+                        messageContext = AmbientMessageContext.CurrentContext;
                     }
 
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)
@@ -878,7 +891,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError("Unexpected error exporting node:" + e.Message);
+                    m_logger.LogError(e, "Unexpected error exporting node");
                 }
             }
         }
@@ -1601,7 +1614,7 @@ namespace Opc.Ua
             // apply data encoding.
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                var messageContext = new ServiceMessageContext
+                var messageContext = new ServiceMessageContext(context.Telemetry)
                 {
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
@@ -2015,6 +2028,7 @@ namespace Opc.Ua
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
+        private ILogger m_logger = Utils.Null.Logger;
         private static readonly char[] s_commaSeparator = [','];
     }
 

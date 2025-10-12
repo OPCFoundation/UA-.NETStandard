@@ -41,7 +41,8 @@ namespace Quickstarts.ConsoleReferencePublisher
     public static class Program
     {
         /// <summary>
-        /// constant DateTime that represents the initial time when the metadata for the configuration was created
+        /// constant DateTime that represents the initial time when the metadata
+        /// for the configuration was created
         /// </summary>
         private static readonly DateTime s_timeOfConfiguration = new(
             2021,
@@ -108,7 +109,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             try
             {
-                InitializeLog();
+                var telemetry = new ConsoleTelemetry();
+                // telemetry.AddFileOutput("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferencePublisher.log.txt");
+                // Utils.SetTraceMask(Utils.TraceMasks.Error);
+                // Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
 
                 PubSubConfigurationDataType pubSubConfiguration = null;
                 if (useUdpUadp)
@@ -149,10 +153,10 @@ namespace Quickstarts.ConsoleReferencePublisher
                 }
 
                 // Create the UA Publisher application using configuration file
-                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
+                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
                 {
                     // Start values simulator
-                    var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication);
+                    var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication, telemetry);
                     valuesSimulator.Start();
 
                     // Start the publisher
@@ -236,8 +240,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 NetworkMessageContentMask = (uint)(
                     UadpNetworkMessageContentMask.PublisherId |
                     UadpNetworkMessageContentMask.GroupHeader |
-                    UadpNetworkMessageContentMask.PayloadHeader // needed to be able to decode the DataSetWriterId
-                    | UadpNetworkMessageContentMask.WriterGroupId |
+                    // needed to be able to decode the DataSetWriterId
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
                     UadpNetworkMessageContentMask.GroupVersion |
                     UadpNetworkMessageContentMask.NetworkMessageNumber |
                     UadpNetworkMessageContentMask.SequenceNumber
@@ -842,20 +847,6 @@ namespace Quickstarts.ConsoleReferencePublisher
                 = new ExtensionObject(publishedDataSetAllTypesSource);
 
             return publishedDataSetAllTypes;
-        }
-
-        /// <summary>
-        /// Initialize logging
-        /// </summary>
-        private static void InitializeLog()
-        {
-            // Initialize logger
-            Utils.SetTraceLog(
-                "%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferencePublisher.log.txt",
-                true
-            );
-            Utils.SetTraceMask(Utils.TraceMasks.Error);
-            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
         }
     }
 }

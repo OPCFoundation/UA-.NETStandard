@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace Opc.Ua.Server
 {
@@ -67,7 +68,7 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint revisedQueueSize,
             bool createDurable,
-            uint monitoredItemId,
+            MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache)
         {
             // check if the node is already being monitored.
@@ -81,6 +82,13 @@ namespace Opc.Ua.Server
 
             handle.Node = monitoredNode.Node;
             handle.MonitoredNode = monitoredNode;
+
+            // Allocate the monitored item id
+            uint monitoredItemId;
+            do
+            {
+                monitoredItemId = monitoredItemIdFactory.GetNextId();
+            } while (!MonitoredItems.TryAdd(monitoredItemId, null));
 
             // create the item.
             ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
@@ -103,12 +111,10 @@ namespace Opc.Ua.Server
                 0,
                 createDurable);
 
-            // save the monitored item.
+            // now save the monitored item.
             monitoredNode.Add(datachangeItem);
-            MonitoredItems.AddOrUpdate(
-                monitoredItemId,
-                datachangeItem,
-                (key, oldValue) => datachangeItem);
+            Debug.Assert(MonitoredItems[monitoredItemId] == null);
+            MonitoredItems[monitoredItemId] = datachangeItem;
 
             return datachangeItem;
         }
@@ -295,7 +301,10 @@ namespace Opc.Ua.Server
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
-            _ = MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem))
+            {
+                return (monitoredNode, StatusCodes.BadUnexpectedError);
+            }
 
             return (monitoredNode, ServiceResult.Good);
         }

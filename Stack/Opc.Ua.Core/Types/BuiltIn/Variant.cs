@@ -799,7 +799,7 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using var encoder = new XmlEncoder(MessageContextExtension.CurrentContext);
+                using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 // write value.
                 encoder.WriteVariantContents(m_value, TypeInfo);
 
@@ -820,7 +820,7 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                using var decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext);
+                using var decoder = new XmlDecoder(value, AmbientMessageContext.CurrentContext);
                 try
                 {
                     // read value.

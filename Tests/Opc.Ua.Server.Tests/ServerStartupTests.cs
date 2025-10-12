@@ -29,6 +29,7 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
@@ -44,8 +45,12 @@ namespace Opc.Ua.Server.Tests
     public class ServerStartupTests
     {
         [DatapointSource]
-        public string[] UriSchemes = [Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps, Utils
-            .UriSchemeOpcHttps];
+        public string[] UriSchemes =
+        [
+            Utils.UriSchemeOpcTcp,
+            Utils.UriSchemeHttps,
+            Utils.UriSchemeOpcHttps
+        ];
 
         /// <summary>
         /// Start a server fixture with different uri schemes.
@@ -53,11 +58,11 @@ namespace Opc.Ua.Server.Tests
         [Theory]
         public async Task StartServerAsync(string uriScheme)
         {
-            var fixture = new ServerFixture<StandardServer>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var fixture = new ServerFixture<StandardServer>(telemetry);
             Assert.NotNull(fixture);
             fixture.UriScheme = uriScheme;
-            StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
-            fixture.SetTraceOutput(TestContext.Out);
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
             Assert.NotNull(server);
             await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);

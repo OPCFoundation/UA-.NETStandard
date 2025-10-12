@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Gds.Tests
@@ -36,21 +37,21 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void TestCreateCACertificateAsyncThrowsException()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var configuration = new CertificateGroupConfiguration
             {
                 SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup().Create(
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             NUnit.Framework.Assert.That(
-                () =>
-                    certificateGroup.CreateCACertificateAsync(
-                        "This is not the ValidSubjectName for my CertificateGroup",
-                        certificateGroup.CertificateTypes[0]
-                    ),
+                () => certificateGroup.CreateCACertificateAsync(
+                    "This is not the ValidSubjectName for my CertificateGroup",
+                    certificateGroup.CertificateTypes[0]),
                 Throws.TypeOf<ArgumentException>());
             NUnit.Framework.Assert.That(
                 () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null),
@@ -60,13 +61,15 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task TestCreateCACertificateAsyncCertIsInTrustedStoreAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             var configuration = new CertificateGroupConfiguration
             {
                 SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup().Create(
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             X509Certificate2 certificate = await certificateGroup
@@ -77,7 +80,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(certificate);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.TrustedListPath);
-            using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore();
+            using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
@@ -87,7 +90,9 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task TestCreateCACertificateAsyncCertIsInTrustedIssuerStoreAsync()
         {
-            var applicatioConfiguration = new ApplicationConfiguration
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicatioConfiguration = new ApplicationConfiguration(telemetry)
             {
                 SecurityConfiguration = new SecurityConfiguration()
             };
@@ -101,7 +106,7 @@ namespace Opc.Ua.Gds.Tests
                 SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                 BaseStorePath = m_path
             };
-            ICertificateGroup certificateGroup = new CertificateGroup().Create(
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + Path.DirectorySeparatorChar + "authorities",
                 cgConfiguration,
                 applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
@@ -114,7 +119,7 @@ namespace Opc.Ua.Gds.Tests
             using (
                 ICertificateStore trustedStore =
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
-                        .OpenStore())
+                        .OpenStore(telemetry))
             {
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
@@ -134,7 +139,7 @@ namespace Opc.Ua.Gds.Tests
             using (
                 ICertificateStore trustedStore =
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
-                        .OpenStore())
+                        .OpenStore(telemetry))
             {
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)

@@ -113,7 +113,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
             X509Certificate2 certificate,
-            string password = null)
+            ReadOnlySpan<char> password = default)
         {
             byte[] exportedPkcs8PrivateKey = null;
             using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
@@ -121,10 +121,10 @@ namespace Opc.Ua.Security.Certificates
                 if (rsaPrivateKey != null)
                 {
                     // write private key as PKCS#8
-                    exportedPkcs8PrivateKey = string.IsNullOrEmpty(password)
+                    exportedPkcs8PrivateKey = password.IsEmpty || password.IsWhiteSpace()
                         ? rsaPrivateKey.ExportPkcs8PrivateKey()
                         : rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
-                            password.ToCharArray(),
+                            password.ToArray(),
                             new PbeParameters(
                                 PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
                                 HashAlgorithmName.SHA1,
@@ -136,10 +136,10 @@ namespace Opc.Ua.Security.Certificates
                     if (ecdsaPrivateKey != null)
                     {
                         // write private key as PKCS#8
-                        exportedPkcs8PrivateKey = string.IsNullOrEmpty(password)
+                        exportedPkcs8PrivateKey = password.IsEmpty || password.IsWhiteSpace()
                             ? ecdsaPrivateKey.ExportPkcs8PrivateKey()
                             : ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
-                                password.ToCharArray(),
+                                password.ToArray(),
                                 new PbeParameters(
                                     PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
                                     HashAlgorithmName.SHA1,
@@ -150,7 +150,7 @@ namespace Opc.Ua.Security.Certificates
 
             return EncodeAsPEM(
                 exportedPkcs8PrivateKey,
-                string.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
+                password.IsEmpty || password.IsWhiteSpace() ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
 
         /// <summary>

@@ -19,6 +19,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -157,7 +158,7 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
         public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
-            var messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext(m_telemetry);
 
             if (TransportQuotas != null)
             {
@@ -169,19 +170,14 @@ namespace Opc.Ua
                 messageContext.MaxDecoderRecoveries = TransportQuotas.MaxDecoderRecoveries;
             }
 
-            messageContext.NamespaceUris = new NamespaceTable();
-            messageContext.ServerUris = new StringTable();
-            if (clonedFactory)
-            {
-                messageContext.Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
-            }
             return messageContext;
         }
 
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
@@ -189,26 +185,40 @@ namespace Opc.Ua
             string sectionName,
             ApplicationType applicationType)
         {
-            return LoadAsync(sectionName, applicationType);
+            return LoadAsync(sectionName, applicationType, Utils.Null.Logger, null);
         }
 
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
-            ApplicationType applicationType)
+            ApplicationType applicationType,
+            ILogger logger,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
-            return LoadAsync(sectionName, applicationType, typeof(ApplicationConfiguration));
+            return LoadAsync(
+                sectionName,
+                applicationType,
+                typeof(ApplicationConfiguration),
+                logger,
+                telemetry,
+                ct);
         }
 
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
@@ -218,23 +228,30 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType)
         {
-            return LoadAsync(sectionName, applicationType, systemType);
+            return LoadAsync(sectionName, applicationType, systemType, Utils.Null.Logger, null);
         }
 
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="sectionName">Name of configuration section for the current application's
+        /// default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType)
+            Type systemType,
+            ILogger logger,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
-            string filePath = GetFilePathFromAppConfig(sectionName);
+            string filePath = GetFilePathFromAppConfig(sectionName, logger);
 
             var file = new FileInfo(filePath);
 
@@ -255,7 +272,7 @@ namespace Opc.Ua
                     message.ToString());
             }
 
-            return LoadAsync(file, applicationType, systemType);
+            return LoadAsync(file, applicationType, systemType, telemetry, ct);
         }
 
         /// <summary>
@@ -263,17 +280,23 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="file">The file.</param>
         /// <param name="systemType">Type of the system.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>Application configuration</returns>
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         /// <exception cref="ServiceResultException"></exception>
-        public static ApplicationConfiguration LoadWithNoValidation(FileInfo file, Type systemType)
+        public static ApplicationConfiguration LoadWithNoValidation(
+            FileInfo file,
+            Type systemType,
+            ITelemetryContext telemetry)
         {
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
             try
             {
                 var serializer = new DataContractSerializer(systemType);
 
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+                configuration.Initialize(telemetry);
 
                 if (configuration != null)
                 {
@@ -311,7 +334,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType)
         {
-            return LoadAsync(file, applicationType, systemType);
+            return LoadAsync(file, applicationType, systemType, null);
         }
 
         /// <summary>
@@ -320,13 +343,17 @@ namespace Opc.Ua
         /// <param name="file">The file.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType)
+            Type systemType,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
-            return LoadAsync(file, applicationType, systemType, true);
+            return LoadAsync(file, applicationType, systemType, true, telemetry, ct: ct);
         }
 
         /// <summary>
@@ -351,6 +378,7 @@ namespace Opc.Ua
                 applicationType,
                 systemType,
                 applyTraceSettings,
+                null,
                 certificatePasswordProvider);
         }
 
@@ -361,6 +389,7 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
@@ -370,6 +399,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
+            ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
@@ -379,13 +409,13 @@ namespace Opc.Ua
             {
                 using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
                 configuration = await LoadAsync(
-                        stream,
-                        applicationType,
-                        systemType,
-                        applyTraceSettings,
-                        certificatePasswordProvider,
-                        ct)
-                    .ConfigureAwait(false);
+                    stream,
+                    applicationType,
+                    systemType,
+                    applyTraceSettings,
+                    telemetry,
+                    certificatePasswordProvider,
+                    ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -432,6 +462,7 @@ namespace Opc.Ua
                 applicationType,
                 systemType,
                 applyTraceSettings,
+                null,
                 certificatePasswordProvider);
         }
 
@@ -442,6 +473,7 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
@@ -451,6 +483,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
+            ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
@@ -460,7 +493,9 @@ namespace Opc.Ua
             try
             {
                 var serializer = new DataContractSerializer(systemType);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
+                configuration.Initialize(telemetry);
             }
             catch (Exception e)
             {
@@ -481,7 +516,9 @@ namespace Opc.Ua
                 // should not be here but need to preserve old behavior.
                 if (applyTraceSettings && configuration.TraceConfiguration != null)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     configuration.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider
@@ -498,16 +535,24 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.
         /// </param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>File path from the application configuration file.</returns>
-        public static string GetFilePathFromAppConfig(string sectionName)
+        public static string GetFilePathFromAppConfig(string sectionName, ILogger logger)
         {
             // convert to absolute file path (expands environment strings).
-            string absolutePath = Utils.GetAbsoluteFilePath(
-                sectionName + ".Config.xml",
-                true,
-                false,
-                false);
-            return absolutePath ?? sectionName + ".Config.xml";
+            try
+            {
+                string absolutePath = Utils.GetAbsoluteFilePath(
+                    sectionName + ".Config.xml",
+                    checkCurrentDirectory: true,
+                    createAlways: false);
+                return absolutePath ?? sectionName + ".Config.xml";
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Could not get file path from app config - returning: {SectionName}.Config.xml", sectionName);
+                return sectionName + ".Config.xml";
+            }
         }
 
         /// <summary>
@@ -523,6 +568,7 @@ namespace Opc.Ua
             using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
             using var writer = XmlWriter.Create(ostrm, settings);
             var serializer = new DataContractSerializer(GetType());
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             serializer.WriteObject(writer, this);
         }
 
@@ -560,7 +606,7 @@ namespace Opc.Ua
                     "SecurityConfiguration must be specified.");
             }
 
-            SecurityConfiguration.Validate();
+            SecurityConfiguration.Validate(m_telemetry);
 
             // load private keys
             foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration
@@ -570,6 +616,7 @@ namespace Opc.Ua
                     .LoadPrivateKeyExAsync(
                         SecurityConfiguration.CertificatePasswordProvider,
                         ApplicationUri,
+                        m_telemetry,
                         ct)
                     .ConfigureAwait(false);
             }
@@ -635,7 +682,11 @@ namespace Opc.Ua
                 ServerConfiguration.PublishingResolution = 50;
             }
 
-            await CertificateValidator.UpdateAsync(SecurityConfiguration).ConfigureAwait(false);
+            await CertificateValidator.UpdateAsync(
+                SecurityConfiguration,
+                applicationUri: null,
+                ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -668,12 +719,21 @@ namespace Opc.Ua
                 throw new InvalidOperationException("Only valid for client configurations.");
             }
 
-            string filePath = Utils.GetAbsoluteFilePath(
-                ClientConfiguration.EndpointCacheFilePath,
-                true,
-                false,
-                false,
-                false);
+            string filePath;
+            try
+            {
+                filePath = Utils.GetAbsoluteFilePath(
+                    ClientConfiguration.EndpointCacheFilePath,
+                    checkCurrentDirectory: true,
+                    createAlways: false,
+                    writable: false);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Could not get file path {FilePath}",
+                    ClientConfiguration.EndpointCacheFilePath);
+                filePath = null;
+            }
 
             if (filePath == null)
             {
@@ -692,7 +752,11 @@ namespace Opc.Ua
 
             if (!createAlways)
             {
-                return ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration);
+                return ConfiguredEndpointCollection.Load(
+                    this,
+                    filePath,
+                    overrideConfiguration,
+                    m_telemetry);
             }
 
             var endpoints = new ConfiguredEndpointCollection(this);
@@ -701,26 +765,33 @@ namespace Opc.Ua
                 endpoints = ConfiguredEndpointCollection.Load(
                     this,
                     filePath,
-                    overrideConfiguration);
+                    overrideConfiguration,
+                    m_telemetry);
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not load configuration from file: {0}", filePath);
+                m_logger.LogError(e, "Could not load configuration from file: {FilePath}", filePath);
             }
             finally
             {
-                string localFilePath = Utils.GetAbsoluteFilePath(
-                    ClientConfiguration.EndpointCacheFilePath,
-                    true,
-                    false,
-                    true,
-                    true);
-                if (localFilePath != filePath)
+                try
                 {
-                    endpoints.Save(localFilePath);
+                    string localFilePath = Utils.GetAbsoluteFilePath(
+                        ClientConfiguration.EndpointCacheFilePath,
+                        checkCurrentDirectory: true,
+                        createAlways: true,
+                        writable: true);
+                    if (localFilePath != filePath)
+                    {
+                        endpoints.Save(localFilePath);
+                    }
+                }
+                catch (Exception e2)
+                {
+                    m_logger.LogError(e2, "Could not save configuration to file: {FilePath}",
+                        ClientConfiguration.EndpointCacheFilePath);
                 }
             }
-
             return endpoints;
         }
 
@@ -747,7 +818,7 @@ namespace Opc.Ua
         /// <returns>The extension if found. Null otherwise.</returns>
         public T ParseExtension<T>(XmlQualifiedName elementName)
         {
-            return Utils.ParseExtension<T>(m_extensions, elementName);
+            return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
         }
 
         /// <summary>
@@ -758,31 +829,7 @@ namespace Opc.Ua
         /// <param name="value">The value.</param>
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
         {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
-        }
-    }
-
-    /// <summary>
-    /// Specifies parameters used for tracing.
-    /// </summary>
-    public partial class TraceConfiguration
-    {
-        /// <summary>
-        /// Applies the trace settings to the current process.
-        /// </summary>
-        public void ApplySettings()
-        {
-            Utils.SetTraceLog(OutputFilePath, DeleteOnLoad);
-            Utils.SetTraceMask(TraceMasks);
-
-            if (TraceMasks == 0)
-            {
-                Utils.SetTraceOutput(Utils.TraceOutput.Off);
-            }
-            else
-            {
-                Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
-            }
+            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry);
         }
     }
 

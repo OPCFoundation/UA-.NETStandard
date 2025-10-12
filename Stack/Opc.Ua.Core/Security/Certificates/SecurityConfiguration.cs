@@ -13,7 +13,9 @@
 using System;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -45,7 +47,7 @@ namespace Opc.Ua
         /// Validates the security configuration.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void Validate()
+        public void Validate(ITelemetryContext telemetry)
         {
             if (m_applicationCertificates == null || m_applicationCertificates.Count == 0)
             {
@@ -54,25 +56,25 @@ namespace Opc.Ua
                     "ApplicationCertificate must be specified.");
             }
             // ensure mandatory stores are valid
-            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
-            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
+            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates), telemetry);
+            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates), telemetry);
 
             //ensure optional stores are valid if specified
             if (TrustedHttpsCertificates != null)
             {
-                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
+                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates), telemetry);
             }
             if (HttpsIssuerCertificates != null)
             {
-                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
+                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates), telemetry);
             }
             if (TrustedUserCertificates != null)
             {
-                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
+                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates), telemetry);
             }
             if (UserIssuerCertificates != null)
             {
-                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
+                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates), telemetry);
             }
 
             if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null) ||
@@ -104,7 +106,10 @@ namespace Opc.Ua
         /// throws ServiceResultException
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static void ValidateStore(CertificateTrustList storeIdentifier, string storeName)
+        private static void ValidateStore(
+            CertificateTrustList storeIdentifier,
+            string storeName,
+            ITelemetryContext telemetry)
         {
             if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
             {
@@ -115,7 +120,7 @@ namespace Opc.Ua
             try
             {
                 ICertificateStore store =
-                    storeIdentifier.OpenStore()
+                    storeIdentifier.OpenStore(telemetry)
                     ?? throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         $"Failed to open {storeName} store");
@@ -123,7 +128,8 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to open {storeName} store", storeName);
+                ILogger<SecurityConfiguration> logger = telemetry.CreateLogger<SecurityConfiguration>();
+                logger.LogError(ex, "Failed to open {storeName} store", storeName);
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     storeName + " store is invalid.");
@@ -135,7 +141,9 @@ namespace Opc.Ua
         /// </summary>
         public async Task<X509Certificate2> FindApplicationCertificateAsync(
             string securityPolicy,
-            bool privateKey)
+            bool privateKey,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
                 securityPolicy))
@@ -165,7 +173,11 @@ namespace Opc.Ua
 
                 if (id != null)
                 {
-                    return await id.FindAsync(privateKey).ConfigureAwait(false);
+                    return await id.FindAsync(
+                        privateKey,
+                        applicationUri: null,
+                        telemetry: telemetry,
+                        ct).ConfigureAwait(false);
                 }
             }
 

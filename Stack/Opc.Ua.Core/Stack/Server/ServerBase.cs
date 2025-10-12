@@ -11,18 +11,18 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
 
 namespace Opc.Ua
 {
@@ -36,13 +36,8 @@ namespace Opc.Ua
         /// </summary>
         public ServerBase()
         {
-            m_messageContext = new ServiceMessageContext();
-            m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
-            ServiceHosts = [];
-            TransportListeners = [];
-            Endpoints = null;
+            ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
-            m_userTokenPolicyId = 0;
         }
 
         /// <summary>
@@ -93,21 +88,26 @@ namespace Opc.Ua
         /// <value>The message context that stores context information associated with a UA
         /// server that is used during message processing.
         /// </value>
+        /// <exception cref="ServiceResultException">if server was not started</exception>
         public IServiceMessageContext MessageContext
         {
-            get => (IServiceMessageContext)m_messageContext;
-            set => Interlocked.Exchange(ref m_messageContext, value);
+            get => m_messageContext ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
+            private set
+            {
+                m_messageContext = value;
+                if (m_telemetry != value.Telemetry)
+                {
+                    m_telemetry = value.Telemetry;
+                    m_logger = m_telemetry.CreateLogger(this);
+                }
+            }
         }
 
         /// <summary>
         /// An error condition that describes why the server if not running (null if no error exists).
         /// </summary>
         /// <value>The object that combines the status code and diagnostic info structures.</value>
-        public ServiceResult ServerError
-        {
-            get => (ServiceResult)m_serverError;
-            set => Interlocked.Exchange(ref m_serverError, value);
-        }
+        public ServiceResult ServerError { get; protected set; }
 
         /// <summary>
         /// Returns the endpoints supported by the server.
@@ -130,7 +130,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="request">The request.</param>
         /// <param name="cancellationToken">The cancellationToken</param>
-        public virtual void ScheduleIncomingRequest(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
+        public virtual void ScheduleIncomingRequest(
+            IEndpointIncomingRequest request,
+            CancellationToken cancellationToken = default)
         {
             m_requestQueue.ScheduleIncomingRequest(request);
         }
@@ -199,7 +201,7 @@ namespace Opc.Ua
         {
             ITransportListener listener = null;
 
-            Utils.LogInfo("Create Reverse Connection to Client at {0}.", url);
+            m_logger.LogInformation("Create Reverse Connection to Client at {Url}.", url);
 
             if (TransportListeners != null)
             {
@@ -517,7 +519,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_serverError = new ServiceResult(e);
+                ServerError = new ServiceResult(e);
             }
 
             // close any listeners.
@@ -533,9 +535,9 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            "Unexpected error closing a listener. {0}",
+                            "Unexpected error closing a listener {Name}.",
                             listeners[ii].GetType().FullName);
                     }
                 }
@@ -555,6 +557,8 @@ namespace Opc.Ua
                     host.Close();
                 }
             }
+
+            m_messageContext = null;
         }
 
         /// <summary>
@@ -661,11 +665,7 @@ namespace Opc.Ua
         /// The object used to verify client certificates
         /// </summary>
         /// <value>The identifier for an X509 certificate.</value>
-        public CertificateValidator CertificateValidator
-        {
-            get => (CertificateValidator)m_certificateValidator;
-            private set => m_certificateValidator = value;
-        }
+        public CertificateValidator CertificateValidator { get; private set; }
 
         /// <summary>
         /// The server's application instance certificate types provider.
@@ -677,37 +677,25 @@ namespace Opc.Ua
         /// The non-configurable properties for the server.
         /// </summary>
         /// <value>The properties of the current server instance.</value>
-        protected ServerProperties ServerProperties
-        {
-            get => (ServerProperties)m_serverProperties;
-            private set => m_serverProperties = value;
-        }
+        protected ServerProperties ServerProperties { get; private set; }
 
         /// <summary>
         /// The configuration for the server.
         /// </summary>
         /// <value>Object that stores the configurable configuration information for a UA application</value>
-        protected ApplicationConfiguration Configuration
-        {
-            get => (ApplicationConfiguration)m_configuration;
-            private set => m_configuration = value;
-        }
+        protected ApplicationConfiguration Configuration { get; private set; }
 
         /// <summary>
         /// The application description for the server.
         /// </summary>
         /// <value>Object that contains a description for the ApplicationDescription DataType.</value>
-        protected ApplicationDescription ServerDescription
-        {
-            get => (ApplicationDescription)m_serverDescription;
-            private set => m_serverDescription = value;
-        }
+        protected ApplicationDescription ServerDescription { get; private set; }
 
         /// <summary>
         /// Gets the list of service hosts used by the server instance.
         /// </summary>
         /// <value>The service hosts.</value>
-        protected List<ServiceHost> ServiceHosts { get; }
+        protected List<ServiceHost> ServiceHosts { get; } = [];
 
         /// <summary>
         /// Gets or set the capabilities for the server.
@@ -718,7 +706,7 @@ namespace Opc.Ua
         /// Gets the list of transport listeners used by the server instance.
         /// </summary>
         /// <value>The transport listeners.</value>
-        protected List<ITransportListener> TransportListeners { get; }
+        protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
         /// Returns the service contract to use.
@@ -800,15 +788,11 @@ namespace Opc.Ua
                     MaxChannelCount = 0
                 };
 
-                if (m_configuration is ApplicationConfiguration applicationConfiguration)
+                settings.MaxChannelCount = Configuration.ServerConfiguration.MaxChannelCount;
+                if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
                 {
-                    settings.MaxChannelCount = applicationConfiguration.ServerConfiguration
-                        .MaxChannelCount;
-                    if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
-                    {
-                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration
-                            .HttpsMutualTls;
-                    }
+                    settings.HttpsMutualTls = Configuration.ServerConfiguration
+                        .HttpsMutualTls;
                 }
 
                 listener.Open(endpointUri, settings, GetEndpointInstance(this));
@@ -819,14 +803,10 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                var message = new StringBuilder();
-                message.Append("Could not load ").Append(endpointUri.Scheme)
-                    .Append(" Stack Listener.");
-                if (e.InnerException != null)
-                {
-                    message.Append(' ').Append(e.InnerException.Message);
-                }
-                Utils.LogError(e, message.ToString());
+                m_logger.LogError(
+                    e,
+                    "Could not load {Scheme} Stack Listener.",
+                    endpointUri.Scheme);
                 throw;
             }
         }
@@ -911,7 +891,7 @@ namespace Opc.Ua
                 }
                 catch (SocketException e)
                 {
-                    Utils.LogWarning(e, "Unable to get host addresses for hostname {0}.", hostname);
+                    m_logger.LogWarning(e, "Unable to get host addresses for hostname {Name}.", hostname);
                 }
 
                 if (addresses.Length == 0)
@@ -923,9 +903,9 @@ namespace Opc.Ua
                     }
                     catch (SocketException e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
-                            "Unable to get host addresses for DNS hostname {0}.",
+                            "Unable to get host addresses for DNS hostname {Name}.",
                             fullName);
                     }
                 }
@@ -951,7 +931,7 @@ namespace Opc.Ua
             }
             catch (SocketException e)
             {
-                Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
+                m_logger.LogError(e, "Unable to check aliases for hostname {Name}.", computerName);
             }
 
             if (entry != null)
@@ -1283,7 +1263,8 @@ namespace Opc.Ua
                 exception,
                 (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                 true,
-                stringTable);
+                stringTable,
+                m_logger);
             responseHeader.StringTable = stringTable.ToArray();
 
             return responseHeader;
@@ -1328,6 +1309,13 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnServerStarting(ApplicationConfiguration configuration)
         {
+            // use the message context from the configuration to ensure the channels are
+            // using the same one. This also sets the telemetry context for the server
+            // from configuration.
+            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            messageContext.NamespaceUris = new NamespaceTable();
+            MessageContext = messageContext;
+
             // fetch properties and configuration.
             Configuration = configuration;
             ServerProperties = LoadServerProperties();
@@ -1356,7 +1344,9 @@ namespace Opc.Ua
 
             // load the instance certificate.
             X509Certificate2 defaultInstanceCertificate = null;
-            InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration);
+            InstanceCertificateTypesProvider = new CertificateTypesProvider(
+                configuration,
+                MessageContext.Telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
@@ -1389,11 +1379,6 @@ namespace Opc.Ua
                     .GetAwaiter()
                     .GetResult();
             }
-
-            // use the message context from the configuration to ensure the channels are using the same one.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
-            messageContext.NamespaceUris = new NamespaceTable();
-            MessageContext = messageContext;
 
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
@@ -1572,7 +1557,7 @@ namespace Opc.Ua
                 if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    Utils.LogTrace("Server halted.");
+                    m_server.m_logger.LogTrace("Server halted.");
                     return;
                 }
 
@@ -1580,7 +1565,7 @@ namespace Opc.Ua
                 if (m_queuedRequestsCount >= m_maxRequestCount)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    Utils.LogTrace("Too many operations. Active: {0}", m_activeThreadCount);
+                    m_server.m_logger.LogTrace("Too many operations. Active threads: {Count}", m_activeThreadCount);
                     return;
                 }
                 // Optionally scale up workers if needed
@@ -1629,7 +1614,7 @@ namespace Opc.Ua
                             }
                             catch (Exception ex)
                             {
-                                Utils.LogError(ex, "Unexpected error processing incoming request.");
+                                m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
                                 request.OperationCompleted(null, StatusCodes.BadInternalError);
                             }
                             finally
@@ -1663,13 +1648,18 @@ namespace Opc.Ua
             private bool m_stopped;
         }
 
-        private object m_messageContext;
-        private object m_serverError;
-        private object m_certificateValidator;
-        private object m_serverProperties;
-        private object m_configuration;
-        private object m_serverDescription;
+        /// <summary>
+        /// Logger instance for the server which is set when setting the
+        /// Telemetry member. Shall only be used by concrete implementations
+        /// deriving from this class.
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; private set; } = Utils.Null.Logger;
+#pragma warning restore IDE1006 // Naming Styles
+
+        private IServiceMessageContext m_messageContext;
         private RequestQueue m_requestQueue;
+        private ITelemetryContext m_telemetry;
 
         /// <summary>
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server

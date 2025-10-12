@@ -13,7 +13,9 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Security
 {
@@ -319,11 +321,25 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
+        /// Obsolete version of CalculateSecurityLevel that does not take a logger.
+        /// </summary>
+        [Obsolete("Use CalculateSecurityLevel(MessageSecurityMode mode, string policyUri, ILogger logger) instead.")]
+        public static byte CalculateSecurityLevel(
+            MessageSecurityMode mode,
+            string policyUri)
+        {
+            return CalculateSecurityLevel(mode, policyUri, Utils.Fallback.Logger);
+        }
+
+        /// <summary>
         /// Calculates the security level, given the security mode and policy
         /// Invalid and none is discouraged
         /// Just signing is always weaker than any use of encryption
         /// </summary>
-        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
+        public static byte CalculateSecurityLevel(
+            MessageSecurityMode mode,
+            string policyUri,
+            ILogger logger)
         {
             if ((mode != MessageSecurityMode.Sign && mode != MessageSecurityMode.SignAndEncrypt) ||
                 policyUri == null)
@@ -335,12 +351,12 @@ namespace Opc.Ua.Security
             switch (policyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                    Utils.LogWarning(
+                    logger.LogWarning(
                         "Deprecated Security Policy Basic128Rsa15 requested - Not recommended.");
                     result = 2;
                     break;
                 case SecurityPolicies.Basic256:
-                    Utils.LogWarning(
+                    logger.LogWarning(
                         "Deprecated Security Policy Basic256 requested - Not rcommended.");
                     result = 4;
                     break;
@@ -368,7 +384,7 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.None:
                     return 0;
                 default:
-                    Utils.LogWarning(
+                    logger.LogWarning(
                         "Security level requested for unknown Security Policy {policy}. Returning security level 0",
                         policyUri);
                     return 0;
@@ -442,16 +458,18 @@ namespace Opc.Ua.Security
         [Obsolete("Use FindAsync()")]
         public Task<X509Certificate2> Find()
         {
-            return FindAsync();
+            return FindAsync(null);
         }
 
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync()
+        public Task<X509Certificate2> FindAsync(
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.FindAsync(false);
+            return output.FindAsync(false, telemetry: telemetry, ct: ct);
         }
 
         /// <summary>
@@ -460,25 +478,28 @@ namespace Opc.Ua.Security
         [Obsolete("Use FindAsync(needPrivateKey)")]
         public Task<X509Certificate2> Find(bool needPrivateKey)
         {
-            return FindAsync(needPrivateKey);
+            return FindAsync(needPrivateKey, null);
         }
 
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(bool needPrivateKey)
+        public Task<X509Certificate2> FindAsync(
+            bool needPrivateKey,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.FindAsync(needPrivateKey);
+            return output.FindAsync(needPrivateKey, telemetry: telemetry, ct: ct);
         }
 
         /// <summary>
         /// Opens the certificate store.
         /// </summary>
-        public ICertificateStore OpenStore()
+        public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.OpenStore();
+            return output.OpenStore(telemetry);
         }
     }
 
@@ -490,11 +511,11 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Opens the certificate store.
         /// </summary>
-        public ICertificateStore OpenStore()
+        public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
             Ua.CertificateStoreIdentifier output = SecuredApplication
                 .FromCertificateStoreIdentifier(this);
-            return output.OpenStore();
+            return output.OpenStore(telemetry);
         }
     }
 }

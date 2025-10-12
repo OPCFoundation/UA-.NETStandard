@@ -20,14 +20,14 @@ namespace Opc.Ua
     /// <summary>
     /// Describes a certificate store.
     /// </summary>
-    public partial class CertificateStoreIdentifier : IFormattable, ICloneable
+    public partial class CertificateStoreIdentifier : IOpenStore, IFormattable, ICloneable
     {
         /// <summary>
         /// Ctor of a certificate store.
         /// </summary>
         public CertificateStoreIdentifier()
+            : this(null, true)
         {
-            m_noPrivateKeys = true;
         }
 
         /// <summary>
@@ -35,11 +35,11 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="storePath">The store path of the store.</param>
         /// <param name="noPrivateKeys">If the store supports no private keys.</param>
-        public CertificateStoreIdentifier(string storePath, bool noPrivateKeys = true)
+        public CertificateStoreIdentifier(
+            string storePath,
+            bool noPrivateKeys = true)
+            : this(storePath, DetermineStoreType(storePath), noPrivateKeys)
         {
-            StorePath = storePath;
-            StoreType = DetermineStoreType(storePath);
-            m_noPrivateKeys = noPrivateKeys;
         }
 
         /// <summary>
@@ -178,33 +178,42 @@ namespace Opc.Ua
         /// Returns an object that can be used to access the store.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
-        public static ICertificateStore CreateStore(string storeTypeName)
+        public static ICertificateStore CreateStore(string storeTypeName, ITelemetryContext telemetry)
         {
             if (string.IsNullOrEmpty(storeTypeName))
             {
-                return new CertificateIdentifierCollection();
+                return new CertificateIdentifierCollectionStore(telemetry);
             }
 
             ICertificateStore store;
             switch (storeTypeName)
             {
                 case CertificateStoreType.X509Store:
-                    store = new X509CertificateStore();
+                    store = new X509CertificateStore(telemetry);
                     break;
                 case CertificateStoreType.Directory:
-                    store = new DirectoryCertificateStore();
+                    store = new DirectoryCertificateStore(telemetry);
                     break;
                 default:
                     ICertificateStoreType storeType = CertificateStoreType
                         .GetCertificateStoreTypeByName(storeTypeName);
                     if (storeType != null)
                     {
-                        store = storeType.CreateStore();
+                        store = storeType.CreateStore(telemetry);
                         break;
                     }
                     throw new ArgumentException($"Invalid store type name: {storeTypeName}");
             }
             return store;
+        }
+
+        /// <summary>
+        /// Obsoleted open call
+        /// </summary>
+        [Obsolete("Use OpenStore(ITelemetryContext) instead")]
+        public ICertificateStore OpenStore()
+        {
+            return OpenStore(null);
         }
 
         /// <summary>
@@ -217,7 +226,7 @@ namespace Opc.Ua
         /// enforce unnecessary refresh of the cached certificate store.
         /// </remarks>
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
-        public virtual ICertificateStore OpenStore()
+        public virtual ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
             ICertificateStore store = m_store;
 
@@ -241,7 +250,7 @@ namespace Opc.Ua
                 !string.IsNullOrEmpty(StoreType) &&
                 !string.IsNullOrEmpty(StorePath))
             {
-                store = CreateStore(StoreType);
+                store = CreateStore(StoreType, telemetry);
                 ICertificateStore currentStore = Interlocked.CompareExchange(
                     ref m_store,
                     store,

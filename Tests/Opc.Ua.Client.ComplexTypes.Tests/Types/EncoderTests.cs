@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -47,16 +48,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     public class ComplexTypesEncoderTests : ComplexTypesCommon
     {
         public IServiceMessageContext EncoderContext;
+        public new ITelemetryContext Telemetry;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
-            EncoderContext = new ServiceMessageContext
-            {
-                // create private copy of factory
-                Factory = new EncodeableFactory(ServiceMessageContext.GlobalContext.Factory)
-            };
+            Telemetry = NUnitTelemetryContext.Create();
+            EncoderContext = new ServiceMessageContext(Telemetry);
             // add a few random namespaces
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
@@ -253,13 +252,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode));
 
             // Serialize/Encode a Variant succeeds with a context available
-            using (MessageContextExtension.SetScopedContext(localCtxt))
+            using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
                 _ = Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair);
             }
 
             // Serialize/Encode an ExtensionObject succeeds with a context available
-            using (MessageContextExtension.SetScopedContext(localCtxt))
+            using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
                 _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject);
             }

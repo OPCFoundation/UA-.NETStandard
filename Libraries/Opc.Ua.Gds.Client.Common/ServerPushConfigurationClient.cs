@@ -33,6 +33,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Gds.Client
@@ -52,7 +53,9 @@ namespace Opc.Ua.Gds.Client
             ISessionFactory sessionFactory = null)
         {
             Configuration = configuration;
-            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
+            MessageContext = configuration.CreateMessageContext(true);
+            m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
         }
 
         public NodeId DefaultApplicationGroup { get; private set; }
@@ -66,25 +69,21 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the application instance.
         /// </summary>
-        /// <value>
-        /// The application instance.
-        /// </value>
         public ApplicationConfiguration Configuration { get; }
+
+        /// <summary>
+        /// Message context
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Gets or sets the admin credentials.
         /// </summary>
-        /// <value>
-        /// The admin credentials.
-        /// </value>
         public IUserIdentity AdminCredentials { get; set; }
 
         /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
-        /// <value>
-        /// The endpoint URL.
-        /// </value>
         public string EndpointUrl { get; set; }
 
         /// <summary>
@@ -100,33 +99,24 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets or sets the preferred locales.
         /// </summary>
-        /// <value>
-        /// The preferred locales.
-        /// </value>
         public string[] PreferredLocales { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether the session is connected.
         /// </summary>
         /// <value>
-        ///   <c>true</c> if the session is connected; otherwise, <c>false</c>.
+        /// <c>true</c> if the session is connected; otherwise, <c>false</c>.
         /// </value>
         public bool IsConnected => Session != null && Session.Connected;
 
         /// <summary>
         /// Gets the session.
         /// </summary>
-        /// <value>
-        /// The session.
-        /// </value>
         public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets the endpoint.
         /// </summary>
-        /// <value>
-        /// The endpoint.
-        /// </value>
         /// <exception cref="InvalidOperationException"></exception>
         public ConfiguredEndpoint Endpoint
         {
@@ -224,6 +214,7 @@ namespace Opc.Ua.Gds.Client
                 Configuration,
                 endpointUrl,
                 true,
+                MessageContext.Telemetry,
                 ct).ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
@@ -346,7 +337,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.LogError(
+                    m_logger.LogError(
                         exception,
                         "Unexpected error raising ConnectionStatusChanged event.");
                 }
@@ -1094,7 +1085,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error reverting to normal permissions.");
+                m_logger.LogError(e, "Error reverting to normal permissions.");
             }
         }
 
@@ -1115,12 +1106,13 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
+                    m_logger.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }
 
         private readonly ISessionFactory m_sessionFactory;
+        private readonly ILogger m_logger;
         private ConfiguredEndpoint m_endpoint;
     }
 }

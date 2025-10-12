@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -59,7 +57,7 @@ namespace Opc.Ua.Client
                     variableIds,
                     ct).ConfigureAwait(false);
 
-            IList<object> values = new object [dataValues.Count];
+            object[] values = new object[dataValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
                 object value = dataValues[ii].Value;
@@ -117,7 +115,7 @@ namespace Opc.Ua.Client
                 await session.BrowseAsync(
                     requestHeader,
                     view,
-                    new NodeIdCollection { nodeToBrowse },
+                    [nodeToBrowse],
                     maxResultsToReturn,
                     browseDirection,
                     referenceTypeId,

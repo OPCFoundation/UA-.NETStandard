@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Opc.Ua;
@@ -52,9 +53,13 @@ namespace Quickstarts.Servers
 
         private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
 
         public SubscriptionStore(IServerInternal server)
         {
+            m_logger = server.Telemetry.CreateLogger<SubscriptionStore>();
+            m_telemetry = server.Telemetry;
             m_durableMonitoredItemQueueFactory = server
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
@@ -63,6 +68,7 @@ namespace Quickstarts.Servers
         {
             try
             {
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                 string result = JsonConvert.SerializeObject(subscriptions, s_settings);
 
                 if (!Directory.Exists(s_storage_path))
@@ -82,7 +88,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to store subscriptions");
+                m_logger.LogWarning(ex, "Failed to store subscriptions");
             }
             return false;
         }
@@ -95,10 +101,9 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    List<IStoredSubscription> result = JsonConvert
-                        .DeserializeObject<List<IStoredSubscription>>(
-                            json,
-                            s_settings);
+                    using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
+                    List<IStoredSubscription> result =
+                        JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
 
                     File.Delete(filePath);
 
@@ -107,7 +112,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to restore subscriptions");
+                m_logger.LogWarning(ex, "Failed to restore subscriptions");
             }
 
             return new RestoreSubscriptionResult(false, null);
@@ -209,7 +214,7 @@ namespace Quickstarts.Servers
                 }
                 catch (Exception ex)
                 {
-                    Opc.Ua.Utils.LogWarning(ex, "Failed to cleanup files for stored subscsription");
+                    m_logger.LogWarning(ex, "Failed to cleanup files for stored subscsription");
                 }
             }
             //remove old batches & queues

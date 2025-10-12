@@ -33,6 +33,7 @@ using BenchmarkDotNet.Attributes;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -345,6 +346,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeCompactAndVerboseNodeId(int index)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             string data = $$"""
 
                 {
@@ -357,7 +360,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             decoder.UpdateNamespaceTable = true;
@@ -373,6 +376,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2, JsonEncodingType.Compact)]
         public void EncodeCompactOrVerboseNodeId(int index, JsonEncodingType jsonEncoding)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             string data = $$"""
 
                 {
@@ -389,7 +394,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
@@ -426,6 +431,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeCompactAndVerboseExpandedNodeId(int index)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             string data = $$"""
 
                 {
@@ -451,7 +458,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             decoder.UpdateNamespaceTable = true;
@@ -467,6 +474,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2, JsonEncodingType.Compact)]
         public void EncodeCompactOrVerboseExpandedNodeId(int index, JsonEncodingType jsonEncoding)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             string data = $$"""
 
                 {
@@ -496,7 +505,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
             context.ServerUris.Append("http://server-placeholder");
             Array.ForEach(ServerUris, x => context.ServerUris.Append(x));
@@ -563,7 +572,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeReversibleNodeId(int index)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -586,7 +597,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -603,7 +614,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void EncodeReversibleNodeId(int index)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -630,7 +643,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -671,7 +684,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeReversibleExpandedNodeId(int index)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -704,7 +719,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -725,7 +740,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void EncodeReversibleExpandedNodeId(int index)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -768,7 +785,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -841,6 +858,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeNonReversibleNodeId(int index)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             string data = $$"""
 
                 {
@@ -862,7 +881,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             decoder.UpdateNamespaceTable = true;
@@ -875,7 +894,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void EncodeNonReversibleNodeId(int index)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -905,7 +926,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -948,7 +969,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeNonReversibleExpandedNodeId(int index)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -985,7 +1008,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.ServerUris.Append("http://server-placeholder");
 
             using var decoder = new JsonDecoder(data, context2);
@@ -999,7 +1022,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void EncodeNonReversibleExpandedNodeId(int index)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -1047,7 +1072,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -1120,6 +1145,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseQualifiedName()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             string data = $$"""
 
                 {
@@ -1132,7 +1159,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             decoder.UpdateNamespaceTable = true;
@@ -1144,7 +1171,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.Verbose)]
         public void EncodeCompactAndVerboseQualifiedName(JsonEncodingType jsonEncoding)
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -1165,7 +1194,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -1203,7 +1232,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleQualifiedName()
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -1220,7 +1251,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -1234,7 +1265,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeReversibleQualifiedName()
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -1255,7 +1288,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -1293,7 +1326,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeNonReversibleQualifiedName()
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -1310,7 +1345,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -1324,7 +1359,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeNonReversibleQualifiedName()
         {
-            var context1 = new ServiceMessageContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context1 = new ServiceMessageContext(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -1345,7 +1382,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext();
+            var context2 = new ServiceMessageContext(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -1386,6 +1423,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseMatrix()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1396,7 +1435,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
@@ -1418,6 +1457,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.Verbose)]
         public void EncodeCompactAndVerboseMatrix(JsonEncodingType jsonEncoding)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1432,7 +1473,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
             encoder.WriteArray(
@@ -1464,6 +1505,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleMatrix()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1474,7 +1517,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
@@ -1496,6 +1539,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.NonReversible)]
         public void EncodeReversibleAndNonReversibleMatrix(JsonEncodingType jsonEncoding)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1510,7 +1555,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
             encoder.WriteArray(
@@ -1542,6 +1587,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1566,7 +1613,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1596,6 +1643,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeCompactExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1625,7 +1674,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1656,6 +1705,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeVerboseExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1683,7 +1734,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1713,6 +1764,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeVerboseExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1743,7 +1796,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1775,6 +1828,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1801,7 +1856,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1831,6 +1886,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeReversibleExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1862,7 +1919,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1894,6 +1951,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeNonReversibleExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1912,7 +1971,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1934,6 +1993,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeNonReversibleExtensionObject()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string data = /*lang=json,strict*/
                 """
 
@@ -1956,7 +2017,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
 
             using var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible);

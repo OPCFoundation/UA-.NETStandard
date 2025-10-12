@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub
 {
@@ -40,6 +41,7 @@ namespace Opc.Ua.PubSub
     {
         private const int kMinInterval = 10;
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
 
         private double m_interval = kMinInterval;
         private double m_nextPublishTick;
@@ -56,8 +58,10 @@ namespace Opc.Ua.PubSub
             object id,
             double interval,
             Func<bool> canExecuteFunc,
-            Action intervalAction)
+            Action intervalAction,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<IntervalRunner>();
             Id = id;
             Interval = interval;
             CanExecuteFunc = canExecuteFunc;
@@ -113,7 +117,7 @@ namespace Opc.Ua.PubSub
                 }
             }
             Task.Run(ProcessAsync).ConfigureAwait(false);
-            Utils.Trace("IntervalRunner with id: {0} was started.", Id);
+            m_logger.LogInformation("IntervalRunner with id: {Id} was started.", Id);
         }
 
         /// <summary>
@@ -126,7 +130,7 @@ namespace Opc.Ua.PubSub
                 m_cancellationToken?.Cancel();
             }
 
-            Utils.Trace("IntervalRunner with id: {0} was stopped.", Id);
+            m_logger.LogInformation("IntervalRunner with id: {Id} was stopped.", Id);
         }
 
         /// <summary>

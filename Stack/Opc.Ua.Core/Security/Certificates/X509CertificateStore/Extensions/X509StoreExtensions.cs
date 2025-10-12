@@ -29,6 +29,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.X509StoreExtensions.Internal;
 
 namespace Opc.Ua.X509StoreExtensions
@@ -42,10 +43,11 @@ namespace Opc.Ua.X509StoreExtensions
         /// Enumerate all Crls in a Windows X509 Store
         /// </summary>
         /// <param name="store">the Windows X509 Store to retrieve the crls from</param>
+        /// <param name="logger">A contextual logger to log to</param>
         /// <returns>the crls as a byte array</returns>
         /// <exception cref="PlatformNotSupportedException">if not called on a supported OS (Windows >= XP)</exception>
         /// <exception cref="ArgumentNullException">if store is null</exception>
-        public static byte[][] EnumerateCrls(this X509Store store)
+        public static byte[][] EnumerateCrls(this X509Store store, ILogger logger)
         {
             if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
@@ -58,7 +60,7 @@ namespace Opc.Ua.X509StoreExtensions
 
             IntPtr handle = store.StoreHandle;
 
-            return X509CrlHelper.GetCrls(handle);
+            return X509CrlHelper.GetCrls(handle, logger);
         }
 
         /// <summary>
@@ -66,9 +68,11 @@ namespace Opc.Ua.X509StoreExtensions
         /// </summary>
         /// <param name="store">the Windows X509 Store to add the crl to</param>
         /// <param name="crl">the ASN1 encoded crl as byte array</param>
-        /// <exception cref="PlatformNotSupportedException">if not called on a supported OS (Windows >= XP)</exception>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <exception cref="PlatformNotSupportedException">if not called on a
+        /// supported OS (Windows >= XP)</exception>
         /// <exception cref="ArgumentNullException">if store is null</exception>
-        public static void AddCrl(this X509Store store, byte[] crl)
+        public static void AddCrl(this X509Store store, byte[] crl, ILogger logger)
         {
             if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
@@ -86,7 +90,7 @@ namespace Opc.Ua.X509StoreExtensions
 
             IntPtr handle = store.StoreHandle;
 
-            X509CrlHelper.AddCrl(handle, crl);
+            X509CrlHelper.AddCrl(handle, crl, logger);
         }
 
         /// <summary>
@@ -94,9 +98,11 @@ namespace Opc.Ua.X509StoreExtensions
         /// </summary>
         /// <param name="store">the Windows X509 Store to delete the crl from</param>
         /// <param name="crl">the ASN1 encoded crl as byte array</param>
-        /// <exception cref="PlatformNotSupportedException">if not called on a supported OS (Windows >= XP)</exception>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <exception cref="PlatformNotSupportedException">if not called on a
+        /// supported OS (Windows >= XP)</exception>
         /// <exception cref="ArgumentNullException">if store is null</exception>
-        public static bool DeleteCrl(this X509Store store, byte[] crl)
+        public static bool DeleteCrl(this X509Store store, byte[] crl, ILogger logger)
         {
             if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
@@ -109,7 +115,7 @@ namespace Opc.Ua.X509StoreExtensions
 
             IntPtr handle = store.StoreHandle;
 
-            return X509CrlHelper.DeleteCrl(handle, crl);
+            return X509CrlHelper.DeleteCrl(handle, crl, logger);
         }
     }
 }

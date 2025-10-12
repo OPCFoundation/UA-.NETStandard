@@ -14,6 +14,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -53,8 +54,8 @@ namespace Opc.Ua.Bindings
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
-            Utils.LogInfo(
-                "ChannelId {0}: New Token created. CreatedAt={1:HH:mm:ss.fff}-{2}. Lifetime={3}.",
+            m_logger.LogInformation(
+                "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
                 Id,
                 token.CreatedAt,
                 token.CreatedAtTickCount,
@@ -78,8 +79,8 @@ namespace Opc.Ua.Bindings
 
             OnTokenActivated?.Invoke(token, PreviousToken);
 
-            Utils.LogInfo(
-                "ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
+            m_logger.LogInformation(
+                "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
                 Id,
                 token.TokenId,
                 token.CreatedAt,
@@ -94,8 +95,8 @@ namespace Opc.Ua.Bindings
         {
             Utils.SilentDispose(RenewedToken);
             RenewedToken = token;
-            Utils.LogInfo(
-                "ChannelId {0}: Renewed Token #{1} set. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
+            m_logger.LogInformation(
+                "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
                 Id,
                 token.TokenId,
                 token.CreatedAt,
@@ -308,11 +309,11 @@ namespace Opc.Ua.Bindings
                         serverSecret);
 
 #if DEBUG
-                    Utils.LogTrace("Length={0}", Utils.ToHexString(length));
-                    Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
-                    Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
-                    Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
-                    Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
+                    m_logger.LogTrace("Length={Length}", Utils.ToHexString(length));
+                    m_logger.LogTrace("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogTrace("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogTrace("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
+                    m_logger.LogTrace("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
 #endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
@@ -339,11 +340,11 @@ namespace Opc.Ua.Bindings
                         serverSecret);
 
 #if DEBUG
-                    Utils.LogTrace("Length={0}", Utils.ToHexString(length));
-                    Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
-                    Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
-                    Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
-                    Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
+                    m_logger.LogTrace("Length={Length}", Utils.ToHexString(length));
+                    m_logger.LogTrace("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogTrace("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogTrace("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
+                    m_logger.LogTrace("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
 #endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
@@ -367,11 +368,11 @@ namespace Opc.Ua.Bindings
                         serverSecret);
 
 #if DEBUG
-                    Utils.LogTrace("Length={0}", Utils.ToHexString(length));
-                    Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
-                    Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
-                    Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
-                    Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
+                    m_logger.LogTrace("Length={Length}", Utils.ToHexString(length));
+                    m_logger.LogTrace("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogTrace("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogTrace("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
+                    m_logger.LogTrace("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
 #endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
@@ -728,8 +729,8 @@ namespace Opc.Ua.Bindings
             else if (RenewedToken != null && CurrentToken.ActivationRequired)
             {
                 ActivateToken(RenewedToken);
-                Utils.LogInfo(
-                    "ChannelId {0}: Token #{1} activated forced.",
+                m_logger.LogInformation(
+                    "ChannelId {Id}: Token #{TokenId} activated forced.",
                     Id,
                     CurrentToken.TokenId);
             }
@@ -806,7 +807,7 @@ namespace Opc.Ua.Bindings
                             buffer.Count - SymmetricSignatureSize),
                         isRequest))
                 {
-                    Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
+                    m_logger.LogError("ChannelId {Id}: Could not verify signature on message.", Id);
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
                         "Could not verify the signature on the message.");
@@ -1113,14 +1114,8 @@ namespace Opc.Ua.Bindings
                     dataToVerify.Offset + 4);
                 string actualSignature = Utils.ToHexString(signature);
 #endif
-
-                var message = new StringBuilder();
-                message.AppendLine("Channel{0}: Could not validate signature.")
-                    .AppendLine("ChannelId={1}, TokenId={2}, MessageType={3}, Length={4}")
-                    .AppendLine("ExpectedSignature={5}")
-                    .AppendLine("ActualSignature={6}");
-                Utils.LogError(
-                    message.ToString(),
+                m_logger.LogError(
+                    "Channel{Id}: Could not validate signature. ChannelId={ChannelId}, TokenId={TokenId}, MessageType={MessageType}, Length={Length} ExpectedSignature={ExpectedSignature} ActualSignature={ActualSignature}",
                     Id,
                     token.ChannelId,
                     token.TokenId,

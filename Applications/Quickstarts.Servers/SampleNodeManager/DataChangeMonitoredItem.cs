@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
@@ -123,7 +124,11 @@ namespace Opc.Ua.Sample
 
             if (queueSize > 1)
             {
-                m_queue = new DataChangeQueueHandler(id, false, m_monitoredItemQueueFactory);
+                m_queue = new DataChangeQueueHandler(
+                    id,
+                    false,
+                    m_monitoredItemQueueFactory,
+                    source.Server.Telemetry);
                 m_queue.SetQueueSize(queueSize, discardOldest, diagnosticsMasks);
                 m_queue.SetSamplingInterval(samplingInterval);
             }
@@ -173,14 +178,16 @@ namespace Opc.Ua.Sample
                     m_queue = new DataChangeQueueHandler(
                         queue,
                         storedMonitoredItem.DiscardOldest,
-                        storedMonitoredItem.SamplingInterval);
+                        storedMonitoredItem.SamplingInterval,
+                        source.Server.Telemetry);
                 }
                 else
                 {
                     m_queue = new DataChangeQueueHandler(
                         storedMonitoredItem.Id,
                         false,
-                        m_monitoredItemQueueFactory);
+                        m_monitoredItemQueueFactory,
+                        source.Server.Telemetry);
                     m_queue.SetQueueSize(
                         storedMonitoredItem.QueueSize,
                         storedMonitoredItem.DiscardOldest,
@@ -331,11 +338,15 @@ namespace Opc.Ua.Sample
                 // update the queue size.
                 if (queueSize > 1)
                 {
-                    (m_queue ??= new DataChangeQueueHandler(Id, false, m_monitoredItemQueueFactory))
-                        .SetQueueSize(
-                            queueSize,
-                            discardOldest,
-                            diagnosticsMasks);
+                    m_queue ??= new DataChangeQueueHandler(
+                        Id,
+                        false,
+                        m_monitoredItemQueueFactory,
+                        m_source.Server.Telemetry);
+                    m_queue.SetQueueSize(
+                        queueSize,
+                        discardOldest,
+                        diagnosticsMasks);
                     m_queue.SetSamplingInterval(samplingInterval);
                 }
                 else
@@ -760,7 +771,8 @@ namespace Opc.Ua.Sample
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
-            uint maxNotificationsPerPublish)
+            uint maxNotificationsPerPublish,
+            ILogger logger)
         {
             lock (m_lock)
             {
@@ -786,7 +798,7 @@ namespace Opc.Ua.Sample
                         notificationCount < maxNotificationsPerPublish &&
                         m_queue.PublishSingleValue(out DataValue value, out ServiceResult error))
                     {
-                        Publish(context, value, error, notifications, diagnostics);
+                        Publish(context, value, error, notifications, diagnostics, logger);
                         notificationCount++;
 
                         if (m_resendData)
@@ -797,7 +809,7 @@ namespace Opc.Ua.Sample
                 }
                 else
                 {
-                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
+                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics, logger);
                 }
 
                 bool moreValuesToPublish = m_queue?.ItemsInQueue > 0;
@@ -819,7 +831,8 @@ namespace Opc.Ua.Sample
             DataValue value,
             ServiceResult error,
             Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics)
+            Queue<DiagnosticInfo> diagnostics,
+            ILogger logger)
         {
             // set semantics changed bit.
             if (m_semanticsChanged)
@@ -889,7 +902,8 @@ namespace Opc.Ua.Sample
                 diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                     m_source.Server,
                     context,
-                    m_lastError);
+                    m_lastError,
+                    logger);
             }
 
             diagnostics.Enqueue(diagnosticInfo);

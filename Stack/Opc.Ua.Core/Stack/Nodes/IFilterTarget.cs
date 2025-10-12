@@ -119,16 +119,54 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the context.
         /// </summary>
-        /// <param name="namespaceUris">The namespace URIs.</param>
-        /// <param name="typeTree">The type tree.</param>
-        /// <param name="context">The context.</param>
+        [Obsolete("Use constructor with ITelemetryContext")]
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
             IOperationContext context)
+            : this(namespaceUris, typeTree, context, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the context.
+        /// </summary>
+        [Obsolete("Use constructor with ITelemetryContext")]
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree)
+            : this(namespaceUris, typeTree, (ITelemetryContext)null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the context.
+        /// </summary>
+        [Obsolete("Use constructor with ITelemetryContext")]
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IList<string> preferredLocales)
+            : this(namespaceUris, typeTree, preferredLocales, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the context.
+        /// </summary>
+        /// <param name="namespaceUris">The namespace URIs.</param>
+        /// <param name="typeTree">The type tree.</param>
+        /// <param name="context">The context.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IOperationContext context,
+            ITelemetryContext telemetry)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
             TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
+            Telemetry = telemetry;
             m_context = context;
         }
 
@@ -137,8 +175,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
-        public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree)
-            : this(namespaceUris, typeTree, (IList<string>)null)
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            ITelemetryContext telemetry)
+            : this(namespaceUris, typeTree, (IList<string>)null, telemetry)
         {
         }
 
@@ -148,13 +190,16 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            ITelemetryContext telemetry)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
             TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
+            Telemetry = telemetry;
             m_context = null;
             m_preferredLocales = preferredLocales;
         }
@@ -306,6 +351,11 @@ namespace Opc.Ua
                 return null;
             }
         }
+
+        /// <summary>
+        /// Telemetry context for the filter
+        /// </summary>
+        public ITelemetryContext Telemetry { get; }
 
         private readonly IOperationContext m_context;
         private readonly IList<string> m_preferredLocales;

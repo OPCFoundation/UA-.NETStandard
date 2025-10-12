@@ -11,11 +11,13 @@
 */
 
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Test
 {
@@ -125,9 +127,18 @@ namespace Opc.Ua.Test
     public class DataGenerator
     {
         /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use DataGenerator(ITelemetryContext) instead.")]
+        public DataGenerator(IRandomSource random)
+            : this(random, null)
+        {
+        }
+
+        /// <summary>
         /// Initializes the data generator.
         /// </summary>
-        public DataGenerator(IRandomSource random)
+        public DataGenerator(IRandomSource random, ITelemetryContext telemetry)
         {
             MaxArrayLength = 100;
             MaxStringLength = 100;
@@ -136,6 +147,7 @@ namespace Opc.Ua.Test
             MinDateTimeValue = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             MaxDateTimeValue = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             m_random = random;
+            m_logger = telemetry.CreateLogger<DataGenerator>();
             BoundaryValueFrequency = 20;
             NamespaceUris = new NamespaceTable();
             ServerUris = new StringTable();
@@ -144,15 +156,17 @@ namespace Opc.Ua.Test
             m_random ??= new RandomSource();
 
             // load the boundary values.
-            m_boundaryValues = [];
+            Dictionary<string, object[]> boundaryValues = [];
 
             for (int ii = 0; ii < s_availableBoundaryValues.Length; ii++)
             {
-                m_boundaryValues[s_availableBoundaryValues[ii].SystemType.Name] =
+                boundaryValues[s_availableBoundaryValues[ii].SystemType.Name] =
                 [
                     .. s_availableBoundaryValues[ii].Values
                 ];
             }
+
+            m_boundaryValues = boundaryValues.ToFrozenDictionary();
 
             // load the localized tokens.
             m_tokenValues = LoadStringData("Opc.Ua.Types.Utils.LocalizedData.txt");
@@ -908,12 +922,16 @@ namespace Opc.Ua.Test
                 foreach (FieldInfo field in typeof(StatusCodes).GetFields(
                     BindingFlags.Public | BindingFlags.Static))
                 {
-                    if (field.Name.StartsWith("Good") ||
-                        field.Name.StartsWith("Uncertain") ||
-                        field.Name.StartsWith("Bad"))
+                    if (field.FieldType == typeof(uint) &&
+                        (field.Name.StartsWith("Good") ||
+                            field.Name.StartsWith("Uncertain") ||
+                            field.Name.StartsWith("Bad")))
                     {
+                        uint value = Convert.ToUInt32(
+                            field.GetValue(null),
+                            System.Globalization.CultureInfo.InvariantCulture);
                         m_knownStatusCodes.Add(
-                            new KeyValuePair<uint, string>((uint)field.GetValue(null), field.Name));
+                            new KeyValuePair<uint, string>(value, field.Name));
                     }
                 }
             }
@@ -1061,7 +1079,8 @@ namespace Opc.Ua.Test
                 ServiceResult.Good,
                 DiagnosticsMasks.NoInnerStatus,
                 true,
-                new StringTable());
+                new StringTable(),
+                m_logger);
         }
 
         /// <inheritdoc/>
@@ -1209,9 +1228,9 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Loads some string data from a resource.
         /// </summary>
-        private static SortedDictionary<string, string[]> LoadStringData(string resourceName)
+        private static FrozenDictionary<string, string[]> LoadStringData(string resourceName)
         {
-            var dictionary = new SortedDictionary<string, string[]>();
+            var dictionary = new Dictionary<string, string[]>();
 
             try
             {
@@ -1254,11 +1273,11 @@ namespace Opc.Ua.Test
                     }
                 }
 
-                return dictionary;
+                return dictionary.ToFrozenDictionary();
             }
             catch (Exception)
             {
-                return dictionary;
+                return dictionary.ToFrozenDictionary();
             }
         }
 
@@ -1382,10 +1401,11 @@ namespace Opc.Ua.Test
             return buffer.ToString();
         }
 
+        private readonly ILogger m_logger;
         private readonly IRandomSource m_random;
-        private readonly SortedDictionary<string, object[]> m_boundaryValues;
+        private readonly FrozenDictionary<string, object[]> m_boundaryValues;
         private readonly string[] m_availableLocales;
-        private readonly SortedDictionary<string, string[]> m_tokenValues;
+        private readonly FrozenDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";
     }
 }

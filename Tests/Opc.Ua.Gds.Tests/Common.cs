@@ -70,11 +70,11 @@ namespace Opc.Ua.Gds.Tests
 
         private readonly ServerCapabilities m_serverCapabilities;
 
-        public ApplicationTestDataGenerator(int randomStart)
+        public ApplicationTestDataGenerator(int randomStart, ITelemetryContext telemetry)
         {
             m_serverCapabilities = new ServerCapabilities();
             RandomSource = new RandomSource(randomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, telemetry);
         }
 
         public RandomSource RandomSource { get; }
@@ -283,7 +283,7 @@ namespace Opc.Ua.Gds.Tests
             DomainNames = [];
             Subject = null;
             PrivateKeyFormat = "PFX";
-            PrivateKeyPassword = string.Empty;
+            PrivateKeyPassword = null;
             Certificate = null;
             PrivateKey = null;
             IssuerCertificates = null;
@@ -296,7 +296,7 @@ namespace Opc.Ua.Gds.Tests
         public StringCollection DomainNames;
         public string Subject;
         public string PrivateKeyFormat;
-        public string PrivateKeyPassword;
+        public char[] PrivateKeyPassword;
         public byte[] Certificate;
         public byte[] PrivateKey;
         public byte[][] IssuerCertificates;
@@ -346,8 +346,9 @@ namespace Opc.Ua.Gds.Tests
     {
         private static readonly Random s_random = new();
 
-        public static async Task CleanupTrustListAsync(ICertificateStore store, bool dispose = true)
+        public static async Task CleanupTrustListAsync(IOpenStore id, ITelemetryContext telemetry)
         {
+            using ICertificateStore store = id.OpenStore(telemetry);
             System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs
                 = await store
                 .EnumerateAsync()
@@ -364,10 +365,6 @@ namespace Opc.Ua.Gds.Tests
                 {
                     await store.DeleteCRLAsync(crl).ConfigureAwait(false);
                 }
-            }
-            if (dispose)
-            {
-                store.Dispose();
             }
         }
 
@@ -412,8 +409,8 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task<GlobalDiscoveryTestServer> StartGDSAsync(
             bool clean,
-            string storeType = CertificateStoreType.Directory,
-            TextWriter writer = null)
+            ITelemetryContext telemetry,
+            string storeType = CertificateStoreType.Directory)
         {
             GlobalDiscoveryTestServer server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
@@ -424,7 +421,7 @@ namespace Opc.Ua.Gds.Tests
                 try
                 {
                     server = new GlobalDiscoveryTestServer(true);
-                    await server.StartServerAsync(clean, testPort, storeType, writer).ConfigureAwait(false);
+                    await server.StartServerAsync(clean, telemetry, testPort, storeType).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {

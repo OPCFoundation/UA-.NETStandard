@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -50,8 +51,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/>
         /// </summary>
-        public JsonNetworkMessage()
-            : this(null, [])
+        public JsonNetworkMessage(ILogger logger = null)
+            : this(null, [], logger)
         {
         }
 
@@ -60,12 +61,15 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
+        /// <param name="logger">A contextual logger to log to</param>
         public JsonNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
-            List<JsonDataSetMessage> jsonDataSetMessages)
+            List<JsonDataSetMessage> jsonDataSetMessages,
+            ILogger logger = null)
             : base(
                 writerGroupConfiguration,
-                jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [])
+                jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [],
+                logger)
         {
             MessageId = Guid.NewGuid().ToString();
             MessageType = kDataSetMessageType;
@@ -79,8 +83,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public JsonNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
-            DataSetMetaDataType metadata)
-            : base(writerGroupConfiguration, metadata)
+            DataSetMetaDataType metadata,
+            ILogger logger = null)
+            : base(writerGroupConfiguration, metadata, logger)
         {
             MessageId = Guid.NewGuid().ToString();
             MessageType = kMetaDataMessageType;
@@ -316,8 +321,8 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    Utils.Trace(
-                        "The JSON MetaDataMessage cannot be encoded: The DataSetWriterId property is missing for MessageId:{0}.",
+                    m_logger.LogInformation(
+                        "The JSON MetaDataMessage cannot be encoded: The DataSetWriterId property is missing for MessageId:{MessageId}.",
                         MessageId);
                 }
             }
@@ -425,8 +430,8 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    Utils.Trace(
-                        "The JSON MetaDataMessage cannot be decoded: The DataSetWriterId property is missing for MessageId:{0}.",
+                    m_logger.LogInformation(
+                        "The JSON MetaDataMessage cannot be decoded: The DataSetWriterId property is missing for MessageId:{MessageId}.",
                         MessageId);
                 }
             }
@@ -447,7 +452,7 @@ namespace Opc.Ua.PubSub.Encoding
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeMetaDataMessage
-                Utils.Trace(ex, "JsonNetworkMessage.DecodeMetaDataMessage");
+                m_logger.LogError(ex, "JsonNetworkMessage.DecodeMetaDataMessage");
             }
         }
 
@@ -558,7 +563,7 @@ namespace Opc.Ua.PubSub.Encoding
                         }
 
                         // initialize the dataset message
-                        var jsonDataSetMessage = new JsonDataSetMessage
+                        var jsonDataSetMessage = new JsonDataSetMessage(m_logger)
                         {
                             DataSetMessageContentMask = (JsonDataSetMessageContentMask)
                                 jsonMessageSettings.DataSetMessageContentMask
@@ -594,7 +599,7 @@ namespace Opc.Ua.PubSub.Encoding
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeSubscribedDataSets
-                Utils.Trace(ex, "JsonNetworkMessage.DecodeSubscribedDataSets");
+                m_logger.LogError(ex, "JsonNetworkMessage.DecodeSubscribedDataSets");
             }
         }
     }

@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
@@ -178,7 +179,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
-            var mockResolver = new MockResolver();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var mockResolver = new MockResolver(telemetry);
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
 
@@ -270,7 +273,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add type
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = new ComplexTypeSystem(mockResolver);
+            var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.NotNull(carType);
@@ -286,7 +289,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(car.ToString());
 
-            var encoderContext = new ServiceMessageContext
+            var encoderContext = new ServiceMessageContext(telemetry)
             {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
@@ -337,13 +340,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
-            var mockResolver = new MockResolver();
+            var mockResolver = new MockResolver(telemetry);
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
-                mockResolver.Factory,
+                mockResolver.FactoryBuilder,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
                 typeof(NamingRuleType));
@@ -463,7 +468,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add types needed
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = new ComplexTypeSystem(mockResolver);
+            var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.NotNull(arraysTypes);
@@ -523,7 +528,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            var encoderContext = new ServiceMessageContext
+            var encoderContext = new ServiceMessageContext(telemetry)
             {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
@@ -577,15 +582,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             bool randomValues,
             TestRanks testRank)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             SetRepeatedRandomSeed();
 
-            var mockResolver = new MockResolver();
+            var mockResolver = new MockResolver(telemetry);
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
-                mockResolver.Factory,
+                mockResolver.FactoryBuilder,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
                 typeof(NamingRuleType));
@@ -650,7 +657,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add types needed
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = new ComplexTypeSystem(mockResolver);
+            var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.NotNull(arraysTypes);
@@ -661,7 +668,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(testType.ToString());
 
             object value;
-            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.Factory);
+            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
             {
@@ -738,7 +745,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            var encoderContext = new ServiceMessageContext
+            var encoderContext = new ServiceMessageContext(telemetry)
             {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
@@ -903,7 +910,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         protected void AddEncodeableType(
-            IEncodeableFactory factory,
+            IEncodeableFactoryBuilder factory,
             NamespaceTable namespaceUris,
             ExpandedNodeId typeId,
             Type enumType)

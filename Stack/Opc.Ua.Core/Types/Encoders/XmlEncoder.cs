@@ -17,6 +17,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -30,10 +31,9 @@ namespace Opc.Ua
         /// </summary>
         public XmlEncoder(IServiceMessageContext context)
         {
-            Initialize();
-
-            m_destination = new StringBuilder();
             Context = context;
+            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
+            m_destination = new StringBuilder();
             m_nestingLevel = 0;
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
         public XmlEncoder(Type systemType, XmlWriter writer, IServiceMessageContext context)
-            : this(EncodeableFactory.GetXmlName(systemType), writer, context)
+            : this(TypeInfo.GetXmlName(systemType), writer, context)
         {
         }
 
@@ -58,8 +58,8 @@ namespace Opc.Ua
         /// </summary>
         public XmlEncoder(XmlQualifiedName root, XmlWriter writer, IServiceMessageContext context)
         {
-            Initialize();
-
+            Context = context;
+            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
             if (writer == null)
             {
                 m_destination = new StringBuilder();
@@ -72,19 +72,7 @@ namespace Opc.Ua
             }
 
             Initialize(root.Name, root.Namespace);
-            Context = context;
             m_nestingLevel = 0;
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_destination = null;
-            m_writer = null;
-            m_namespaces = new Stack<string>();
-            m_root = null;
         }
 
         /// <summary>
@@ -717,8 +705,8 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning(
-                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                        m_logger.LogWarning(
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
                 }
@@ -1761,7 +1749,7 @@ namespace Opc.Ua
 
                 // get name for type being encoded.
                 XmlQualifiedName xmlName =
-                    EncodeableFactory.GetXmlName(systemType)
+                    TypeInfo.GetXmlName(systemType)
                     ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
@@ -1811,7 +1799,7 @@ namespace Opc.Ua
 
                 // get name for type being encoded.
                 XmlQualifiedName xmlName =
-                    EncodeableFactory.GetXmlName(systemType) ??
+                    TypeInfo.GetXmlName(systemType) ??
                     new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
@@ -2119,7 +2107,7 @@ namespace Opc.Ua
             }
 
             // encode extension object in xml.
-            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, Context);
+            XmlQualifiedName xmlName = TypeInfo.GetXmlName(encodeable, Context);
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
             encodeable.Encode(this);
             m_writer.WriteEndElement();
@@ -2463,9 +2451,10 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
-        private StringBuilder m_destination;
+        private readonly ILogger m_logger;
+        private readonly StringBuilder m_destination;
         private XmlWriter m_writer;
-        private Stack<string> m_namespaces;
+        private readonly Stack<string> m_namespaces = [];
         private XmlQualifiedName m_root;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;

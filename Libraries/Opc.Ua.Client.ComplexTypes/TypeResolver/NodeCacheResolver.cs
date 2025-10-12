@@ -38,6 +38,7 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -50,8 +51,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Initializes the type resolver with a session to load the custom type information.
         /// </summary>
-        public NodeCacheResolver(ISession session)
-            : this(new LruNodeCache(session))
+        public NodeCacheResolver(ISession session, ITelemetryContext telemetry)
+            : this(new LruNodeCache(session, telemetry), telemetry)
         {
         }
 
@@ -59,16 +60,23 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type resolver with a session and lru cache to load the
         /// custom type information with the specified expiry.
         /// </summary>
-        public NodeCacheResolver(ISession session, TimeSpan cacheExpiry)
-            : this(new LruNodeCache(session, cacheExpiry))
+        public NodeCacheResolver(
+            ISession session,
+            TimeSpan cacheExpiry,
+            ITelemetryContext telemetry)
+            : this(new LruNodeCache(session, telemetry, cacheExpiry), telemetry)
         {
         }
 
         /// <summary>
         /// Initializes the type resolver with a lru node cache.
         /// </summary>
-        public NodeCacheResolver(ISession session, TimeSpan cacheExpiry, int capacity)
-            : this(new LruNodeCache(session, cacheExpiry, capacity))
+        public NodeCacheResolver(
+            ISession session,
+            TimeSpan cacheExpiry,
+            int capacity,
+            ITelemetryContext telemetry)
+            : this(new LruNodeCache(session, telemetry, cacheExpiry, capacity), telemetry)
         {
         }
 
@@ -76,18 +84,22 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type resolver with a session and lru cache to load the
         /// custom type information with the specified expiry and cache size.
         /// </summary>
-        public NodeCacheResolver(ILruNodeCache lruNodeCache)
+        public NodeCacheResolver(ILruNodeCache lruNodeCache, ITelemetryContext telemetry)
         {
             m_session = lruNodeCache.Session;
             m_lruNodeCache = lruNodeCache;
+            m_logger = telemetry.CreateLogger<NodeCacheResolver>();
+            FactoryBuilder = m_session.Factory.Builder;
         }
 #else
         /// <summary>
         /// Initializes the type resolver with a session to load the custom type information.
         /// </summary>
-        public NodeCacheResolver(ISession session)
+        public NodeCacheResolver(ISession session, ITelemetryContext telemetry)
         {
             m_session = session;
+            m_logger = telemetry.CreateLogger<NodeCacheResolver>();
+            FactoryBuilder = m_session.Factory.Builder;
         }
 #endif
 
@@ -95,7 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
         /// <inheritdoc/>
-        public IEncodeableFactory Factory => m_session.Factory;
+        public IEncodeableFactoryBuilder FactoryBuilder { get; }
 
         /// <inheritdoc/>
         public NodeIdDictionary<DataDictionary> DataTypeSystem { get; } = [];
@@ -187,8 +199,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         nameSpaceValues[ii].StatusCode = StatusCodes.BadEncodingError;
                     }
                 }
-                Utils.LogWarning(
-                    "Failed to load namespace {0}: {1}",
+                m_logger.LogWarning(
+                    "Failed to load namespace {NamespaceNodeId}: {StatusCode}",
                     namespaceNodes[ii].NodeId,
                     nameSpaceValues[ii].StatusCode);
             }
@@ -239,8 +251,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogError(
-                            "Dictionary load error for Dictionary {0} : {1}",
+                        m_logger.LogError(
+                            "Dictionary load error for Dictionary {DitionaryId} : {ErrorMessage}",
                             r.NodeId,
                             ex.Message);
                     }
@@ -418,8 +430,8 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 #if DEBUG
             stopwatch.Stop();
-            Utils.LogInfo(
-                "LoadDataTypes returns {0} nodes in {1}ms",
+            m_logger.LogInformation(
+                "LoadDataTypes returns {Count} nodes in {Duration}ms",
                 result.Count,
                 stopwatch.ElapsedMilliseconds);
 #endif
@@ -643,7 +655,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Array.Resize(ref schema, zeroTerminator);
             }
 
-            dictionaryToLoad.Validate(schema, imports);
+            dictionaryToLoad.Validate(schema, m_logger, imports);
 
             await AddDataTypesAsync(dictionaryToLoad, dictionaryId, ct).ConfigureAwait(false);
 
@@ -878,5 +890,6 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly ILruNodeCache m_lruNodeCache;
 #endif
         private readonly ISession m_session;
+        private readonly ILogger m_logger;
     }
 }

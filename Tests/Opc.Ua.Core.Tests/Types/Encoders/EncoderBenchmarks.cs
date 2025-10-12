@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
 using Microsoft.IO;
 using Opc.Ua.Bindings;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -124,15 +125,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public virtual void OneTimeSetUp()
         {
             // for validating benchmark tests
-            m_context = new ServiceMessageContext();
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_context = new ServiceMessageContext(m_telemetry);
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
-            m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
+            m_bufferManager = new BufferManager(
+                nameof(BinaryEncoder),
+                StreamBufferSize,
+                m_telemetry);
         }
 
         public virtual void OneTimeTearDown()
         {
             m_context = null;
+            m_telemetry = null;
             m_memoryManager = null;
             m_bufferManager = null;
         }
@@ -143,10 +149,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public virtual void GlobalSetup()
         {
             // for validating benchmark tests
-            m_context = new ServiceMessageContext();
+            m_telemetry = new DefaultTelemetry();
+            m_context = new ServiceMessageContext(m_telemetry);
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
-            m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
+            m_bufferManager = new BufferManager(
+                nameof(BinaryEncoder),
+                StreamBufferSize,
+                m_telemetry);
         }
 
         /// <summary>
@@ -155,6 +165,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public virtual void GlobalCleanup()
         {
             m_context = null;
+            m_telemetry = null;
             m_memoryManager = null;
             m_bufferManager = null;
         }
@@ -163,6 +174,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected NodeId m_nodeId = new(1234);
         protected List<int> m_list;
         protected List<DataValue> m_values;
+        protected ITelemetryContext m_telemetry;
         protected IServiceMessageContext m_context;
         protected RecyclableMemoryStreamManager m_memoryManager;
         protected BufferManager m_bufferManager;

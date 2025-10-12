@@ -628,11 +628,15 @@ namespace Opc.Ua
             {
                 if (buffer.Length > 0)
                 {
-                    buffer.AppendLine()
-                        .AppendLine();
+                    buffer
+                        .AppendLine()
+                        .AppendLine(">>>> (Inner) >>>>");
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ">>> {0}", exception.Message);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "[{0}]",
+                    exception.Message ?? exception.GetType().Name);
 
                 if (!string.IsNullOrEmpty(exception.StackTrace))
                 {
@@ -641,7 +645,8 @@ namespace Opc.Ua
                     {
                         if (!string.IsNullOrEmpty(trace[ii]))
                         {
-                            buffer.AppendLine()
+                            buffer
+                                .AppendLine()
                                 .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
                         }
                     }
@@ -796,16 +801,39 @@ namespace Opc.Ua
         /// </summary>
         private static string GetDefaultMessage(Exception exception)
         {
-            if (exception != null && exception.Message != null)
+            if (exception == null)
             {
-                if (exception.Message.StartsWith('[') || exception is ServiceResultException)
+                return string.Empty;
+            }
+            if (exception.Message != null)
+            {
+                if (exception.Message.StartsWith('['))
                 {
                     return exception.Message;
                 }
-
-                return Utils.Format("[{0}] {1}", exception.GetType().Name, exception.Message);
+#if !DEBUG
+                if (exception is ServiceResultException)
+                {
+                    return exception.Message;
+                }
+#endif
+                return Utils.Format("[{0}] {1}",
+                    exception.GetType().Name,
+#if !DEBUG
+                    exception.Message);
+#else
+                    BuildExceptionTrace(exception));
+#endif
             }
-
+            if (exception is not ServiceResultException)
+            {
+                return Utils.Format("[{0}]",
+#if !DEBUG
+                    exception.GetType().Name);
+#else
+                    BuildExceptionTrace(exception));
+#endif
+            }
             return string.Empty;
         }
     }

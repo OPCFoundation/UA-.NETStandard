@@ -30,6 +30,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -75,21 +76,28 @@ namespace Opc.Ua.Gds.Server
             CertificateGroupConfiguration certificateGroupConfiguration,
             [Optional] string issuerCertificatesStorePath);
 
-        Task InitAsync();
+        Task InitAsync(CancellationToken ct = default);
 
-        Task<X509Certificate2> CreateCACertificateAsync(string subjectName, NodeId certificateType);
+        Task<X509Certificate2> CreateCACertificateAsync(
+            string subjectName,
+            NodeId certificateType,
+            CancellationToken ct = default);
 
-        Task<X509CRL> RevokeCertificateAsync(X509Certificate2 certificate);
+        Task<X509CRL> RevokeCertificateAsync(
+            X509Certificate2 certificate,
+            CancellationToken ct = default);
 
         Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
-            byte[] certificateRequest);
+            byte[] certificateRequest,
+            CancellationToken ct = default);
 
         Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
-            byte[] certificateRequest);
+            byte[] certificateRequest,
+            CancellationToken ct = default);
 
         Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
@@ -97,6 +105,7 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword);
+            char[] privateKeyPassword,
+            CancellationToken ct = default);
     }
 }

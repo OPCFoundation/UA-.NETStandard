@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -71,8 +72,13 @@ namespace Alarms
             IServerInternal server,
             ApplicationConfiguration configuration,
             string[] namespaceUris)
-            : base(server, configuration, namespaceUris)
+            : base(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<AlarmNodeManager>(),
+                  namespaceUris)
         {
+            m_logger.LogInformation("Alarms: Created AlarmNodeManager");
         }
 
         /// <summary>
@@ -83,6 +89,8 @@ namespace Alarms
             if (disposing)
             {
                 DisposeTimer();
+
+                m_logger.LogInformation("Alarms: Disposed AlarmNodeManager");
             }
         }
 
@@ -192,7 +200,8 @@ namespace Alarms
                             alarmControllerType,
                             analogTrigger,
                             interval,
-                            false);
+                            false,
+                            Server.Telemetry);
                     var analogSourceController = new SourceController(
                         analogTrigger,
                         analogAlarmController);
@@ -212,7 +221,8 @@ namespace Alarms
                             alarmControllerType,
                             booleanTrigger,
                             interval,
-                            true);
+                            true,
+                            Server.Telemetry);
                     var booleanSourceController = new SourceController(
                         booleanTrigger,
                         booleanAlarmController);
@@ -260,7 +270,7 @@ namespace Alarms
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error creating the AlarmNodeManager address space.");
+                    m_logger.LogError(e, "Error creating the AlarmNodeManager address space.");
                 }
             }
         }
@@ -321,7 +331,7 @@ namespace Alarms
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogInfo(ex, "Alarm Loop Exception");
+                        m_logger.LogInformation(ex, "Alarm Loop Exception");
                     }
                 }
                 m_allowEntry = true;
@@ -329,7 +339,7 @@ namespace Alarms
             else if (m_success > 0)
             {
                 m_missed++;
-                Utils.LogInfo("Alarms: Missed Loop {0} Success {1}", m_missed, m_success);
+                m_logger.LogInformation("Alarms: Missed Loop {Missed} Success {Success}", m_missed, m_success);
             }
         }
 
@@ -365,7 +375,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Starting up alarm group {0}", GetUnitFromNodeId(node.NodeId));
+                m_logger.LogInformation("Starting up alarm group {NodeId}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -427,8 +437,8 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo(
-                    "Starting up Branch for alarm group {0}",
+                m_logger.LogInformation(
+                    "Starting up Branch for alarm group {Name}",
                     GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
@@ -475,7 +485,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Stopping alarm group {0}", GetUnitFromNodeId(node.NodeId));
+                m_logger.LogInformation("Stopping alarm group {Name}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -530,7 +540,7 @@ namespace Alarms
                     return StatusCodes.BadNodeIdUnknown;
                 }
 
-                Utils.LogInfo("Manual Write {0} to {1}", value, node.NodeId);
+                m_logger.LogInformation("Manual Write {Value} to {NodeId}", value, node.NodeId);
 
                 lock (m_alarms)
                 {
@@ -951,7 +961,7 @@ namespace Alarms
         {
             byte[] eventId = null;
 
-            // Bad magic Numbers here
+            // Bad magic Numbers hereStart
             if (request.InputArguments != null &&
                 request.InputArguments.Count == 2 &&
                 request.InputArguments[0].TypeInfo.BuiltInType.Equals(BuiltInType.ByteString))
@@ -966,6 +976,8 @@ namespace Alarms
         /// </summary>
         private void StartTimer()
         {
+            m_logger.LogInformation("Alarms: Starting simulation");
+
             Utils.SilentDispose(m_simulationTimer);
             m_simulationTimer = new Timer(
                 DoSimulation,
@@ -981,6 +993,8 @@ namespace Alarms
         {
             Utils.SilentDispose(m_simulationTimer);
             m_simulationTimer = null;
+
+            m_logger.LogInformation("Alarms: Stopped simulation");
         }
 
         private readonly Dictionary<string, AlarmHolder> m_alarms = [];
