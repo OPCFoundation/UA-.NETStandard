@@ -763,7 +763,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsClient()
                 .AddSecurityConfigurationStores(subjectName,
                                                 $"{m_pkiRoot}/pki/own",
-                                                $"{m_pkiRoot}/pki/rusted",
+                                                $"{m_pkiRoot}/pki/trusted",
                                                 $"{m_pkiRoot}/pki/issuer",
                                                 $"{m_pkiRoot}/pki/rejected")
                 .CreateAsync()
