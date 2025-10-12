@@ -1428,7 +1428,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         [Order(500)]
         [CancelAfter(30_000)]
-        public async Task CloseSessionCancelsOutstandingPublishRequests()
+        public async Task CloseSessionCancelsOutstandingPublishRequestsAsync()
         {
             // Create subscriptions with monitored items to generate publish requests
             var subscription = new Subscription(Session.DefaultSubscription)
@@ -1438,7 +1438,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             IList<NodeId> staticNodes = GetTestSetStatic(Session.NamespaceUris);
-            var list = CreateMonitoredItemTestSet(subscription, staticNodes);
+            List<MonitoredItem> list = CreateMonitoredItemTestSet(subscription, staticNodes);
             subscription.AddItems(list);
 
             bool result = Session.AddSubscription(subscription);
