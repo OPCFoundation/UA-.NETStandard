@@ -24,7 +24,7 @@ namespace Opc.Ua
     /// A generic user identity class.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class UserIdentity : IUserIdentity
+    public class UserIdentity : IUserIdentity, IDisposable
     {
         /// <summary>
         /// Initializes the object as an anonymous user.
@@ -38,16 +38,16 @@ namespace Opc.Ua
         /// Initializes the object as an anonymous user.
         /// </summary>
         public UserIdentity(AnonymousIdentityToken anonymousIdentityToken)
+            : this(anonymousIdentityToken, null)
         {
-            Initialize(anonymousIdentityToken);
         }
 
         /// <summary>
-        /// Initializes the object with a username and password.
+        /// Initializes the object with a username and utf8 password.
         /// </summary>
         /// <param name="username">The user name.</param>
         /// <param name="password">The password.</param>
-        public UserIdentity(string username, string password)
+        public UserIdentity(string username, byte[] password)
             : this(new UserNameIdentityToken
             {
                 UserName = username,
@@ -57,11 +57,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the object with a username and utf8 password.
+        /// </summary>
+        /// <param name="username">The user name.</param>
+        /// <param name="password">The password.</param>
+        public UserIdentity(string username, ReadOnlySpan<byte> password)
+            : this(new UserNameIdentityToken
+            {
+                UserName = username,
+                DecryptedPassword = password.ToArray()
+            })
+        {
+        }
+
+        /// <summary>
         /// Initializes the object with a username token.
         /// </summary>
         public UserIdentity(UserNameIdentityToken userNameToken)
+            : this(userNameToken, null)
         {
-            Initialize(userNameToken);
         }
 
         /// <summary>
@@ -69,12 +83,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="issuedToken">The token.</param>
         public UserIdentity(IssuedIdentityToken issuedToken)
+            : this(issuedToken, null)
         {
-            Initialize(issuedToken);
         }
 
         /// <summary>
-        /// Initializes the object with an X509 certificate identifier
+        /// Initializes the object with a X509 certificate identifier.
         /// </summary>
         [Obsolete("Use UserIdentityToken(X509IdentityToken, ITelemetryContext) instead.")]
         public UserIdentity(X509IdentityToken x509Token)
@@ -87,7 +101,7 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use CreateAsync method instead.")]
         public UserIdentity(CertificateIdentifier certificateId)
-            : this(certificateId, new CertificatePasswordProvider(string.Empty))
+            : this(certificateId, new CertificatePasswordProvider())
         {
         }
 
@@ -107,7 +121,8 @@ namespace Opc.Ua
         /// Initializes the object with an X509 certificate
         /// </summary>
         [Obsolete("Use UserIdentityToken(X509Certificate2, ITelemetryContext) instead.")]
-        public UserIdentity(X509Certificate2 certificate) : this(certificate, null)
+        public UserIdentity(X509Certificate2 certificate)
+            : this(certificate, null)
         {
         }
 
@@ -115,19 +130,8 @@ namespace Opc.Ua
         /// Initializes the object with an X509 certificate
         /// </summary>
         public UserIdentity(X509Certificate2 certificate, ITelemetryContext telemetry)
+            : this(Create(certificate), telemetry)
         {
-            if (certificate == null)
-            {
-                throw new ArgumentNullException(nameof(certificate));
-            }
-
-            if (!certificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(
-                    "Cannot create User Identity with Certificate that does not have a private key");
-            }
-
-            Initialize(certificate, telemetry);
         }
 
         /// <summary>
@@ -137,20 +141,52 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public UserIdentity(UserIdentityToken token, ITelemetryContext telemetry)
         {
-            switch (token)
+            m_token = token ?? throw new ArgumentNullException(nameof(token));
+            switch (m_token)
             {
                 case X509IdentityToken x509Token:
-                    Initialize(x509Token, telemetry);
+                    TokenType = UserTokenType.Certificate;
+                    IssuedTokenType = null;
+                    if (x509Token.Certificate != null)
+                    {
+                        DisplayName = x509Token.Certificate.Subject;
+                    }
+                    else
+                    {
+                        X509Certificate2 cert = CertificateFactory.Create(
+                            x509Token.CertificateData,
+                            true,
+                            telemetry);
+                        DisplayName = cert.Subject;
+                    }
                     break;
                 case UserNameIdentityToken usernameToken:
-                    Initialize(usernameToken);
+                    TokenType = UserTokenType.UserName;
+                    IssuedTokenType = null;
+                    DisplayName = usernameToken.UserName;
                     break;
-                case AnonymousIdentityToken anonymous:
-                    Initialize(anonymous);
+                case AnonymousIdentityToken:
+                    TokenType = UserTokenType.Anonymous;
+                    IssuedTokenType = null;
+                    DisplayName = "Anonymous";
                     break;
                 case IssuedIdentityToken issuedToken:
-                    Initialize(issuedToken);
-                    break;
+                    if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
+                    {
+                        if (issuedToken.DecryptedTokenData == null ||
+                            issuedToken.DecryptedTokenData.Length == 0)
+                        {
+                            throw new ArgumentException(
+                                "JSON Web Token has no data associated with it.",
+                                nameof(token));
+                        }
+
+                        TokenType = UserTokenType.IssuedToken;
+                        IssuedTokenType = new XmlQualifiedName(string.Empty, Profiles.JwtUserToken);
+                        DisplayName = "JWT";
+                        break;
+                    }
+                    throw new NotSupportedException("Only JWT Issued Tokens are supported!");
                 default:
                     throw new ArgumentException("Unrecognized UA user identity token type.", nameof(token));
             }
@@ -195,7 +231,7 @@ namespace Opc.Ua
         {
             return CreateAsync(
                 certificateId,
-                new CertificatePasswordProvider(string.Empty),
+                new CertificatePasswordProvider(),
                 telemetry,
                 ct);
         }
@@ -212,7 +248,7 @@ namespace Opc.Ua
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
-            Initialize(new AnonymousIdentityToken());
+            m_token = new AnonymousIdentityToken();
         }
 
         /// <summary>
@@ -229,9 +265,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string DisplayName { get; set; }
-
-        /// <inheritdoc/>
         [DataMember(Name = "TokenType", IsRequired = true, Order = 20)]
         public UserTokenType TokenType { get; private set; }
 
@@ -240,125 +273,86 @@ namespace Opc.Ua
         public XmlQualifiedName IssuedTokenType { get; private set; }
 
         /// <inheritdoc/>
+        public string DisplayName { get; set; }
+
+        /// <inheritdoc/>
         public bool SupportsSignatures => false;
 
         /// <summary>
         ///  Get or sets the list of granted role ids associated to the UserIdentity.
         /// </summary>
-        public NodeIdCollection GrantedRoleIds { get; private set; }
+        public NodeIdCollection GrantedRoleIds { get; private set; } = [];
 
         /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()
         {
             // check for null and return anonymous.
-            return m_token ?? new AnonymousIdentityToken();
+            return Utils.Clone(m_token);
         }
 
-        private void Initialize()
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
         {
-            GrantedRoleIds = [];
-        }
-
-        /// <summary>
-        /// Initializes the object with a UA identity token
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="NotSupportedException"></exception>
-        private void Initialize(UserNameIdentityToken usernameToken)
-        {
-            Initialize();
-
-            m_token = usernameToken ?? throw new ArgumentNullException(nameof(usernameToken));
-            TokenType = UserTokenType.UserName;
-            IssuedTokenType = null;
-            DisplayName = usernameToken.UserName;
-        }
-
-        /// <summary>
-        /// Initializes the object with a UA identity token
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="NotSupportedException"></exception>
-        private void Initialize(X509IdentityToken x509Token, ITelemetryContext telemetry)
-        {
-            Initialize();
-
-            m_token = x509Token ?? throw new ArgumentNullException(nameof(x509Token));
-            TokenType = UserTokenType.Certificate;
-            IssuedTokenType = null;
-            if (x509Token.Certificate != null)
+            if (obj is UserIdentity identity)
             {
-                DisplayName = x509Token.Certificate.Subject;
+                return Utils.IsEqualUserIdentity(m_token, identity.m_token);
             }
-            else
+            return base.Equals(obj);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                PolicyId,
+                TokenType,
+                IssuedTokenType,
+                DisplayName,
+                GrantedRoleIds);
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Dispose the identity token.
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                X509Certificate2 cert = CertificateFactory.Create(
-                    x509Token.CertificateData,
-                    true,
-                    telemetry);
-                DisplayName = cert.Subject;
+                Utils.SilentDispose(m_token);
             }
         }
 
         /// <summary>
-        /// Initializes the object with a UA identity token
+        /// Helper to create a identity token from X509 certificate
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="NotSupportedException"></exception>
-        private void Initialize(AnonymousIdentityToken anonymousToken)
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
+        private static X509IdentityToken Create(X509Certificate2 certificate)
         {
-            Initialize();
-
-            m_token = anonymousToken ?? throw new ArgumentNullException(nameof(anonymousToken));
-
-            TokenType = UserTokenType.Anonymous;
-            IssuedTokenType = null;
-            DisplayName = "Anonymous";
-        }
-
-        /// <summary>
-        /// Initializes the object with a UA identity token
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="NotSupportedException"></exception>
-        private void Initialize(IssuedIdentityToken issuedToken)
-        {
-            Initialize();
-            m_token = issuedToken ?? throw new ArgumentNullException(nameof(issuedToken));
-
-            if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
+            if (certificate == null)
             {
-                if (issuedToken.DecryptedTokenData == null ||
-                    issuedToken.DecryptedTokenData.Length == 0)
-                {
-                    throw new ArgumentException(
-                        "JSON Web Token has no data associated with it.",
-                        nameof(issuedToken));
-                }
-
-                TokenType = UserTokenType.IssuedToken;
-                IssuedTokenType = new XmlQualifiedName(string.Empty, Profiles.JwtUserToken);
-                DisplayName = "JWT";
-                return;
+                throw new ArgumentNullException(nameof(certificate));
             }
-            throw new NotSupportedException("Only JWT Issued Tokens are supported!");
-        }
 
-        /// <summary>
-        /// Initializes the object with an X509 certificate
-        /// </summary>
-        private void Initialize(X509Certificate2 certificate, ITelemetryContext telemetry)
-        {
-            var token = new X509IdentityToken
+            if (!certificate.HasPrivateKey)
+            {
+                throw new ServiceResultException(
+                    "Cannot create User Identity with Certificate that does not have a private key");
+            }
+
+            return new X509IdentityToken
             {
                 CertificateData = certificate.RawData,
                 Certificate = certificate
             };
-            Initialize(token, telemetry);
         }
 
         private UserIdentityToken m_token;

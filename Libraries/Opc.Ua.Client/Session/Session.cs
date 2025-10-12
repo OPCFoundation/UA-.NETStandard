@@ -245,7 +245,7 @@ namespace Opc.Ua.Client
             m_sessionName = string.Empty;
             DeleteSubscriptionsOnClose = true;
             TransferSubscriptionsOnReconnect = false;
-            m_reconnecting = false;
+            Reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
             ServerMaxContinuationPointsPerBrowse = 0;
         }
@@ -482,6 +482,11 @@ namespace Opc.Ua.Client
         /// Gets the name assigned to the session.
         /// </summary>
         public string SessionName => m_sessionName;
+
+        /// <summary>
+        /// Whether the session is reconnecting
+        /// </summary>
+        public bool Reconnecting { get; private set; }
 
         /// <summary>
         /// Gets the period for wich the server will maintain the session if
@@ -1772,9 +1777,9 @@ namespace Opc.Ua.Client
                 base.SessionCreated(sessionId, sessionCookie);
             }
 
-            m_logger.LogInformation("Revised session timeout value: {SessionTimeout}. ", m_sessionTimeout);
+            m_logger.LogInformation("Revised session timeout value: {SessionTimeout}.", m_sessionTimeout);
             m_logger.LogInformation(
-                "Max response message size value: {MaxMessageSize}. Max request message size: {MaxRequestSize} ",
+                "Max response message size value: {MaxMessageSize}. Max request message size: {MaxRequestSize}",
                 MessageContext.MaxMessageSize,
                 m_maxRequestMessageSize);
 
@@ -2155,8 +2160,8 @@ namespace Opc.Ua.Client
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    reconnecting = m_reconnecting;
-                    m_reconnecting = true;
+                    reconnecting = Reconnecting;
+                    Reconnecting = true;
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
@@ -2203,7 +2208,7 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
-                    m_reconnecting = reconnecting;
+                    Reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
 
@@ -2271,8 +2276,8 @@ namespace Opc.Ua.Client
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    reconnecting = m_reconnecting;
-                    m_reconnecting = true;
+                    reconnecting = Reconnecting;
+                    Reconnecting = true;
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(
                             null,
@@ -2299,13 +2304,12 @@ namespace Opc.Ua.Client
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
                         {
-                            if (await subscriptions[ii]
-                                    .TransferAsync(
-                                        this,
-                                        subscriptionIds[ii],
-                                        results[ii].AvailableSequenceNumbers,
-                                        ct)
-                                    .ConfigureAwait(false))
+                            if (await subscriptions[ii].TransferAsync(
+                                    this,
+                                    subscriptionIds[ii],
+                                    results[ii].AvailableSequenceNumbers,
+                                    ct)
+                                .ConfigureAwait(false))
                             {
                                 lock (m_acknowledgementsToSendLock)
                                 {
@@ -2319,6 +2323,13 @@ namespace Opc.Ua.Client
                                             sequenceNumber);
                                     }
                                 }
+                            }
+                            else
+                            {
+                                m_logger.LogInformation(
+                                    "SubscriptionId {SubscriptionId} could not be moved to session.",
+                                    subscriptionIds[ii]);
+                                failedSubscriptions++;
                             }
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
@@ -2340,15 +2351,14 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
-                        "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception {Message}",
-                        subscriptions.Count,
-                        ex.Message);
+                    m_logger.LogError(ex,
+                        "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception",
+                        subscriptions.Count);
                     failedSubscriptions++;
                 }
                 finally
                 {
-                    m_reconnecting = reconnecting;
+                    Reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
 
@@ -4008,8 +4018,8 @@ namespace Opc.Ua.Client
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                bool reconnecting = m_reconnecting;
-                m_reconnecting = true;
+                bool reconnecting = Reconnecting;
+                Reconnecting = true;
                 resetReconnect = true;
                 m_reconnectLock.Release();
 
@@ -4022,6 +4032,8 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
+
+                m_logger.LogInformation("Session RECONNECT {SessionId} starting...", SessionId);
 
                 StopKeepAliveTimer();
 
@@ -4073,7 +4085,7 @@ namespace Opc.Ua.Client
                 }
 
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
-                m_reconnecting = false;
+                Reconnecting = false;
                 resetReconnect = false;
                 m_reconnectLock.Release();
 
@@ -4088,7 +4100,7 @@ namespace Opc.Ua.Client
                 if (resetReconnect)
                 {
                     await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
-                    m_reconnecting = false;
+                    Reconnecting = false;
                     m_reconnectLock.Release();
                 }
             }
@@ -4461,7 +4473,7 @@ namespace Opc.Ua.Client
                 }
 
                 // check if session has been closed.
-                if (m_reconnecting)
+                if (Reconnecting)
                 {
                     m_logger.LogWarning(
                         "Session {SessionId}: KeepAlive ignored while reconnecting.",
@@ -4567,7 +4579,7 @@ namespace Opc.Ua.Client
             if (KeepAliveStopped)
             {
                 // ignore if already reconnecting.
-                if (m_reconnecting)
+                if (Reconnecting)
                 {
                     return;
                 }
@@ -5504,10 +5516,16 @@ namespace Opc.Ua.Client
         /// </summary>
         public IAsyncResult BeginPublish(int timeout)
         {
-            // do not publish if reconnecting.
-            if (m_reconnecting)
+            // do not publish if reconnecting or the session is in closed state.
+            if (!Connected)
             {
-                m_logger.LogWarning("Publish skipped due to reconnect");
+                m_logger.LogWarning("Publish skipped due to session not connected");
+                return null;
+            }
+
+            if (Reconnecting)
+            {
+                m_logger.LogWarning("Publish skipped due to session reconnect");
                 return null;
             }
 
@@ -5638,7 +5656,7 @@ namespace Opc.Ua.Client
             {
                 // gate entry if transfer/reactivate is busy
                 m_reconnectLock.Wait();
-                bool reconnecting = m_reconnecting;
+                bool reconnecting = Reconnecting;
                 m_reconnectLock.Release();
 
                 // complete publish.
@@ -5665,6 +5683,12 @@ namespace Opc.Ua.Client
                         // only show the first error as warning
                         logLevel = LogLevel.Trace;
                     }
+                }
+
+                // nothing more to do if we were never connected
+                if (NodeId.IsNull(sessionId))
+                {
+                    return;
                 }
 
                 // nothing more to do if session changed.
@@ -5715,7 +5739,7 @@ namespace Opc.Ua.Client
                     m_logger.LogError(
                         "Publish #{RequestHandle}, Reconnecting={Reconnecting}, Error: {Message}",
                         requestHeader.RequestHandle,
-                        m_reconnecting,
+                        Reconnecting,
                         e.Message);
                 }
 
@@ -5741,22 +5765,34 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // ignore errors if reconnecting.
-                if (m_reconnecting)
+                // ignore errors if reconnecting
+                if (Reconnecting)
                 {
-                    m_logger.LogWarning(
-                        "Publish abandoned after error due to reconnect: {Message}",
-                        e.Message);
+                    m_logger.LogInformation(
+                        "Publish abandoned after error {Message} due to session {SessionId} reconnecting",
+                        e.Message,
+                        sessionId);
                     return;
                 }
 
                 // nothing more to do if session changed.
                 if (sessionId != SessionId)
                 {
-                    m_logger.LogError(
-                        "Publish abandoned after error because session id changed: Old {PreviousSessionId} != New {SessionId}",
-                        sessionId,
-                        SessionId);
+                    if (Connected)
+                    {
+                        m_logger.LogError(
+                            "Publish abandoned after error {Message} because session id changed: Old {PreviousSessionId} != New {SessionId}",
+                            e.Message,
+                            sessionId,
+                            SessionId);
+                    }
+                    else
+                    {
+                        m_logger.LogInformation(
+                            "Publish abandoned after error {Message} because session {SessionId} was closed.",
+                            e.Message,
+                            sessionId);
+                    }
                     return;
                 }
 
@@ -6722,7 +6758,7 @@ namespace Opc.Ua.Client
                     Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
                 }
             }
-            else if (DeleteSubscriptionsOnClose && !m_reconnecting && !subscriptionCreationInProgress)
+            else if (DeleteSubscriptionsOnClose && !Reconnecting && !subscriptionCreationInProgress)
             {
                 // Delete abandoned subscription from server.
                 m_logger.LogWarning(
@@ -7253,7 +7289,6 @@ namespace Opc.Ua.Client
         private int m_keepAliveInterval;
         private Timer m_keepAliveTimer;
         private uint m_keepAliveCounter;
-        private bool m_reconnecting;
         private SemaphoreSlim m_reconnectLock;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;

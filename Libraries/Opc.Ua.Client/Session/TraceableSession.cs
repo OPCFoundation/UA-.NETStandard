@@ -240,6 +240,9 @@ namespace Opc.Ua.Client
         public bool Connected => Session.Connected;
 
         /// <inheritdoc/>
+        public bool Reconnecting => Session.Reconnecting;
+
+        /// <inheritdoc/>
         public EndpointDescription Endpoint => Session.Endpoint;
 
         /// <inheritdoc/>

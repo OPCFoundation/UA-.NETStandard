@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -155,15 +156,17 @@ namespace Opc.Ua.Test
             m_random ??= new RandomSource();
 
             // load the boundary values.
-            m_boundaryValues = [];
+            Dictionary<string, object[]> boundaryValues = [];
 
             for (int ii = 0; ii < s_availableBoundaryValues.Length; ii++)
             {
-                m_boundaryValues[s_availableBoundaryValues[ii].SystemType.Name] =
+                boundaryValues[s_availableBoundaryValues[ii].SystemType.Name] =
                 [
                     .. s_availableBoundaryValues[ii].Values
                 ];
             }
+
+            m_boundaryValues = boundaryValues.ToFrozenDictionary();
 
             // load the localized tokens.
             m_tokenValues = LoadStringData("Opc.Ua.Types.Utils.LocalizedData.txt");
@@ -921,8 +924,8 @@ namespace Opc.Ua.Test
                 {
                     if (field.FieldType == typeof(uint) &&
                         (field.Name.StartsWith("Good") ||
-                        field.Name.StartsWith("Uncertain") ||
-                        field.Name.StartsWith("Bad")))
+                            field.Name.StartsWith("Uncertain") ||
+                            field.Name.StartsWith("Bad")))
                     {
                         uint value = Convert.ToUInt32(
                             field.GetValue(null),
@@ -1225,9 +1228,9 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Loads some string data from a resource.
         /// </summary>
-        private static SortedDictionary<string, string[]> LoadStringData(string resourceName)
+        private static FrozenDictionary<string, string[]> LoadStringData(string resourceName)
         {
-            var dictionary = new SortedDictionary<string, string[]>();
+            var dictionary = new Dictionary<string, string[]>();
 
             try
             {
@@ -1270,11 +1273,11 @@ namespace Opc.Ua.Test
                     }
                 }
 
-                return dictionary;
+                return dictionary.ToFrozenDictionary();
             }
             catch (Exception)
             {
-                return dictionary;
+                return dictionary.ToFrozenDictionary();
             }
         }
 
@@ -1400,9 +1403,9 @@ namespace Opc.Ua.Test
 
         private readonly ILogger m_logger;
         private readonly IRandomSource m_random;
-        private readonly SortedDictionary<string, object[]> m_boundaryValues;
+        private readonly FrozenDictionary<string, object[]> m_boundaryValues;
         private readonly string[] m_availableLocales;
-        private readonly SortedDictionary<string, string[]> m_tokenValues;
+        private readonly FrozenDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";
     }
 }

@@ -75,7 +75,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string SubjectName { get; set; }
         public string[] DomainNames { get; set; }
         public string PrivateKeyFormat { get; set; }
-        public string PrivateKeyPassword { get; set; }
+        public char[] PrivateKeyPassword { get; set; }
         public string AuthorityId { get; set; }
         public byte[] Certificate { get; set; }
     }
@@ -782,7 +782,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword,
+            ReadOnlySpan<char> privateKeyPassword,
             string authorityId)
         {
             Guid id = GetNodeIdGuid(applicationId);
@@ -817,7 +817,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 request.SubjectName = subjectName;
                 request.DomainNames = domainNames;
                 request.PrivateKeyFormat = privateKeyFormat;
-                request.PrivateKeyPassword = privateKeyPassword;
+                request.PrivateKeyPassword = privateKeyPassword.ToArray();
                 request.CertificateSigningRequest = null;
                 request.ApplicationId = id;
 
@@ -935,7 +935,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,
-            out string privateKeyPassword)
+            out ReadOnlySpan<char> privateKeyPassword)
         {
             certificateGroupId = null;
             certificateTypeId = null;
