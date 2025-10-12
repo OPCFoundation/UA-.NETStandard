@@ -272,6 +272,13 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public int DefaultTimeoutHint
+        {
+            get => Session.DefaultTimeoutHint;
+            set => Session.DefaultTimeoutHint = value;
+        }
+
+        /// <inheritdoc/>
         public bool Disposed => Session.Disposed;
 
         /// <inheritdoc/>
