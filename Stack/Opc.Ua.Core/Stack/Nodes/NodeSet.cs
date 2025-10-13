@@ -213,6 +213,7 @@ namespace Opc.Ua
             }
 
             // check for values containing namespace indexes.
+#pragma warning disable IDE0010 // Add missing cases
             switch (typeInfo.BuiltInType)
             {
                 case BuiltInType.NodeId:
@@ -234,11 +235,11 @@ namespace Opc.Ua
                             m_namespaceUris,
                             namespaceUris);
                     }
-
+                    return value;
+                default:
                     return value;
             }
-
-            return value;
+#pragma warning restore IDE0010 // Add missing cases
         }
 
         /// <summary>

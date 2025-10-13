@@ -69,9 +69,12 @@ namespace Opc.Ua
                 case LimitAlarmStates.LowLow:
                     LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_LowLow);
                     break;
-                default:
+                case LimitAlarmStates.Inactive:
                     LimitState.SetState(context, 0);
                     break;
+                default:
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                        $"Invalid limit state {limit} specified.");
             }
 
             SetActiveEffectiveSubState(context, LimitState.CurrentState.Value, DateTime.UtcNow);

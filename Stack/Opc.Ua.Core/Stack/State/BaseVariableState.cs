@@ -1470,9 +1470,9 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
-
-            return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
 
         /// <summary>
@@ -1851,9 +1851,10 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return base.WriteNonValueAttribute(context, attributeId, value);
             }
 
-            return base.WriteNonValueAttribute(context, attributeId, value);
         }
 
         /// <summary>
@@ -2249,8 +2250,6 @@ namespace Opc.Ua
                 return null;
             }
 
-            BaseInstanceState instance = null;
-
             switch (browseName.Name)
             {
                 case BrowseNames.EnumStrings:
@@ -2265,12 +2264,10 @@ namespace Opc.Ua
                             EnumStrings = (PropertyState<LocalizedText[]>)replacement;
                         }
                     }
-
-                    instance = EnumStrings;
-                    break;
+                    return EnumStrings ?? base.FindChild(context, browseName, createOrReplace, replacement);
+                default:
+                    return base.FindChild(context, browseName, createOrReplace, replacement);
             }
-
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
 
         private PropertyState<LocalizedText[]> m_enumStrings;

@@ -40,8 +40,9 @@ namespace Opc.Ua
                     return RSAEncryptionPadding.OaepSHA1;
                 case Padding.OaepSHA256:
                     return RSAEncryptionPadding.OaepSHA256;
+                default:
+                    throw new ServiceResultException("Invalid Padding");
             }
-            throw new ServiceResultException("Invalid Padding");
         }
 
         /// <summary>
@@ -70,6 +71,8 @@ namespace Opc.Ua
                         return (rsa.KeySize / 8) - 42;
                     case Padding.OaepSHA256:
                         return (rsa.KeySize / 8) - 66;
+                    default:
+                        throw new ServiceResultException("Invalid Padding");
                 }
             }
             return -1;

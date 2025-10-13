@@ -281,9 +281,10 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
 
-            return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
 
         /// <summary>
@@ -326,9 +327,10 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return base.WriteNonValueAttribute(context, attributeId, value);
             }
 
-            return base.WriteNonValueAttribute(context, attributeId, value);
         }
 
         /// <summary>

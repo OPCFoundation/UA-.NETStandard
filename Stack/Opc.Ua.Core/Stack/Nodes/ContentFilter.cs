@@ -746,6 +746,9 @@ namespace Opc.Ua
                     }
 
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError, $"Unknown filter operator {FilterOperator}");
             }
 
             return buffer.ToString();

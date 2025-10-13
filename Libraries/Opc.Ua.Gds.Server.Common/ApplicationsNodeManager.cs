@@ -408,6 +408,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected override NodeState AddBehaviourToPredefinedNode(
             ISystemContext context,
             NodeState predefinedNode)
@@ -558,6 +559,9 @@ namespace Opc.Ua.Gds.Server
                     passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                     return activeNode;
+                default:
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        $"Certificate type id {typeId} not supported.");
             }
 
             return predefinedNode;
@@ -857,18 +861,49 @@ namespace Opc.Ua.Gds.Server
                     return result;
                 }
 
-                //Assing certificateStatus for invalid chain if no matching found use StatusCodes.BadCertificateRevoked
-                result.CertificateStatus = chain.ChainStatus.FirstOrDefault().Status switch
+                // Assessing certificateStatus for invalid chain
+                X509ChainStatusFlags status = chain.ChainStatus.FirstOrDefault().Status;
+                if ((status & X509ChainStatusFlags.NotTimeValid)
+                    == X509ChainStatusFlags.NotTimeValid)
                 {
-                    X509ChainStatusFlags.NotTimeValid => StatusCodes.BadCertificateTimeInvalid,
-                    X509ChainStatusFlags.Revoked => StatusCodes.BadCertificateRevoked,
-                    X509ChainStatusFlags.NotSignatureValid => StatusCodes.BadCertificateInvalid,
-                    X509ChainStatusFlags.NotValidForUsage => StatusCodes.BadCertificateUseNotAllowed,
-                    X509ChainStatusFlags.RevocationStatusUnknown => StatusCodes.BadCertificateRevocationUnknown,
-                    X509ChainStatusFlags.PartialChain => StatusCodes.BadCertificateChainIncomplete,
-                    X509ChainStatusFlags.ExplicitDistrust => StatusCodes.BadCertificateUntrusted,
-                    _ => StatusCodes.BadCertificateRevoked
-                };
+                    result.CertificateStatus = StatusCodes.BadCertificateTimeInvalid;
+                }
+                else if ((status & X509ChainStatusFlags.Revoked)
+                    == X509ChainStatusFlags.Revoked)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
+                }
+                else if ((status & X509ChainStatusFlags.NotSignatureValid)
+                    == X509ChainStatusFlags.NotSignatureValid)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateInvalid;
+                }
+                else if ((status & X509ChainStatusFlags.NotValidForUsage)
+                    == X509ChainStatusFlags.NotValidForUsage)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateUseNotAllowed;
+                }
+                else if ((status & X509ChainStatusFlags.RevocationStatusUnknown)
+                    == X509ChainStatusFlags.RevocationStatusUnknown)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateRevocationUnknown;
+                }
+                else if ((status & X509ChainStatusFlags.PartialChain)
+                    == X509ChainStatusFlags.PartialChain)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateChainIncomplete;
+                }
+                else if ((status & X509ChainStatusFlags.ExplicitDistrust)
+                    == X509ChainStatusFlags.ExplicitDistrust)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateUntrusted;
+                }
+                else
+                {
+                    // If no matching found use StatusCodes.BadCertificateRevoked
+                    // Even though this is a no error = 0 case, the chain is invalid
+                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
+                }
             }
             catch (CryptographicException)
             {

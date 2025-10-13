@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -80,49 +81,30 @@ namespace Opc.Ua
             // get the element to evaluate.
             ContentFilterElement element = m_filter.Elements[index];
 
-            switch (element.FilterOperator)
+            return element.FilterOperator switch
             {
-                case FilterOperator.And:
-                    return And(element);
-                case FilterOperator.Or:
-                    return Or(element);
-                case FilterOperator.Not:
-                    return Not(element);
-                case FilterOperator.Equals:
-                    return Equals(element);
-                case FilterOperator.GreaterThan:
-                    return GreaterThan(element);
-                case FilterOperator.GreaterThanOrEqual:
-                    return GreaterThanOrEqual(element);
-                case FilterOperator.LessThan:
-                    return LessThan(element);
-                case FilterOperator.LessThanOrEqual:
-                    return LessThanOrEqual(element);
-                case FilterOperator.Between:
-                    return Between(element);
-                case FilterOperator.InList:
-                    return InList(element);
-                case FilterOperator.Like:
-                    return Like(element);
-                case FilterOperator.IsNull:
-                    return IsNull(element);
-                case FilterOperator.Cast:
-                    return Cast(element);
-                case FilterOperator.OfType:
-                    return OfType(element);
-                case FilterOperator.InView:
-                    return InView(element);
-                case FilterOperator.RelatedTo:
-                    return RelatedTo(element);
-                case FilterOperator.BitwiseAnd:
-                    return BitwiseAnd(element);
-                case FilterOperator.BitwiseOr:
-                    return BitwiseOr(element);
-            }
-
-            throw new ServiceResultException(
-                StatusCodes.BadUnexpectedError,
-                "FilterOperator is not recognized.");
+                FilterOperator.And => And(element),
+                FilterOperator.Or => Or(element),
+                FilterOperator.Not => Not(element),
+                FilterOperator.Equals => Equals(element),
+                FilterOperator.GreaterThan => GreaterThan(element),
+                FilterOperator.GreaterThanOrEqual => GreaterThanOrEqual(element),
+                FilterOperator.LessThan => LessThan(element),
+                FilterOperator.LessThanOrEqual => LessThanOrEqual(element),
+                FilterOperator.Between => Between(element),
+                FilterOperator.InList => InList(element),
+                FilterOperator.Like => Like(element),
+                FilterOperator.IsNull => IsNull(element),
+                FilterOperator.Cast => Cast(element),
+                FilterOperator.OfType => OfType(element),
+                FilterOperator.InView => InView(element),
+                FilterOperator.RelatedTo => RelatedTo(element),
+                FilterOperator.BitwiseAnd => BitwiseAnd(element),
+                FilterOperator.BitwiseOr => BitwiseOr(element),
+                _ => throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    $"FilterOperator {element.FilterOperator} is not recognized."),
+            };
         }
 
         /// <summary>
@@ -440,9 +422,24 @@ namespace Opc.Ua
                     return 2;
                 case BuiltInType.QualifiedName:
                     return 1;
+                case BuiltInType.Null:
+                case BuiltInType.DateTime:
+                case BuiltInType.ByteString:
+                case BuiltInType.XmlElement:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                case BuiltInType.Variant:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Enumeration:
+                    return 0;
+                default:
+                    Debug.Fail($"Unknown built in type {type} encountered.");
+                    return 0;
             }
 
-            return 0;
         }
 
         /// <summary>
@@ -596,10 +593,13 @@ namespace Opc.Ua
                     return Convert.ToBoolean((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToBoolean((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -648,10 +648,13 @@ namespace Opc.Ua
                     return Convert.ToSByte((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToSByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -695,10 +698,13 @@ namespace Opc.Ua
                     return Convert.ToByte((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -747,10 +753,13 @@ namespace Opc.Ua
                     return Convert.ToInt16((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToInt16((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -802,10 +811,13 @@ namespace Opc.Ua
                 case BuiltInType.StatusCode:
                     var code = (StatusCode)value;
                     return (ushort)(code.CodeBits >> 16);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -856,10 +868,13 @@ namespace Opc.Ua
                     return XmlConvert.ToInt32((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -910,10 +925,13 @@ namespace Opc.Ua
                     return XmlConvert.ToUInt32((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -964,10 +982,13 @@ namespace Opc.Ua
                     return XmlConvert.ToInt64((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -1018,10 +1039,13 @@ namespace Opc.Ua
                     return XmlConvert.ToUInt64((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -1070,10 +1094,13 @@ namespace Opc.Ua
                     return Convert.ToSingle((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToSingle((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -1122,10 +1149,13 @@ namespace Opc.Ua
                     return Convert.ToDouble((float)value);
                 case BuiltInType.String:
                     return XmlConvert.ToDouble((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -1188,10 +1218,13 @@ namespace Opc.Ua
                     return ((LocalizedText)value).Text;
                 case BuiltInType.QualifiedName:
                     return ((QualifiedName)value).ToString();
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return DBNull.Value;
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
@@ -1220,10 +1253,13 @@ namespace Opc.Ua
                     return (DateTime)value;
                 case BuiltInType.String:
                     return XmlConvert.ToDateTimeOffset((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1254,10 +1290,13 @@ namespace Opc.Ua
                     return new Guid((string)value);
                 case BuiltInType.ByteString:
                     return new Guid((byte[])value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1286,10 +1325,13 @@ namespace Opc.Ua
                     return (byte[])value;
                 case BuiltInType.Guid:
                     return ((Guid)value).ToByteArray();
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1320,10 +1362,13 @@ namespace Opc.Ua
                     return (NodeId)(ExpandedNodeId)value;
                 case BuiltInType.String:
                     return NodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1356,10 +1401,13 @@ namespace Opc.Ua
                     return (ExpandedNodeId)(NodeId)value;
                 case BuiltInType.String:
                     return ExpandedNodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1398,10 +1446,13 @@ namespace Opc.Ua
                     return (StatusCode)Convert.ToUInt32((long)value);
                 case BuiltInType.UInt64:
                     return (StatusCode)Convert.ToUInt32((ulong)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1430,10 +1481,13 @@ namespace Opc.Ua
                     return (QualifiedName)value;
                 case BuiltInType.String:
                     return QualifiedName.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1462,10 +1516,13 @@ namespace Opc.Ua
                     return (LocalizedText)value;
                 case BuiltInType.String:
                     return new LocalizedText((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                    return null;
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1545,6 +1602,12 @@ namespace Opc.Ua
                         return ToQualifiedName(source, sourceType);
                     case BuiltInType.LocalizedText:
                         return ToLocalizedText(source, sourceType);
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        // conversion not supported.
+                        return null;
+                    default:
+                        Debug.Fail($"Unknown built in type {sourceType} encountered.");
+                        return null;
                 }
             }
             catch (Exception e)
@@ -1555,10 +1618,9 @@ namespace Opc.Ua
                     sourceType,
                     source,
                     targetType);
-            }
 
-            // conversion not supported.
-            return null;
+                return null;
+            }
         }
 
         /// <summary>

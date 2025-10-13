@@ -234,6 +234,11 @@ namespace Opc.Ua
                             securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
                             securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
                             goto case ObjectTypes.RsaMinApplicationCertificateType;
+                        default:
+                            securityPolicies.Add(SecurityPolicies.Basic256Sha256);
+                            securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
+                            securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
+                            break;
                     }
                 }
             }

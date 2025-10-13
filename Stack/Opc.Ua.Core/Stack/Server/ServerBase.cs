@@ -405,6 +405,9 @@ namespace Opc.Ua
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            $"Unsupported scheme for base address: {address.Url}");
                 }
 
                 BaseAddresses.Add(address);

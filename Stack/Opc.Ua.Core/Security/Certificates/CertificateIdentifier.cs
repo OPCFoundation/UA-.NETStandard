@@ -608,6 +608,9 @@ namespace Opc.Ua
                 case SecurityPolicies.Https:
                     result.Add(ObjectTypeIds.HttpsCertificateType);
                     break;
+                default:
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        $"Failed to match unknown security policy {securityPolicy} to certificate type.");
             }
             return result;
         }

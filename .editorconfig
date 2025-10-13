@@ -78,7 +78,7 @@ csharp_space_between_method_declaration_name_and_open_parenthesis             = 
 csharp_space_between_parentheses                                              = false
 csharp_space_between_square_brackets                                          = false
 
-#Formatting - organize using options
+# Formatting - organize using options
 
 dotnet_sort_system_directives_first                                           = true
 dotnet_separate_import_directive_groups                                       = false
@@ -86,7 +86,7 @@ csharp_style_prefer_method_group_conversion                                   = 
 csharp_style_prefer_top_level_statements                                      = true:silent
 csharp_using_directive_placement                                              = outside_namespace:suggestion
 
-#Formatting - spacing options
+# Formatting - spacing options
 
 csharp_space_after_cast                                                       = false
 csharp_space_after_colon_in_inheritance_clause                                = true
@@ -103,17 +103,17 @@ csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimenta
 csharp_style_allow_blank_line_after_token_in_conditional_expression_experimental = true:silent
 csharp_style_allow_blank_line_after_token_in_arrow_expression_clause_experimental = true:silent
 
-#Formatting - wrapping options
+# Formatting - wrapping options
 csharp_preserve_single_line_blocks                                            = true
 csharp_preserve_single_line_statements                                        = false
 dotnet_style_allow_trailing_commas                                            = false:suggestion
 
-#Pattern - matching preferences
+# Pattern - matching preferences
 csharp_style_pattern_local_over_anonymous_function                            = true:suggestion
 csharp_style_pattern_matching_over_is_with_cast_check                         = true:suggestion
 csharp_style_pattern_matching_over_as_with_null_check                         = true:suggestion
 
-#Style - expression bodied member options
+# Style - expression bodied member options
 csharp_style_expression_bodied_operators                                      = false:suggestion
 csharp_style_expression_bodied_indexers                                       = true:suggestion
 csharp_style_expression_bodied_accessors                                      = true:suggestion
@@ -123,7 +123,7 @@ csharp_style_expression_bodied_properties                                     = 
 csharp_style_expression_bodied_lambdas                                        = true:suggestion
 csharp_style_expression_bodied_local_functions                                = when_on_single_line:suggestion
 
-#Style - expression level options
+# Style - expression level options
 csharp_prefer_braces                                                          = true:suggestion
 csharp_style_deconstructed_variable_declaration                               = true:suggestion
 csharp_prefer_simple_default_expression                                       = true:suggestion
@@ -133,7 +133,7 @@ csharp_style_prefer_tuple_swap                                                = 
 csharp_prefer_static_local_function = true:warning
 csharp_prefer_static_anonymous_function = true:suggestion
 
-#Style - implicit and explicit types
+# Style - implicit and explicit types
 csharp_style_var_for_built_in_types                                           = false:suggestion
 csharp_style_var_when_type_is_apparent                                        = true:suggestion
 csharp_style_var_elsewhere                                                    = false:suggestion
@@ -152,7 +152,7 @@ csharp_style_prefer_readonly_struct                                           = 
 csharp_style_prefer_readonly_struct_member                                    = true:suggestion
 
 # Style - pattern matching
-csharp_style_prefer_switch_expression                                         = false:suggestion
+csharp_style_prefer_switch_expression                                         = true:suggestion
 csharp_style_prefer_pattern_matching                                          = true:silent
 csharp_style_prefer_not_pattern                                               = true:suggestion
 csharp_style_prefer_extended_property_pattern                                 = true:suggestion
@@ -164,11 +164,10 @@ dotnet_style_namespace_match_folder                                           = 
 dotnet_code_quality_unused_parameters                                         = all:silent
 
 # Style - language keyword and framework type options
-#prefer the language keyword for local variables, method parameters, and class members,
-#instead of the type name, for types that have a keyword to represent them
+# prefer the language keyword for local variables, method parameters, and class members,
+# instead of the type name, for types that have a keyword to represent them
 dotnet_style_predefined_type_for_locals_parameters_members                    = true:suggestion
 dotnet_style_predefined_type_for_member_access                                = true:suggestion
-
 dotnet_style_allow_multiple_blank_lines_experimental                          = false:suggestion
 dotnet_style_allow_statement_immediately_after_block_experimental             = true:suggestion
 
@@ -211,6 +210,9 @@ csharp_style_unused_value_expression_statement_preference                     = 
 # 'using' directive preferences
 csharp_using_directive_placement                                              = outside_namespace:suggestion
 csharp_style_namespace_declarations                                           = block_scoped:suggestion
+
+# We have a polyfill for this
+csharp_prefer_system_threading_lock                                           = true:suggestion
 
 # Naming rules
 
@@ -339,7 +341,9 @@ dotnet_analyzer_diagnostic.category-reliability.severity                      = 
 dotnet_analyzer_diagnostic.category-performance.severity                      = warning
 dotnet_analyzer_diagnostic.category-security.severity                         = warning
 
-# Suggest only non breaking warnings
+#
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/categories
+#
 
 # CA1805: Do not initialize unnecessarily.
 dotnet_diagnostic.CA1805.severity                                             = suggestion
@@ -356,23 +360,11 @@ dotnet_diagnostic.CA3077.severity                                             = 
 # CA2007: Do not directly await a Task
 dotnet_diagnostic.CA2007.severity                                             = warning
 
-# IDE0049: Simplify Names
-dotnet_diagnostic.IDE0049.severity                                            = suggestion
-
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
 
 # CA1711: Identifiers should not have incorrect suffix
 dotnet_diagnostic.CA1711.severity                                             = none
-
-# IDE1005: Simplify delegate invocation
-dotnet_diagnostic.IDE1005.severity                                            = warning
-
-# IDE0046: Convert to conditional expression
-dotnet_diagnostic.IDE0046.severity                                            = silent
-
-# IDE0130: Namespace does not match folder structure
-dotnet_diagnostic.IDE0130.severity                                            = none
 
 # CA1305: Specify IFormatProvider
 dotnet_diagnostic.CA1305.severity                                             = warning
@@ -386,6 +378,16 @@ dotnet_diagnostic.CA1721.severity                                             = 
 # CA2014: Do not use stackalloc in loops
 dotnet_diagnostic.CA2014.severity                                             = error
 
+# CA1510: Use throw helpers - enable when we have a polyfill via C# 14
+dotnet_diagnostic.CA1510.severity                                             = none
+dotnet_diagnostic.CA1511.severity                                             = none
+dotnet_diagnostic.CA1512.severity                                             = none
+dotnet_diagnostic.CA1513.severity                                             = none
+
+#
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/language-rules
+#
+
 # IDE0058: Expression value is never used
 dotnet_diagnostic.IDE0058.severity                                            = silent
 
@@ -395,19 +397,22 @@ csharp_style_prefer_primary_constructors                                      = 
 dotnet_diagnostic.IDE0045.severity                                            = none
 # IDE0065: Using directives must be placed inside a namespace declaration
 dotnet_diagnostic.IDE0065.severity                                            = none
-csharp_prefer_system_threading_lock                                           = true:suggestion
+# IDE0072: Add missing cases to switch statement
+dotnet_diagnostic.IDE0072.severity                                            = warning
+# IDE0072: Add missing cases to switch expression
+dotnet_diagnostic.IDE0010.severity                                            = warning
+# IDE0049: Simplify Names
+dotnet_diagnostic.IDE0049.severity                                            = suggestion
+# IDE1005: Simplify delegate invocation
+dotnet_diagnostic.IDE1005.severity                                            = warning
+# IDE0046: Convert to conditional expression
+dotnet_diagnostic.IDE0046.severity                                            = silent
+# IDE0130: Namespace does not match folder structure
+dotnet_diagnostic.IDE0130.severity                                            = none
 
-# IDE0072: Add missing cases
-dotnet_diagnostic.IDE0072.severity                                            = none
-dotnet_diagnostic.IDE0010.severity                                            = none
-
-# CA1510: Use throw helpers - enable when we have a polyfill
-dotnet_diagnostic.CA1510.severity                                             = none
-dotnet_diagnostic.CA1511.severity                                             = none
-dotnet_diagnostic.CA1512.severity                                             = none
-dotnet_diagnostic.CA1513.severity                                             = none
-
-# Roslynator settings
+#
+# Roslynator settings (https://josefpihrt.github.io/docs/roslynator/analyzers)
+#
 dotnet_analyzer_diagnostic.category-roslynator.severity = suggestion
 roslynator_refactorings.enabled = true
 roslynator_compiler_diagnostic_fixes.enabled = true
@@ -431,6 +436,7 @@ roslynator_doc_comment_summary_style                                          = 
 #roslynator_null_check_style                                                   = pattern_matching
 
 # Roslynator diagnostics (ordered by id)
+
 # RCS0001 Add blank line after embedded statement
 #dotnet_diagnostic.RCS0001.severity                                           = suggestion
 # RCS0002 Add blank line after #region
@@ -946,13 +952,13 @@ dotnet_diagnostic.RCS1266.severity                                            = 
 # RCS9011 Specify ExportCodeFixProviderAttribute.Name
 #dotnet_diagnostic.RCS9011.severity                                           = silent
 
-# UA_NETStandard_1: Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+#
+# UA_NETStandard_1: Type is for evaluation purposes only and is subject to change or removal
+# in future updates. Suppress this diagnostic to proceed.
+#
 dotnet_diagnostic.UA_NETStandard_1.severity = none
 
 # exclude generated code
-
-# UA_NETStandard_1: Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-dotnet_diagnostic.UA_NETStandard_1.severity = none
 
 [**/Generated/*.cs]
 generated_code = true

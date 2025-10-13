@@ -416,6 +416,11 @@ namespace Opc.Ua.Bindings
                     aesCbcDecryptorProvider.IV = token.ServerInitializationVector;
                     token.ServerEncryptor = aesCbcDecryptorProvider;
                     break;
+                default:
+                    // TODO: is this even legal or should we throw? What are the implications
+                    token.ClientEncryptor = null;
+                    token.ServerEncryptor = null;
+                    break;
             }
 
             switch (SecurityPolicyUri)
@@ -437,6 +442,11 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     token.ServerHmac = new HMACSHA384(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA384(token.ClientSigningKey);
+                    break;
+                default:
+                    // TODO: is this even legal or should we throw? What are the implications
+                    token.ServerHmac = null;
+                    token.ClientHmac = null;
                     break;
             }
         }

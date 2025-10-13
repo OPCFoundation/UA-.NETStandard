@@ -174,8 +174,12 @@ namespace Opc.Ua.Tests
                         {
                             LogLevel.Information => BenchmarkDotNet.Loggers.LogKind.Info,
                             LogLevel.Warning => BenchmarkDotNet.Loggers.LogKind.Warning,
-                            LogLevel.Error or LogLevel.Critical => BenchmarkDotNet.Loggers.LogKind.Error,
-                            _ => BenchmarkDotNet.Loggers.LogKind.Default
+                            LogLevel.Error or
+                            LogLevel.Critical => BenchmarkDotNet.Loggers.LogKind.Error,
+                            LogLevel.Trace or
+                            LogLevel.Debug or
+                            LogLevel.None => BenchmarkDotNet.Loggers.LogKind.Default,
+                            _ => throw new ArgumentException("Unknown log level", nameof(logLevel))
                         },
                         sb.ToString());
                     }

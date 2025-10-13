@@ -85,49 +85,49 @@ namespace Opc.Ua
                     return new MethodNode(source);
                 case NodeClass.View:
                     return new ViewNode(source);
-            }
+                default:
+                    if (source is IObject)
+                    {
+                        return new ObjectNode(source);
+                    }
 
-            if (source is IObject)
-            {
-                return new ObjectNode(source);
-            }
+                    if (source is IVariable)
+                    {
+                        return new VariableNode(source);
+                    }
 
-            if (source is IVariable)
-            {
-                return new VariableNode(source);
-            }
+                    if (source is IObjectType)
+                    {
+                        return new ObjectTypeNode(source);
+                    }
 
-            if (source is IObjectType)
-            {
-                return new ObjectTypeNode(source);
-            }
+                    if (source is IVariableType)
+                    {
+                        return new VariableTypeNode(source);
+                    }
 
-            if (source is IVariableType)
-            {
-                return new VariableTypeNode(source);
-            }
+                    if (source is IDataType)
+                    {
+                        return new DataTypeNode(source);
+                    }
 
-            if (source is IDataType)
-            {
-                return new DataTypeNode(source);
-            }
+                    if (source is IReferenceType)
+                    {
+                        return new ReferenceTypeNode(source);
+                    }
 
-            if (source is IReferenceType)
-            {
-                return new ReferenceTypeNode(source);
-            }
+                    if (source is IMethod)
+                    {
+                        return new MethodNode(source);
+                    }
 
-            if (source is IMethod)
-            {
-                return new MethodNode(source);
-            }
+                    if (source is IView)
+                    {
+                        return new ViewNode(source);
+                    }
 
-            if (source is IView)
-            {
-                return new ViewNode(source);
+                    return new Node(source);
             }
-
-            return new Node(source);
         }
 
         /// <summary>

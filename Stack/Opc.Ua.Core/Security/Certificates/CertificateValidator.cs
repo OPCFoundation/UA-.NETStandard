@@ -1446,6 +1446,7 @@ namespace Opc.Ua
 
                 foreach (X509ChainStatus chainStatus in chain.ChainStatus)
                 {
+#pragma warning disable IDE0010 // Add missing cases
                     switch (chainStatus.Status)
                     {
                         // status codes that are handled in CheckChainStatus
@@ -1486,6 +1487,7 @@ namespace Opc.Ua
                             ), sresult);
                             break;
                     }
+#pragma warning restore IDE0010 // Add missing cases
                 }
 
                 if (issuers.Count + 1 != chain.ChainElements.Count)
@@ -1912,6 +1914,7 @@ namespace Opc.Ua
             CertificateIdentifier issuer,
             bool isIssuer)
         {
+#pragma warning disable IDE0010 // Add missing cases
             switch (status.Status)
             {
                 case X509ChainStatusFlags.NotValidForUsage:
@@ -2028,6 +2031,7 @@ namespace Opc.Ua
                         status.Status,
                         status.StatusInformation);
             }
+#pragma warning restore IDE0010 // Add missing cases
 
             return null;
         }
