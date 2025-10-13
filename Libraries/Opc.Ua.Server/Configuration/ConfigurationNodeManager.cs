@@ -826,10 +826,13 @@ namespace Opc.Ua.Server
             X509Certificate2 certWithPrivateKey;
             if (regeneratePrivateKey)
             {
+                IList<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
+
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
                     certificateGroup,
-                    subjectName);
+                    subjectName,
+                    domainNames);
             }
             else
             {
@@ -867,12 +870,13 @@ namespace Opc.Ua.Server
         private X509Certificate2 GenerateTemporaryApplicationCertificate(
             NodeId certificateTypeId,
             ServerCertificateGroup certificateGroup,
-            string subjectName)
+            string subjectName,
+            IList<string> domainNames)
         {
             X509Certificate2 certificate;
 
             ICertificateBuilder certificateBuilder = CertificateFactory
-                .CreateCertificate(m_configuration.ApplicationUri, null, subjectName, null)
+                .CreateCertificate(m_configuration.ApplicationUri, m_configuration.ApplicationName, subjectName, null)
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddDays(14));
 
