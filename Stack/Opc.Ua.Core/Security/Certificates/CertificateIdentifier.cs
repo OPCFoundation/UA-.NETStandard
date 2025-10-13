@@ -366,38 +366,55 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Picks the certificate with the longest duration.
-        /// If multiple certificates have the same duration, pick the one with the latest NotAfter date.
-        /// Prioritizes CA-signed certificates over self-signed certificates.
+        /// Picks the best certificate from the collection.
+        /// Ignores not-yet-valid certificates (NotBefore > now) as they have never been used.
+        /// Selection criteria in order of priority:
+        /// 1. Valid certificates preferred over expired certificates
+        /// 2. CA-signed certificates preferred over self-signed (within same validity status)
+        /// 3. Longest remaining validity if valid, or least expired if all expired
         /// </summary>
-        /// <param name="collection"></param>
-        /// <returns></returns>
+        /// <param name="collection">The collection of certificates to evaluate.</param>
+        /// <returns>The best matching certificate, or null if the collection is empty or all are not-yet-valid.</returns>
         static X509Certificate2 PickLongestDurationValidCerts(X509Certificate2Collection collection)
         {
-            X509Certificate2 bestMatch = null;
-            TimeSpan bestAvailability = TimeSpan.MinValue;
-            DateTime bestNotAfter = DateTime.MinValue;
-            bool bestIsCASigned = false;
-
-            // Filter Valid certificates by time
-            X509Certificate2Collection validCertificates = collection.Find(X509FindType.FindByTimeValid, DateTime.UtcNow, false);
-
-            foreach (X509Certificate2 certificate in validCertificates)
+            if (collection == null || collection.Count == 0)
             {
-                TimeSpan availability = certificate.NotAfter - certificate.NotBefore;
-                bool isCASigned = !X509Utils.IsSelfSigned(certificate);
+                return null;
+            }
 
-                // Prioritize CA-signed over self-signed, then duration, then NotAfter date
-                bool isBetter = isCASigned && !bestIsCASigned ||
-                                (isCASigned == bestIsCASigned && availability > bestAvailability) ||
-                                (isCASigned == bestIsCASigned && availability == bestAvailability && certificate.NotAfter > bestNotAfter);
+            X509Certificate2 bestMatch = null;
+            TimeSpan bestRemainingValidity = TimeSpan.MinValue;
+            bool bestIsCASigned = false;
+            bool bestIsValid = false;
+
+            DateTime now = DateTime.UtcNow;
+
+            foreach (X509Certificate2 certificate in collection)
+            {
+                // Skip not-yet-valid certificates (they have never been used)
+                if (certificate.NotBefore > now)
+                {
+                    continue;
+                }
+
+                TimeSpan remainingValidity = certificate.NotAfter - now;
+                bool isCASigned = !X509Utils.IsSelfSigned(certificate);
+                bool isValid = certificate.NotAfter >= now;  // NotBefore already checked above
+
+                // Prioritize:
+                // 1. Valid over expired
+                // 2. CA-signed over self-signed (within same validity status)
+                // 3. Longest remaining validity (or least expired if all expired)
+                bool isBetter = (isValid && !bestIsValid) ||
+                                (isValid == bestIsValid && isCASigned && !bestIsCASigned) ||
+                                (isValid == bestIsValid && isCASigned == bestIsCASigned && remainingValidity > bestRemainingValidity);
 
                 if (isBetter)
                 {
                     bestMatch = certificate;
-                    bestAvailability = availability;
-                    bestNotAfter = certificate.NotAfter;
+                    bestRemainingValidity = remainingValidity;
                     bestIsCASigned = isCASigned;
+                    bestIsValid = isValid;
                 }
             }
 
