@@ -490,7 +490,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             DateTime restartTime = DateTime.UtcNow;
-#if !DEBUG
+#if !DEBUG_CONNECT_FAILED
             ISession transferSession= await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
