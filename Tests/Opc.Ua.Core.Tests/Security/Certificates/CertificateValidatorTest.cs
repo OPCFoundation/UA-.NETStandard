@@ -1052,7 +1052,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509Certificate2 newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
                     X509CertificateLoader.LoadCertificate(appCert.RawData),
                     pemDataBlob,
-                    "password");
+                    "password".ToCharArray());
                 X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
             }
         }

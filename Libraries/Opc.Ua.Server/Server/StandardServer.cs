@@ -3790,6 +3790,7 @@ namespace Opc.Ua.Server
                 {
                     const string message = "Unexpected error starting application";
                     m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
+                    Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                     var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                     ServerError = error;

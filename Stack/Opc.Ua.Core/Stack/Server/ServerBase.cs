@@ -808,9 +808,8 @@ namespace Opc.Ua
             {
                 m_logger.LogError(
                     e,
-                    "Could not load {Scheme} Stack Listener. {Message}",
-                    endpointUri.Scheme,
-                    e.InnerException.Message);
+                    "Could not load {Scheme} Stack Listener.",
+                    endpointUri.Scheme);
                 throw;
             }
         }

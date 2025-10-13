@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,72 +28,110 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
-using Newtonsoft.Json;
 
 namespace Opc.Ua.Server.UserDatabase
 {
-    [Serializable]
-    internal class User
-    {
-        [JsonRequired]
-        public Guid ID { get; set; }
-
-        public string UserName { get; set; }
-
-        public string Hash { get; set; }
-
-        public IEnumerable<Role> Roles { get; set; }
-    }
-
     /// <summary>
-    /// Implementation of a Serializable User Database using LINQ for querying users
+    /// Implementation of a serializable user database using a concurrent dictionary for users.
     /// </summary>
-    [Serializable]
+    [DataContract(Namespace = Namespaces.UserDatabase)]
     public class LinqUserDatabase : IUserDatabase
     {
         /// <summary>
-        /// initializes the collection the users database is working with
+        /// 128 bit
         /// </summary>
-        public virtual void Initialize()
+        private const int kSaltSize = 16;
+
+        /// <summary>
+        /// 100k
+        /// </summary>
+        private const int kIterations = 100_000;
+
+        /// <summary>
+        /// 256 bit
+        /// </summary>
+        private const int kKeySize = 32;
+
+        /// <summary>
+        /// The representation of a user in the Linq database.
+        /// </summary>
+        [DataContract(Namespace = Namespaces.UserDatabase)]
+        public class User
         {
+            /// <summary>
+            /// A guid to distinguish users.
+            /// </summary>
+            [DataMember(Name = "Id", IsRequired = true, Order = 10)]
+            public Guid ID { get; set; }
+
+            /// <summary>
+            /// The user name.
+            /// </summary>
+            [DataMember(Name = "UserName", IsRequired = true, Order = 20)]
+            public string UserName { get; set; }
+
+            /// <summary>
+            /// The hashed password.
+            /// </summary>
+            [DataMember(Name = "Hash", IsRequired = true, Order = 30)]
+            public string Hash { get; set; }
+
+            /// <summary>
+            /// The associated roles with the user.
+            /// </summary>
+            [DataMember(Name = "Roles", IsRequired = false, Order = 40)]
+            public ICollection<Role> Roles { get; set; }
+        }
+
+        /// <summary>
+        /// The constructor.
+        /// </summary>
+        public LinqUserDatabase()
+        {
+            Initialize();
         }
 
         /// <inheritdoc/>
-        public bool CreateUser(string userName, string password, IEnumerable<Role> roles)
+        public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
         {
             if (string.IsNullOrEmpty(userName))
             {
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            if (string.IsNullOrEmpty(password))
+
+            if (Utils.Utf8IsNullOrEmpty(password))
             {
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
-            if ( //User Exists
-                Users.SingleOrDefault(x => x.UserName == userName) != null)
-            {
-                return false;
-            }
 
-            string hash = Hash(password);
+            string hash = LinqUserDatabase.Hash(password);
 
-            var user = new User
-            {
-                UserName = userName,
-                Hash = hash,
-                Roles = roles
-            };
-
-            Users.Add(user);
+            bool added = true;
+            User newUser = m_users.AddOrUpdate(userName,
+                (key) => new User
+                {
+                    ID = Guid.NewGuid(),
+                    UserName = userName,
+                    Hash = hash,
+                    Roles = roles
+                },
+                (key, value) =>
+                {
+                    added = false;
+                    value.Hash = hash;
+                    value.Roles = roles;
+                    return value;
+                });
 
             SaveChanges();
 
-            return true;
+            return added;
         }
 
         /// <inheritdoc/>
@@ -104,131 +142,164 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            User user = Users.SingleOrDefault(x => x.UserName == userName);
-
-            if (user == null)
-            {
-                return false;
-            }
-            Users.Remove(user);
-            return true;
+            return m_users.TryRemove(userName, out _);
         }
 
         /// <inheritdoc/>
-        public bool CheckCredentials(string userName, string password)
+        public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
         {
             if (string.IsNullOrEmpty(userName))
             {
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            if (string.IsNullOrEmpty(password))
+
+            if (Utils.Utf8IsNullOrEmpty(password))
             {
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            User user = Users.SingleOrDefault(x => x.UserName == userName);
-
-            if (user == null)
+            if (!m_users.TryGetValue(userName, out User user))
             {
                 return false;
             }
 
-            return Check(user.Hash, password);
+            return LinqUserDatabase.Check(user.Hash, password);
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Role> GetUserRoles(string userName)
+        public ICollection<Role> GetUserRoles(string userName)
         {
             if (string.IsNullOrEmpty(userName))
             {
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            User user =
-                Users.SingleOrDefault(x => x.UserName == userName)
-                ?? throw new ArgumentException("No user found with the UserName " + userName);
+
+            if (!m_users.TryGetValue(userName, out User user))
+            {
+                throw new ArgumentException("No user found with the UserName " + userName);
+            }
 
             return user.Roles;
         }
 
         /// <inheritdoc/>
-        public bool ChangePassword(string userName, string oldPassword, string newPassword)
+        public bool ChangePassword(string userName, ReadOnlySpan<byte> oldPassword, ReadOnlySpan<byte> newPassword)
         {
             if (string.IsNullOrEmpty(userName))
             {
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            if (string.IsNullOrEmpty(oldPassword))
+
+            if (Utils.Utf8IsNullOrEmpty(oldPassword))
             {
                 throw new ArgumentException(
                     "Current Password cannot be empty.",
                     nameof(oldPassword));
             }
-            if (string.IsNullOrEmpty(newPassword))
+
+            if (Utils.Utf8IsNullOrEmpty(newPassword))
             {
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
-            User user = Users.SingleOrDefault(x => x.UserName == userName);
-
-            if (user == null)
+            if (!m_users.TryGetValue(userName, out User user))
             {
                 return false;
             }
 
-            if (Check(user.Hash, oldPassword))
+            if (LinqUserDatabase.Check(user.Hash, oldPassword))
             {
-                user.Hash = Hash(newPassword);
+                user.Hash = LinqUserDatabase.Hash(newPassword);
                 return true;
             }
+
             return false;
         }
 
         /// <summary>
-        /// Persists the changes to the users database
+        /// Persists the changes to the users database.
         /// </summary>
-        public virtual void Save()
+        protected virtual void Save()
         {
+        }
+
+        /// <summary>
+        /// Users in the database.
+        /// </summary>
+        [DataMember(Name = "Users", IsRequired = true, Order = 10)]
+        public User[] Users
+        {
+            get => [.. m_users.Values];
+            set
+            {
+                foreach (User user in value)
+                {
+                    m_users.TryAdd(user.UserName, user);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Initializes the database.
+        /// </summary>
+        private void Initialize()
+        {
+            m_users = new ConcurrentDictionary<string, User>();
         }
 
         private void SaveChanges()
         {
-            lock (Lock)
+            Save();
+        }
+
+        private static string Hash(ReadOnlySpan<byte> password)
+        {
+            byte[] tmpPassword = password.ToArray();
+            try
             {
-                QueryCounterResetTime = DateTime.UtcNow;
-                // assign IDs to new users
-                IEnumerable<User> queryNewUsers = from x in Users where x.ID == Guid.Empty select x;
-                if (Users.Count > 0)
+                byte[] salt = new byte[kSaltSize + sizeof(uint)];
+
+#if NETSTANDARD2_0 || NETFRAMEWORK
+                using (var random = RandomNumberGenerator.Create())
                 {
-                    foreach (User user in queryNewUsers)
-                    {
-                        user.ID = Guid.NewGuid();
-                    }
+                    random.GetNonZeroBytes(salt);
                 }
-                Save();
+#else
+                RandomNumberGenerator.Fill(salt.AsSpan(0, kSaltSize));
+#endif
+
+#if NETSTANDARD2_0 || NET462
+#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
+                using var algorithm = new Rfc2898DeriveBytes(
+                    tmpPassword,
+                    salt,
+                    kIterations);
+#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
+#else
+                using var algorithm = new Rfc2898DeriveBytes(
+                    tmpPassword,
+                    salt,
+                    kIterations,
+                    HashAlgorithmName.SHA512);
+#endif
+                string keyBase64 = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
+                string saltBase64 = Convert.ToBase64String(algorithm.Salt);
+                return $"{kIterations}.{saltBase64}.{keyBase64}";
+            }
+            finally
+            {
+                Array.Clear(tmpPassword, 0, tmpPassword.Length);
             }
         }
 
-        private static string Hash(string password)
+        private static bool Check(string hash, ReadOnlySpan<byte> password)
         {
-#if NETSTANDARD2_0
-            using var algorithm = new Rfc2898DeriveBytes(password, kSaltSize, kIterations);
+#if NET6_0_OR_GREATER
+            string[] parts = hash.Split('.', 3, StringSplitOptions.TrimEntries);
 #else
-            using var algorithm = new Rfc2898DeriveBytes(
-                password,
-                kSaltSize,
-                kIterations,
-                HashAlgorithmName.SHA512);
-#endif
-            string key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
-            string salt = Convert.ToBase64String(algorithm.Salt);
-
-            return $"{kIterations}.{salt}.{key}";
-        }
-
-        private static bool Check(string hash, string password)
-        {
             char[] separator = ['.'];
             string[] parts = hash.Split(separator, 3);
+#endif
 
             if (parts.Length != 3)
             {
@@ -239,53 +310,50 @@ namespace Opc.Ua.Server.UserDatabase
             int iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);
             byte[] salt = Convert.FromBase64String(parts[1]);
             byte[] key = Convert.FromBase64String(parts[2]);
-
-#if NETSTANDARD2_0
-            using var algorithm = new Rfc2898DeriveBytes(password, salt, iterations);
+            byte[] tmpPassword = password.ToArray();
+            try
+            {
+#if NETSTANDARD2_0 || NET462
+#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
+                using var algorithm = new Rfc2898DeriveBytes(
+                    tmpPassword,
+                    salt,
+                    iterations);
+#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
-            using var algorithm = new Rfc2898DeriveBytes(
-                password,
-                salt,
-                iterations,
-                HashAlgorithmName.SHA512);
+                using var algorithm = new Rfc2898DeriveBytes(
+                    tmpPassword,
+                    salt,
+                    iterations,
+                    HashAlgorithmName.SHA512);
 #endif
-            byte[] keyToCheck = algorithm.GetBytes(kKeySize);
+                byte[] keyToCheck = algorithm.GetBytes(kKeySize);
 
-            return keyToCheck.SequenceEqual(key);
+                return keyToCheck.SequenceEqual(key);
+            }
+            finally
+            {
+                Array.Clear(tmpPassword, 0, tmpPassword.Length);
+            }
         }
 
         [OnDeserialized]
         internal void OnDeserializedMethod(StreamingContext context)
         {
-            Lock = new object();
-            QueryCounterResetTime = DateTime.UtcNow;
+            Initialize();
         }
 
-        [NonSerialized]
-        internal object Lock = new();
+        private ConcurrentDictionary<string, User> m_users;
+    }
 
-        [NonSerialized]
-        internal DateTime QueryCounterResetTime = DateTime.UtcNow;
-
+    /// <summary>
+    /// Defines constants for all namespaces.
+    /// </summary>
+    public static class Namespaces
+    {
         /// <summary>
-        /// 128 bit
+        /// The URI for the UserDatabase namespace.
         /// </summary>
-        [NonSerialized]
-        private const int kSaltSize = 16;
-
-        /// <summary>
-        /// 10k
-        /// </summary>
-        [NonSerialized]
-        private const int kIterations = 10000;
-
-        /// <summary>
-        /// 256 bit
-        /// </summary>
-        [NonSerialized]
-        private const int kKeySize = 32;
-
-        [JsonProperty]
-        internal ICollection<User> Users = new HashSet<User>();
+        public const string UserDatabase = "http://opcfoundation.org/UA/UserDatabase/";
     }
 }

@@ -200,6 +200,5 @@ namespace Opc.Ua.Client
                 null,
                 ct);
         }
-
     }
 }

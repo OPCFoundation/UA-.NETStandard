@@ -240,6 +240,9 @@ namespace Opc.Ua.Client
         public bool Connected => Session.Connected;
 
         /// <inheritdoc/>
+        public bool Reconnecting => Session.Reconnecting;
+
+        /// <inheritdoc/>
         public EndpointDescription Endpoint => Session.Endpoint;
 
         /// <inheritdoc/>
@@ -266,6 +269,13 @@ namespace Opc.Ua.Client
         {
             get => Session.OperationTimeout;
             set => Session.OperationTimeout = value;
+        }
+
+        /// <inheritdoc/>
+        public int DefaultTimeoutHint
+        {
+            get => Session.DefaultTimeoutHint;
+            set => Session.DefaultTimeoutHint = value;
         }
 
         /// <inheritdoc/>

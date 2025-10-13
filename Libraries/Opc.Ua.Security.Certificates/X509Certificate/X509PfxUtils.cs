@@ -148,7 +148,7 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="NotSupportedException"></exception>
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
-            string password,
+            ReadOnlySpan<char> password,
             bool noEphemeralKeySet = false)
         {
             Exception ex = null;
@@ -181,7 +181,7 @@ namespace Opc.Ua.Security.Certificates
                     // merge first cert with private key into X509Certificate2
                     certificate = X509CertificateLoader.LoadPkcs12(
                         rawData,
-                        password ?? string.Empty,
+                        password,
                         flag);
                     if (VerifyKeyPair(certificate, certificate, true))
                     {

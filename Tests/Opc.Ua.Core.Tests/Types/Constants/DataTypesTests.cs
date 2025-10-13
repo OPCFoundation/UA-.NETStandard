@@ -47,7 +47,8 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_StandardDataTypes_ReturnsValidNames()
         {
             // Test a few standard data type IDs
-            int[] dataTypeIds = [
+            int[] dataTypeIds =
+            [
                 (int)DataTypes.Boolean,
                 (int)DataTypes.SByte,
                 (int)DataTypes.Byte,
@@ -105,7 +106,8 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetIdentifier_StandardDataTypes_ReturnsValidIds()
         {
-            string[] dataTypeNames = [
+            string[] dataTypeNames =
+            [
                 "Boolean", "SByte", "Byte", "Int16", "UInt16",
                 "Int32", "UInt32", "Int64", "UInt64",
                 "Float", "Double", "String", "DateTime",
@@ -128,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_BooleanName_ReturnsBooleanId()
         {
             uint id = DataTypes.GetIdentifier("Boolean");
-            Assert.AreEqual((uint)DataTypes.Boolean, id);
+            Assert.AreEqual(DataTypes.Boolean, id);
         }
 
         /// <summary>
@@ -147,9 +149,13 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetBrowseName_GetIdentifier_AreInverseOperations()
         {
-            int[] dataTypeIds = [
-                (int)DataTypes.Boolean, (int)DataTypes.Int32, (int)DataTypes.String,
-                (int)DataTypes.DateTime, (int)DataTypes.NodeId
+            int[] dataTypeIds =
+            [
+                (int)DataTypes.Boolean,
+                (int)DataTypes.Int32,
+                (int)DataTypes.String,
+                (int)DataTypes.DateTime,
+                (int)DataTypes.NodeId
             ];
 
             foreach (int id in dataTypeIds)

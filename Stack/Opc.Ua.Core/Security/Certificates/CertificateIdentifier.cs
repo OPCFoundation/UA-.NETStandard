@@ -24,7 +24,7 @@ namespace Opc.Ua
     /// <summary>
     /// The identifier for an X509 certificate.
     /// </summary>
-    public partial class CertificateIdentifier : IFormattable
+    public partial class CertificateIdentifier : IOpenStore, IFormattable
     {
         /// <summary>
         /// Formats the value of the current instance using the specified format.
@@ -156,13 +156,15 @@ namespace Opc.Ua
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
         public Task<X509Certificate2> LoadPrivateKeyAsync(
-            string password,
+            char[] password,
             string applicationUri = null,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
             return LoadPrivateKeyExAsync(
-                password != null ? new CertificatePasswordProvider(password) : null,
+                password != null && password.Length != 0 ?
+                    new CertificatePasswordProvider(password) :
+                    null,
                 applicationUri,
                 telemetry,
                 ct);
@@ -186,7 +188,7 @@ namespace Opc.Ua
                 using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
                 if (store?.SupportsLoadPrivateKey == true)
                 {
-                    string password = passwordProvider?.GetPassword(this);
+                    char[] password = passwordProvider?.GetPassword(this);
                     m_certificate = await store
                         .LoadPrivateKeyAsync(
                             Thumbprint,
@@ -879,15 +881,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task Add(X509Certificate2 certificate, string password = null)
-        {
-            return AddAsync(certificate, password);
-        }
-
-        /// <inheritdoc/>
         public async Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -981,7 +977,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             return Task.FromResult<X509Certificate2>(null);
