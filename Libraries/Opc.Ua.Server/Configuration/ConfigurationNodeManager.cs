@@ -876,7 +876,7 @@ namespace Opc.Ua.Server
             X509Certificate2 certificate;
 
             ICertificateBuilder certificateBuilder = CertificateFactory
-                .CreateCertificate(m_configuration.ApplicationUri, m_configuration.ApplicationName, subjectName, null)
+                .CreateCertificate(m_configuration.ApplicationUri, m_configuration.ApplicationName, subjectName, domainNames)
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddDays(14));
 
