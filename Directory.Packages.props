@@ -29,7 +29,7 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="NUnit" Version="4.4.0" />
     <PackageVersion Include="NUnit.Console" Version="3.20.1" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="5.1.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="5.2.0" />
     <PackageVersion Include="PolySharp" Version="1.15.0" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.14.0" />
     <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.14.0" />
