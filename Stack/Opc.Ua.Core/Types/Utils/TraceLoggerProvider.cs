@@ -218,6 +218,11 @@ namespace Opc.Ua
                     case LogLevel.Trace:
                         mask = Utils.TraceMasks.Operation;
                         break;
+                    case LogLevel.None:
+                        break;
+                    default:
+                        Debug.Fail($"Unexpected log level {logLevel}.");
+                        break;
                 }
             }
             return mask;

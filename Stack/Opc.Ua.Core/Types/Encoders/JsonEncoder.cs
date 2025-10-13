@@ -584,8 +584,13 @@ namespace Opc.Ua
                 case JsonEncodingType.Reversible:
                     fieldName = "Value";
                     break;
-                default:
+                case JsonEncodingType.Verbose:
+                case JsonEncodingType.NonReversible:
                     return;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected Encoding type {EncodingToUse}");
             }
 
             WriteUInt32("SwitchField", switchField);
@@ -1380,6 +1385,10 @@ namespace Opc.Ua
                 case IdType.Opaque:
                     WriteByteString("Id", (byte[])value.Identifier);
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected Node IdType {value.IdType}");
             }
 
             if (namespaceUri != null)
@@ -2985,7 +2994,10 @@ namespace Opc.Ua
                             "Unexpected type encountered while encoding an array of Variants: {0}",
                             array.GetType());
                     }
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                     {
                         // try to write IEncodeable Array
                         if (array is IEncodeable[] encodeableArray)
@@ -3006,6 +3018,10 @@ namespace Opc.Ua
                             "Unexpected BuiltInType encountered while encoding an array: {0}",
                             builtInType);
                     }
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             // write matrix.
@@ -3319,6 +3335,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the contents of a Variant to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             bool inVariantWithEncoding = m_inVariantWithEncoding;
@@ -3414,6 +3431,17 @@ namespace Opc.Ua
                         case BuiltInType.DiagnosticInfo:
                             WriteDiagnosticInfo(null, (DiagnosticInfo)value);
                             return;
+                        case BuiltInType.Null:
+                        case BuiltInType.Variant:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            // Should this not throw?
+                            break;
+                        default:
+                            throw new ServiceResultException(
+                                StatusCodes.BadUnexpectedError,
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
                 // write array

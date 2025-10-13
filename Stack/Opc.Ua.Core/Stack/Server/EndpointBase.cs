@@ -495,22 +495,29 @@ namespace Opc.Ua
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
-                // Log information instead of warning for expected disconnection scenarios
-                if (sre.StatusCode == StatusCodes.BadNoSubscription ||
-                    sre.StatusCode == StatusCodes.BadSessionClosed ||
-                    sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                    sre.StatusCode == StatusCodes.BadCertificateInvalid ||
-                    sre.StatusCode == StatusCodes.BadServerHalted)
+                switch (sre.StatusCode)
                 {
-                    logger.LogInformation("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
-                }
-                else
-                {
-                    logger.LogWarning("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
-                }
-                if (sre.StatusCode == StatusCodes.BadUnexpectedError)
-                {
-                    logger.LogWarning(Utils.TraceMasks.StackTrace, sre, "{Exception}", sre.ToString());
+                    case StatusCodes.BadNoSubscription:
+                    case StatusCodes.BadSessionClosed:
+                    case StatusCodes.BadSecurityChecksFailed:
+                    case StatusCodes.BadCertificateInvalid:
+                    case StatusCodes.BadServerHalted:
+                        // Log information instead of warning for expected disconnection scenarios
+                        logger.LogInformation(
+                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                            result.StatusCode);
+                        break;
+                    case StatusCodes.BadUnexpectedError:
+                        logger.LogWarning(
+                            Utils.TraceMasks.StackTrace,
+                            sre,
+                            "SERVER - Service Fault Occurred due to unexpected state");
+                        break;
+                    default:
+                        logger.LogWarning(
+                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                            result.StatusCode);
+                        break;
                 }
             }
             else

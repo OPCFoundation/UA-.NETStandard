@@ -586,6 +586,16 @@ namespace Opc.Ua.Server
 
                         break;
                     }
+                    case NodeClass.Unspecified:
+                    case NodeClass.ObjectType:
+                    case NodeClass.VariableType:
+                    case NodeClass.ReferenceType:
+                    case NodeClass.DataType:
+                        break;
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected NodeClass {target.NodeClass}");
                 }
 
                 // look up type definition.
@@ -725,14 +735,17 @@ namespace Opc.Ua.Server
                     }
 
                     // always use default value for base attributes.
-                    bool useDefault = false;
-
+                    bool useDefault;
                     switch (nodeToRead.AttributeId)
                     {
                         case Attributes.NodeId:
                         case Attributes.NodeClass:
                         case Attributes.BrowseName:
                             useDefault = true;
+                            break;
+                        default:
+                            Attributes.ThrowIfOutOfRange(nodeToRead.AttributeId);
+                            useDefault = false;
                             break;
                     }
 

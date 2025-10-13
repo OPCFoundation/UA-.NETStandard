@@ -5006,11 +5006,6 @@ namespace Opc.Ua.Client
             DataValue value;
             switch ((NodeClass)nodeClass.Value)
             {
-                default:
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUnexpectedError,
-                        "Node does not have a valid value for NodeClass: {0}.",
-                        nodeClass.Value);
                 case NodeClass.Object:
                     var objectNode = new ObjectNode();
 
@@ -5309,6 +5304,15 @@ namespace Opc.Ua.Client
 
                     node = viewNode;
                     break;
+                case NodeClass.Unspecified:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUnexpectedError,
+                        "Node does not have a valid value for NodeClass: {0}.",
+                        nodeClass.Value);
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass: {nodeClass.Value}.");
             }
 
             // NodeId Attribute
@@ -5410,8 +5414,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a dictionary of attributes to read for a nodeclass.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static Dictionary<uint, DataValue> CreateAttributes(
-            NodeClass nodeclass = NodeClass.Unspecified,
+            NodeClass nodeClass = NodeClass.Unspecified,
             bool optionalAttributes = true)
         {
             // Attributes to read for all types of nodes
@@ -5423,7 +5428,7 @@ namespace Opc.Ua.Client
                 { Attributes.DisplayName, null }
             };
 
-            switch (nodeclass)
+            switch (nodeClass)
             {
                 case NodeClass.Object:
                     attributes.Add(Attributes.EventNotifier, null);
@@ -5464,7 +5469,7 @@ namespace Opc.Ua.Client
                     attributes.Add(Attributes.EventNotifier, null);
                     attributes.Add(Attributes.ContainsNoLoops, null);
                     break;
-                default:
+                case NodeClass.Unspecified:
                     // build complete list of attributes.
                     attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes)
                     {
@@ -5496,6 +5501,10 @@ namespace Opc.Ua.Client
                         { Attributes.AccessLevelEx, null }
                     };
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass: {nodeClass}.");
             }
 
             if (optionalAttributes)

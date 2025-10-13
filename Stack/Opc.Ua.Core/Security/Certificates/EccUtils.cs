@@ -316,6 +316,7 @@ namespace Opc.Ua
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -1444,6 +1445,7 @@ namespace Opc.Ua
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"><paramref name="securityPolicyUri"/> is unsupported.</exception>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)

@@ -494,6 +494,7 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">The reference type between the parent and the node.</param>
         /// <param name="typeDefinitionId">The type definition.</param>
         /// <returns>Returns null if the type is not known.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual NodeState CreateInstance(
             ISystemContext context,
             NodeState parent,
@@ -544,9 +545,13 @@ namespace Opc.Ua
                     case NodeClass.View:
                         child = new ViewState();
                         break;
-                    default:
+                    case NodeClass.Unspecified:
                         child = null;
                         break;
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected NodeClass {nodeClass}");
                 }
             }
             return child;

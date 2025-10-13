@@ -324,7 +324,6 @@ namespace Opc.Ua
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
-
         }
 
         /// <summary>
@@ -397,7 +396,6 @@ namespace Opc.Ua
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }
-
         }
 
         private LocalizedText m_inverseName;

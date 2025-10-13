@@ -839,7 +839,7 @@ namespace Opc.Ua
                 Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
                 Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
                 Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
-                _ => new Uri(description.EndpointUrl).Scheme,
+                _ => new Uri(description.EndpointUrl).Scheme
             };
 
             // initialize the channel which will be created with the server.

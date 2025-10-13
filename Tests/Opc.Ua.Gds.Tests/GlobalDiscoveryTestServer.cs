@@ -159,7 +159,7 @@ namespace Opc.Ua.Gds.Tests
             var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
             IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath, telemetry);
 
-            GlobalDiscoveryTestServer.RegisterDefaultUsers(userDatabase);
+            RegisterDefaultUsers(userDatabase);
 
             // start the server.
             Server = new GlobalDiscoverySampleServer(

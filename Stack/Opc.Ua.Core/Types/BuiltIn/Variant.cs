@@ -2337,9 +2337,13 @@ namespace Opc.Ua
                     TypeInfo = TypeInfo.Construct(m_value);
                     return;
                 // just save the value.
-                default:
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     m_value = value;
                     return;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
         }
 
@@ -2428,9 +2432,13 @@ namespace Opc.Ua
                     return;
                 }
                 // just save the value.
-                default:
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     m_value = array;
                     return;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
         }
 

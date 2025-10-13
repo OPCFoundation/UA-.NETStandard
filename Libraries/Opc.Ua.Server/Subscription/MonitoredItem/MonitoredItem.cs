@@ -1873,6 +1873,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Clears and re-initializes the queue if the monitoring parameters changed.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void InitializeQueue()
         {
             switch (MonitoringMode)
@@ -1937,18 +1938,23 @@ namespace Opc.Ua.Server
                         m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                     }
                     break;
-                default:
+                case MonitoringMode.Disabled:
                     Utils.SilentDispose(m_eventQueueHandler);
                     m_eventQueueHandler = null;
                     Utils.SilentDispose(m_dataChangeQueueHandler);
                     m_dataChangeQueueHandler = null;
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected MonitoringMode {MonitoringMode}");
             }
         }
 
         /// <summary>
         /// Restore a persitent queue after a restart
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void RestoreQueue()
         {
             switch (MonitoringMode)
@@ -2051,6 +2057,12 @@ namespace Opc.Ua.Server
                         }
                     }
                     break;
+                case MonitoringMode.Disabled:
+                    break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected MonitoringMode {MonitoringMode}");
             }
         }
 

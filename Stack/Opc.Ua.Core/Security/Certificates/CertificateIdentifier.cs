@@ -575,6 +575,7 @@ namespace Opc.Ua
         /// <summary>
         /// Map a security policy to a list of supported certificate types.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static IList<NodeId> MapSecurityPolicyToCertificateTypes(string securityPolicy)
         {
             var result = new List<NodeId>();

@@ -389,12 +389,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
-            _ = Assert.ThrowsAsync<ServiceResultException>(
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
                 async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
                     "User\\UA_MachineDefault",
                     telemetry: telemetry).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
                 async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
                     "System\\UA_MachineDefault",

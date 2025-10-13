@@ -281,7 +281,7 @@ namespace Opc.Ua
         /// <summary>
         ///  Get or sets the list of granted role ids associated to the UserIdentity.
         /// </summary>
-        public NodeIdCollection GrantedRoleIds { get; private set; } = [];
+        public NodeIdCollection GrantedRoleIds { get; } = [];
 
         /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()

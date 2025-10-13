@@ -48,17 +48,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public string GetExpected(JsonEncodingType jsonEncodingType)
         {
-            switch (jsonEncodingType)
+            return jsonEncodingType switch
             {
-                case JsonEncodingType.Verbose:
-                    return ExpectedVerbose ?? ExpectedCompact;
-                case JsonEncodingType.NonReversible:
-                    return ExpectedNonReversible ?? ExpectedReversible;
-                case JsonEncodingType.Reversible:
-                    return ExpectedReversible;
-                default:
-                    return ExpectedCompact;
-            }
+                JsonEncodingType.Verbose => ExpectedVerbose ?? ExpectedCompact,
+                JsonEncodingType.NonReversible => ExpectedNonReversible ?? ExpectedReversible,
+                JsonEncodingType.Reversible => ExpectedReversible,
+                JsonEncodingType.Compact => ExpectedCompact,
+                _ => throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    $"Unexpected encoding type {jsonEncodingType}")
+            };
         }
 
         public BuiltInType BuiltInType;

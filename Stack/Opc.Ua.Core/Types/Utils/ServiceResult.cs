@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
@@ -44,6 +45,8 @@ namespace Opc.Ua
             string additionalInfo,
             ServiceResult innerResult)
         {
+            DebugCheck(code.Code, localizedText?.Text);
+
             StatusCode = code;
             SymbolicId = symbolicId;
             NamespaceUri = namespaceUri;
@@ -143,6 +146,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResult(StatusCode status)
         {
+            DebugCheck(status.CodeBits);
             Code = status.Code;
         }
 
@@ -151,6 +155,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResult(uint code)
         {
+            DebugCheck(code);
             Code = code;
         }
 
@@ -176,6 +181,8 @@ namespace Opc.Ua
                 localizedText == null &&
                 additionalInfo == null)
             {
+                DebugCheck(innerResult.Code);
+
                 Code = innerResult.Code;
                 SymbolicId = innerResult.SymbolicId;
                 NamespaceUri = innerResult.NamespaceUri;
@@ -186,6 +193,8 @@ namespace Opc.Ua
             // make the exception the inner result.
             else
             {
+                DebugCheck(code.CodeBits);
+
                 Code = code.Code;
                 SymbolicId = symbolicId;
                 NamespaceUri = namespaceUri;
@@ -263,6 +272,8 @@ namespace Opc.Ua
         {
             if (e is ServiceResultException sre)
             {
+                DebugCheck(sre.StatusCode, e.Message);
+
                 Code = sre.StatusCode;
                 NamespaceUri = sre.NamespaceUri;
                 SymbolicId = sre.SymbolicId;
@@ -341,6 +352,7 @@ namespace Opc.Ua
             DiagnosticInfo diagnosticInfo,
             IList<string> stringTable)
         {
+            DebugCheck(code.CodeBits);
             Code = (uint)code;
 
             if (diagnosticInfo != null)
@@ -373,6 +385,7 @@ namespace Opc.Ua
             DiagnosticInfoCollection diagnosticInfos,
             IList<string> stringTable)
         {
+            DebugCheck(code.CodeBits);
             Code = (uint)code;
 
             if (index >= 0 && diagnosticInfos != null && index < diagnosticInfos.Count)
@@ -794,6 +807,15 @@ namespace Opc.Ua
             }
 
             return stringTable[index];
+        }
+
+        [Conditional("DEBUG")]
+        private static void DebugCheck(uint code, string message = null)
+        {
+            // Check for unexpected error which points to an issue in the code.
+            Debug.Assert(
+                code != StatusCodes.BadUnexpectedError,
+                message ?? "An unexpected error occurred");
         }
 
         /// <summary>

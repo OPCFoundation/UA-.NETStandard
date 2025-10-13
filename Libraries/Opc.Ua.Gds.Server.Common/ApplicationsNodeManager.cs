@@ -863,38 +863,38 @@ namespace Opc.Ua.Gds.Server
 
                 // Assessing certificateStatus for invalid chain
                 X509ChainStatusFlags status = chain.ChainStatus.FirstOrDefault().Status;
-                if ((status & X509ChainStatusFlags.NotTimeValid)
-                    == X509ChainStatusFlags.NotTimeValid)
+                if ((status & X509ChainStatusFlags.NotTimeValid) ==
+                    X509ChainStatusFlags.NotTimeValid)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateTimeInvalid;
                 }
-                else if ((status & X509ChainStatusFlags.Revoked)
-                    == X509ChainStatusFlags.Revoked)
+                else if ((status & X509ChainStatusFlags.Revoked) ==
+                    X509ChainStatusFlags.Revoked)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateRevoked;
                 }
-                else if ((status & X509ChainStatusFlags.NotSignatureValid)
-                    == X509ChainStatusFlags.NotSignatureValid)
+                else if ((status & X509ChainStatusFlags.NotSignatureValid) ==
+                    X509ChainStatusFlags.NotSignatureValid)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateInvalid;
                 }
-                else if ((status & X509ChainStatusFlags.NotValidForUsage)
-                    == X509ChainStatusFlags.NotValidForUsage)
+                else if ((status & X509ChainStatusFlags.NotValidForUsage) ==
+                    X509ChainStatusFlags.NotValidForUsage)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateUseNotAllowed;
                 }
-                else if ((status & X509ChainStatusFlags.RevocationStatusUnknown)
-                    == X509ChainStatusFlags.RevocationStatusUnknown)
+                else if ((status & X509ChainStatusFlags.RevocationStatusUnknown) ==
+                    X509ChainStatusFlags.RevocationStatusUnknown)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateRevocationUnknown;
                 }
-                else if ((status & X509ChainStatusFlags.PartialChain)
-                    == X509ChainStatusFlags.PartialChain)
+                else if ((status & X509ChainStatusFlags.PartialChain) ==
+                    X509ChainStatusFlags.PartialChain)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateChainIncomplete;
                 }
-                else if ((status & X509ChainStatusFlags.ExplicitDistrust)
-                    == X509ChainStatusFlags.ExplicitDistrust)
+                else if ((status & X509ChainStatusFlags.ExplicitDistrust) ==
+                    X509ChainStatusFlags.ExplicitDistrust)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateUntrusted;
                 }
@@ -1928,9 +1928,12 @@ namespace Opc.Ua.Gds.Server
                         StatusCodes.BadInvalidArgument,
                         "The request has already been accepted by the application.");
                 case CertificateRequestState.Approved:
-                    break;
+                    return null;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected CertificateRequestState {state}");
             }
-            return null;
         }
 
         private readonly bool m_autoApprove;

@@ -59,6 +59,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static int GetPlainTextBlockSize(RSA rsa, Padding padding)
         {
             if (rsa != null)

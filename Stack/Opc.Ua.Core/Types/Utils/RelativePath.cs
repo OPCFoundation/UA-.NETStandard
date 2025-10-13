@@ -593,6 +593,7 @@ namespace Opc.Ua
             /// <param name="format">(Unused) Always pass null</param>
             /// <param name="formatProvider">(Unused) Always pass null</param>
             /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
+            /// <exception cref="ServiceResultException"></exception>
             public string ToString(string format, IFormatProvider formatProvider)
             {
                 if (format == null)

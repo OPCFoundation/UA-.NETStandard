@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -103,7 +102,7 @@ namespace Opc.Ua
                 FilterOperator.BitwiseOr => BitwiseOr(element),
                 _ => throw new ServiceResultException(
                     StatusCodes.BadUnexpectedError,
-                    $"FilterOperator {element.FilterOperator} is not recognized."),
+                    $"FilterOperator {element.FilterOperator} is not recognized.")
             };
         }
 
@@ -382,6 +381,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the data type precedence for the value.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static int GetDataTypePrecedence(BuiltInType type)
         {
             switch (type)
@@ -422,24 +422,13 @@ namespace Opc.Ua
                     return 2;
                 case BuiltInType.QualifiedName:
                     return 1;
-                case BuiltInType.Null:
-                case BuiltInType.DateTime:
-                case BuiltInType.ByteString:
-                case BuiltInType.XmlElement:
-                case BuiltInType.ExtensionObject:
-                case BuiltInType.DataValue:
-                case BuiltInType.Variant:
-                case BuiltInType.DiagnosticInfo:
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
-                case BuiltInType.Enumeration:
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     return 0;
                 default:
-                    Debug.Fail($"Unknown built in type {type} encountered.");
-                    return 0;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {type} encountered.");
             }
-
         }
 
         /// <summary>
@@ -551,6 +540,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Boolean
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToBoolean(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -597,14 +587,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a SByte
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToSByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -652,8 +644,9 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
@@ -661,6 +654,7 @@ namespace Opc.Ua
         /// Converts a value to a Byte
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static object ToByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -702,14 +696,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a Int16
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -757,14 +753,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a UInt16
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToUInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -815,14 +813,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a Int32
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -872,14 +872,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a UInt32
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToUInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -929,14 +931,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a Int64
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -986,14 +990,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a UInt64
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToUInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1043,14 +1049,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a Float
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToFloat(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1098,14 +1106,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a Double
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToDouble(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1153,14 +1163,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a String
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1222,14 +1234,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return DBNull.Value;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a DateTime
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToDateTime(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1257,14 +1271,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a Guid
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToGuid(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1294,14 +1310,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a ByteString
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToByteString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1329,14 +1347,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a NodeId
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1366,14 +1386,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a ExpandedNodeId
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToExpandedNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1405,14 +1427,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a StatusCode
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToStatusCode(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1450,14 +1474,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a QualifiedName
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToQualifiedName(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1485,14 +1511,16 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
         /// <summary>
         /// Converts a value to a LocalizedText
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToLocalizedText(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1520,8 +1548,9 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                    return null;
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unknown built in type {sourceType} encountered.");
             }
         }
 
@@ -1543,6 +1572,7 @@ namespace Opc.Ua
         /// <summary>
         /// Casts a value to the specified m_target type.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object Cast(object source, BuiltInType sourceType, BuiltInType targetType)
         {
             // null always casts to null.
@@ -1606,8 +1636,9 @@ namespace Opc.Ua
                         // conversion not supported.
                         return null;
                     default:
-                        Debug.Fail($"Unknown built in type {sourceType} encountered.");
-                        return null;
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unknown built in type {sourceType} encountered.");
                 }
             }
             catch (Exception e)

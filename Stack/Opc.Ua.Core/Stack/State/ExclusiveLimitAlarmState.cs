@@ -53,6 +53,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="limit">The bit masks specifying the current state.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void SetLimitState(ISystemContext context, LimitAlarmStates limit)
         {
             switch (limit)

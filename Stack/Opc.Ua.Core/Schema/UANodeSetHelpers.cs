@@ -120,6 +120,7 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="node"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void Export(ISystemContext context, NodeState node, bool outputRedundantNames = true)
         {
             if (node == null)
@@ -282,6 +283,13 @@ namespace Opc.Ua.Export
                     exportedNode = value;
                     break;
                 }
+                case NodeClass.Unspecified:
+                    // Unexpected?
+                    break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass {node.NodeClass}");
             }
 
             exportedNode.NodeId = Export(node.NodeId, context.NamespaceUris);
@@ -492,6 +500,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a node from the set.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private NodeState Import(ISystemContext context, UANode node)
         {
             NodeState importedNode = null;
@@ -677,6 +686,12 @@ namespace Opc.Ua.Export
                     };
                     break;
                 }
+                case NodeClass.Unspecified:
+                    break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass {nodeClass}");
             }
 
             importedNode.NodeId = ImportNodeId(node.NodeId, context.NamespaceUris, false);

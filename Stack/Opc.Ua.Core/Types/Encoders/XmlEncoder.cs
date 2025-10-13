@@ -1926,6 +1926,21 @@ namespace Opc.Ua
                         case BuiltInType.Enumeration:
                             WriteInt32("Int32", (int)value);
                             return;
+                        case BuiltInType.Null:
+                        case BuiltInType.Variant:
+                        case BuiltInType.DiagnosticInfo:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            throw new ServiceResultException(
+                                StatusCodes.BadEncodingError,
+                                Utils.Format(
+                                    "Type '{0}' is not allowed in an Variant.",
+                                    value.GetType().FullName));
+                        default:
+                            throw new ServiceResultException(
+                                StatusCodes.BadUnexpectedError,
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
                 // write array.
@@ -2042,6 +2057,20 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 value.GetType());
+                        case BuiltInType.Null:
+                        case BuiltInType.DiagnosticInfo:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            throw new ServiceResultException(
+                                StatusCodes.BadEncodingError,
+                                Utils.Format(
+                                    "Type '{0}' is not allowed in an Variant.",
+                                    value.GetType().FullName));
+                        default:
+                            throw new ServiceResultException(
+                                StatusCodes.BadUnexpectedError,
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
                 // write matrix.
@@ -2050,13 +2079,6 @@ namespace Opc.Ua
                     WriteMatrix("Matrix", (Matrix)value);
                     return;
                 }
-
-                // oops - should never happen.
-                throw new ServiceResultException(
-                    StatusCodes.BadEncodingError,
-                    Utils.Format(
-                        "Type '{0}' is not allowed in an Variant.",
-                        value.GetType().FullName));
             }
             finally
             {
@@ -2290,7 +2312,10 @@ namespace Opc.Ua
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 array.GetType());
                         }
-                        default:
+                        case BuiltInType.Null:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
                         {
                             // try to write IEncodeable Array
                             if (array is IEncodeable[] encodeableArray)
@@ -2307,6 +2332,10 @@ namespace Opc.Ua
                                 "Unexpected BuiltInType encountered while encoding an array: {0}",
                                 builtInType);
                         }
+                        default:
+                            throw new ServiceResultException(
+                               StatusCodes.BadUnexpectedError,
+                               $"Unexpected BuiltInType {builtInType}");
                     }
                 }
                 // write matrix.

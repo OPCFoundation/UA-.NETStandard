@@ -444,6 +444,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
         /// <param name="table">A table of nodes.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void Export(ISystemContext context, NodeTable table)
         {
             Node node;
@@ -473,9 +474,13 @@ namespace Opc.Ua
                 case NodeClass.View:
                     node = new ViewNode();
                     break;
-                default:
+                case NodeClass.Unspecified:
                     node = new Node();
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass value: {NodeClass}");
             }
 
             Export(context, node);
@@ -1886,35 +1891,44 @@ namespace Opc.Ua
                         nodeClass,
                         symbolicName,
                         browseName);
+                case NodeClass.Unspecified:
+                case NodeClass.ObjectType:
+                case NodeClass.VariableType:
+                case NodeClass.ReferenceType:
+                case NodeClass.DataType:
+                case NodeClass.View:
+                    // get the node factory.
+                    NodeStateFactory factory = context.NodeStateFactory
+                        ?? new NodeStateFactory();
+
+                    // create the appropriate node.
+                    NodeState child =
+                        factory.CreateInstance(context, null, nodeClass, browseName, null, null)
+                        ?? throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Could not load node '{0}', with NodeClass {1}",
+                            browseName,
+                            nodeClass);
+
+                    // update symbolic name.
+                    child.SymbolicName = symbolicName;
+                    child.BrowseName = browseName;
+
+                    // update attributes.
+                    child.Update(context, decoder, attributesToLoad);
+
+                    // update any references.
+                    child.UpdateReferences(context, decoder);
+
+                    // update any children.
+                    child.UpdateChildren(context, decoder);
+
+                    return child;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass {nodeClass}");
             }
-
-            // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory
-                ?? new NodeStateFactory();
-
-            // create the appropriate node.
-            NodeState child =
-                factory.CreateInstance(context, null, nodeClass, browseName, null, null)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Could not load node '{0}', with NodeClass {1}",
-                    browseName,
-                    nodeClass);
-
-            // update symbolic name.
-            child.SymbolicName = symbolicName;
-            child.BrowseName = browseName;
-
-            // update attributes.
-            child.Update(context, decoder, attributesToLoad);
-
-            // update any references.
-            child.UpdateReferences(context, decoder);
-
-            // update any children.
-            child.UpdateChildren(context, decoder);
-
-            return child;
         }
 
         /// <summary>
@@ -1947,37 +1961,46 @@ namespace Opc.Ua
                         childName,
                         nodeClass,
                         browseName);
+                case NodeClass.Unspecified:
+                case NodeClass.ObjectType:
+                case NodeClass.VariableType:
+                case NodeClass.ReferenceType:
+                case NodeClass.DataType:
+                case NodeClass.View:
+                    // get the node factory.
+                    NodeStateFactory factory = context.NodeStateFactory
+                        ?? new NodeStateFactory();
+
+                    // create the appropriate node.
+                    NodeState child =
+                        factory.CreateInstance(context, null, nodeClass, browseName, null, null)
+                        ?? throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Could not load node '{0}', with NodeClass {1}",
+                            browseName,
+                            nodeClass);
+
+                    // update symbolic name.
+                    child.SymbolicName = childName.Name;
+
+                    // update attributes.
+                    child.Update(context, decoder);
+
+                    // update any references.
+                    child.UpdateReferences(context, decoder);
+
+                    // update any children.
+                    child.UpdateChildren(context, decoder);
+
+                    // skip to the end of the child.
+                    decoder.Skip(childName);
+
+                    return child;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass {nodeClass}");
             }
-
-            // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory
-                ?? new NodeStateFactory();
-
-            // create the appropriate node.
-            NodeState child =
-                factory.CreateInstance(context, null, nodeClass, browseName, null, null)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Could not load node '{0}', with NodeClass {1}",
-                    browseName,
-                    nodeClass);
-
-            // update symbolic name.
-            child.SymbolicName = childName.Name;
-
-            // update attributes.
-            child.Update(context, decoder);
-
-            // update any references.
-            child.UpdateReferences(context, decoder);
-
-            // update any children.
-            child.UpdateChildren(context, decoder);
-
-            // skip to the end of the child.
-            decoder.Skip(childName);
-
-            return child;
         }
 
         /// <summary>
@@ -3997,9 +4020,9 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return StatusCodes.BadAttributeIdInvalid;
             }
-
-            return StatusCodes.BadAttributeIdInvalid;
         }
 
         /// <summary>

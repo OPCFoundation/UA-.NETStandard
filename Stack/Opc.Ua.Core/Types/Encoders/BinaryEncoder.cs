@@ -1758,7 +1758,10 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         WriteDataValueArray(null, (DataValue[])array);
                         break;
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                     {
                         // try to write IEncodeable Array
                         if (array is IEncodeable[] encodeableArray)
@@ -1780,6 +1783,10 @@ namespace Opc.Ua
                             "Unexpected type encountered while encoding an Array with BuiltInType: {0}",
                             builtInType);
                     }
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank > ValueRanks.OneDimension)
@@ -2068,7 +2075,10 @@ namespace Opc.Ua
                         }
                         break;
                     }
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                     {
                         // try to write IEncodeable Array
                         if (matrix.Elements is IEncodeable[] encodeableArray)
@@ -2084,6 +2094,10 @@ namespace Opc.Ua
                             "Unexpected type encountered while encoding a Matrix with BuiltInType: {0}",
                             matrix.TypeInfo.BuiltInType);
                     }
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected BuiltInType {matrix.TypeInfo.BuiltInType}");
                 }
             }
         }
@@ -2331,6 +2345,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the body of a node id to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void WriteNodeIdBody(byte encoding, object identifier, ushort namespaceIndex)
         {
             // write the node id.
@@ -2359,6 +2374,10 @@ namespace Opc.Ua
                     WriteUInt16(null, namespaceIndex);
                     WriteByteString(null, (byte[])identifier);
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeIdEncodingBits {encoding}");
             }
         }
 
@@ -2469,12 +2488,20 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         WriteDiagnosticInfo(null, (DiagnosticInfo)valueToEncode);
                         break;
+                    case BuiltInType.Null:
+                    case BuiltInType.Variant:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Variant: {0}",
+                            value.TypeInfo.BuiltInType);
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingError,
-                    "Unexpected type encountered while encoding a Variant: {0}",
-                    value.TypeInfo.BuiltInType);
             }
 
             if (value.TypeInfo.ValueRank >= 0)
@@ -2604,11 +2631,18 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         WriteDiagnosticInfoArray(null, (DiagnosticInfo[])valueToEncode);
                         break;
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Variant: {0}",
                             value.TypeInfo.BuiltInType);
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
 
                 // write the dimensions.

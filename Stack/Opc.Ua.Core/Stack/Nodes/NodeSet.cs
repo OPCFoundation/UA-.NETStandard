@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -213,7 +214,6 @@ namespace Opc.Ua
             }
 
             // check for values containing namespace indexes.
-#pragma warning disable IDE0010 // Add missing cases
             switch (typeInfo.BuiltInType)
             {
                 case BuiltInType.NodeId:
@@ -236,10 +236,12 @@ namespace Opc.Ua
                             namespaceUris);
                     }
                     return value;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return value;
                 default:
+                    Debug.Fail("Unexpected built-in type {typeInfo.BuiltInType}");
                     return value;
             }
-#pragma warning restore IDE0010 // Add missing cases
         }
 
         /// <summary>

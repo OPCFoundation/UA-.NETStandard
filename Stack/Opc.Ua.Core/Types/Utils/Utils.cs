@@ -219,9 +219,9 @@ namespace Opc.Ua
             {
                 case "CommonApplicationData":
                     return "ProgramData";
+                default:
+                    return input;
             }
-
-            return input;
         }
 
         /// <summary>
@@ -2325,7 +2325,7 @@ namespace Opc.Ua
                 {
                     return Convert.ToUInt32(
                         field.GetValue(constants),
-                        System.Globalization.CultureInfo.InvariantCulture);
+                        CultureInfo.InvariantCulture);
                 }
             }
 
@@ -2792,37 +2792,39 @@ namespace Opc.Ua
         /// <param name="certificateType">The certificate type to check.</param>
         public static bool IsSupportedCertificateType(NodeId certificateType)
         {
-            if (certificateType.Identifier is uint identifier)
+            if (certificateType.Identifier is not uint identifier)
             {
-                switch (identifier)
-                {
-#if ECC_SUPPORT
-                    case ObjectTypes.EccApplicationCertificateType:
-                        return true;
-                    case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[
-                            ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[
-                            ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccNistP256ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
-                            .Value;
-                    case ObjectTypes.EccNistP384ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
-                            .Value;
-                    //case ObjectTypes.EccCurve25519ApplicationCertificateType:
-                    //case ObjectTypes.EccCurve448ApplicationCertificateType:
-#endif
-                    case ObjectTypes.ApplicationCertificateType:
-                    case ObjectTypes.RsaMinApplicationCertificateType:
-                    case ObjectTypes.RsaSha256ApplicationCertificateType:
-                    case ObjectTypes.HttpsCertificateType:
-                    case ObjectTypes.UserCredentialCertificateType:
-                        return true;
-                }
+                return false;
             }
-            return false;
+            switch (identifier)
+            {
+#if ECC_SUPPORT
+                case ObjectTypes.EccApplicationCertificateType:
+                    return true;
+                case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
+                    return s_eccCurveSupportCache[
+                        ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
+                case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
+                    return s_eccCurveSupportCache[
+                        ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
+                case ObjectTypes.EccNistP256ApplicationCertificateType:
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
+                        .Value;
+                case ObjectTypes.EccNistP384ApplicationCertificateType:
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
+                        .Value;
+                // case ObjectTypes.EccCurve25519ApplicationCertificateType:
+                // case ObjectTypes.EccCurve448ApplicationCertificateType:
+#endif
+                case ObjectTypes.ApplicationCertificateType:
+                case ObjectTypes.RsaMinApplicationCertificateType:
+                case ObjectTypes.RsaSha256ApplicationCertificateType:
+                case ObjectTypes.HttpsCertificateType:
+                case ObjectTypes.UserCredentialCertificateType:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
 #if ECC_SUPPORT

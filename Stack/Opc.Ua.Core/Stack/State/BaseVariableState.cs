@@ -1854,7 +1854,6 @@ namespace Opc.Ua
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }
-
         }
 
         /// <summary>

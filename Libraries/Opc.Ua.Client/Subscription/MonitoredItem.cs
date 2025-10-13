@@ -1066,11 +1066,19 @@ namespace Opc.Ua.Client
                     }
 
                     break;
-                default:
+                case NodeClass.Method:
+                case NodeClass.ObjectType:
+                case NodeClass.ReferenceType:
+                case NodeClass.DataType:
+                case NodeClass.Unspecified:
                     throw ServiceResultException.Create(
                         StatusCodes.BadFilterNotAllowed,
                         "Filters may not be specified for nodes of class '{0}'.",
                         nodeClass);
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected NodeClass: {nodeClass}.");
             }
         }
 

@@ -355,6 +355,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Returns a random value of the specified built-in type.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public object GetRandom(BuiltInType expectedType)
         {
             switch (expectedType)
@@ -428,14 +429,19 @@ namespace Opc.Ua.Test
                         (int)BuiltInType.Byte);
                     return GetRandomVariant(builtInType, false);
                 }
+                case BuiltInType.Null:
+                    return null;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected BuiltInType {expectedType}");
             }
-
-            return null;
         }
 
         /// <summary>
         /// Returns a random value of the specified built-in type.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public Array GetRandomArray(
             BuiltInType expectedType,
             bool useBoundaryValues,
@@ -523,9 +529,14 @@ namespace Opc.Ua.Test
                 }
                 case BuiltInType.Enumeration:
                     return GetRandomArray<int>(useBoundaryValues, length, fixedLength);
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                    return null;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected BuiltInType {expectedType}");
             }
-
-            return null;
         }
 
         /// <summary>
@@ -966,6 +977,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Returns a random variant containing a scalar or array value.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private Variant GetRandomVariant(BuiltInType builtInType, bool isArray)
         {
             if (builtInType == BuiltInType.Null)
@@ -984,58 +996,70 @@ namespace Opc.Ua.Test
                 length = 1;
             }
 
-            if (length >= 0)
+            if (length < 0)
             {
-                switch (builtInType)
-                {
-                    case BuiltInType.Boolean:
-                        return new Variant(GetRandomArray<bool>(true, length, true));
-                    case BuiltInType.SByte:
-                        return new Variant(GetRandomArray<sbyte>(true, length, true));
-                    case BuiltInType.Byte:
-                        return new Variant(GetRandomArray<byte>(true, length, true));
-                    case BuiltInType.Int16:
-                        return new Variant(GetRandomArray<short>(true, length, true));
-                    case BuiltInType.UInt16:
-                        return new Variant(GetRandomArray<ushort>(true, length, true));
-                    case BuiltInType.Int32:
-                        return new Variant(GetRandomArray<int>(true, length, true));
-                    case BuiltInType.UInt32:
-                        return new Variant(GetRandomArray<uint>(true, length, true));
-                    case BuiltInType.Int64:
-                        return new Variant(GetRandomArray<long>(true, length, true));
-                    case BuiltInType.UInt64:
-                        return new Variant(GetRandomArray<ulong>(true, length, true));
-                    case BuiltInType.Float:
-                        return new Variant(GetRandomArray<float>(true, length, true));
-                    case BuiltInType.Double:
-                        return new Variant(GetRandomArray<double>(true, length, true));
-                    case BuiltInType.String:
-                        return new Variant(GetRandomArray<string>(true, length, true));
-                    case BuiltInType.DateTime:
-                        return new Variant(GetRandomArray<DateTime>(true, length, true));
-                    case BuiltInType.Guid:
-                        return new Variant(GetRandomArray<Uuid>(true, length, true));
-                    case BuiltInType.ByteString:
-                        return new Variant(GetRandomArray<byte[]>(true, length, true));
-                    case BuiltInType.XmlElement:
-                        return new Variant(GetRandomArray<XmlElement>(true, length, true));
-                    case BuiltInType.NodeId:
-                        return new Variant(GetRandomArray<NodeId>(true, length, true));
-                    case BuiltInType.ExpandedNodeId:
-                        return new Variant(GetRandomArray<ExpandedNodeId>(true, length, true));
-                    case BuiltInType.QualifiedName:
-                        return new Variant(GetRandomArray<QualifiedName>(true, length, true));
-                    case BuiltInType.LocalizedText:
-                        return new Variant(GetRandomArray<LocalizedText>(true, length, true));
-                    case BuiltInType.StatusCode:
-                        return new Variant(GetRandomArray<StatusCode>(true, length, true));
-                    case BuiltInType.Variant:
-                        return new Variant(GetRandomArray<Variant>(true, length, true));
-                }
+                return new Variant(GetRandom(builtInType));
             }
-
-            return new Variant(GetRandom(builtInType));
+            switch (builtInType)
+            {
+                case BuiltInType.Boolean:
+                    return new Variant(GetRandomArray<bool>(true, length, true));
+                case BuiltInType.SByte:
+                    return new Variant(GetRandomArray<sbyte>(true, length, true));
+                case BuiltInType.Byte:
+                    return new Variant(GetRandomArray<byte>(true, length, true));
+                case BuiltInType.Int16:
+                    return new Variant(GetRandomArray<short>(true, length, true));
+                case BuiltInType.UInt16:
+                    return new Variant(GetRandomArray<ushort>(true, length, true));
+                case BuiltInType.Int32:
+                    return new Variant(GetRandomArray<int>(true, length, true));
+                case BuiltInType.UInt32:
+                    return new Variant(GetRandomArray<uint>(true, length, true));
+                case BuiltInType.Int64:
+                    return new Variant(GetRandomArray<long>(true, length, true));
+                case BuiltInType.UInt64:
+                    return new Variant(GetRandomArray<ulong>(true, length, true));
+                case BuiltInType.Float:
+                    return new Variant(GetRandomArray<float>(true, length, true));
+                case BuiltInType.Double:
+                    return new Variant(GetRandomArray<double>(true, length, true));
+                case BuiltInType.String:
+                    return new Variant(GetRandomArray<string>(true, length, true));
+                case BuiltInType.DateTime:
+                    return new Variant(GetRandomArray<DateTime>(true, length, true));
+                case BuiltInType.Guid:
+                    return new Variant(GetRandomArray<Uuid>(true, length, true));
+                case BuiltInType.ByteString:
+                    return new Variant(GetRandomArray<byte[]>(true, length, true));
+                case BuiltInType.XmlElement:
+                    return new Variant(GetRandomArray<XmlElement>(true, length, true));
+                case BuiltInType.NodeId:
+                    return new Variant(GetRandomArray<NodeId>(true, length, true));
+                case BuiltInType.ExpandedNodeId:
+                    return new Variant(GetRandomArray<ExpandedNodeId>(true, length, true));
+                case BuiltInType.QualifiedName:
+                    return new Variant(GetRandomArray<QualifiedName>(true, length, true));
+                case BuiltInType.LocalizedText:
+                    return new Variant(GetRandomArray<LocalizedText>(true, length, true));
+                case BuiltInType.StatusCode:
+                    return new Variant(GetRandomArray<StatusCode>(true, length, true));
+                case BuiltInType.Variant:
+                    return new Variant(GetRandomArray<Variant>(true, length, true));
+                case BuiltInType.Null:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Enumeration:
+                    return new Variant(GetRandom(builtInType));
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected BuiltInType {builtInType}");
+            }
         }
 
         /// <inheritdoc/>

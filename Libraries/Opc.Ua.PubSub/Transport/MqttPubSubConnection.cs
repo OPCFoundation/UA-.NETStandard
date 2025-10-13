@@ -708,6 +708,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Transform pub sub setting into MqttNet enum
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private static MqttQualityOfServiceLevel GetMqttQualityOfServiceLevel(
             BrokerTransportQualityOfService brokerTransportQualityOfService)
         {
@@ -719,8 +720,14 @@ namespace Opc.Ua.PubSub.Transport
                     return MqttQualityOfServiceLevel.AtMostOnce;
                 case BrokerTransportQualityOfService.ExactlyOnce:
                     return MqttQualityOfServiceLevel.ExactlyOnce;
-                default:
+                case BrokerTransportQualityOfService.NotSpecified:
+                case BrokerTransportQualityOfService.BestEffort:
                     return MqttQualityOfServiceLevel.AtLeastOnce;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(brokerTransportQualityOfService),
+                        brokerTransportQualityOfService,
+                        "Unexpected service level");
             }
         }
 

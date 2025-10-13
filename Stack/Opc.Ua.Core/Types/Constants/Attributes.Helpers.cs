@@ -13,7 +13,6 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
-
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
 #else
@@ -160,9 +159,10 @@ namespace Opc.Ua
                     return BuiltInType.UInt16;
                 case AccessLevelEx:
                     return BuiltInType.UInt32;
+                default:
+                    ThrowIfOutOfRange(attributeId);
+                    return BuiltInType.Null;
             }
-
-            return BuiltInType.Null;
         }
 
         /// <summary>
@@ -219,9 +219,10 @@ namespace Opc.Ua
                     return DataTypeIds.UInt16;
                 case AccessLevelEx:
                     return DataTypeIds.UInt32;
+                default:
+                    ThrowIfOutOfRange(attributeId);
+                    return null;
             }
-
-            return null;
         }
 
         /// <summary>
@@ -283,9 +284,10 @@ namespace Opc.Ua
                     return (writeMask & (uint)AttributeWriteMask.AccessRestrictions) != 0;
                 case AccessLevelEx:
                     return (writeMask & (uint)AttributeWriteMask.AccessLevelEx) != 0;
+                default:
+                    ThrowIfOutOfRange(attributeId);
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -347,9 +349,10 @@ namespace Opc.Ua
                     return writeMask | (uint)AttributeWriteMask.AccessRestrictions;
                 case AccessLevelEx:
                     return writeMask | (uint)AttributeWriteMask.AccessLevelEx;
+                default:
+                    ThrowIfOutOfRange(attributeId);
+                    return writeMask;
             }
-
-            return writeMask;
         }
 
         /// <summary>
@@ -429,6 +432,7 @@ namespace Opc.Ua
                 case DataTypeDefinition:
                     return (nodeClass & (int)Ua.NodeClass.DataType) != 0;
                 default:
+                    ThrowIfOutOfRange(attributeId);
                     return false;
             }
         }
@@ -492,9 +496,24 @@ namespace Opc.Ua
                     return AttributeWriteMask.AccessRestrictions;
                 case AccessLevelEx:
                     return AttributeWriteMask.AccessLevelEx;
+                default:
+                    ThrowIfOutOfRange(attributeId);
+                    return 0;
             }
+        }
 
-            return 0;
+        /// <summary>
+        /// Throw if out of range
+        /// </summary>
+        /// <param name="attributeId"></param>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ThrowIfOutOfRange(uint attributeId)
+        {
+            if (attributeId is < NodeId or > AccessLevelEx)
+            {
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                    $"Unexpected invalid attribute id {attributeId}");
+            }
         }
 
         /// <summary>

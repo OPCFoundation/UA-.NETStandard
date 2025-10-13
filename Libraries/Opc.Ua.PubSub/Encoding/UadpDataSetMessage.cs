@@ -346,9 +346,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode payload data
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void EncodeMessageDataKeyFrame(BinaryEncoder binaryEncoder)
         {
-            switch ((FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1))
+            var fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
+            switch (fieldType)
             {
                 case FieldTypeEncodingMask.Variant:
                     binaryEncoder.WriteUInt16("DataSetFieldCount", (ushort)DataSet.Fields.Length);
@@ -376,12 +378,17 @@ namespace Opc.Ua.PubSub.Encoding
                 case FieldTypeEncodingMask.Reserved:
                     // ignore
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected FieldDataTypeEncodingMask {fieldType}");
             }
         }
 
         /// <summary>
         /// Encode payload data delta frame
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void EncodeMessageDataDeltaFrame(BinaryEncoder binaryEncoder)
         {
             // calculate the number of fields that will be written
@@ -420,6 +427,10 @@ namespace Opc.Ua.PubSub.Encoding
                     case FieldTypeEncodingMask.Reserved:
                         // ignore
                         break;
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected FieldDataTypeEncodingMask {fieldType}");
                 }
             }
         }
@@ -484,6 +495,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Decode field message data key frame from decoder and using a DataSetReader
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private DataSet DecodeMessageDataKeyFrame(
             BinaryDecoder binaryDecoder,
             DataSetReaderDataType dataSetReader)
@@ -544,6 +556,10 @@ namespace Opc.Ua.PubSub.Encoding
                     case FieldTypeEncodingMask.Reserved:
                         // ignore
                         break;
+                    default:
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            $"Unexpected FieldDataTypeEncodingMask {fieldType}");
                 }
 
                 var dataFields = new List<Field>();
@@ -593,6 +609,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Decode field message data delta frame from decoder and using a DataSetReader
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private DataSet DecodeMessageDataDeltaFrame(
             BinaryDecoder binaryDecoder,
             DataSetReaderDataType dataSetReader)
@@ -658,6 +675,10 @@ namespace Opc.Ua.PubSub.Encoding
                             case FieldTypeEncodingMask.Reserved:
                                 // ignore
                                 break;
+                            default:
+                                throw new ServiceResultException(
+                                    StatusCodes.BadUnexpectedError,
+                                    $"Unexpected FieldDataTypeEncodingMask {fieldType}");
                         }
                     }
 
@@ -681,6 +702,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes field value as RawData
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void EncodeFieldAsRawData(
             BinaryEncoder binaryEncoder,
             Field field,
@@ -806,6 +828,18 @@ namespace Opc.Ua.PubSub.Encoding
                                 "ExtensionObject",
                                 valueToEncode as ExtensionObject);
                             break;
+                        case BuiltInType.Null:
+                        case BuiltInType.DataValue:
+                        case BuiltInType.Variant:
+                        case BuiltInType.DiagnosticInfo:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            break;
+                        default:
+                            throw new ServiceResultException(
+                                StatusCodes.BadUnexpectedError,
+                                $"Unexpected BuiltInType {field.FieldMetaData.BuiltInType}");
                     }
                 }
                 else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
@@ -864,6 +898,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode a scalar type
         /// </summary>
         /// <returns>The decoded object</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private static object DecodeRawScalar(BinaryDecoder binaryDecoder, byte builtInType)
         {
             switch ((BuiltInType)builtInType)
@@ -918,8 +953,16 @@ namespace Opc.Ua.PubSub.Encoding
                     return binaryDecoder.ReadVariant(null);
                 case BuiltInType.ExtensionObject:
                     return binaryDecoder.ReadExtensionObject(null);
-                default:
+                case BuiltInType.Null:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
                     return null;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Unexpected BuiltInType {builtInType}");
             }
         }
     }

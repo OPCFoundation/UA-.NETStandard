@@ -651,8 +651,12 @@ namespace Opc.Ua.Server
                                     privateKey,
                                     passwordProvider?.GetPassword(existingCertIdentifier));
                             break;
+                        default:
+                            throw new ServiceResultException(
+                                StatusCodes.BadUnexpectedError,
+                                $"Unexpected PrivateKeyFormat {privateKeyFormat}");
                     }
-                    //dispose temporary new private key as it is no longer needed
+                    // dispose temporary new private key as it is no longer needed
                     certificateGroup.TemporaryApplicationCertificate?.Dispose();
                     certificateGroup.TemporaryApplicationCertificate = null;
 

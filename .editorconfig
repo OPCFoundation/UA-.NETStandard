@@ -152,7 +152,7 @@ csharp_style_prefer_readonly_struct                                           = 
 csharp_style_prefer_readonly_struct_member                                    = true:suggestion
 
 # Style - pattern matching
-csharp_style_prefer_switch_expression                                         = true:suggestion
+csharp_style_prefer_switch_expression                                         = false:silent
 csharp_style_prefer_pattern_matching                                          = true:silent
 csharp_style_prefer_not_pattern                                               = true:suggestion
 csharp_style_prefer_extended_property_pattern                                 = true:suggestion
@@ -398,9 +398,9 @@ dotnet_diagnostic.IDE0045.severity                                            = 
 # IDE0065: Using directives must be placed inside a namespace declaration
 dotnet_diagnostic.IDE0065.severity                                            = none
 # IDE0072: Add missing cases to switch statement
-dotnet_diagnostic.IDE0072.severity                                            = warning
+dotnet_diagnostic.IDE0072.severity                                            = silent
 # IDE0072: Add missing cases to switch expression
-dotnet_diagnostic.IDE0010.severity                                            = warning
+dotnet_diagnostic.IDE0010.severity                                            = silent
 # IDE0049: Simplify Names
 dotnet_diagnostic.IDE0049.severity                                            = suggestion
 # IDE1005: Simplify delegate invocation
@@ -563,7 +563,7 @@ dotnet_diagnostic.RCS1015.severity                                            = 
 #dotnet_diagnostic.RCS1018.severity                                           = suggestion
 # RCS1019 Order modifiers
 dotnet_diagnostic.RCS1019.severity                                            = none
-# RCS1020 Simplify Nullable<T> to T?
+# RCS1020 Simplify NullableT to T?
 dotnet_diagnostic.RCS1020.severity                                            = suggestion
 # RCS1021 Convert lambda expression body to expression body
 #dotnet_diagnostic.RCS1021.severity                                           = suggestion
@@ -731,7 +731,7 @@ dotnet_diagnostic.RCS1156.severity                                            = 
 #dotnet_diagnostic.RCS1157.severity                                           = suggestion
 # RCS1158 Static member in generic type should use a type parameter
 #dotnet_diagnostic.RCS1158.severity                                           = suggestion
-# RCS1159 Use EventHandler<T>
+# RCS1159 Use EventHandlerT
 #dotnet_diagnostic.RCS1159.severity                                           = suggestion
 # RCS1160 Abstract type should not have public constructors
 dotnet_diagnostic.RCS1160.severity                                            = warning
