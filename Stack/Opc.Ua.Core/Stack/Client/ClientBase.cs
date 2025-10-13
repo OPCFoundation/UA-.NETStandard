@@ -167,6 +167,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public int DefaultTimeoutHint { get; set; }
+
+        /// <inheritdoc/>
         public virtual void AttachChannel(ITransportChannel channel)
         {
             InitializeChannel(channel);
@@ -310,6 +313,18 @@ namespace Opc.Ua
                 if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
                 {
                     request.RequestHeader.AuthenticationToken = AuthenticationToken;
+                }
+
+                if (request.RequestHeader.TimeoutHint == 0)
+                {
+                    if (DefaultTimeoutHint > 0)
+                    {
+                        request.RequestHeader.TimeoutHint = (uint)DefaultTimeoutHint;
+                    }
+                    else if (OperationTimeout > 0)
+                    {
+                        request.RequestHeader.TimeoutHint = (uint)OperationTimeout;
+                    }
                 }
 
                 request.RequestHeader.Timestamp = DateTime.UtcNow;

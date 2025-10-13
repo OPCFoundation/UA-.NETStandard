@@ -509,7 +509,7 @@ namespace Opc.Ua.Client.Tests
                             ServerUrl,
                             SecurityPolicies.Basic256Sha256,
                             null,
-                            new UserIdentity("sysadmin", "demo"))
+                            new UserIdentity("sysadmin", "demo"u8))
                         .ConfigureAwait(false);
                     if (i != 0)
                     {
