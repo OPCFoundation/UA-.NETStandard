@@ -375,7 +375,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="collection">The collection of certificates to evaluate.</param>
         /// <returns>The best matching certificate, or null if the collection is empty or all are not-yet-valid.</returns>
-        static X509Certificate2 PickLongestDurationValidCerts(X509Certificate2Collection collection)
+        static X509Certificate2 PickBestCertificate(X509Certificate2Collection collection)
         {
             if (collection == null || collection.Count == 0)
             {
@@ -469,12 +469,12 @@ namespace Opc.Ua
             // find by subject name.
             if (!string.IsNullOrEmpty(subjectName))
             {
-                List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
+                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
                     if (ValidateCertificateType(certificate, certificateType) &&
-                        X509Utils.CompareDistinguishedName(certificate, subjectName2))
+                        X509Utils.CompareDistinguishedName(certificate, parsedSubjectName))
                     {
                         if (!needPrivateKey || certificate.HasPrivateKey)
                         {
@@ -484,14 +484,14 @@ namespace Opc.Ua
                 }
                 if (matchesOnCriteria?.Count > 0)
                 {
-                    return PickLongestDurationValidCerts(matchesOnCriteria);
+                    return PickBestCertificate(matchesOnCriteria);
                 }
 
                 bool hasCommonName = subjectName.IndexOf("CN=", StringComparison.OrdinalIgnoreCase) >= 0;
 
                 if (hasCommonName)
                 {
-                    string commonNameEntry = subjectName2
+                    string commonNameEntry = parsedSubjectName
                         .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
                     string commonName = commonNameEntry?.Length > 3
                         ? commonNameEntry.Substring(3).Trim()
@@ -513,7 +513,7 @@ namespace Opc.Ua
                         }
                         if (matchesOnCriteria?.Count > 0)
                         {
-                            return PickLongestDurationValidCerts(matchesOnCriteria);
+                            return PickBestCertificate(matchesOnCriteria);
                         }
                     }
                 }
@@ -533,7 +533,7 @@ namespace Opc.Ua
                     }
                     if (matchesOnCriteria?.Count > 0)
                     {
-                        return PickLongestDurationValidCerts(matchesOnCriteria);
+                        return PickBestCertificate(matchesOnCriteria);
                     }
                 }
             }
@@ -552,7 +552,7 @@ namespace Opc.Ua
                 }
                 if (matchesOnCriteria?.Count > 0)
                 {
-                    return PickLongestDurationValidCerts(matchesOnCriteria);
+                    return PickBestCertificate(matchesOnCriteria);
                 }
             }
 
