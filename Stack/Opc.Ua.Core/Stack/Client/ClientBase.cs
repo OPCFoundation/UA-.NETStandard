@@ -75,7 +75,9 @@ namespace Opc.Ua
 
                 if (channel != null && Disposed)
                 {
-                    throw ServiceResultException.Unexpected(
+                    // This is a bug in your code.
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
                         "Channel is set but client has been disposed.");
                 }
 
@@ -93,14 +95,17 @@ namespace Opc.Ua
                 {
                     if (Disposed)
                     {
-                        throw ServiceResultException.Unexpected(
+                        // This is a bug in your code.
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecureChannelClosed,
                             "Channel is set but client has been disposed.");
                     }
                     return channel;
                 }
                 if (Disposed)
                 {
-                    throw new ObjectDisposedException(nameof(ClientBase),
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
                         "Client has been disposed and channel is closed.");
                 }
                 throw new ServiceResultException(
