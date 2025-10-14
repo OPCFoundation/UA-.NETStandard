@@ -248,6 +248,7 @@ namespace Opc.Ua.Client
             PublishRequestCancelDelayOnCloseSession = 5000; // 5 seconds default
             TransferSubscriptionsOnReconnect = false;
             Reconnecting = false;
+            Closing = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
             ServerMaxContinuationPointsPerBrowse = 0;
         }
@@ -489,6 +490,11 @@ namespace Opc.Ua.Client
         /// Whether the session is reconnecting
         /// </summary>
         public bool Reconnecting { get; private set; }
+
+        /// <summary>
+        /// Whether the session is closing
+        /// </summary>
+        public bool Closing { get; private set; }
 
         /// <summary>
         /// Gets the period for wich the server will maintain the session if
@@ -3912,73 +3918,82 @@ namespace Opc.Ua.Client
 
             StatusCode result = StatusCodes.Good;
 
-            // stop the keep alive timer.
-            StopKeepAliveTimer();
+            Closing = true;
 
-            // check if correctly connected.
-            bool connected = Connected;
-
-            // halt all background threads.
-            if (connected && m_SessionClosing != null)
+            try
             {
-                try
-                {
-                    m_SessionClosing(this, null);
-                }
-                catch (Exception e)
-                {
-                    m_logger.LogError(e, "Session: Unexpected error raising SessionClosing event.");
-                }
-            }
+                // stop the keep alive timer.
+                StopKeepAliveTimer();
 
-            // close the session with the server.
-            if (connected && !KeepAliveStopped)
-            {
-                try
-                {
-                    // Wait for or cancel outstanding publish requests before closing session.
-                    await WaitForOrCancelOutstandingPublishRequestsAsync(ct).ConfigureAwait(false);
+                // check if correctly connected.
+                bool connected = Connected;
 
-                    // close the session and delete all subscriptions if specified.
-                    var requestHeader = new RequestHeader
+                // halt all background threads.
+                if (connected && m_SessionClosing != null)
+                {
+                    try
                     {
-                        TimeoutHint = timeout > 0
-                            ? (uint)timeout
-                            : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
-                    };
-                    CloseSessionResponse response = await base.CloseSessionAsync(
-                            requestHeader,
-                            DeleteSubscriptionsOnClose,
-                            ct)
-                        .ConfigureAwait(false);
-
-                    if (closeChannel)
-                    {
-                        await CloseChannelAsync(ct).ConfigureAwait(false);
+                        m_SessionClosing(this, null);
                     }
+                    catch (Exception e)
+                    {
+                        m_logger.LogError(e, "Session: Unexpected error raising SessionClosing event.");
+                    }
+                }
 
-                    // raised notification indicating the session is closed.
-                    SessionCreated(null, null);
-                }
-                // don't throw errors on disconnect, but return them
-                // so the caller can log the error.
-                catch (ServiceResultException sre)
+                // close the session with the server.
+                if (connected && !KeepAliveStopped)
                 {
-                    result = sre.StatusCode;
+                    try
+                    {
+                        // Wait for or cancel outstanding publish requests before closing session.
+                        await WaitForOrCancelOutstandingPublishRequestsAsync(ct).ConfigureAwait(false);
+
+                        // close the session and delete all subscriptions if specified.
+                        var requestHeader = new RequestHeader
+                        {
+                            TimeoutHint = timeout > 0
+                                ? (uint)timeout
+                                : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
+                        };
+                        CloseSessionResponse response = await base.CloseSessionAsync(
+                                requestHeader,
+                                DeleteSubscriptionsOnClose,
+                                ct)
+                            .ConfigureAwait(false);
+
+                        if (closeChannel)
+                        {
+                            await CloseChannelAsync(ct).ConfigureAwait(false);
+                        }
+
+                        // raised notification indicating the session is closed.
+                        SessionCreated(null, null);
+                    }
+                    // don't throw errors on disconnect, but return them
+                    // so the caller can log the error.
+                    catch (ServiceResultException sre)
+                    {
+                        result = sre.StatusCode;
+                    }
+                    catch (Exception)
+                    {
+                        result = StatusCodes.Bad;
+                    }
                 }
-                catch (Exception)
+
+                // clean up.
+                if (closeChannel)
                 {
-                    result = StatusCodes.Bad;
+                    Dispose();
                 }
+
+                return result;
             }
-
-            // clean up.
-            if (closeChannel)
+            finally
             {
-                Dispose();
+                Closing = false;
             }
-
-            return result;
         }
 
         /// <inheritdoc/>
@@ -5666,6 +5681,12 @@ namespace Opc.Ua.Client
             if (Reconnecting)
             {
                 m_logger.LogWarning("Publish skipped due to session reconnect");
+                return null;
+            }
+
+            if (Closing)
+            {
+                m_logger.LogWarning("Publish skipped due to session closing");
                 return null;
             }
 
