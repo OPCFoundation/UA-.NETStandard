@@ -2341,8 +2341,7 @@ namespace Opc.Ua
                     m_value = value;
                     return;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
         }
@@ -2436,8 +2435,7 @@ namespace Opc.Ua
                     m_value = array;
                     return;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
         }

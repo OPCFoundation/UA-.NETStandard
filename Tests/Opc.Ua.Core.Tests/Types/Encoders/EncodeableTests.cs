@@ -373,8 +373,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             }
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }

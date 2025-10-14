@@ -230,35 +230,21 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 // Just in case value is a positive signed Integer
                 // Try to bring it to an accepted type (will overflow if value doesn't fit)
-
-                object adjustedValue = value;
                 switch (value)
                 {
                     case short int16Value:
-                        if (int16Value > 0)
-                        {
-                            adjustedValue = (ushort)int16Value;
-                        }
+                        m_publisherId = int16Value > 0 ? (ushort)int16Value : value;
                         break;
                     case int int32Value:
-                        if (int32Value > 0)
-                        {
-                            adjustedValue = (uint)int32Value;
-                        }
+                        m_publisherId = int32Value > 0 ? (uint)int32Value : value;
                         break;
                     case long int64Value:
-                        if (int64Value > 0)
-                        {
-                            adjustedValue = (ulong)int64Value;
-                        }
+                        m_publisherId = int64Value > 0 ? (ulong)int64Value : value;
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Publisher id type {value?.GetType().Name} unexpected");
+                        m_publisherId = value;
+                        break;
                 }
-
-                m_publisherId = adjustedValue;
 
                 // Remove previous PublisherId data type
                 ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
@@ -962,8 +948,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case PublisherIdTypeEncodingMask.Reserved:
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected PublisherIdTypeEncodingMask {publisherIdEncoding}");
                     }
                 }
@@ -1146,8 +1131,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case UADPNetworkMessageDiscoveryType.None:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected UADPNetworkMessageDiscoveryType {UADPDiscoveryType}");
             }
         }
@@ -1224,8 +1208,7 @@ namespace Opc.Ua.PubSub.Encoding
                     case PublisherIdTypeEncodingMask.Reserved:
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected PublisherIdTypeEncodingMask {publisherIdEncoding}");
                 }
             }
@@ -1415,8 +1398,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case UADPNetworkMessageDiscoveryType.None:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected UADPNetworkMessageDiscoveryType {UADPDiscoveryType}");
             }
         }

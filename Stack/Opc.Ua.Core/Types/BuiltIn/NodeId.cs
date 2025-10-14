@@ -408,8 +408,8 @@ namespace Opc.Ua
 
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError, $"Unexpected IdType value {idType}.");
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
                 }
             }
 
@@ -481,8 +481,8 @@ namespace Opc.Ua
                         .Append(m_identifier.ToString());
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError, $"Unexpected IdType value {IdType}.");
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {IdType}.");
             }
 
             return buffer.ToString();
@@ -972,8 +972,8 @@ namespace Opc.Ua
                     buffer.Append("b=");
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError, $"Unexpected IdType value {identifierType}.");
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {identifierType}.");
             }
 
             // add identifier.
@@ -1048,8 +1048,8 @@ namespace Opc.Ua
                 IdType.Opaque => Utils.Clone(value),
                 IdType.Guid => (Guid)value,
                 IdType.Numeric or IdType.String => value,
-                _ => throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError, $"Unexpected IdType value {idType}.")
+                _ => throw ServiceResultException.Unexpected(
+                    $"Unexpected IdType value {idType}.")
             };
         }
 
@@ -1233,8 +1233,8 @@ namespace Opc.Ua
                     case IdType.Guid:
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError, $"Unexpected IdType value {idType}.");
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
                 }
 
                 return -1;
@@ -1275,8 +1275,8 @@ namespace Opc.Ua
                     case IdType.Guid:
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError, $"Unexpected IdType value {idType}.");
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
                 }
 
                 return +1;
@@ -1553,8 +1553,8 @@ namespace Opc.Ua
                         case IdType.Opaque:
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError, $"Unexpected IdType value {IdType}.");
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected IdType value {IdType}.");
                     }
                 }
 
@@ -1613,8 +1613,8 @@ namespace Opc.Ua
 
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError, $"Unexpected IdType value {IdType}.");
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected IdType value {IdType}.");
                     }
                 }
 
@@ -1798,8 +1798,8 @@ namespace Opc.Ua
                     return id1.Length < id2.Length ? -1 : +1;
                 }
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError, $"Unexpected IdType value {IdType}.");
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {IdType}.");
             }
         }
 
@@ -1846,8 +1846,8 @@ namespace Opc.Ua
                     }
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError, $"Unexpected IdType value {identifierType}.");
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {identifierType}.");
             }
         }
 

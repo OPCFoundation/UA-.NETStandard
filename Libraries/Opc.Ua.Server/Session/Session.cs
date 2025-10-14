@@ -1265,8 +1265,7 @@ namespace Opc.Ua.Server
                     case RequestType.Cancel:
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected RequestType {requestType}");
                 }
 

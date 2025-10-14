@@ -1945,8 +1945,7 @@ namespace Opc.Ua.Server
                     m_dataChangeQueueHandler = null;
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected MonitoringMode {MonitoringMode}");
             }
         }
@@ -2060,8 +2059,7 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Disabled:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected MonitoringMode {MonitoringMode}");
             }
         }

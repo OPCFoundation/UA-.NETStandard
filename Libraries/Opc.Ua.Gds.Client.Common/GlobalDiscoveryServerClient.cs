@@ -331,7 +331,9 @@ namespace Opc.Ua.Gds.Client
 
                     await ConnectAsync(endpoint, ct).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when (e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed)
                 {
                     serverHalted = true;
                     await Task.Delay(1000, ct).ConfigureAwait(false);

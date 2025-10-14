@@ -129,8 +129,7 @@ namespace Opc.Ua
 
                     return new Node(source);
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass {source.NodeClass}");
             }
         }

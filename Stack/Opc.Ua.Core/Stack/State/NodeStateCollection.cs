@@ -549,8 +549,7 @@ namespace Opc.Ua
                         child = null;
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected NodeClass {nodeClass}");
                 }
             }

@@ -335,8 +335,8 @@ namespace Opc.Ua
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
                 default:
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                        Utils.Format("Unexpected security policy URI for ECC: {0}", securityPolicyUri));
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected security policy URI for ECC: {0}", securityPolicyUri);
             }
         }
 
@@ -1464,8 +1464,8 @@ namespace Opc.Ua
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
                 default:
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                        Utils.Format("Unexpected security policy URI for ECC: {0}", securityPolicyUri));
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected security policy URI for ECC: {0}", securityPolicyUri);
             }
         }
 

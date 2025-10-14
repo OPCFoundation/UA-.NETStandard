@@ -572,8 +572,7 @@ namespace Opc.Ua.Server
                     case SessionEventReason.Impersonating:
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected SessionEventReason {reason}");
                 }
 

@@ -1076,8 +1076,7 @@ namespace Opc.Ua.Client
                         "Filters may not be specified for nodes of class '{0}'.",
                         nodeClass);
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass: {nodeClass}.");
             }
         }

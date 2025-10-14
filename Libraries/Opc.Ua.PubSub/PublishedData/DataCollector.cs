@@ -293,8 +293,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                                         break;
                                     default:
-                                        throw new ServiceResultException(
-                                            StatusCodes.BadUnexpectedError,
+                                        throw ServiceResultException.Unexpected(
                                             $"Unexpected BuiltInType {builtInType}");
                                 }
 

@@ -846,8 +846,7 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.IssuerNotYetValid:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected InvalidCertType {certType}");
             }
 
@@ -892,8 +891,7 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.NoIssuer:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected InvalidCertType {certType}");
             }
 

@@ -1938,8 +1938,7 @@ namespace Opc.Ua
                                     "Type '{0}' is not allowed in an Variant.",
                                     value.GetType().FullName));
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
@@ -2068,8 +2067,7 @@ namespace Opc.Ua
                                     "Type '{0}' is not allowed in an Variant.",
                                     value.GetType().FullName));
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
@@ -2333,9 +2331,8 @@ namespace Opc.Ua
                                 builtInType);
                         }
                         default:
-                            throw new ServiceResultException(
-                               StatusCodes.BadUnexpectedError,
-                               $"Unexpected BuiltInType {builtInType}");
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {builtInType}");
                     }
                 }
                 // write matrix.

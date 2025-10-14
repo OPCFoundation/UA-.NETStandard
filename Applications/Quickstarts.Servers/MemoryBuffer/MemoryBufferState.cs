@@ -152,9 +152,7 @@ namespace MemoryBuffer
                         m_elementSize = 1;
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Unexpected BuiltInType {ElementType}");
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {ElementType}");
                 }
 
                 m_lastScanTime = DateTime.UtcNow;
@@ -328,9 +326,7 @@ namespace MemoryBuffer
                     case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                         return StatusCodes.BadNodeIdUnknown;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Unexpected BuiltInType {ElementType}");
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {ElementType}");
                 }
 
                 for (int ii = 0; ii < bytes.Length; ii++)
@@ -379,9 +375,7 @@ namespace MemoryBuffer
                     case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                         return Variant.Null;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Bad element type {ElementType}");
+                        throw ServiceResultException.Unexpected($"Bad element type {ElementType}");
                 }
             }
         }

@@ -588,8 +588,7 @@ namespace Opc.Ua
                 case JsonEncodingType.NonReversible:
                     return;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected Encoding type {EncodingToUse}");
             }
 
@@ -1386,8 +1385,7 @@ namespace Opc.Ua
                     WriteByteString("Id", (byte[])value.Identifier);
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected Node IdType {value.IdType}");
             }
 
@@ -3019,8 +3017,7 @@ namespace Opc.Ua
                             builtInType);
                     }
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {builtInType}");
                 }
             }
@@ -3439,8 +3436,7 @@ namespace Opc.Ua
                             // Should this not throw?
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }

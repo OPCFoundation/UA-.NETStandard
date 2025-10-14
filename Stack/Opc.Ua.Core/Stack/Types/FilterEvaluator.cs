@@ -100,8 +100,7 @@ namespace Opc.Ua
                 FilterOperator.RelatedTo => RelatedTo(element),
                 FilterOperator.BitwiseAnd => BitwiseAnd(element),
                 FilterOperator.BitwiseOr => BitwiseOr(element),
-                _ => throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                _ => throw ServiceResultException.Unexpected(
                     $"FilterOperator {element.FilterOperator} is not recognized.")
             };
         }
@@ -120,16 +119,12 @@ namespace Opc.Ua
             {
                 if (ExtensionObject.IsNull(extension))
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        "FilterOperand is null.");
+                    throw ServiceResultException.Unexpected("FilterOperand is null.");
                 }
 
                 if (extension.Body is not FilterOperand operand)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        "FilterOperand is not supported.");
+                    throw ServiceResultException.Unexpected("FilterOperand is not supported.");
                 }
 
                 operands[ii++] = operand;
@@ -137,8 +132,7 @@ namespace Opc.Ua
 
             if (expectedCount > 0 && expectedCount != operands.Length)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "ContentFilterElement does not have the correct number of operands.");
             }
 
@@ -222,9 +216,7 @@ namespace Opc.Ua
             }
 
             // oops - Validate() was not called.
-            throw new ServiceResultException(
-                StatusCodes.BadUnexpectedError,
-                "FilterOperand is not supported.");
+            throw ServiceResultException.Unexpected("FilterOperand is not supported.");
         }
 
         /// <summary>
@@ -425,8 +417,7 @@ namespace Opc.Ua
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     return 0;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {type} encountered.");
             }
         }
@@ -587,8 +578,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -644,8 +634,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -696,8 +685,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -753,8 +741,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -813,8 +800,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -872,8 +858,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -931,8 +916,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -990,8 +974,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1049,8 +1032,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1106,8 +1088,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1163,8 +1144,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1234,8 +1214,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return DBNull.Value;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1271,8 +1250,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1310,8 +1288,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1347,8 +1324,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1386,8 +1362,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1427,8 +1402,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1474,8 +1448,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1511,8 +1484,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1548,8 +1520,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {sourceType} encountered.");
             }
         }
@@ -1636,8 +1607,7 @@ namespace Opc.Ua
                         // conversion not supported.
                         return null;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unknown built in type {sourceType} encountered.");
                 }
             }

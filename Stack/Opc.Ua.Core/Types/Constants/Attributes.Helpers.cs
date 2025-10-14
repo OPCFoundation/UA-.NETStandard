@@ -511,8 +511,8 @@ namespace Opc.Ua
         {
             if (attributeId is < NodeId or > AccessLevelEx)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                    $"Unexpected invalid attribute id {attributeId}");
+                throw ServiceResultException.Unexpected(
+                    $"Invalid attribute id {attributeId}. This attribute is not defined.");
             }
         }
 

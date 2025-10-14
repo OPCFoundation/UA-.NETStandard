@@ -507,8 +507,7 @@ namespace Opc.Ua
                     operandCount = -1;
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected FilterOperator {m_filterOperator}");
             }
 
@@ -753,8 +752,8 @@ namespace Opc.Ua
 
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError, $"Unknown filter operator {FilterOperator}");
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown filter operator {FilterOperator}");
             }
 
             return buffer.ToString();

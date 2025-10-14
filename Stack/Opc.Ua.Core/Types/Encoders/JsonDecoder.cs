@@ -884,8 +884,8 @@ namespace Opc.Ua
                         case IdType.Guid:
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
                         default:
-                            throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                                Utils.Format("Unexpected IdType value: {0}", idType));
+                            throw ServiceResultException.Unexpected(
+                                "Unexpected IdType value: {0}", idType);
                     }
                 }
                 return DefaultNodeId(idType, namespaceIndex);
@@ -1015,8 +1015,8 @@ namespace Opc.Ua
                                 namespaceUri,
                                 serverIndex);
                         default:
-                            throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                                Utils.Format("Unexpected IdType value: {0}", idType));
+                            throw ServiceResultException.Unexpected(
+                                "Unexpected IdType value: {0}", idType);
                     }
                 }
 
@@ -2357,9 +2357,7 @@ namespace Opc.Ua
                                 "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                                 builtInType));
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Unexpected BuiltInType {builtInType}");
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
@@ -2657,8 +2655,7 @@ namespace Opc.Ua
                                 "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                                 builtInType);
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected BuiltInType {builtInType}");
                     }
                 }
@@ -3100,9 +3097,7 @@ namespace Opc.Ua
                 case BuiltInType.Enumeration:
                     return Variant.Null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        $"Unexpected BuiltInType {type}");
+                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {type}");
             }
         }
 
@@ -3181,9 +3176,7 @@ namespace Opc.Ua
                 case BuiltInType.Enumeration:
                     return Variant.Null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        $"Unexpected BuiltInType {type}");
+                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {type}");
             }
         }
 
@@ -3408,8 +3401,8 @@ namespace Opc.Ua
                 case IdType.Guid:
                     return new NodeId(Guid.Empty, namespaceIndex);
                 default:
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                        Utils.Format("Unexpected IdType value: {0}", idType));
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected IdType value: {0}", idType);
             }
         }
 

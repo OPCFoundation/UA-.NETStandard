@@ -1486,8 +1486,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "Unexpected Type in binary schema: {0}.",
                         item.GetType().Name);
                 }

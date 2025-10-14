@@ -357,8 +357,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case FieldTypeEncodingMask.Reserved:
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected FieldDataTypeEncodingMask {m_fieldTypeEncoding}");
                     }
                 }
@@ -385,8 +384,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case FieldTypeEncodingMask.Reserved:
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected FieldDataTypeEncodingMask {m_fieldTypeEncoding}");
                     }
                 }
@@ -578,8 +576,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case FieldTypeEncodingMask.Reserved:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected FieldDataTypeEncodingMask {m_fieldTypeEncoding}");
             }
         }
@@ -732,8 +729,7 @@ namespace Opc.Ua.PubSub.Encoding
                     case BuiltInType.UInteger:
                         return null;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {builtInType}");
                 }
             }

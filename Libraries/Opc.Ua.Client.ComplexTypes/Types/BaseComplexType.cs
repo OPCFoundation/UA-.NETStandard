@@ -526,8 +526,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         "Cannot encode unknown type {0}.",
                         propertyType.Name);
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {builtInType} encountered.");
             }
         }
@@ -706,8 +705,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         "Cannot decode unknown type {0}.",
                         propertyType.Name);
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unknown built in type {builtInType} encountered.");
             }
         }

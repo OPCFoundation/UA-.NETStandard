@@ -1428,8 +1428,7 @@ namespace Opc.Ua
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {builtInType}");
                 }
             }
@@ -1931,8 +1930,7 @@ namespace Opc.Ua
                         "Cannot decode unknown type in Variant object with BuiltInType: {0}.",
                         builtInType);
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {builtInType}");
             }
 
@@ -2409,8 +2407,7 @@ namespace Opc.Ua
                             "Cannot decode unknown type in Variant object (0x{0:X2}).",
                             encodingByte);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {encodingByte}");
                 }
             }

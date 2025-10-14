@@ -54,9 +54,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 JsonEncodingType.NonReversible => ExpectedNonReversible ?? ExpectedReversible,
                 JsonEncodingType.Reversible => ExpectedReversible,
                 JsonEncodingType.Compact => ExpectedCompact,
-                _ => throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
-                    $"Unexpected encoding type {jsonEncodingType}")
+                _ => throw ServiceResultException.Unexpected($"Unexpected encoding type {jsonEncodingType}")
             };
         }
 

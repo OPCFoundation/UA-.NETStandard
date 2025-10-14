@@ -652,8 +652,7 @@ namespace Opc.Ua.Server
                                     passwordProvider?.GetPassword(existingCertIdentifier));
                             break;
                         default:
-                            throw new ServiceResultException(
-                                StatusCodes.BadUnexpectedError,
+                            throw ServiceResultException.Unexpected(
                                 $"Unexpected PrivateKeyFormat {privateKeyFormat}");
                     }
                     // dispose temporary new private key as it is no longer needed
@@ -763,8 +762,8 @@ namespace Opc.Ua.Server
                     {
                         m_logger.LogError(
                             Utils.TraceMasks.Security,
-                            "{StackTrace}",
-                            ServiceResult.BuildExceptionTrace(ex));
+                            ex,
+                            "Failed to update certificate");
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "Failed to update certificate.",

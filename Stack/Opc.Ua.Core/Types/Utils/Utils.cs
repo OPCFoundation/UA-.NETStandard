@@ -2698,8 +2698,7 @@ namespace Opc.Ua
             // check for a valid seed.
             if (seed == null)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The HMAC algorithm requires a non-null seed.");
             }
 

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -491,7 +490,7 @@ namespace Opc.Ua.Client.Tests
 
             DateTime restartTime = DateTime.UtcNow;
 #if !DEBUG_CONNECT_FAILED
-            ISession transferSession= await ClientFixture
+            ISession transferSession = await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,

@@ -352,8 +352,7 @@ namespace Opc.Ua
                 case BuiltInType.Null:
                     return NodeId.Null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
         }
@@ -890,8 +889,7 @@ namespace Opc.Ua
                         // nulls not allowed.
                         return null;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {expectedType}");
                 }
             }
@@ -947,8 +945,7 @@ namespace Opc.Ua
                             case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                                 return null;
                             default:
-                                throw new ServiceResultException(
-                                    StatusCodes.BadUnexpectedError,
+                                throw ServiceResultException.Unexpected(
                                     $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                         }
 
@@ -971,8 +968,7 @@ namespace Opc.Ua
                             case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                                 return null;
                             default:
-                                throw new ServiceResultException(
-                                    StatusCodes.BadUnexpectedError,
+                                throw ServiceResultException.Unexpected(
                                     $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                         }
 
@@ -995,8 +991,7 @@ namespace Opc.Ua
                             case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                                 return null;
                             default:
-                                throw new ServiceResultException(
-                                    StatusCodes.BadUnexpectedError,
+                                throw ServiceResultException.Unexpected(
                                     $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                         }
                         break;
@@ -1261,9 +1256,8 @@ namespace Opc.Ua
                     case BuiltInType.Null:
                         return typeof(Variant);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Unexpected BuiltInType {builtInType}");
+                        throw ServiceResultException.Unexpected(
+                             $"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank == ValueRanks.OneDimension)
@@ -1329,8 +1323,7 @@ namespace Opc.Ua
                     case BuiltInType.Null:
                         return typeof(Variant);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {builtInType}");
                 }
             }
@@ -1397,8 +1390,7 @@ namespace Opc.Ua
                     case BuiltInType.Null:
                         return typeof(Variant);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {builtInType}");
                 }
             }
@@ -1669,8 +1661,7 @@ namespace Opc.Ua
                 case BuiltInType.DiagnosticInfo:
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {type}");
             }
         }
@@ -1837,8 +1828,7 @@ namespace Opc.Ua
                     case BuiltInType.UInteger:
                         return new Variant[length];
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {type}");
                 }
             }
@@ -1908,8 +1898,7 @@ namespace Opc.Ua
                     case BuiltInType.UInteger:
                         return Array.CreateInstance(typeof(Variant), dimensions);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {type}");
                 }
             }
@@ -2022,8 +2011,7 @@ namespace Opc.Ua
                 case BuiltInType.DiagnosticInfo:
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {targetType}");
             }
         }
@@ -2267,8 +2255,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2311,8 +2298,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2355,8 +2341,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2399,8 +2384,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2446,8 +2430,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2492,8 +2475,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2538,8 +2520,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2584,8 +2565,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2630,8 +2610,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2674,8 +2653,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2718,8 +2696,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2784,8 +2761,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2810,8 +2786,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2843,8 +2818,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2932,8 +2906,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2958,8 +2931,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -2984,8 +2956,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -3010,8 +2981,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -3062,8 +3032,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -3086,8 +3055,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }
@@ -3110,8 +3078,7 @@ namespace Opc.Ua
                     // conversion not supported.
                     throw new InvalidCastException();
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
         }

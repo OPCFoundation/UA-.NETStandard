@@ -518,9 +518,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        $"Unexpected BuiltInType {builtInType}");
+                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
             }
 
             if (valueUpdated)

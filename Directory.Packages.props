@@ -29,10 +29,10 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="NUnit" Version="4.4.0" />
     <PackageVersion Include="NUnit.Console" Version="3.20.1" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="5.1.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="5.2.0" />
     <PackageVersion Include="PolySharp" Version="1.15.0" />
-    <PackageVersion Include="Roslynator.Analyzers" Version="4.14.0" />
-    <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.14.0" />
+    <PackageVersion Include="Roslynator.Analyzers" Version="4.14.1" />
+    <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.14.1" />
     <PackageVersion Include="SharpFuzz" Version="2.2.0" />
     <PackageVersion Include="Serilog" Version="4.3.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
@@ -46,7 +46,7 @@
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
     <PackageVersion Include="System.Net.NetworkInformation" Version="4.3.0" />
     <PackageVersion Include="System.Collections.Immutable" Version="9.0.9" />
-    <PackageVersion Include="System.Text.Json" Version="9.0.5" />
+    <PackageVersion Include="System.Text.Json" Version="9.0.9" />
     <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="System.Security.Cryptography.Cng" Version="5.0.0" />

@@ -478,8 +478,7 @@ namespace Opc.Ua
                     node = new Node();
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass value: {NodeClass}");
             }
 
@@ -1925,8 +1924,7 @@ namespace Opc.Ua
 
                     return child;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass {nodeClass}");
             }
         }
@@ -1997,8 +1995,7 @@ namespace Opc.Ua
 
                     return child;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass {nodeClass}");
             }
         }

@@ -233,7 +233,9 @@ namespace Opc.Ua.Client.Tests
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when (e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed)
                 {
                     serverHalted = true;
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -273,7 +275,9 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when (e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed)
                 {
                     serverHalted = true;
                     await Task.Delay(1000).ConfigureAwait(false);

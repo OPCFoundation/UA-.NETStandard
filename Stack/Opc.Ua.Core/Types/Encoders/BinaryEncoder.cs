@@ -1784,9 +1784,7 @@ namespace Opc.Ua
                             builtInType);
                     }
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Unexpected BuiltInType {builtInType}");
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank > ValueRanks.OneDimension)
@@ -2095,8 +2093,7 @@ namespace Opc.Ua
                             matrix.TypeInfo.BuiltInType);
                     }
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {matrix.TypeInfo.BuiltInType}");
                 }
             }
@@ -2375,8 +2372,7 @@ namespace Opc.Ua
                     WriteByteString(null, (byte[])identifier);
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected NodeIdEncodingBits {encoding}");
             }
         }
@@ -2498,8 +2494,7 @@ namespace Opc.Ua
                             "Unexpected type encountered while encoding a Variant: {0}",
                             value.TypeInfo.BuiltInType);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
             }
@@ -2640,8 +2635,7 @@ namespace Opc.Ua
                             "Unexpected type encountered while encoding a Variant: {0}",
                             value.TypeInfo.BuiltInType);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
 

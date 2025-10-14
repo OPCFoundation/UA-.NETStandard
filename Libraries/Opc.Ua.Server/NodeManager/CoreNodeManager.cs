@@ -593,8 +593,7 @@ namespace Opc.Ua.Server
                     case NodeClass.DataType:
                         break;
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             $"Unexpected NodeClass {target.NodeClass}");
                 }
 

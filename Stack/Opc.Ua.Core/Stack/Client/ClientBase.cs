@@ -470,8 +470,7 @@ namespace Opc.Ua
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
             }
         }
@@ -487,8 +486,7 @@ namespace Opc.Ua
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0 && response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
             }
         }

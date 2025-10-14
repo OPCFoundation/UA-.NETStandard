@@ -73,8 +73,7 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(location))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Store Location cannot be empty.");
             }
 
@@ -82,8 +81,7 @@ namespace Opc.Ua
             int index = location.IndexOf('\\', StringComparison.Ordinal);
             if (index == -1)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Path does not specify a store name. Path={0}",
                     location);
             }
@@ -104,12 +102,8 @@ namespace Opc.Ua
             }
             if (!found)
             {
-                var message = new StringBuilder();
-                message.AppendLine("Store location specified not available.")
-                    .AppendLine("Store location={0}");
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    message.ToString(),
+                throw ServiceResultException.Unexpected(
+                    "Store location specified not available. Store location={0}",
                     storeLocation);
             }
 

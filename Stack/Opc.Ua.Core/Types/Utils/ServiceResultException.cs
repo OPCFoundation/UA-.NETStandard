@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -194,6 +195,28 @@ namespace Opc.Ua
         {
             return new ServiceResultException(
                 new ServiceResult(code, index, diagnosticInfos, stringTable));
+        }
+
+        /// <summary>
+        /// Unexpected error occurred
+        /// </summary>
+        /// <param name="format"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public static ServiceResultException Unexpected(string format, params object[] args)
+        {
+#if DEBUG
+            string message = format == null ? "An unexpected error occurred" : Utils.Format(format, args);
+#if DEBUGCHK
+            Debug.Fail(message);
+#endif
+            Debug.WriteLine($"{message}\n{new StackTrace()}");
+#endif
+            if (format == null)
+            {
+                return new ServiceResultException(StatusCodes.BadUnexpectedError);
+            }
+            return new ServiceResultException(StatusCodes.BadUnexpectedError, Utils.Format(format, args));
         }
 
         /// <summary>

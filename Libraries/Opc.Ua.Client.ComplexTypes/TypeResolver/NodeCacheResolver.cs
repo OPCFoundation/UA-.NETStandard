@@ -649,9 +649,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (schema == null || schema.Length == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Cannot parse empty data dictionary.");
+                throw ServiceResultException.Unexpected("Cannot parse empty data dictionary.");
             }
 
             // Interoperability: some server may return a null terminated dictionary string

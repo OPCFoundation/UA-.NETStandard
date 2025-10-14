@@ -381,9 +381,8 @@ namespace Opc.Ua.Gds.Server
                     {
                         m_logger.LogError(
                             e,
-                            "Unexpected error initializing certificateGroup: {CertificateGroupId}\n{StackTrace}",
-                            certificateGroupConfiguration.Id,
-                            ServiceResult.BuildExceptionTrace(e));
+                            "Unexpected error initializing certificateGroup: {CertificateGroupId}",
+                            certificateGroupConfiguration.Id);
                         // make sure gds server doesn't start without cert groups!
                         throw;
                     }
@@ -559,9 +558,6 @@ namespace Opc.Ua.Gds.Server
                     passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                     return activeNode;
-                default:
-                    throw new ServiceResultException(StatusCodes.BadNotSupported,
-                        $"Certificate type id {typeId} not supported.");
             }
 
             return predefinedNode;
@@ -1930,8 +1926,7 @@ namespace Opc.Ua.Gds.Server
                 case CertificateRequestState.Approved:
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected CertificateRequestState {state}");
             }
         }

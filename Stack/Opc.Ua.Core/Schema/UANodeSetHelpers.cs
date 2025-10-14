@@ -287,8 +287,7 @@ namespace Opc.Ua.Export
                     // Unexpected?
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass {node.NodeClass}");
             }
 
@@ -689,9 +688,7 @@ namespace Opc.Ua.Export
                 case NodeClass.Unspecified:
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        $"Unexpected NodeClass {nodeClass}");
+                    throw ServiceResultException.Unexpected($"Unexpected NodeClass {nodeClass}");
             }
 
             importedNode.NodeId = ImportNodeId(node.NodeId, context.NamespaceUris, false);

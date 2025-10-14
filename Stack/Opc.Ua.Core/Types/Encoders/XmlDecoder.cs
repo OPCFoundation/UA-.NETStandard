@@ -2887,9 +2887,7 @@ namespace Opc.Ua
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
                     default:
-                        throw new ServiceResultException(
-                            StatusCodes.BadUnexpectedError,
-                            $"Unexpected BuiltInType {builtInType}");
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             finally

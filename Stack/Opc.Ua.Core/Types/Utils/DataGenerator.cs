@@ -432,8 +432,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.Null:
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {expectedType}");
             }
         }
@@ -533,8 +532,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.DiagnosticInfo:
                     return null;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {expectedType}");
             }
         }
@@ -894,7 +892,7 @@ namespace Opc.Ua.Test
                 case IdType.Opaque:
                     return new NodeId(GetRandomByteString(), ns);
                 default:
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "Unexpected IdType value");
             }
         }
@@ -1056,8 +1054,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.Enumeration:
                     return new Variant(GetRandom(builtInType));
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {builtInType}");
             }
         }
@@ -1143,7 +1140,7 @@ namespace Opc.Ua.Test
                 case 3:
                     return GetRandomInt64();
                 default:
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "Unexpected random value");
             }
         }
@@ -1162,7 +1159,7 @@ namespace Opc.Ua.Test
                 case 3:
                     return GetRandomUInt64();
                 default:
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "Unexpected random value");
             }
         }

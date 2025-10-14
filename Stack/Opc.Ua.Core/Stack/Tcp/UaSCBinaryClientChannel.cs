@@ -1433,8 +1433,7 @@ namespace Opc.Ua.Bindings
             };
             if (!m_requests.TryAdd(operation.RequestId, operation))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Could not add request {0} to list of pending operations.",
                     operation.RequestId);
             }

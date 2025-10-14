@@ -117,8 +117,7 @@ namespace Opc.Ua.Core.Tests
                     _ = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
                 default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         $"Unexpected ApplicationType {appType}");
             }
             return new ApplicationTestData
