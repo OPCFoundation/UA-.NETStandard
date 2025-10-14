@@ -294,6 +294,12 @@ namespace Opc.Ua.Client
         int MaxPublishRequestCount { get; set; }
 
         /// <summary>
+        /// Whether a session is being reconnected
+        /// </summary>
+        /// <value><c>true</c> if reconnected; otherwise, <c>false</c>.</value>
+        bool Reconnecting { get; }
+
+        /// <summary>
         /// Stores the operation limits of a OPC UA Server.
         /// </summary>
         OperationLimits OperationLimits { get; }

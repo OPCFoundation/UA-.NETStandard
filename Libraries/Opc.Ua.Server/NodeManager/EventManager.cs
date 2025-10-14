@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -105,7 +106,7 @@ namespace Opc.Ua.Server
             INodeManager nodeManager,
             object handle,
             uint subscriptionId,
-            uint monitoredItemId,
+            MonitoredItemIdFactory monitoredItemIdFactory,
             TimestampsToReturn timestampsToReturn,
             double publishingInterval,
             MonitoredItemCreateRequest itemToCreate,
@@ -126,6 +127,13 @@ namespace Opc.Ua.Server
                 uint revisedQueueSize = CalculateRevisedQueueSize(
                     createDurable,
                     itemToCreate.RequestedParameters.QueueSize);
+
+                // Allocate the monitored item id
+                uint monitoredItemId;
+                do
+                {
+                    monitoredItemId = monitoredItemIdFactory.GetNextId();
+                } while (!m_monitoredItems.TryAdd(monitoredItemId, null));
 
                 // create the monitored item.
                 IEventMonitoredItem monitoredItem = new MonitoredItem(
@@ -148,9 +156,9 @@ namespace Opc.Ua.Server
                     MinimumSamplingIntervals.Continuous,
                     createDurable);
 
-                // save the monitored item.
-                m_monitoredItems.Add(monitoredItemId, monitoredItem);
-
+                // now save the monitored item.
+                Debug.Assert(m_monitoredItems[monitoredItemId] == null);
+                m_monitoredItems[monitoredItemId] = monitoredItem;
                 return monitoredItem;
             }
         }

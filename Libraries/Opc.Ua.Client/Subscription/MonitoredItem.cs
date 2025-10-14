@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -1142,8 +1143,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class MonitoredItemDataCache
     {
-        private const int kDefaultMaxCapacity = 100;
-
         /// <summary>
         /// Constructs a cache for a monitored item.
         /// </summary>
@@ -1153,7 +1152,7 @@ namespace Opc.Ua.Client
             m_logger = telemetry.CreateLogger<MonitoredItemDataCache>();
             if (queueSize > 1)
             {
-                m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
+                m_values = new ConcurrentQueue<DataValue>();
             }
             else
             {
@@ -1176,19 +1175,22 @@ namespace Opc.Ua.Client
         /// </summary>
         public IList<DataValue> Publish()
         {
-            DataValue[] values;
+            List<DataValue> values;
             if (m_values != null)
             {
-                values = new DataValue[m_values.Count];
-                for (int ii = 0; ii < values.Length; ii++)
+                values = new List<DataValue>(m_values.Count);
+                for (int ii = 0; ii < values.Count; ii++)
                 {
-                    values[ii] = m_values.Dequeue();
+                    if (!m_values.TryDequeue(out DataValue dequeued))
+                    {
+                        break;
+                    }
+                    values.Add(dequeued);
                 }
             }
             else
             {
-                values = new DataValue[1];
-                values[0] = LastValue;
+                values = [LastValue];
             }
             return values;
         }
@@ -1203,17 +1205,26 @@ namespace Opc.Ua.Client
                 (int)notification.ClientHandle,
                 LastValue.WrappedValue);
 
-            m_logger.LogTrace(
-                "Notification: ClientHandle={ClientHandle}, Value={Value}",
+            m_logger.LogDebug(
+                "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
                 notification.ClientHandle,
-                LastValue.WrappedValue);
+                notification.Value.WrappedValue,
+                notification.Value.SourceTimestamp);
 
             if (m_values != null)
             {
                 m_values.Enqueue(notification.Value);
                 while (m_values.Count > QueueSize)
                 {
-                    m_values.Dequeue();
+                    if (!m_values.TryDequeue(out DataValue dropped))
+                    {
+                        break;
+                    }
+                    m_logger.LogInformation(
+                        "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
+                        notification.ClientHandle,
+                        dropped.WrappedValue,
+                        dropped.SourceTimestamp);
                 }
             }
         }
@@ -1235,18 +1246,22 @@ namespace Opc.Ua.Client
             }
             else
             {
-                m_values ??= new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
+                m_values ??= new ConcurrentQueue<DataValue>();
             }
 
             QueueSize = queueSize;
 
             while (m_values.Count > QueueSize)
             {
-                m_values.Dequeue();
+                m_values.TryDequeue(out DataValue dropped);
+                m_logger.LogDebug(
+                    "Setting queue size dropped value: Value={Value}, SourceTime={SourceTime}",
+                    dropped.WrappedValue,
+                    dropped.SourceTimestamp);
             }
         }
 
-        private Queue<DataValue> m_values;
+        private ConcurrentQueue<DataValue> m_values;
         private readonly ILogger m_logger;
     }
 

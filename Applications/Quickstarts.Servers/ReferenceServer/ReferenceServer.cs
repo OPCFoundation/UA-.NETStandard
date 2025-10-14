@@ -347,7 +347,7 @@ namespace Quickstarts.ReferenceServer
         private IUserIdentity VerifyPassword(UserNameIdentityToken userNameToken)
         {
             string userName = userNameToken.UserName;
-            string password = userNameToken.DecryptedPassword;
+            byte[] password = userNameToken.DecryptedPassword;
             if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -356,7 +356,7 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty username is not accepted.");
             }
 
-            if (string.IsNullOrEmpty(password))
+            if (Utils.Utf8IsNullOrEmpty(password))
             {
                 // an empty password is not accepted.
                 throw ServiceResultException.Create(
@@ -365,15 +365,15 @@ namespace Quickstarts.ReferenceServer
             }
 
             // User with permission to configure server
-            if (userName == "sysadmin" && password == "demo")
+            if (userName == "sysadmin" && Utils.IsEqual(password, "demo"u8))
             {
                 return new SystemConfigurationIdentity(
                     new UserIdentity(userNameToken, MessageContext.Telemetry));
             }
 
             // standard users for CTT verification
-            if (!((userName == "user1" && password == "password") ||
-                (userName == "user2" && password == "password1")))
+            if (!((userName == "user1" && Utils.IsEqual(password, "password"u8)) ||
+                (userName == "user2" && Utils.IsEqual(password, "password1"u8))))
             {
                 // construct translation object with default text.
                 var info = new TranslationInfo(

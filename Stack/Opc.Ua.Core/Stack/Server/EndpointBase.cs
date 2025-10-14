@@ -495,7 +495,19 @@ namespace Opc.Ua
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
-                logger.LogWarning("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
+                // Log information instead of warning for expected disconnection scenarios
+                if (sre.StatusCode == StatusCodes.BadNoSubscription ||
+                    sre.StatusCode == StatusCodes.BadSessionClosed ||
+                    sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                    sre.StatusCode == StatusCodes.BadCertificateInvalid ||
+                    sre.StatusCode == StatusCodes.BadServerHalted)
+                {
+                    logger.LogInformation("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
+                }
+                else
+                {
+                    logger.LogWarning("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
+                }
                 if (sre.StatusCode == StatusCodes.BadUnexpectedError)
                 {
                     logger.LogWarning(Utils.TraceMasks.StackTrace, sre, "{Exception}", sre.ToString());

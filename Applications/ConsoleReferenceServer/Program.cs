@@ -68,7 +68,7 @@ namespace Quickstarts.ReferenceServer
             bool shadowConfig = false;
             bool samplingGroups = false;
             bool cttMode = false;
-            string password = null;
+            char[] password = null;
             int timeout = -1;
 
             string usage = Utils.IsRunningOnMono()
@@ -81,7 +81,7 @@ namespace Quickstarts.ReferenceServer
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
-                { "p|password=", "optional password for private key", p => password = p },
+                { "p|password=", "optional password for private key", p => password = p.ToCharArray() },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
                 { "s|shadowconfig", "create configuration in pki root", s => shadowConfig = s != null },
