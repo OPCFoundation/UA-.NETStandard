@@ -1164,7 +1164,9 @@ namespace Opc.Ua.Bindings
                 // check for valid token.
                 ChannelToken token =
                     CurrentToken ??
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel{0}: Token missing to send request on client channel.", Id);
 
                 // must return an error to the client if limits are exceeded.
 
@@ -1619,7 +1621,9 @@ namespace Opc.Ua.Bindings
             // check for valid token.
             ChannelToken currentToken =
                 CurrentToken ??
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel{0}:Token missing to send close secure channel request on client channel.", Id);
 
             var request = new CloseSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;

@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="ct"">Cancellation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
@@ -213,8 +213,8 @@ namespace Opc.Ua.Client.Tests
                     nameof(endpointUrl));
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 60;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -233,14 +233,16 @@ namespace Opc.Ua.Client.Tests
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode is
+                catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed)
+                    StatusCodes.BadSecureChannelClosed) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
@@ -263,8 +265,8 @@ namespace Opc.Ua.Client.Tests
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 60;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -275,14 +277,16 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode is
+                catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed)
+                    StatusCodes.BadSecureChannelClosed) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
                     await Task.Delay(1000).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
