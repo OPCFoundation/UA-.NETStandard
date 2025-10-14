@@ -550,7 +550,6 @@ namespace Opc.Ua.Bindings
                 if (hre.InnerException is WebException webex)
                 {
                     StatusCode statusCode;
-#pragma warning disable IDE0010 // Add missing cases
                     switch (webex.Status)
                     {
                         case WebExceptionStatus.Timeout:
@@ -564,7 +563,6 @@ namespace Opc.Ua.Bindings
                             statusCode = StatusCodes.BadUnknownResponse;
                             break;
                     }
-#pragma warning restore IDE0010 // Add missing cases
                     m_logger.LogError(webex, "Exception sending HTTPS request.");
                     throw ServiceResultException.Create((uint)statusCode, webex.Message);
                 }
