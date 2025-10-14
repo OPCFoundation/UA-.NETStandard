@@ -720,11 +720,17 @@ namespace Opc.Ua
                 buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", 0x0000FFFF & Code);
             }
 
+            if (!string.IsNullOrEmpty(AdditionalInfo))
+            {
+                buffer.AppendLine()
+                    .Append(AdditionalInfo);
+            }
+
             return buffer.ToString();
         }
 
         /// <summary>
-        /// Returns a formatted string with the contents of exception.
+        /// Returns a formatted string with the contents of service result.
         /// </summary>
         public string ToLongString()
         {

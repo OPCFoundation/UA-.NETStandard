@@ -50,17 +50,23 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpointUrl">The endpoint Url.</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server</param>
+        /// <param name="diagnosticsMasks"></param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
             IUserIdentity adminUserIdentity = null,
-            ISessionFactory sessionFactory = null)
+            ISessionFactory sessionFactory = null,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration;
             MessageContext = configuration.CreateMessageContext(true);
             EndpointUrl = endpointUrl;
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
+            m_sessionFactory = sessionFactory ??
+                new DefaultSessionFactory(MessageContext.Telemetry)
+                {
+                    ReturnDiagnostics = diagnosticsMasks
+                };
             // preset admin
             AdminCredentials = adminUserIdentity;
         }

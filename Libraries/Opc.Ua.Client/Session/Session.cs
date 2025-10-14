@@ -222,7 +222,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private void Initialize()
         {
-            SessionFactory ??= new DefaultSessionFactory(m_telemetry);
+            SessionFactory ??= new DefaultSessionFactory(m_telemetry)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
             m_sessionTimeout = 0;
             NamespaceUris = new NamespaceTable();
             ServerUris = new StringTable();
@@ -1002,6 +1005,7 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 identity,
                 preferredLocales,
+                DiagnosticsMasks.None,
                 ct);
         }
 
@@ -1033,6 +1037,7 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 identity,
                 preferredLocales,
+                DiagnosticsMasks.None,
                 ct);
         }
 
@@ -1064,6 +1069,7 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 userIdentity,
                 preferredLocales,
+                DiagnosticsMasks.None,
                 ct);
         }
 
@@ -1234,6 +1240,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="returnDiagnostics">The return diagnostics to use on this session</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         public static async Task<Session> CreateAsync(
@@ -1247,6 +1254,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
+            DiagnosticsMasks returnDiagnostics,
             CancellationToken ct = default)
         {
             // initialize the channel which will be created with the server.
@@ -1261,6 +1269,7 @@ namespace Opc.Ua.Client
 
             // create the session object.
             Session session = sessionInstantiator.Create(channel, configuration, endpoint, null);
+            session.ReturnDiagnostics = returnDiagnostics;
 
             // create the session.
             try
@@ -1324,6 +1333,7 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 userIdentity,
                 preferredLocales,
+                DiagnosticsMasks.None,
                 ct);
         }
 
@@ -1342,6 +1352,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="returnDiagnostics">Diagnostics mask to use in the sesion</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         public static async Task<Session> CreateAsync(
@@ -1355,23 +1366,25 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
+            DiagnosticsMasks returnDiagnostics,
             CancellationToken ct = default)
         {
             if (reverseConnectManager == null)
             {
                 return await CreateAsync(
-                        sessionInstantiator,
-                        configuration,
-                        (ITransportWaitingConnection)null,
-                        endpoint,
-                        updateBeforeConnect,
-                        checkDomain,
-                        sessionName,
-                        sessionTimeout,
-                        userIdentity,
-                        preferredLocales,
-                        ct)
-                    .ConfigureAwait(false);
+                    sessionInstantiator,
+                    configuration,
+                    (ITransportWaitingConnection)null,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    returnDiagnostics,
+                    ct)
+                .ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection;
@@ -1401,18 +1414,19 @@ namespace Opc.Ua.Client
             } while (connection == null);
 
             return await CreateAsync(
-                    sessionInstantiator,
-                    configuration,
-                    connection,
-                    endpoint,
-                    false,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    userIdentity,
-                    preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
+                sessionInstantiator,
+                configuration,
+                connection,
+                endpoint,
+                false,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                returnDiagnostics,
+                ct)
+            .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

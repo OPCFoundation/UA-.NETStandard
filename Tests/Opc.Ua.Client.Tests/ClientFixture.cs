@@ -75,7 +75,10 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                SessionFactory = new TraceableSessionFactory(telemetry);
+                SessionFactory = new TraceableSessionFactory(telemetry)
+                {
+                    ReturnDiagnostics = DiagnosticsMasks.All
+                };
             }
         }
 
@@ -83,7 +86,10 @@ namespace Opc.Ua.Client.Tests
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ClientFixture>();
-            SessionFactory = new DefaultSessionFactory(telemetry);
+            SessionFactory = new DefaultSessionFactory(telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks.All
+            };
         }
 
         /// <inheritdoc/>

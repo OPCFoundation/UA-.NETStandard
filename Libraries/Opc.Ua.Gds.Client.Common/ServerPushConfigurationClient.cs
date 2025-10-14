@@ -48,14 +48,20 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="sessionFactory">Used to create session to the server.</param>
+        /// <param name="diagnosticsMasks"></param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,
-            ISessionFactory sessionFactory = null)
+            ISessionFactory sessionFactory = null,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration;
             MessageContext = configuration.CreateMessageContext(true);
             m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
+            m_sessionFactory = sessionFactory ??
+                new DefaultSessionFactory(MessageContext.Telemetry)
+                {
+                    ReturnDiagnostics = diagnosticsMasks
+                };
         }
 
         public NodeId DefaultApplicationGroup { get; private set; }

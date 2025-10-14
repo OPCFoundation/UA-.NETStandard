@@ -37,9 +37,11 @@ namespace Opc.Ua.Gds.Client
     public class LocalDiscoveryServerClient
     {
         public LocalDiscoveryServerClient(
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             ApplicationConfiguration = configuration;
+            DiagnosticsMasks = diagnosticsMasks;
             MessageContext = configuration.CreateMessageContext();
 
             // set some defaults for the preferred locales.
@@ -64,7 +66,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         public ApplicationConfiguration ApplicationConfiguration { get; }
-
+        public DiagnosticsMasks DiagnosticsMasks { get; }
         public IServiceMessageContext MessageContext { get; }
 
         public string[] PreferredLocales { get; set; }
@@ -546,7 +548,10 @@ namespace Opc.Ua.Gds.Client
                 configuration,
                 context);
 
-            return new DiscoveryClient(channel, context.Telemetry);
+            return new DiscoveryClient(channel, context.Telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks
+            };
         }
 
         private const string kDefaultUrl = "opc.tcp://localhost:4840";

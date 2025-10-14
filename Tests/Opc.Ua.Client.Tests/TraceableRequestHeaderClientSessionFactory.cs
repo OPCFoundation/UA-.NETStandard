@@ -41,6 +41,7 @@ namespace Opc.Ua.Client
         public TraceableRequestHeaderClientSessionFactory(ITelemetryContext telemetry)
             : base(telemetry)
         {
+            ReturnDiagnostics = DiagnosticsMasks.All;
         }
 
         /// <inheritdoc/>

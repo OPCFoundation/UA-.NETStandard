@@ -203,10 +203,14 @@ namespace Opc.Ua
         /// <param name="format"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        public static ServiceResultException Unexpected(string format, params object[] args)
+        public static ServiceResultException Unexpected(
+            string format,
+            params object[] args)
         {
 #if DEBUG
-            string message = format == null ? "An unexpected error occurred" : Utils.Format(format, args);
+            string message = format == null ?
+                "An unexpected error occurred" :
+                Utils.Format(format, args);
 #if DEBUGCHK
             Debug.Fail(message);
 #endif
@@ -214,9 +218,12 @@ namespace Opc.Ua
 #endif
             if (format == null)
             {
-                return new ServiceResultException(StatusCodes.BadUnexpectedError);
+                return new ServiceResultException(
+                    StatusCodes.BadUnexpectedError);
             }
-            return new ServiceResultException(StatusCodes.BadUnexpectedError, Utils.Format(format, args));
+            return new ServiceResultException(
+                StatusCodes.BadUnexpectedError,
+                Utils.Format(format, args));
         }
 
         /// <summary>
@@ -227,11 +234,6 @@ namespace Opc.Ua
             if (status == null)
             {
                 return Strings.DefaultMessage;
-            }
-
-            if (!LocalizedText.IsNullOrEmpty(status.LocalizedText))
-            {
-                return status.LocalizedText.Text;
             }
 
             return status.ToString();
