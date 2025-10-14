@@ -340,7 +340,8 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed) &&
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
                     attempt++;
@@ -422,14 +423,14 @@ namespace Opc.Ua.Gds.Client
                         Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
                     }
 
-                    Session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
                     EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
                     m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
                     return;
                 }
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed) &&
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
                     attempt++;

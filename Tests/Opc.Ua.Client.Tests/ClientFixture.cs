@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
             {
                 SessionFactory = new TraceableSessionFactory(telemetry)
                 {
-                    ReturnDiagnostics = DiagnosticsMasks.All
+                    ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
                 };
             }
         }
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Tests
             m_logger = telemetry.CreateLogger<ClientFixture>();
             SessionFactory = new DefaultSessionFactory(telemetry)
             {
-                ReturnDiagnostics = DiagnosticsMasks.All
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
             };
         }
 
@@ -241,7 +241,8 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed) &&
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
                     attempt++;
@@ -285,7 +286,8 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed) &&
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
                     attempt++;
@@ -331,7 +333,6 @@ namespace Opc.Ua.Client.Tests
 
             session.KeepAlive += Session_KeepAlive;
 
-            session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointUrl = session.ConfiguredEndpoint.EndpointUrl.ToString();
 
             return session;
@@ -439,6 +440,7 @@ namespace Opc.Ua.Client.Tests
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
             using var client = DiscoveryClient.Create(url, endpointConfiguration, m_telemetry);
+            client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointDescriptionCollection result = await client.GetEndpointsAsync(null)
                 .ConfigureAwait(false);
             await client.CloseAsync().ConfigureAwait(false);

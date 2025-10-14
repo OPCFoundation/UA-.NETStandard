@@ -294,8 +294,6 @@ namespace Opc.Ua.Gds.Client
 
             RaiseConnectionStatusChangedEvent();
 
-            Session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-
             // init some helpers
             DefaultApplicationGroup = ExpandedNodeId.ToNodeId(
                 Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,

@@ -190,7 +190,6 @@ namespace Opc.Ua.Client.Tests
                         .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                         .ConfigureAwait(false);
                     Assert.NotNull(Session);
-                    Session.ReturnDiagnostics = DiagnosticsMasks.All;
                 }
                 catch (Exception e)
                 {

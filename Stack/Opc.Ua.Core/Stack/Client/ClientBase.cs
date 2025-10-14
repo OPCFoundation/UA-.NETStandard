@@ -299,14 +299,14 @@ namespace Opc.Ua
         /// Updates the header of a service request.
         /// </summary>
         /// <param name="request">The request.</param>
-        /// <param name="useDefaults">if set to <c>true</c> use defaults].</param>
+        /// <param name="useDefaults">if set to <c>true</c> use defaults.</param>
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
             lock (SyncRoot)
             {
                 request.RequestHeader ??= new RequestHeader();
 
-                if (useDefaults)
+                if (request.RequestHeader.ReturnDiagnostics == 0)
                 {
                     request.RequestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
                 }

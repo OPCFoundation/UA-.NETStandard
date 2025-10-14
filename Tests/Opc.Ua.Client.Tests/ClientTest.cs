@@ -270,7 +270,7 @@ namespace Opc.Ua.Client.Tests
 
             var sessionClient = new SessionClient(channel, telemetry)
             {
-                ReturnDiagnostics = DiagnosticsMasks.All
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
             };
 
             var request = new ReadRequest { RequestHeader = null };
