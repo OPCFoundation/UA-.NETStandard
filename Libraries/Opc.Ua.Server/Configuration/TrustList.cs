@@ -250,12 +250,16 @@ namespace Opc.Ua.Server
             {
                 if (m_sessionId != context.SessionId)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    return ServiceResult.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Session not authorized");
                 }
 
                 if (m_fileHandle != fileHandle)
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "Invalid file handle");
                 }
 
                 data = new byte[length];
@@ -264,7 +268,9 @@ namespace Opc.Ua.Server
 
                 if (bytesRead < 0)
                 {
-                    return StatusCodes.BadUnexpectedError;
+                    return ServiceResult.Create(
+                        StatusCodes.BadUnexpectedError,
+                        "No data read from trust list");
                 }
 
                 if (bytesRead < length)

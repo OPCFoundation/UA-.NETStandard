@@ -284,7 +284,9 @@ namespace Opc.Ua
                 LocalizedText = sre.LocalizedText;
                 InnerResult = sre.Result.InnerResult;
 
+#if !DEBUGX
                 if (LocalizedText.IsNullOrEmpty(LocalizedText))
+#endif
                 {
                     LocalizedText = defaultLocalizedText;
                 }
@@ -688,7 +690,27 @@ namespace Opc.Ua
         public override string ToString()
         {
             var buffer = new StringBuilder();
+            Append(buffer);
 
+            return buffer.ToString();
+        }
+
+        /// <summary>
+        /// Returns a formatted string with the contents of service result.
+        /// </summary>
+        public string ToLongString()
+        {
+            var buffer = new StringBuilder();
+            AppendLong(buffer);
+            return buffer.ToString();
+        }
+
+        /// <summary>
+        /// Append to buffer
+        /// </summary>
+        /// <param name="buffer"></param>
+        internal void Append(StringBuilder buffer)
+        {
             buffer.Append(LookupSymbolicId(Code));
 
             if (!string.IsNullOrEmpty(SymbolicId))
@@ -722,17 +744,14 @@ namespace Opc.Ua
                 buffer.AppendLine()
                     .Append(AdditionalInfo);
             }
-
-            return buffer.ToString();
         }
 
         /// <summary>
-        /// Returns a formatted string with the contents of service result.
+        /// Append details to string buffer
         /// </summary>
-        public string ToLongString()
+        /// <param name="buffer"></param>
+        internal void AppendLong(StringBuilder buffer)
         {
-            var buffer = new StringBuilder();
-
             buffer.Append("Id: ")
                 .Append(StatusCodes.GetBrowseName(Code));
 
@@ -764,8 +783,6 @@ namespace Opc.Ua
                     .AppendLine("===")
                     .Append(innerResult.ToLongString());
             }
-
-            return buffer.ToString();
         }
 
         /// <summary>

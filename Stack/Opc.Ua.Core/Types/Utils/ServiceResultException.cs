@@ -147,10 +147,8 @@ namespace Opc.Ua
         public string ToLongString()
         {
             var buffer = new StringBuilder();
-
-            buffer.AppendLine(Message)
-                .Append(Result.ToLongString());
-
+            buffer.AppendLine(Message);
+            Result.AppendLong(buffer);
             return buffer.ToString();
         }
 
