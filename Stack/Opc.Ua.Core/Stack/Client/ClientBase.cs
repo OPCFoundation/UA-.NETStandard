@@ -542,7 +542,7 @@ namespace Opc.Ua
             // check for null.
             if (value == null)
             {
-                return new ServiceResult(
+                return ServiceResult.Create(
                     StatusCodes.BadUnexpectedError,
                     "The server returned a value for a data value.");
             }

@@ -3361,7 +3361,9 @@ namespace Opc.Ua
             // check for bad parameter.
             if (value == null)
             {
-                return StatusCodes.BadStructureMissing;
+                return ServiceResult.Create(
+                    StatusCodes.BadStructureMissing,
+                    "DataValue missing");
             }
 
             object valueToRead = value.Value;
@@ -3386,7 +3388,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    result = new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                    result = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read value attribute from node.");
                 }
             }
             // read any non-value attribute.
@@ -3398,7 +3403,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    result = new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                    result = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read non value attribute from node.");
                 }
             }
 
@@ -3683,7 +3691,9 @@ namespace Opc.Ua
             // check for bad parameter.
             if (value == null)
             {
-                return StatusCodes.BadStructureMissing;
+                return ServiceResult.Create(
+                    StatusCodes.BadStructureMissing,
+                    "DataValue missing");
             }
 
             object valueToWrite = value.Value;
@@ -3693,7 +3703,9 @@ namespace Opc.Ua
                 // writes to server timestamp never supported.
                 if (value.ServerTimestamp != DateTime.MinValue)
                 {
-                    return StatusCodes.BadWriteNotSupported;
+                    return ServiceResult.Create(
+                        StatusCodes.BadWriteNotSupported,
+                        "Cannot write to server timestamp");
                 }
 
                 // call implementation.
@@ -3708,7 +3720,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to write value attribute.");
                 }
             }
 
@@ -3717,13 +3732,17 @@ namespace Opc.Ua
                 value.ServerTimestamp != DateTime.MinValue ||
                 value.SourceTimestamp != DateTime.MinValue)
             {
-                return StatusCodes.BadWriteNotSupported;
+                return ServiceResult.Create(
+                    StatusCodes.BadWriteNotSupported,
+                    "Cannot write timestamps or status codes to non value attributes.");
             }
 
             // cannot use index range for non-value attributes.
             if (indexRange != NumericRange.Empty)
             {
-                return StatusCodes.BadIndexRangeInvalid;
+                return ServiceResult.Create(
+                    StatusCodes.BadIndexRangeInvalid,
+                    "Index range can only be specified for value attribute");
             }
 
             // call implementation.
@@ -3733,7 +3752,9 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                return new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                return ServiceResult.Create(e,
+                    StatusCodes.BadUnexpectedError,
+                    "Failed to write non value attribute");
             }
         }
 

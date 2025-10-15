@@ -4567,6 +4567,11 @@ namespace Opc.Ua.Client
 
                 if (ServiceResult.IsBad(error))
                 {
+                    m_logger.LogError("Keep alive read failed: {ServiceResult}, EndpointUrl={EndpointUrl}, RequestCount={Good}/{Outstanding}",
+                        error,
+                        Endpoint?.EndpointUrl,
+                        GoodPublishRequestCount,
+                        OutstandingRequestCount);
                     throw new ServiceResultException(error);
                 }
 

@@ -152,6 +152,12 @@ namespace Opc.Ua
             return buffer.ToString();
         }
 
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return ToLongString();
+        }
+
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>

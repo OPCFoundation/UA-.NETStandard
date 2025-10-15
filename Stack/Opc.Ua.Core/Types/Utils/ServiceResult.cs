@@ -284,9 +284,7 @@ namespace Opc.Ua
                 LocalizedText = sre.LocalizedText;
                 InnerResult = sre.Result.InnerResult;
 
-#if !DEBUGX
                 if (LocalizedText.IsNullOrEmpty(LocalizedText))
-#endif
                 {
                     LocalizedText = defaultLocalizedText;
                 }
