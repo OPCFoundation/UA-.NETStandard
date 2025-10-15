@@ -1936,8 +1936,10 @@ namespace Opc.Ua.Client
                 // call session created callback, which was already set in base class only.
                 SessionCreated(sessionId, sessionCookie);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                m_logger.LogError(ex, "Failed to activate session - closing.");
+
                 try
                 {
                     await base.CloseSessionAsync(null, false, CancellationToken.None)
@@ -4855,7 +4857,7 @@ namespace Opc.Ua.Client
 
                 if (nodeClass == null)
                 {
-                    nodeCollection.Add(node);
+                    nodeCollection.Add(node);18
                     errors.Add(
                         ServiceResult.Create(
                             StatusCodes.BadUnexpectedError,
