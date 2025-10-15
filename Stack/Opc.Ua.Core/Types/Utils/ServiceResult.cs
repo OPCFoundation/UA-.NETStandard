@@ -297,10 +297,7 @@ namespace Opc.Ua
                 LocalizedText = defaultLocalizedText;
             }
 
-            if (IncludeStackTrace(Code))
-            {
-                AdditionalInfo = BuildExceptionTrace(e);
-            }
+            AdditionalInfo = BuildExceptionTrace(e);
         }
 
         /// <summary>
@@ -833,36 +830,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether to redact or add stack trace as additional info.
-        /// We do not want to show stack traces for security related
-        /// status codes. But others are potentially helpful.
-        /// </summary>
-        private static bool IncludeStackTrace(uint code)
-        {
-            switch (code)
-            {
-                case StatusCodes.BadCertificateTimeInvalid:
-                case StatusCodes.BadCertificateIssuerTimeInvalid:
-                case StatusCodes.BadCertificateInvalid:
-                case StatusCodes.BadCertificateChainIncomplete:
-                case StatusCodes.BadCertificatePolicyCheckFailed:
-                case StatusCodes.BadCertificateUntrusted:
-                case StatusCodes.BadCertificateRevoked:
-                case StatusCodes.BadCertificateIssuerRevoked:
-                case StatusCodes.BadCertificateRevocationUnknown:
-                case StatusCodes.BadCertificateIssuerRevocationUnknown:
-                case StatusCodes.BadCertificateUseNotAllowed:
-                case StatusCodes.BadCertificateIssuerUseNotAllowed:
-                case StatusCodes.BadSecurityChecksFailed:
-                    // TODO: add additional status codes here for which we want
-                    // do not want to provide stack trace as additional diagnostics.
-                    return false;
-                default:
-                    return true;
-            }
-        }
-
-        /// <summary>
         /// Extract a default message from an exception.
         /// </summary>
         private static LocalizedText GetDefaultMessage(Exception exception, uint code)
@@ -880,13 +847,13 @@ namespace Opc.Ua
                 }
                 if (exception is ServiceResultException)
                 {
-#if !DEBUG
+#if !DEBUGX
                     return exception.Message;
 #endif
                 }
                 return Utils.Format("[{0}] {1}",
                     exception.GetType().Name,
-#if !DEBUG
+#if !DEBUGX
                     exception.Message);
 #else
                     BuildExceptionTrace(exception));
@@ -894,7 +861,7 @@ namespace Opc.Ua
             }
 
             return Utils.Format("[{0}]",
-#if !DEBUG
+#if !DEBUGX
                 exception.GetType().Name);
 #else
                 BuildExceptionTrace(exception));
