@@ -1143,7 +1143,7 @@ namespace Opc.Ua.Gds.Client
                 subjectName,
                 domainNames,
                 privateKeyFormat,
-                privateKeyPassword).ConfigureAwait(false);
+                new string(privateKeyPassword)).ConfigureAwait(false);
 
             if (outputArguments.Count >= 1)
             {
