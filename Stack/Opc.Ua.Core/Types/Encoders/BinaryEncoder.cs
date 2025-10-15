@@ -1754,8 +1754,8 @@ namespace Opc.Ua
                             {
                                 throw ServiceResultException.Create(
                                     StatusCodes.BadEncodingError,
-                                        "Type '{0}' is not allowed in an Enumeration.",
-                                        array.GetType().FullName);
+                                    "Type '{0}' is not allowed in an Enumeration.",
+                                    array.GetType().FullName);
                             }
                         }
                         WriteInt32Array(null, ints);
