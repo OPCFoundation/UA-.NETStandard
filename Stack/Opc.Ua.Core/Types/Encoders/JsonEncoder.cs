@@ -2945,22 +2945,22 @@ namespace Opc.Ua
                         WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array);
                         return;
                     case BuiltInType.Enumeration:
-                        if (array is not Array enumArray)
+                        if (array is null or Array)
                         {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected non Array type encountered while encoding an array of enumeration.");
+                            WriteEnumeratedArray(
+                                fieldName,
+                                (Array)array,
+                                array?.GetType().GetElementType());
+                            return;
                         }
-                        WriteEnumeratedArray(
-                            fieldName,
-                            enumArray,
-                            enumArray.GetType().GetElementType());
-                        return;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected non Array type encountered while encoding an array of enumeration: {0}",
+                            array.GetType());
                     case BuiltInType.Variant:
-                    {
-                        if (array is Variant[] variants)
+                        if (array is null or Variant[])
                         {
-                            WriteVariantArray(fieldName, variants);
+                            WriteVariantArray(fieldName, (Variant[])array);
                             return;
                         }
 
@@ -2984,28 +2984,21 @@ namespace Opc.Ua
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an array of Variants: {0}",
                             array.GetType());
-                    }
+
                     default:
-                    {
                         // try to write IEncodeable Array
-                        if (array is IEncodeable[] encodeableArray)
+                        if (array is null or IEncodeable[])
                         {
                             WriteEncodeableArray(
                                 fieldName,
-                                encodeableArray,
-                                array.GetType().GetElementType());
-                            return;
-                        }
-                        if (array == null)
-                        {
-                            WriteSimpleFieldNull(fieldName);
+                                (IEncodeable[])array,
+                                array?.GetType().GetElementType());
                             return;
                         }
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected BuiltInType encountered while encoding an array: {0}",
                             builtInType);
-                    }
                 }
             }
             // write matrix.
