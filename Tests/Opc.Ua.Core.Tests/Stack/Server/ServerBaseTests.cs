@@ -343,7 +343,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var clientUri2 = new Uri(clientUrl2);
 
             Assert.AreEqual(clientUri1, clientUri2);
-            Assert.AreEqual(clientUri1.DnsSafeHost, clientUri2.DnsSafeHost);
+            Assert.AreEqual(clientUri1.IdnHost, clientUri2.IdnHost);
             Assert.AreEqual(clientUri1.IdnHost, clientUri2.IdnHost);
 
             Assert.AreEqual(

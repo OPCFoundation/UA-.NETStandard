@@ -1612,7 +1612,7 @@ namespace Opc.Ua
             {
                 string message = Utils.Format(
                     "The domain '{0}' is not listed in the server certificate.",
-                    endpointUrl.DnsSafeHost);
+                    endpointUrl.IdnHost);
                 sresult = new ServiceResult(
                     StatusCodes.BadCertificateHostNameInvalid,
                     null,
@@ -1871,7 +1871,7 @@ namespace Opc.Ua
                 var serviceResult = ServiceResultException.Create(
                     StatusCodes.BadCertificateHostNameInvalid,
                     message,
-                    endpointUrl.DnsSafeHost);
+                    endpointUrl.IdnHost);
                 if (m_CertificateValidation != null)
                 {
                     var args = new CertificateValidationEventArgs(
@@ -2128,7 +2128,7 @@ namespace Opc.Ua
             if (domains != null && domains.Count > 0)
             {
                 string hostname;
-                string dnsHostName = hostname = endpointUrl.DnsSafeHost;
+                string dnsHostName = hostname = endpointUrl.IdnHost;
                 bool isLocalHost = false;
                 if (endpointUrl.HostNameType == UriHostNameType.Dns)
                 {

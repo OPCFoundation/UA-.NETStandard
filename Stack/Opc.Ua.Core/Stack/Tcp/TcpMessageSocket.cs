@@ -374,7 +374,7 @@ namespace Opc.Ua.Bindings
                 port = Utils.UaTcpDefaultPort;
             }
 
-            var endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
+            var endpoint = new DnsEndPoint(endpointUrl.IdnHost, port);
             error = BeginConnect(endpoint, DoCallback);
             return error is SocketError.InProgress or SocketError.Success;
         }

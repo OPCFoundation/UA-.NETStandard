@@ -989,7 +989,7 @@ namespace Opc.Ua
             var accessibleAddresses = new List<BaseAddress>();
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                if (baseAddress.Url.DnsSafeHost == endpointUrl.DnsSafeHost)
+                if (baseAddress.Url.IdnHost == endpointUrl.IdnHost)
                 {
                     accessibleAddresses.Add(baseAddress);
                     continue;
@@ -999,7 +999,7 @@ namespace Opc.Ua
                 {
                     foreach (Uri alternateUrl in baseAddress.AlternateUrls)
                     {
-                        if (alternateUrl.DnsSafeHost == endpointUrl.DnsSafeHost)
+                        if (alternateUrl.IdnHost == endpointUrl.IdnHost)
                         {
                             if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
                             {
@@ -1023,7 +1023,7 @@ namespace Opc.Ua
             }
 
             // client gets all of the endpoints if it using a known variant of the hostname
-            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
+            if (NormalizeHostname(endpointUrl.IdnHost) == NormalizeHostname("localhost"))
             {
                 return baseAddresses;
             }

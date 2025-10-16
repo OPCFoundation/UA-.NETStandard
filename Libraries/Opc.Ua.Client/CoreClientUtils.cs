@@ -239,7 +239,7 @@ namespace Opc.Ua.Client
             {
                 var builder = new UriBuilder(endpointUrl)
                 {
-                    Host = uri.DnsSafeHost,
+                    Host = uri.IdnHost,
                     Port = uri.Port
                 };
                 selectedEndpoint.EndpointUrl = builder.ToString();
