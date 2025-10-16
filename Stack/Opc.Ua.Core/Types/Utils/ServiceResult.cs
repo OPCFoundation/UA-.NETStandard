@@ -801,47 +801,9 @@ namespace Opc.Ua
         /// </summary>
         private static string BuildExceptionTrace(Exception exception)
         {
-            var buffer = new StringBuilder();
-
-            while (exception != null)
-            {
-                if (buffer.Length > 0)
-                {
-                    buffer
-                        .AppendLine()
-                        .AppendLine(">>>> (Inner) >>>>");
-                }
-
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "[{0}]",
-                    exception.Message ?? exception.GetType().Name);
-
-                if (!string.IsNullOrEmpty(exception.StackTrace))
-                {
-                    AddStackTrace(buffer, exception.StackTrace);
-                }
-
-                exception = exception.InnerException;
-            }
-            return buffer.ToString();
-        }
-
-        /// <summary>
-        /// Parse and add stack trace to buffer
-        /// </summary>
-        private static void AddStackTrace(StringBuilder buffer, string stackTrace)
-        {
-            string[] trace = stackTrace.Split(Environment.NewLine.ToCharArray());
-            for (int ii = 0; ii < trace.Length; ii++)
-            {
-                if (!string.IsNullOrEmpty(trace[ii]))
-                {
-                    buffer
-                        .AppendLine()
-                        .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
-                }
-            }
+            return new StringBuilder()
+                .AppendException(exception, string.Empty)
+                .ToString();
         }
 
         /// <summary>

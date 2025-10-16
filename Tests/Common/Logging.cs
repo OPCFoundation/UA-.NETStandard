@@ -97,6 +97,7 @@ namespace Opc.Ua.Tests
             return new NUnitTelemetryContext();
         }
 
+        [ProviderAlias("BenchmarkDotNet")]
         internal sealed class BenchmarkDotNetProvider : ILoggerProvider
         {
             /// <inheritdoc/>
@@ -152,12 +153,16 @@ namespace Opc.Ua.Tests
                     }
                     try
                     {
-                        var sb = new StringBuilder();
-                        sb.AppendFormat(
-                            CultureInfo.InvariantCulture,
-                            "{0:yy-MM-dd HH:mm:ss.fff}: ",
-                            DateTime.UtcNow)
+                        var sb = new StringBuilder()
+                            .AppendFormat(
+                                CultureInfo.InvariantCulture,
+                                "{0:yy-MM-dd HH:mm:ss.fff}: ",
+                                DateTime.UtcNow)
                             .Append(formatter(state, exception));
+                        if (exception != null)
+                        {
+                            sb.AppendException(exception, "\t");
+                        }
                         m_logger.WriteLine(logLevel switch
                         {
                             LogLevel.Information => BenchmarkDotNet.Loggers.LogKind.Info,
@@ -182,6 +187,7 @@ namespace Opc.Ua.Tests
                   new(StringComparer.OrdinalIgnoreCase);
         }
 
+        [ProviderAlias("NUnit")]
         internal sealed class NUnitLoggerProvider : ILoggerProvider
         {
             /// <inheritdoc/>
@@ -224,6 +230,7 @@ namespace Opc.Ua.Tests
                     {
                         return false;
                     }
+#if DEBUG
                     switch (logLevel)
                     {
                         case LogLevel.Trace:
@@ -237,6 +244,9 @@ namespace Opc.Ua.Tests
                         default:
                             return false;
                     }
+#else
+                    return true;
+#endif
                 }
 
                 /// <inheritdoc/>
@@ -263,9 +273,13 @@ namespace Opc.Ua.Tests
                             .Append(']')
                             .Append(' ')
                             .Append(formatter(state, exception));
+                        if (exception != null)
+                        {
+                            sb.AppendException(exception, "\t");
+                        }
                         string logRecord = sb.ToString();
                         TestContext.Out.WriteLine(logRecord);
-
+#if DEBUG
                         // Also write to progress/error
                         logRecord = sb
                             .Clear()
@@ -291,6 +305,7 @@ namespace Opc.Ua.Tests
                                 Debug.Fail($"Bad log level {logLevel}");
                                 break;
                         }
+#endif
                     }
                     catch
                     {
