@@ -2477,24 +2477,21 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             bool useAsnParser = false)
         {
-            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-            // use AsnParser on macOS to parse for byteblobs,
-#if !NETFRAMEWORK
-            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#endif
             try
             {
 #if !NETFRAMEWORK
-                if (useAsnParser)
+                // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+                // use AsnParser on macOS to parse for byteblobs,
+                if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
-                    return CertificateFactory.Create(certBlob, true, telemetry);
+                    certificateData = AsnUtils.ParseX509Blob(certificateData);
                 }
-                else
 #endif
-                {
-                    return CertificateFactory.Create(certificateData, true, telemetry);
-                }
+#if NET6_0_OR_GREATER
+                return X509CertificateLoader.LoadCertificate(certificateData.Span);
+#else
+                return X509CertificateLoader.LoadCertificate(certificateData.ToArray());
+#endif
             }
             catch (Exception e)
             {
@@ -2518,12 +2515,6 @@ namespace Opc.Ua
             bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
-
-            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-            // use AsnParser on macOS to parse for byteblobs,
-#if !NETFRAMEWORK
-            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#endif
             int offset = 0;
             int length = certificateData.Length;
             while (offset < length)
@@ -2531,18 +2522,20 @@ namespace Opc.Ua
                 X509Certificate2 certificate;
                 try
                 {
+                    ReadOnlyMemory<byte> certBlob = certificateData[offset..];
 #if !NETFRAMEWORK
-                    if (useAsnParser)
+                    // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+                    // use AsnParser on macOS to parse for byteblobs,
+                    if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     {
-                        ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(
-                            certificateData[offset..]);
-                        certificate = CertificateFactory.Create(certBlob, true, telemetry);
+                        certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
-                    else
 #endif
-                    {
-                        certificate = CertificateFactory.Create(certificateData[offset..], true, telemetry);
-                    }
+#if NET6_0_OR_GREATER
+                    certificate = X509CertificateLoader.LoadCertificate(certBlob.Span);
+#else
+                    certificate = X509CertificateLoader.LoadCertificate(certBlob.ToArray());
+#endif
                 }
                 catch (Exception e)
                 {

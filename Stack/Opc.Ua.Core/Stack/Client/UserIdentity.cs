@@ -153,10 +153,8 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        X509Certificate2 cert = CertificateFactory.Create(
-                            x509Token.CertificateData,
-                            true,
-                            telemetry);
+                        X509Certificate2 cert = X509CertificateLoader.LoadCertificate(
+                            x509Token.CertificateData);
                         DisplayName = cert.Subject;
                     }
                     break;

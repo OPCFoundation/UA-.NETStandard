@@ -52,126 +52,28 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
-        [Obsolete("Use Create(ReadOnlyMemory<byte>, bool, ITelemetryContext) instead")]
+        [Obsolete("Use X509CertificateLoader.LoadCertificate instead")]
         public static X509Certificate2 Create(
             ReadOnlyMemory<byte> encodedData,
             bool useCache)
         {
-            return Create(encodedData, useCache, null);
+#if NET6_0_OR_GREATER
+            return X509CertificateLoader.LoadCertificate(encodedData.Span);
+#else
+            return X509CertificateLoader.LoadCertificate(encodedData.ToArray());
+#endif
         }
 
         /// <summary>
         /// Loads the cached version of a certificate.
         /// </summary>
-        [Obsolete("Use Load(X509Certificate2, bool, ITelemetryContext) instead")]
+        [Obsolete("This method just returns the certificate and can be removed")]
         public static X509Certificate2 Load(
             X509Certificate2 certificate,
             bool ensurePrivateKeyAccessible)
         {
-            return Load(certificate, ensurePrivateKeyAccessible, null);
-        }
-
-        /// <summary>
-        /// Creates a certificate from a buffer with DER encoded certificate.
-        /// </summary>
-        /// <param name="encodedData">The encoded data.</param>
-        /// <param name="useCache">if set to <c>true</c> the copy of the certificate
-        /// in the cache is used.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <returns>The certificate.</returns>
-        public static X509Certificate2 Create(
-            ReadOnlyMemory<byte> encodedData,
-            bool useCache,
-            ITelemetryContext telemetry)
-        {
-#if NET6_0_OR_GREATER
-            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
-                encodedData.Span);
-#else
-            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
-                encodedData.ToArray());
-#endif
-
-            if (useCache)
-            {
-                return Load(certificate, false, telemetry);
-            }
             return certificate;
         }
-
-        /// <summary>
-        /// Loads the cached version of a certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate to load.</param>
-        /// <param name="ensurePrivateKeyAccessible">If true a key container is created
-        /// for a certificate that must be deleted by calling Cleanup.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <returns>The cached certificate.</returns>
-        /// <remarks>
-        /// This function is necessary because all private keys used for cryptography
-        /// operations must be in a key container.
-        /// Private keys stored in a PFX file have no key container by default.
-        /// </remarks>
-        public static X509Certificate2 Load(
-            X509Certificate2 certificate,
-            bool ensurePrivateKeyAccessible,
-            ITelemetryContext telemetry)
-        {
-#if USE_CACHE
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
-            lock (s_certificatesLock)
-            {
-                // check for existing cached certificate.
-                if (s_certificates.TryGetValue(
-                    certificate.Thumbprint,
-                    out X509Certificate2 cachedCertificate))
-                {
-                    // cached certificate might be disposed, if so do not return but try to update value in the cache
-                    if (cachedCertificate.Handle != IntPtr.Zero)
-                    {
-                        return cachedCertificate;
-                    }
-
-                    s_certificates.Remove(certificate.Thumbprint);
-                }
-
-                // nothing more to do if no private key or don't care about accessibility.
-                if (!certificate.HasPrivateKey || !ensurePrivateKeyAccessible)
-                {
-                    return certificate;
-                }
-
-                if (ensurePrivateKeyAccessible &&
-                    !X509Utils.VerifyKeyPair(certificate, certificate))
-                {
-                    logger.LogWarning(
-                        "Trying to add certificate to cache with invalid private key.");
-                    return null;
-                }
-
-                // update the cache.
-                s_certificates[certificate.Thumbprint] = certificate;
-
-                if (s_certificates.Count > 100)
-                {
-                    logger.LogWarning(
-                        "Certificate cache has {Count} certificates in it.",
-                        s_certificates.Count);
-                }
-            }
-#endif
-            return certificate;
-        }
-
-#if USE_CACHE
-        private static readonly Dictionary<string, X509Certificate2> s_certificates = [];
-        private static readonly Lock s_certificatesLock = new();
-#endif
 
         /// <summary>
         /// Create a certificate for any use.

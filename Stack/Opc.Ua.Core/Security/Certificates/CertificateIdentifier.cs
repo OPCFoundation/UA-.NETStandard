@@ -293,15 +293,6 @@ namespace Opc.Ua
                 }
             }
 
-            // use the single instance in the certificate cache.
-            if (needPrivateKey)
-            {
-                certificate = m_certificate = CertificateFactory.Load(
-                    certificate,
-                    true,
-                    telemetry);
-            }
-
             return certificate;
         }
 
