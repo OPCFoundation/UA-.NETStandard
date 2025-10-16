@@ -400,7 +400,7 @@ namespace Opc.Ua.Gds.Tests
         private ApplicationInstance m_application;
         private readonly string m_storeType;
         private readonly ITelemetryContext m_telemetry;
-        private readonly Microsoft.Extensions.Logging.ILogger<GlobalDiscoveryTestClient> m_logger;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

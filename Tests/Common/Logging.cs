@@ -32,9 +32,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Globalization;
-using System.IO;
 using System.Text;
-using System.Threading;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
@@ -153,7 +151,7 @@ namespace Opc.Ua.Tests
                     }
                     try
                     {
-                        var sb = new StringBuilder()
+                        StringBuilder sb = new StringBuilder()
                             .AppendFormat(
                                 CultureInfo.InvariantCulture,
                                 "{0:yy-MM-dd HH:mm:ss.fff}: ",
