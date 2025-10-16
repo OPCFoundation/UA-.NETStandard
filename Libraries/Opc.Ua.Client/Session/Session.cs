@@ -377,6 +377,20 @@ namespace Opc.Ua.Client
                 subscriptions.Clear();
             }
 
+            // abort any outstanding requests (keepalive & publish requests).
+            lock (m_outstandingRequests)
+            {
+                for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                    ii != null;
+                    ii = ii.Next)
+                {
+                    if (ii.Value.Result is ChannelAsyncOperation<int> operation && !operation.IsCompleted)
+                    {
+                        operation.Fault(false, new ServiceResult(StatusCodes.BadSessionClosed));
+                    }
+                }
+            }
+
             base.Dispose(disposing);
 
             if (disposing)
