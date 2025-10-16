@@ -120,8 +120,7 @@ namespace Opc.Ua.Client.Tests
             // start Ref server
             ServerFixtureWithLimits = new ServerFixture<ReferenceServerWithLimits>(
                 enableTracing,
-                disableActivityLogging,
-                Telemetry)
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,

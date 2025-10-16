@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -677,20 +678,24 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ReadNext()
         {
-            bool result = true;
             switch (m_readState)
             {
                 case ReadState.ReadNextBlock:
                     ReadNextBlock();
-                    break;
+                    return true;
                 case ReadState.ReadNextMessage:
                     ReadNextMessage();
-                    break;
+                    return true;
+                case ReadState.Ready:
+                case ReadState.Receive:
+                case ReadState.ReadComplete:
+                case ReadState.NotConnected:
+                case ReadState.Error:
+                    return false;
                 default:
-                    result = false;
-                    break;
+                    Debug.Fail("Unexpected read state.");
+                    return false;
             }
-            return result;
         }
 
         /// <summary>

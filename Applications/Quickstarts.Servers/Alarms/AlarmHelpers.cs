@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using Opc.Ua;
 
 namespace Alarms
@@ -116,6 +117,11 @@ namespace Alarms
                 case DataTypes.Double:
                     variable.DataType = DataTypeIds.Double;
                     variable.Value = (double)AlarmDefines.NORMAL_START_VALUE;
+                    break;
+                default:
+                    Debug.Fail($"Unexpected data type {dataTypeIdentifier}");
+                    variable.DataType = DataTypeIds.Int32;
+                    variable.Value = AlarmDefines.NORMAL_START_VALUE;
                     break;
             }
             variable.ValueRank = ValueRanks.Scalar;

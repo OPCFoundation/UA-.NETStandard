@@ -40,8 +40,9 @@ namespace Opc.Ua
                     return RSAEncryptionPadding.OaepSHA1;
                 case Padding.OaepSHA256:
                     return RSAEncryptionPadding.OaepSHA256;
+                default:
+                    throw ServiceResultException.Unexpected($"Unexpected Padding {padding}");
             }
-            throw new ServiceResultException("Invalid Padding");
         }
 
         /// <summary>
@@ -58,6 +59,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static int GetPlainTextBlockSize(RSA rsa, Padding padding)
         {
             if (rsa != null)
@@ -70,6 +72,8 @@ namespace Opc.Ua
                         return (rsa.KeySize / 8) - 42;
                     case Padding.OaepSHA256:
                         return (rsa.KeySize / 8) - 66;
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected Padding {padding}");
                 }
             }
             return -1;

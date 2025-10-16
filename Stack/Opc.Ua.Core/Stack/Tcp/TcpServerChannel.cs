@@ -566,6 +566,8 @@ namespace Opc.Ua.Bindings
                 const string errorSecurityChecksFailed
                     = "Could not verify security on OpenSecureChannel request.";
 
+                m_logger.LogError(e, errorSecurityChecksFailed);
+
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, null, clientCertificate, e);
 

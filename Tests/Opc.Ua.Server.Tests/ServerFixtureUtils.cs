@@ -195,8 +195,7 @@ namespace Opc.Ua.Server.Tests
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
             }
         }
@@ -216,8 +215,7 @@ namespace Opc.Ua.Server.Tests
             {
                 if (response.Count != request.Count)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
                 }
 
@@ -234,9 +232,9 @@ namespace Opc.Ua.Server.Tests
                                 diagnosticInfo.Locale >= stringTable.Count ||
                                 diagnosticInfo.LocalizedText >= stringTable.Count)
                             {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadUnexpectedError,
-                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error.");
+                                throw ServiceResultException.Unexpected(
+                                    "The server forgot to fill in string table for the DiagnosticInfos " +
+                                    "array correctly when returning an operation level error.");
                             }
                             var serviceResult = new ServiceResult(
                                 StatusCodes.Good,

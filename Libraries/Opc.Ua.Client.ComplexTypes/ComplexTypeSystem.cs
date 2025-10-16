@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1305,8 +1306,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 case StructureType.UnionWithSubtypedValues:
                 case StructureType.StructureWithSubtypedValues:
                     return true;
+                case StructureType.Structure:
+                case StructureType.StructureWithOptionalFields:
+                case StructureType.Union:
+                    return false;
+                default:
+                    Debug.Fail($"Unexpected StructureType {structureDefinition.StructureType}.");
+                    return false;
             }
-            return false;
         }
 
         private async Task<bool> IsAbstractTypeAsync(
@@ -1479,8 +1486,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "Unexpected Type in binary schema: {0}.",
                         item.GetType().Name);
                 }

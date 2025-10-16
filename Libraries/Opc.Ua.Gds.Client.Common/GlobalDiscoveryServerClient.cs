@@ -50,17 +50,23 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpointUrl">The endpoint Url.</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server</param>
+        /// <param name="diagnosticsMasks"></param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
             IUserIdentity adminUserIdentity = null,
-            ISessionFactory sessionFactory = null)
+            ISessionFactory sessionFactory = null,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration;
             MessageContext = configuration.CreateMessageContext(true);
             EndpointUrl = endpointUrl;
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
+            m_sessionFactory = sessionFactory ??
+                new DefaultSessionFactory(MessageContext.Telemetry)
+                {
+                    ReturnDiagnostics = diagnosticsMasks
+                };
             // preset admin
             AdminCredentials = adminUserIdentity;
         }
@@ -166,7 +172,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="lds">The LDS to use.</param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>
-        /// TRUE if successful; FALSE otherwise.
+        /// Whatever urls were found.
         /// </returns>
         public async Task<List<string>> GetDefaultServerUrlsAsync(
             LocalDiscoveryServerClient lds,
@@ -212,7 +218,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="lds">The LDS to use.</param>
         /// <returns>
-        /// TRUE if successful; FALSE otherwise.
+        /// Whatever urls were found.
         /// </returns>
         [Obsolete("Use GetDefaultGdsUrlsAsync instead.")]
         public List<string> GetDefaultGdsUrls(LocalDiscoveryServerClient lds)
@@ -226,7 +232,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="lds">The LDS to use.</param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>
-        /// TRUE if successful; FALSE otherwise.
+        /// Whatever urls were found.
         /// </returns>
         public async Task<List<string>> GetDefaultGdsUrlsAsync(
             LocalDiscoveryServerClient lds,
@@ -310,10 +316,9 @@ namespace Opc.Ua.Gds.Client
                     nameof(endpointUrl));
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 60;
+            for (int attempt = 0; ; attempt++)
             {
-                serverHalted = false;
                 try
                 {
                     EndpointDescription endpointDescription =
@@ -330,13 +335,20 @@ namespace Opc.Ua.Gds.Client
                         endpointConfiguration);
 
                     await ConnectAsync(endpoint, ct).ConfigureAwait(false);
+                    m_logger.LogInformation("Connected to {EndpointUrl}.", endpoint.EndpointUrl);
+                    return;
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
         }
 
         /// <summary>
@@ -374,42 +386,58 @@ namespace Opc.Ua.Gds.Client
                 }
             }
 
-            if (Session != null)
+            const int maxAttempts = 60;
+            for (int attempt = 0; ; attempt++)
             {
-                Session.Dispose();
-                Session = null;
+                if (Session != null)
+                {
+                    Session.Dispose();
+                    Session = null;
+                }
+                try
+                {
+                    Session = await m_sessionFactory.CreateAsync(
+                        Configuration,
+                        endpoint,
+                        false,
+                        false,
+                        Configuration.ApplicationName,
+                        60000,
+                        AdminCredentials,
+                        PreferredLocales,
+                        ct)
+                    .ConfigureAwait(false);
+                    m_endpoint = Session.ConfiguredEndpoint;
+
+                    Session.SessionClosing += Session_SessionClosing;
+                    Session.KeepAlive += Session_KeepAlive;
+                    Session.KeepAlive += KeepAlive;
+
+                    // TODO: implement, suppress warning/error
+                    if (ServerStatusChanged != null)
+                    {
+                    }
+
+                    if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
+                    {
+                        Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
+                    }
+
+                    EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
+                    m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
+                    return;
+                }
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
+                {
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
+                    await Task.Delay(1000, ct).ConfigureAwait(false);
+                }
             }
-
-            Session = await m_sessionFactory
-                .CreateAsync(
-                    Configuration,
-                    endpoint,
-                    false,
-                    false,
-                    Configuration.ApplicationName,
-                    60000,
-                    AdminCredentials,
-                    PreferredLocales,
-                    ct)
-                .ConfigureAwait(false);
-
-            m_endpoint = Session.ConfiguredEndpoint;
-
-            Session.SessionClosing += Session_SessionClosing;
-            Session.KeepAlive += Session_KeepAlive;
-            Session.KeepAlive += KeepAlive;
-            // TODO: implement, suppress warning/error
-            if (ServerStatusChanged != null)
-            {
-            }
-
-            if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
-            {
-                Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
-            }
-
-            Session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-            EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
         }
 
         /// <summary>

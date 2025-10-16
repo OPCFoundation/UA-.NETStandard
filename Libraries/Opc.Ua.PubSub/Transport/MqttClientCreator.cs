@@ -156,7 +156,7 @@ namespace Opc.Ua.PubSub.Transport
             try
             {
                 MqttClientConnectResult result = await mqttClient
-                    .ConnectAsync(mqttClientOptions, CancellationToken.None)
+                    .ConnectAsync(mqttClientOptions, ct)
                     .ConfigureAwait(false);
                 if (MqttClientConnectResultCode.Success == result.ResultCode)
                 {

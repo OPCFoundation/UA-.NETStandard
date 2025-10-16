@@ -32,6 +32,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
@@ -46,6 +47,7 @@ namespace Opc.Ua.Gds.Tests
         {
             AutoAccept = autoAccept;
             m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ServerConfigurationPushTestClient>();
         }
 
         public IUserIdentity AppUser { get; private set; }
@@ -55,7 +57,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
-            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
             var application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",
@@ -156,7 +158,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task DisconnectClientAsync()
         {
-            Console.WriteLine("Disconnect Session. Waiting for exit...");
+            m_logger.LogInformation("Disconnect Session. Waiting for exit...");
 
             if (PushClient != null)
             {
@@ -172,7 +174,7 @@ namespace Opc.Ua.Gds.Tests
                 Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
-        private static void CertificateValidator_CertificateValidation(
+        private void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
             CertificateValidationEventArgs e)
         {
@@ -181,11 +183,11 @@ namespace Opc.Ua.Gds.Tests
                 e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
                 }
                 else
                 {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
                 }
             }
         }
@@ -230,6 +232,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

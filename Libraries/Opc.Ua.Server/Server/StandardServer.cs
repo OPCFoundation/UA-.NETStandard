@@ -881,9 +881,9 @@ namespace Opc.Ua.Server
                 case StatusCodes.BadCertificatePolicyCheckFailed:
                 case StatusCodes.BadApplicationSignatureInvalid:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>

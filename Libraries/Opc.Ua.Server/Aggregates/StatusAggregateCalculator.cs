@@ -67,26 +67,27 @@ namespace Opc.Ua.Server
         {
             uint? id = AggregateId.Identifier as uint?;
 
-            if (id != null)
+            if (id == null)
             {
-                switch (id.Value)
-                {
-                    case Objects.AggregateFunction_DurationGood:
-                        return ComputeDurationGoodBad(slice, false, false);
-                    case Objects.AggregateFunction_DurationBad:
-                        return ComputeDurationGoodBad(slice, true, false);
-                    case Objects.AggregateFunction_PercentGood:
-                        return ComputeDurationGoodBad(slice, false, true);
-                    case Objects.AggregateFunction_PercentBad:
-                        return ComputeDurationGoodBad(slice, true, true);
-                    case Objects.AggregateFunction_WorstQuality:
-                        return ComputeWorstQuality(slice, false);
-                    case Objects.AggregateFunction_WorstQuality2:
-                        return ComputeWorstQuality(slice, true);
-                }
+                return base.ComputeValue(slice);
             }
-
-            return base.ComputeValue(slice);
+            switch (id.Value)
+            {
+                case Objects.AggregateFunction_DurationGood:
+                    return ComputeDurationGoodBad(slice, false, false);
+                case Objects.AggregateFunction_DurationBad:
+                    return ComputeDurationGoodBad(slice, true, false);
+                case Objects.AggregateFunction_PercentGood:
+                    return ComputeDurationGoodBad(slice, false, true);
+                case Objects.AggregateFunction_PercentBad:
+                    return ComputeDurationGoodBad(slice, true, true);
+                case Objects.AggregateFunction_WorstQuality:
+                    return ComputeWorstQuality(slice, false);
+                case Objects.AggregateFunction_WorstQuality2:
+                    return ComputeWorstQuality(slice, true);
+                default:
+                    return base.ComputeValue(slice);
+            }
         }
 
         /// <summary>

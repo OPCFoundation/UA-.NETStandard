@@ -304,7 +304,7 @@ namespace Quickstarts.ReferenceServer
                 VerifyX509IdentityToken(x509Token);
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(x509Token, MessageContext.Telemetry),
+                    new UserIdentity(x509Token),
                     [Role.AuthenticatedUser]);
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
@@ -368,7 +368,7 @@ namespace Quickstarts.ReferenceServer
             if (userName == "sysadmin" && Utils.IsEqual(password, "demo"u8))
             {
                 return new SystemConfigurationIdentity(
-                    new UserIdentity(userNameToken, MessageContext.Telemetry));
+                    new UserIdentity(userNameToken));
             }
 
             // standard users for CTT verification
@@ -391,7 +391,7 @@ namespace Quickstarts.ReferenceServer
                         new LocalizedText(info)));
             }
             return new RoleBasedIdentity(
-                new UserIdentity(userNameToken, MessageContext.Telemetry),
+                new UserIdentity(userNameToken),
                 [Role.AuthenticatedUser]);
         }
 

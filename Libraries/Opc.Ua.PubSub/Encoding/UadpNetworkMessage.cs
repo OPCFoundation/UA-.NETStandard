@@ -222,6 +222,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set PublisherId type
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public object PublisherId
         {
             get => m_publisherId;
@@ -229,31 +230,21 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 // Just in case value is a positive signed Integer
                 // Try to bring it to an accepted type (will overflow if value doesn't fit)
-
-                object adjustedValue = value;
                 switch (value)
                 {
                     case short int16Value:
-                        if (int16Value > 0)
-                        {
-                            adjustedValue = (ushort)int16Value;
-                        }
+                        m_publisherId = int16Value > 0 ? (ushort)int16Value : value;
                         break;
                     case int int32Value:
-                        if (int32Value > 0)
-                        {
-                            adjustedValue = (uint)int32Value;
-                        }
+                        m_publisherId = int32Value > 0 ? (uint)int32Value : value;
                         break;
                     case long int64Value:
-                        if (int64Value > 0)
-                        {
-                            adjustedValue = (ulong)int64Value;
-                        }
+                        m_publisherId = int64Value > 0 ? (ulong)int64Value : value;
+                        break;
+                    default:
+                        m_publisherId = value;
                         break;
                 }
-
-                m_publisherId = adjustedValue;
 
                 // Remove previous PublisherId data type
                 ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
@@ -898,6 +889,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Network Message Header
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void EncodeNetworkMessageHeader(BinaryEncoder encoder)
         {
             // byte[0..3] UADPVersion value 1 (for now)
@@ -924,8 +916,9 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    switch ((PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 &
-                        kPublishedIdTypeUsedBits))
+                    var publisherIdEncoding = (PublisherIdTypeEncodingMask)
+                        ((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
+                    switch (publisherIdEncoding)
                     {
                         case PublisherIdTypeEncodingMask.Byte:
                             encoder.WriteByte(
@@ -952,9 +945,11 @@ namespace Opc.Ua.PubSub.Encoding
                                 "PublisherId",
                                 Convert.ToString(PublisherId, CultureInfo.InvariantCulture));
                             break;
-                        default:
-                            // Reserved - no type provided
+                        case PublisherIdTypeEncodingMask.Reserved:
                             break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected PublisherIdTypeEncodingMask {publisherIdEncoding}");
                     }
                 }
             }
@@ -1133,6 +1128,11 @@ namespace Opc.Ua.PubSub.Encoding
                 case UADPNetworkMessageDiscoveryType.PublisherEndpoint:
                     EncodePublisherEndpoints(binaryEncoder);
                     break;
+                case UADPNetworkMessageDiscoveryType.None:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected UADPNetworkMessageDiscoveryType {UADPDiscoveryType}");
             }
         }
 
@@ -1146,6 +1146,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode Network Message Header
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void DecodeNetworkMessageHeader(BinaryDecoder decoder)
         {
             // byte[0..3] UADPVersion value 1 (for now)
@@ -1185,8 +1186,9 @@ namespace Opc.Ua.PubSub.Encoding
             // Decode PublisherId
             if ((UADPFlags & UADPFlagsEncodingMask.PublisherId) != 0)
             {
-                switch ((PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 &
-                    kPublishedIdTypeUsedBits))
+                var publisherIdEncoding = (PublisherIdTypeEncodingMask)
+                    ((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
+                switch (publisherIdEncoding)
                 {
                     case PublisherIdTypeEncodingMask.UInt16:
                         m_publisherId = decoder.ReadUInt16("PublisherId");
@@ -1203,6 +1205,11 @@ namespace Opc.Ua.PubSub.Encoding
                     case PublisherIdTypeEncodingMask.Byte:
                         m_publisherId = decoder.ReadByte("PublisherId");
                         break;
+                    case PublisherIdTypeEncodingMask.Reserved:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected PublisherIdTypeEncodingMask {publisherIdEncoding}");
                 }
             }
 
@@ -1369,6 +1376,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the Discovery Response Header
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void DecodeDiscoveryResponse(BinaryDecoder binaryDecoder)
         {
             UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte(
@@ -1387,6 +1395,11 @@ namespace Opc.Ua.PubSub.Encoding
                 case UADPNetworkMessageDiscoveryType.PublisherEndpoint:
                     DecodePublisherEndpoints(binaryDecoder);
                     break;
+                case UADPNetworkMessageDiscoveryType.None:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected UADPNetworkMessageDiscoveryType {UADPDiscoveryType}");
             }
         }
     }

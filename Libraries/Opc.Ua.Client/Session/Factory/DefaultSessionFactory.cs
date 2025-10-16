@@ -49,6 +49,9 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ITelemetryContext Telemetry { get; init; }
 
+        /// <inheritdoc/>
+        public DiagnosticsMasks ReturnDiagnostics { get; set; }
+
         /// <summary>
         /// Obsolete default constructor
         /// </summary>
@@ -113,6 +116,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }
@@ -142,6 +146,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }
@@ -162,16 +167,16 @@ namespace Opc.Ua.Client
             if (reverseConnectManager == null)
             {
                 return await CreateAsync(
-                        configuration,
-                        endpoint,
-                        updateBeforeConnect,
-                        checkDomain,
-                        sessionName,
-                        sessionTimeout,
-                        userIdentity,
-                        preferredLocales,
-                        ct)
-                    .ConfigureAwait(false);
+                    configuration,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    ct)
+                .ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection;
@@ -263,6 +268,7 @@ namespace Opc.Ua.Client
                     "The ISession provided is not of a supported type.");
             }
 
+            template.ReturnDiagnostics = ReturnDiagnostics;
             return await Session.RecreateAsync(template, ct).ConfigureAwait(false);
         }
 
@@ -279,6 +285,7 @@ namespace Opc.Ua.Client
                     "The ISession provided is not of a supported type");
             }
 
+            template.ReturnDiagnostics = ReturnDiagnostics;
             return await Session.RecreateAsync(template, connection, ct).ConfigureAwait(false);
         }
 
@@ -294,6 +301,7 @@ namespace Opc.Ua.Client
                     nameof(sessionTemplate),
                     "The ISession provided is not of a supported type");
             }
+            template.ReturnDiagnostics = ReturnDiagnostics;
             return await Session.RecreateAsync(template, transportChannel, ct)
                 .ConfigureAwait(false);
         }
@@ -304,7 +312,10 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new Session(channel, configuration, endpoint);
+            return new Session(channel, configuration, endpoint)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
         }
 
         /// <inheritdoc/>
@@ -322,7 +333,10 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris);
+                discoveryProfileUris)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
         }
     }
 }

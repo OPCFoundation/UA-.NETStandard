@@ -30,6 +30,7 @@
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
 
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -152,10 +153,9 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
-                int count = 0;
-                foreach (string label in labels)
+                for (int labelIndex = 0; labelIndex < labels.Length; labelIndex++)
                 {
-                    count++;
+                    string label = labels[labelIndex];
                     string beginlabel = $"-----BEGIN {label}-----";
                     int beginIndex = pemText.IndexOf(beginlabel, StringComparison.Ordinal);
                     if (beginIndex < 0)
@@ -175,9 +175,9 @@ namespace Opc.Ua.Security.Certificates
                     {
                         var rsaPrivateKey = RSA.Create();
                         int bytesRead;
-                        switch (count)
+                        switch (labelIndex)
                         {
-                            case 1:
+                            case 0:
                                 if (password.IsEmpty || password.IsWhiteSpace())
                                 {
                                     throw new ArgumentException(
@@ -188,11 +188,14 @@ namespace Opc.Ua.Security.Certificates
                                     pemDecoded,
                                     out bytesRead);
                                 break;
-                            case 2:
+                            case 1:
                                 rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead);
                                 break;
-                            case 3:
+                            case 2:
                                 rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead);
+                                break;
+                            default:
+                                Debug.Fail($"Unexpected label index {labelIndex}.");
                                 break;
                         }
                         return rsaPrivateKey;
@@ -231,10 +234,9 @@ namespace Opc.Ua.Security.Certificates
                 // Convert PEM data to text for parsing
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
-                int labelIndex = 0;
-                foreach (string label in labels)
+                for (int labelIndex = 0; labelIndex < labels.Length; labelIndex++)
                 {
-                    labelIndex++;
+                    string label = labels[labelIndex];
                     string beginLabel = $"-----BEGIN {label}-----";
                     int beginIndex = pemText.IndexOf(beginLabel, StringComparison.Ordinal);
                     if (beginIndex < 0)
@@ -262,7 +264,7 @@ namespace Opc.Ua.Security.Certificates
                         var ecdsaKey = ECDsa.Create();
                         switch (labelIndex)
                         {
-                            case 1:
+                            case 0:
                                 // ENCRYPTED PRIVATE KEY
                                 if (password.IsEmpty || password.IsWhiteSpace())
                                 {
@@ -274,13 +276,16 @@ namespace Opc.Ua.Security.Certificates
                                     decodedBytes,
                                     out _);
                                 break;
-                            case 2:
+                            case 1:
                                 // PRIVATE KEY (Unencrypted PKCS#8)
                                 ecdsaKey.ImportPkcs8PrivateKey(decodedBytes, out _);
                                 break;
-                            case 3:
+                            case 2:
                                 // EC PRIVATE KEY
                                 ecdsaKey.ImportECPrivateKey(decodedBytes, out _);
+                                break;
+                            default:
+                                Debug.Fail($"Unexpected label index {labelIndex}.");
                                 break;
                         }
                         return ecdsaKey;

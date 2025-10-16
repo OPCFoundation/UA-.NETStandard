@@ -840,6 +840,14 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.HostName:
                     domainNames = ["myhost", "1.2.3.4"];
                     break;
+                case InvalidCertType.NoIssues:
+                case InvalidCertType.NoIssuer:
+                case InvalidCertType.IssuerExpired:
+                case InvalidCertType.IssuerNotYetValid:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected InvalidCertType {certType}");
             }
 
             return CertificateFactory
@@ -879,6 +887,12 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.HostName:
                     domainNames = ["myhost", "1.2.3.4"];
                     break;
+                case InvalidCertType.NoIssues:
+                case InvalidCertType.NoIssuer:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected InvalidCertType {certType}");
             }
 
             const string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";

@@ -254,6 +254,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the Content of the Payload and create a DataSet object from it
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private DataSet DecodePayloadContent(
             IJsonDecoder jsonDecoder,
             DataSetReaderDataType dataSetReader)
@@ -353,6 +354,11 @@ namespace Opc.Ua.PubSub.Encoding
                                 }
                             }
                             break;
+                        case FieldTypeEncodingMask.Reserved:
+                            break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected FieldDataTypeEncodingMask {m_fieldTypeEncoding}");
                     }
                 }
                 else
@@ -374,6 +380,12 @@ namespace Opc.Ua.PubSub.Encoding
                                 dataValues.Add(new DataValue(Variant.Null));
                             }
                             break;
+                        case FieldTypeEncodingMask.DataValue:
+                        case FieldTypeEncodingMask.Reserved:
+                            break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected FieldDataTypeEncodingMask {m_fieldTypeEncoding}");
                     }
                 }
             }
@@ -480,6 +492,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes a dataSet field
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void EncodeField(IJsonEncoder encoder, Field field)
         {
             string fieldName = field.FieldMetaData.Name;
@@ -560,6 +573,11 @@ namespace Opc.Ua.PubSub.Encoding
                         dataValue,
                         JsonEncodingType.NonReversible);
                     break;
+                case FieldTypeEncodingMask.Reserved:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected FieldDataTypeEncodingMask {m_fieldTypeEncoding}");
             }
         }
 
@@ -643,6 +661,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode a scalar type
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object DecodeRawScalar(
             IJsonDecoder jsonDecoder,
             byte builtInType,
@@ -704,14 +723,21 @@ namespace Opc.Ua.PubSub.Encoding
                         return jsonDecoder.ReadDiagnosticInfo(fieldName);
                     case BuiltInType.StatusCode:
                         return jsonDecoder.ReadStatusCode(fieldName);
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                        return null;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             catch (Exception ex)
             {
                 m_logger.LogError(ex, "JsonDataSetMessage - Error decoding field {Name}", fieldName);
+                return null;
             }
-
-            return null;
         }
     }
 }

@@ -343,9 +343,9 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
-
-            return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
 
         /// <summary>
@@ -416,9 +416,9 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return base.WriteNonValueAttribute(context, attributeId, value);
             }
-
-            return base.WriteNonValueAttribute(context, attributeId, value);
         }
 
         /// <summary>
@@ -493,8 +493,6 @@ namespace Opc.Ua
                 return null;
             }
 
-            BaseInstanceState instance = null;
-
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
@@ -509,9 +507,7 @@ namespace Opc.Ua
                             InputArguments = (PropertyState<Argument[]>)replacement;
                         }
                     }
-
-                    instance = InputArguments;
-                    break;
+                    return InputArguments ?? base.FindChild(context, browseName, createOrReplace, replacement);
                 case BrowseNames.OutputArguments:
                     if (createOrReplace && OutputArguments == null)
                     {
@@ -524,12 +520,10 @@ namespace Opc.Ua
                             OutputArguments = (PropertyState<Argument[]>)replacement;
                         }
                     }
-
-                    instance = OutputArguments;
-                    break;
+                    return OutputArguments ?? base.FindChild(context, browseName, createOrReplace, replacement);
+                default:
+                    return base.FindChild(context, browseName, createOrReplace, replacement);
             }
-
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
 
         /// <summary>

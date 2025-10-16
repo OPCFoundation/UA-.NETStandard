@@ -512,7 +512,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         break;
                     }
                     goto case BuiltInType.Int32;
-                default:
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
                         encoder.WriteEncodeable(
@@ -525,6 +525,9 @@ namespace Opc.Ua.Client.ComplexTypes
                         StatusCodes.BadEncodingError,
                         "Cannot encode unknown type {0}.",
                         propertyType.Name);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {builtInType} encountered.");
             }
         }
 
@@ -691,7 +694,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         break;
                     }
                     goto case BuiltInType.Int32;
-                default:
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
                         property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
@@ -701,6 +704,9 @@ namespace Opc.Ua.Client.ComplexTypes
                         StatusCodes.BadDecodingError,
                         "Cannot decode unknown type {0}.",
                         propertyType.Name);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {builtInType} encountered.");
             }
         }
 

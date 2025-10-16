@@ -170,15 +170,14 @@ namespace Opc.Ua.Fuzzing
                         {
                             return null;
                         }
-                        break;
+                        goto default;
+                    default:
+                        Console.WriteLine(
+                            "Unexpected ServiceResultException: {0} {1}",
+                            (StatusCode)sre.StatusCode,
+                            sre.Message);
+                        throw;
                 }
-
-                Console.WriteLine(
-                    "Unexpected ServiceResultException: {0} {1}",
-                    (StatusCode)sre.StatusCode,
-                    sre.Message);
-
-                throw;
             }
         }
     }

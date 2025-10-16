@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var mockResolver = new MockResolver(telemetry);
+            var mockResolver = new MockResolver();
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
-            var mockResolver = new MockResolver(telemetry);
+            var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
@@ -588,7 +588,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             SetRepeatedRandomSeed();
 
-            var mockResolver = new MockResolver(telemetry);
+            var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(

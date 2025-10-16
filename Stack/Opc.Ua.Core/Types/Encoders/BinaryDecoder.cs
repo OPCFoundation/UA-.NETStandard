@@ -1415,7 +1415,10 @@ namespace Opc.Ua
                         return ReadExtensionObjectArray(fieldName)?.ToArray();
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName)?.ToArray();
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
@@ -1424,6 +1427,9 @@ namespace Opc.Ua
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
 
@@ -1915,11 +1921,17 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-                default:
+                case BuiltInType.Null:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Cannot decode unknown type in Variant object with BuiltInType: {0}.",
                         builtInType);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {builtInType}");
             }
 
             return array;
@@ -2385,11 +2397,18 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         value = new Variant(ReadDataValue(null));
                         break;
-                    default:
+                    case BuiltInType.Variant:
+                    case BuiltInType.DiagnosticInfo:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Variant object (0x{0:X2}).",
                             encodingByte);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {encodingByte}");
                 }
             }
 

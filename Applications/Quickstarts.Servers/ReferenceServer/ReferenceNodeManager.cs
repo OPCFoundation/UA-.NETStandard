@@ -113,8 +113,12 @@ namespace Quickstarts.ReferenceServer
                 case BuiltInType.Float:
                 case BuiltInType.Double:
                     return true;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return false;
+                default:
+                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
+                    return false;
             }
-            return false;
         }
 
         private static Range GetAnalogRange(BuiltInType builtInType)
@@ -141,7 +145,10 @@ namespace Quickstarts.ReferenceServer
                     return new Range(double.MaxValue, double.MinValue);
                 case BuiltInType.Byte:
                     return new Range(byte.MaxValue, byte.MinValue);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return new Range(sbyte.MaxValue, sbyte.MinValue);
                 default:
+                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
                     return new Range(sbyte.MaxValue, sbyte.MinValue);
             }
         }

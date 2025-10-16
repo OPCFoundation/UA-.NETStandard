@@ -468,12 +468,13 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="index">The index.</param>
         /// <returns>The results of the validation.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual ContentFilter.ElementResult Validate(FilterContext context, int index)
         {
             var result = new ContentFilter.ElementResult(null);
 
             // check the number of operands.
-            int operandCount = -1;
+            int operandCount;
 
             switch (m_filterOperator)
             {
@@ -505,6 +506,9 @@ namespace Opc.Ua
                 case FilterOperator.InList:
                     operandCount = -1;
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected FilterOperator {m_filterOperator}");
             }
 
             if (operandCount != -1)
@@ -647,6 +651,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeTable">The node table.</param>
         /// <returns>ContentFilterElement as a displayable string.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual string ToString(INodeTable nodeTable)
         {
             List<FilterOperand> operands = GetOperands();
@@ -746,6 +751,9 @@ namespace Opc.Ua
                     }
 
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown filter operator {FilterOperator}");
             }
 
             return buffer.ToString();

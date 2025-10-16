@@ -234,8 +234,7 @@ namespace Opc.Ua.Bindings
                         }
                     }
 
-                    break;
-
+                    return false;
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
@@ -246,9 +245,9 @@ namespace Opc.Ua.Bindings
                     m_remoteNonce = Nonce.CreateNonce(SecurityPolicyUri, nonce);
                     return true;
 #endif
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>

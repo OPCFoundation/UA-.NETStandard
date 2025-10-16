@@ -291,7 +291,7 @@ namespace Opc.Ua
             ReadOnlySpan<byte> plainText,
             ILogger logger)
         {
-            EncryptedData encryptedData = new EncryptedData
+            var encryptedData = new EncryptedData
             {
                 Algorithm = null,
                 Data = plainText.IsEmpty ? null : plainText.ToArray()

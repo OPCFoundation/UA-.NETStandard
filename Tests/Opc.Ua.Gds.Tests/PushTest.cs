@@ -163,10 +163,10 @@ namespace Opc.Ua.Gds.Tests
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
             m_telemetry = NUnitTelemetryContext.Create();
-            m_server = await TestUtils.StartGDSAsync(true, m_telemetry, CertificateStoreType.Directory).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory).ConfigureAwait(false);
             m_server.StopServer();
             await Task.Delay(1000).ConfigureAwait(false);
-            m_server = await TestUtils.StartGDSAsync(false, m_telemetry, CertificateStoreType.Directory).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory).ConfigureAwait(false);
 
             m_randomSource = new RandomSource(kRandomStart);
 

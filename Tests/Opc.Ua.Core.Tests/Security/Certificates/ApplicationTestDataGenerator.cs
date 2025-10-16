@@ -116,6 +116,9 @@ namespace Opc.Ua.Core.Tests
                     appName += " Server";
                     _ = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected ApplicationType {appType}");
             }
             return new ApplicationTestData
             {

@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// The mock resolver emulates data type definitions
         /// which are stored in the server address space.
         /// </summary>
-        public MockResolver(ITelemetryContext telemetry)
+        public MockResolver()
         {
             DataTypeSystem = [];
             DataTypeNodes = [];

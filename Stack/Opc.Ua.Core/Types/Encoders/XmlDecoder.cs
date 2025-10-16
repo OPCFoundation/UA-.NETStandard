@@ -414,6 +414,12 @@ namespace Opc.Ua
                             VariantCollection collection = ReadVariantArray(typeName);
                             return collection?.ToArray();
                         }
+                        default:
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Element '{1}:{0}' is not allowed in a Variant.",
+                                m_reader.LocalName,
+                                m_reader.NamespaceURI);
                     }
                 }
                 // process scalar types.
@@ -507,14 +513,14 @@ namespace Opc.Ua
                             return typeInfo.ValueRank == ValueRanks.OneDimension
                                 ? matrix.Elements
                                 : matrix;
+                        default:
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Element '{1}:{0}' is not allowed in a Variant.",
+                                m_reader.LocalName,
+                                m_reader.NamespaceURI);
                     }
                 }
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Element '{1}:{0}' is not allowed in a Variant.",
-                    m_reader.LocalName,
-                    m_reader.NamespaceURI);
             }
             finally
             {
@@ -2868,7 +2874,10 @@ namespace Opc.Ua
                         VariantCollection collection = ReadVariantArray(fieldName);
                         return collection?.ToArray();
                     }
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
@@ -2877,6 +2886,8 @@ namespace Opc.Ua
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             finally

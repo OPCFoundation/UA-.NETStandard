@@ -373,15 +373,16 @@ namespace Opc.Ua.Client.ComplexTypes
                         return DataTypeIds.BaseDataType;
                     case "ExtensionObject":
                         return DataTypeIds.Structure;
+                    default:
+                        System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(
+                            typeName.Name);
+                        if (internalField == null)
+                        {
+                            // The type was not found in the internal type factory.
+                            return NodeId.Null;
+                        }
+                        return (NodeId)internalField.GetValue(typeName.Name);
                 }
-                System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(
-                    typeName.Name);
-                if (internalField == null)
-                {
-                    // The type was not found in the internal type factory.
-                    return NodeId.Null;
-                }
-                return (NodeId)internalField.GetValue(typeName.Name);
             }
             if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
             {
