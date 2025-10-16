@@ -80,29 +80,48 @@ namespace Opc.Ua
             // get the element to evaluate.
             ContentFilterElement element = m_filter.Elements[index];
 
-            return element.FilterOperator switch
+            switch (element.FilterOperator)
             {
-                FilterOperator.And => And(element),
-                FilterOperator.Or => Or(element),
-                FilterOperator.Not => Not(element),
-                FilterOperator.Equals => Equals(element),
-                FilterOperator.GreaterThan => GreaterThan(element),
-                FilterOperator.GreaterThanOrEqual => GreaterThanOrEqual(element),
-                FilterOperator.LessThan => LessThan(element),
-                FilterOperator.LessThanOrEqual => LessThanOrEqual(element),
-                FilterOperator.Between => Between(element),
-                FilterOperator.InList => InList(element),
-                FilterOperator.Like => Like(element),
-                FilterOperator.IsNull => IsNull(element),
-                FilterOperator.Cast => Cast(element),
-                FilterOperator.OfType => OfType(element),
-                FilterOperator.InView => InView(element),
-                FilterOperator.RelatedTo => RelatedTo(element),
-                FilterOperator.BitwiseAnd => BitwiseAnd(element),
-                FilterOperator.BitwiseOr => BitwiseOr(element),
-                _ => throw ServiceResultException.Unexpected(
-                    $"FilterOperator {element.FilterOperator} is not recognized.")
-            };
+                case FilterOperator.And:
+                    return And(element);
+                case FilterOperator.Or:
+                    return Or(element);
+                case FilterOperator.Not:
+                    return Not(element);
+                case FilterOperator.Equals:
+                    return Equals(element);
+                case FilterOperator.GreaterThan:
+                    return GreaterThan(element);
+                case FilterOperator.GreaterThanOrEqual:
+                    return GreaterThanOrEqual(element);
+                case FilterOperator.LessThan:
+                    return LessThan(element);
+                case FilterOperator.LessThanOrEqual:
+                    return LessThanOrEqual(element);
+                case FilterOperator.Between:
+                    return Between(element);
+                case FilterOperator.InList:
+                    return InList(element);
+                case FilterOperator.Like:
+                    return Like(element);
+                case FilterOperator.IsNull:
+                    return IsNull(element);
+                case FilterOperator.Cast:
+                    return Cast(element);
+                case FilterOperator.OfType:
+                    return OfType(element);
+                case FilterOperator.InView:
+                    return InView(element);
+                case FilterOperator.RelatedTo:
+                    return RelatedTo(element);
+                case FilterOperator.BitwiseAnd:
+                    return BitwiseAnd(element);
+                case FilterOperator.BitwiseOr:
+                    return BitwiseOr(element);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"FilterOperator {element.FilterOperator} is not recognized.");
+            }
         }
 
         /// <summary>

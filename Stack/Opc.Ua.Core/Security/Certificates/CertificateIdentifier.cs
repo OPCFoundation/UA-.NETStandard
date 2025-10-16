@@ -500,16 +500,22 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate with a signature.</param>
         public static NodeId GetCertificateType(X509Certificate2 certificate)
         {
-            return certificate.SignatureAlgorithm.Value switch
+            switch (certificate.SignatureAlgorithm.Value)
             {
-                Oids.ECDsaWithSha1 or Oids.ECDsaWithSha384 or Oids.ECDsaWithSha256 or Oids
-                    .ECDsaWithSha512 =>
-                    EccUtils.GetEccCertificateTypeId(certificate),
-                Oids.RsaPkcs1Sha256 or Oids.RsaPkcs1Sha384 or Oids.RsaPkcs1Sha512 =>
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                Oids.RsaPkcs1Sha1 => ObjectTypeIds.RsaMinApplicationCertificateType,
-                _ => NodeId.Null
-            };
+                case Oids.ECDsaWithSha1:
+                case Oids.ECDsaWithSha384:
+                case Oids.ECDsaWithSha256:
+                case Oids.ECDsaWithSha512:
+                    return EccUtils.GetEccCertificateTypeId(certificate);
+                case Oids.RsaPkcs1Sha256:
+                case Oids.RsaPkcs1Sha384:
+                case Oids.RsaPkcs1Sha512:
+                    return ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                case Oids.RsaPkcs1Sha1:
+                    return ObjectTypeIds.RsaMinApplicationCertificateType;
+                default:
+                    return NodeId.Null;
+            }
         }
 
         /// <summary>
