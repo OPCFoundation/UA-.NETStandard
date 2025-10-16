@@ -1395,7 +1395,10 @@ namespace Opc.Ua
             if (matches.Count == 0)
             {
                 // if specific security parameters were requested, throw appropriate error
-                if (!string.IsNullOrEmpty(securityPolicyUri) && securityMode != MessageSecurityMode.Invalid)
+                bool hasSpecificPolicy = !string.IsNullOrEmpty(securityPolicyUri);
+                bool hasSpecificMode = securityMode != MessageSecurityMode.Invalid;
+
+                if (hasSpecificPolicy && hasSpecificMode)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
@@ -1403,14 +1406,14 @@ namespace Opc.Ua
                         securityPolicyUri,
                         securityMode);
                 }
-                else if (!string.IsNullOrEmpty(securityPolicyUri))
+                else if (hasSpecificPolicy)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Server does not support the requested security policy '{0}'.",
                         securityPolicyUri);
                 }
-                else if (securityMode != MessageSecurityMode.Invalid)
+                else if (hasSpecificMode)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityModeRejected,
