@@ -406,7 +406,8 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.Aes256_Sha256_RsaPss,
                 SecurityPolicies.ECC_nistP384,
                 SecurityPolicies.ECC_brainpoolP384r1,
-                SecurityPolicies.Basic128Rsa15
+                SecurityPolicies.Basic128Rsa15,
+                "This will never exist"
             })
             {
                 if (!supportedPolicies.Contains(policy))
@@ -459,9 +460,9 @@ namespace Opc.Ua.Client.Tests
                 (StatusCode)ex.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected)
                     .Or.EqualTo((StatusCode)StatusCodes.BadSecurityModeRejected),
-                $"Expected BadSecurityPolicyRejected or BadSecurityModeRejected, but got {ex.StatusCode}: {ex.Message}");
+                $"Expected BadSecurityPolicyRejected or BadSecurityModeRejected, but got {(StatusCode)ex.StatusCode}: {ex.Message}");
 
-            TestContext.Out.WriteLine($"Correctly received status code: {ex.StatusCode}");
+            TestContext.Out.WriteLine($"Correctly received status code: {(StatusCode)ex.StatusCode}");
         }
 
         [Theory]
