@@ -4857,7 +4857,7 @@ namespace Opc.Ua.Client
 
                 if (nodeClass == null)
                 {
-                    nodeCollection.Add(node);18
+                    nodeCollection.Add(node);
                     errors.Add(
                         ServiceResult.Create(
                             StatusCodes.BadUnexpectedError,

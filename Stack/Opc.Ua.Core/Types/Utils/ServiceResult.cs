@@ -862,13 +862,13 @@ namespace Opc.Ua
                 }
                 if (exception is ServiceResultException)
                 {
-#if !DEBUGX
+#if !DEBUG
                     return exception.Message;
 #endif
                 }
                 return Utils.Format("[{0}] {1}",
                     exception.GetType().Name,
-#if !DEBUGX
+#if !DEBUG
                     exception.Message);
 #else
                     BuildExceptionTrace(exception));
@@ -876,7 +876,7 @@ namespace Opc.Ua
             }
 
             return Utils.Format("[{0}]",
-#if !DEBUGX
+#if !DEBUG
                 exception.GetType().Name);
 #else
                 BuildExceptionTrace(exception));

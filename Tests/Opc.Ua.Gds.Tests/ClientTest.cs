@@ -35,6 +35,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Tests;
@@ -918,7 +919,8 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
         }
@@ -1046,7 +1048,8 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
         }
@@ -1397,7 +1400,8 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
 
@@ -1514,7 +1518,8 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
 

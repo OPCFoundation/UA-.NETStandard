@@ -34,6 +34,7 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
@@ -51,6 +52,7 @@ namespace Opc.Ua.Gds.Tests
             string storeType = CertificateStoreType.Directory)
         {
             m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<GlobalDiscoveryTestClient>();
             AutoAccept = autoAccept;
             m_storeType = storeType;
         }
@@ -63,7 +65,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
         {
-            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
 
             string configSectionName = "Opc.Ua.GlobalDiscoveryTestClient";
             if (m_storeType == CertificateStoreType.X509Store)
@@ -240,7 +242,7 @@ namespace Opc.Ua.Gds.Tests
             }
             catch (ArgumentException e)
             {
-                Console.WriteLine("RegisterTestClientAtGds at GDS failed" + e);
+                m_logger.LogError(e, "RegisterTestClientAtGds at GDS failed");
                 return false;
             }
 
@@ -249,7 +251,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task DisconnectClientAsync()
         {
-            Console.WriteLine("Disconnect Session. Waiting for exit...");
+            m_logger.LogInformation("Disconnect Session. Waiting for exit...");
 
             if (GDSClient != null)
             {
@@ -321,7 +323,7 @@ namespace Opc.Ua.Gds.Tests
             return id;
         }
 
-        private static void CertificateValidator_CertificateValidation(
+        private void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
             CertificateValidationEventArgs e)
         {
@@ -330,11 +332,11 @@ namespace Opc.Ua.Gds.Tests
                 e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
                 }
                 else
                 {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
                 }
             }
         }
@@ -398,6 +400,7 @@ namespace Opc.Ua.Gds.Tests
         private ApplicationInstance m_application;
         private readonly string m_storeType;
         private readonly ITelemetryContext m_telemetry;
+        private readonly Microsoft.Extensions.Logging.ILogger<GlobalDiscoveryTestClient> m_logger;
     }
 
     /// <summary>

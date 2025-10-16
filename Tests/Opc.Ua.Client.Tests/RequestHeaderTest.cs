@@ -31,7 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
@@ -92,17 +94,19 @@ namespace Opc.Ua.Client.Tests
         [GlobalSetup]
         public override void GlobalSetup()
         {
-            Console.WriteLine("GlobalSetup: Start Server");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<RequestHeaderTest>();
+            logger.LogInformation("GlobalSetup: Start Server");
             OneTimeSetUpCoreAsync(
                     enableClientSideTracing: false,
                     enableServerSideTracing: false,
                     disableActivityLogging: false)
                 .GetAwaiter()
                 .GetResult();
-            Console.WriteLine("GlobalSetup: Connecting");
+            logger.LogInformation("GlobalSetup: Connecting");
             InitializeSession(
                 ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
-            Console.WriteLine("GlobalSetup: Ready");
+            logger.LogInformation("GlobalSetup: Ready");
         }
 
         /// <summary>
