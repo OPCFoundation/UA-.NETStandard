@@ -2262,30 +2262,34 @@ namespace Opc.Ua
                         case BuiltInType.Enumeration:
                             if (array is not int[] ints)
                             {
-                                if (array is not Enum[] enums)
+                                if (array is Enum[] enums)
                                 {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadEncodingError,
-                                        Utils.Format(
-                                            "Type '{0}' is not allowed in an Enumeration.",
-                                            array.GetType().FullName));
+                                    ints = new int[enums.Length];
+                                    for (int ii = 0; ii < enums.Length; ii++)
+                                    {
+                                        ints[ii] = Convert.ToInt32(
+                                            enums[ii],
+                                            CultureInfo.InvariantCulture);
+                                    }
                                 }
-                                ints = new int[enums.Length];
-                                for (int ii = 0; ii < enums.Length; ii++)
+                                else if (array is null)
                                 {
-                                    ints[ii] = Convert.ToInt32(
-                                        enums[ii],
-                                        CultureInfo.InvariantCulture);
+                                    ints = null;
+                                }
+                                else
+                                {
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadEncodingError,
+                                        "Type '{0}' is not allowed in an Enumeration.",
+                                        array.GetType().FullName);
                                 }
                             }
-
                             WriteInt32Array(fieldName, ints);
                             return;
                         case BuiltInType.Variant:
-                        {
-                            if (array is Variant[] variants)
+                            if (array is null or Variant[])
                             {
-                                WriteVariantArray(fieldName, variants);
+                                WriteVariantArray(fieldName, (Variant[])array);
                                 return;
                             }
 
@@ -2309,19 +2313,17 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 array.GetType());
-                        }
                         case BuiltInType.Null:
                         case BuiltInType.Number:
                         case BuiltInType.Integer:
                         case BuiltInType.UInteger:
-                        {
                             // try to write IEncodeable Array
-                            if (array is IEncodeable[] encodeableArray)
+                            if (array is null or IEncodeable[])
                             {
                                 WriteEncodeableArray(
                                     fieldName,
-                                    encodeableArray,
-                                    array.GetType().GetElementType());
+                                    (IEncodeable[])array,
+                                    array?.GetType().GetElementType());
                                 return;
                             }
 
@@ -2329,7 +2331,6 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected BuiltInType encountered while encoding an array: {0}",
                                 builtInType);
-                        }
                         default:
                             throw ServiceResultException.Unexpected(
                                 $"Unexpected BuiltInType {builtInType}");

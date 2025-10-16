@@ -917,8 +917,8 @@ namespace Opc.Ua
 
             try
             {
-                string domain1 = url1.DnsSafeHost;
-                string domain2 = url2.DnsSafeHost;
+                string domain1 = url1.IdnHost;
+                string domain2 = url2.IdnHost;
 
                 // replace localhost with the computer name.
                 if (domain1 == "localhost")
@@ -991,7 +991,7 @@ namespace Opc.Ua
             // replace localhost with the current hostname.
             Uri parsedUri = ParseUri(instanceUri);
 
-            if (parsedUri != null && parsedUri.DnsSafeHost == "localhost")
+            if (parsedUri != null && parsedUri.IdnHost == "localhost")
             {
                 var builder = new UriBuilder(parsedUri) { Host = GetHostName() };
                 return builder.Uri.ToString();
