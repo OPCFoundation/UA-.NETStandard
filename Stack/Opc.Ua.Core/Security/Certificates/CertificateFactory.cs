@@ -117,11 +117,13 @@ namespace Opc.Ua
             bool ensurePrivateKeyAccessible,
             ITelemetryContext telemetry)
         {
+#if USE_CACHE
             if (certificate == null)
             {
                 return null;
             }
 
+            ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
             lock (s_certificatesLock)
             {
                 // check for existing cached certificate.
@@ -147,7 +149,6 @@ namespace Opc.Ua
                 if (ensurePrivateKeyAccessible &&
                     !X509Utils.VerifyKeyPair(certificate, certificate))
                 {
-                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
                     logger.LogWarning(
                         "Trying to add certificate to cache with invalid private key.");
                     return null;
@@ -158,14 +159,19 @@ namespace Opc.Ua
 
                 if (s_certificates.Count > 100)
                 {
-                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
                     logger.LogWarning(
                         "Certificate cache has {Count} certificates in it.",
                         s_certificates.Count);
                 }
             }
+#endif
             return certificate;
         }
+
+#if USE_CACHE
+        private static readonly Dictionary<string, X509Certificate2> s_certificates = [];
+        private static readonly Lock s_certificatesLock = new();
+#endif
 
         /// <summary>
         /// Create a certificate for any use.
@@ -637,8 +643,7 @@ namespace Opc.Ua
                 applicationUri = builder.ToString();
             }
 
-            _ =
-                Utils.ParseUri(applicationUri)
+            _ = Utils.ParseUri(applicationUri)
                 ?? throw new ArgumentNullException(
                     nameof(applicationUri),
                     "Must specify a valid URL.");
@@ -667,8 +672,5 @@ namespace Opc.Ua
                 }
             }
         }
-
-        private static readonly Dictionary<string, X509Certificate2> s_certificates = [];
-        private static readonly Lock s_certificatesLock = new();
     }
 }
