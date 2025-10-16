@@ -1394,7 +1394,34 @@ namespace Opc.Ua
             // no matches (security parameters may have changed).
             if (matches.Count == 0)
             {
-                matches = collection;
+                // if specific security parameters were requested, throw appropriate error
+                if (!string.IsNullOrEmpty(securityPolicyUri) && securityMode != MessageSecurityMode.Invalid)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Server does not support the requested security policy '{0}' and security mode '{1}'.",
+                        securityPolicyUri,
+                        securityMode);
+                }
+                else if (!string.IsNullOrEmpty(securityPolicyUri))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Server does not support the requested security policy '{0}'.",
+                        securityPolicyUri);
+                }
+                else if (securityMode != MessageSecurityMode.Invalid)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityModeRejected,
+                        "Server does not support the requested security mode '{0}'.",
+                        securityMode);
+                }
+                else
+                {
+                    // no specific security parameters were requested, fall back to any endpoint
+                    matches = collection;
+                }
             }
 
             // check if list has to be narrowed down further.
