@@ -78,21 +78,21 @@ namespace Opc.Ua.Tests
         public ILoggerFactory LoggerFactory { get; }
 
         /// <summary>
-        /// Create telemetry context over a writer
+        /// Create telemetry context
         /// </summary>
-        private NUnitTelemetryContext()
+        private NUnitTelemetryContext(string context)
         {
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(
-                builder => builder.AddProvider(new NUnitLoggerProvider()));
+                builder => builder.AddProvider(new NUnitLoggerProvider(context)));
         }
 
         /// <summary>
         /// Use the test context output
         /// </summary>
         /// <returns></returns>
-        public static ITelemetryContext Create()
+        public static ITelemetryContext Create(bool isServer = false)
         {
-            return new NUnitTelemetryContext();
+            return new NUnitTelemetryContext(!isServer ? "TEST" : "SERVER");
         }
 
         [ProviderAlias("BenchmarkDotNet")]
@@ -159,7 +159,9 @@ namespace Opc.Ua.Tests
                             .Append(formatter(state, exception));
                         if (exception != null)
                         {
-                            sb.AppendException(exception, "\t");
+                            sb
+                                .AppendLine()
+                                .AppendException(exception, "\t");
                         }
                         m_logger.WriteLine(logLevel switch
                         {
@@ -188,10 +190,20 @@ namespace Opc.Ua.Tests
         [ProviderAlias("NUnit")]
         internal sealed class NUnitLoggerProvider : ILoggerProvider
         {
+            /// <summary>
+            /// Create provider for context
+            /// </summary>
+            /// <param name="context"></param>
+            public NUnitLoggerProvider(string context)
+            {
+                m_context = context;
+            }
+
             /// <inheritdoc/>
             public ILogger CreateLogger(string categoryName)
             {
-                return m_loggers.GetOrAdd(categoryName, name => new Logger(categoryName));
+                return m_loggers.GetOrAdd(categoryName,
+                    name => new Logger(m_context, categoryName));
             }
 
             /// <inheritdoc/>
@@ -201,8 +213,9 @@ namespace Opc.Ua.Tests
 
             private sealed class Logger : ILogger, IDisposable
             {
-                public Logger(string categoryName)
+                public Logger(string context, string categoryName)
                 {
+                    m_context = context;
                     m_categoryName = categoryName;
                 }
 
@@ -228,7 +241,6 @@ namespace Opc.Ua.Tests
                     {
                         return false;
                     }
-#if DEBUG
                     switch (logLevel)
                     {
                         case LogLevel.Trace:
@@ -242,9 +254,6 @@ namespace Opc.Ua.Tests
                         default:
                             return false;
                     }
-#else
-                    return true;
-#endif
                 }
 
                 /// <inheritdoc/>
@@ -261,6 +270,7 @@ namespace Opc.Ua.Tests
                     }
                     try
                     {
+                        // Add the info to the test log if on current context
                         StringBuilder sb = new StringBuilder()
                             .AppendFormat(
                                 CultureInfo.InvariantCulture,
@@ -273,16 +283,20 @@ namespace Opc.Ua.Tests
                             .Append(formatter(state, exception));
                         if (exception != null)
                         {
-                            sb.AppendException(exception, "\t");
+                            sb
+                                .AppendLine()
+                                .AppendException(exception, "\t");
                         }
                         string logRecord = sb.ToString();
                         TestContext.Out.WriteLine(logRecord);
-#if DEBUG
-                        // Also write to progress/error
+
+                        // Also write to progress/error which captures all output not just test
                         logRecord = sb
                             .Clear()
                             .AppendLine(TestContext.CurrentContext?.Test?.Name ?? string.Empty)
                             .Append('\t')
+                            .Append(m_context)
+                            .Append(' ')
                             .Append(logRecord)
                             .ToString();
                         switch (logLevel)
@@ -303,7 +317,6 @@ namespace Opc.Ua.Tests
                                 Debug.Fail($"Bad log level {logLevel}");
                                 break;
                         }
-#endif
                     }
                     catch
                     {
@@ -311,11 +324,13 @@ namespace Opc.Ua.Tests
                     }
                 }
 
+                private readonly string m_context;
                 private readonly string m_categoryName;
             }
 
             private readonly ConcurrentDictionary<string, Logger> m_loggers =
                   new(StringComparer.OrdinalIgnoreCase);
+            private readonly string m_context;
         }
     }
 }

@@ -94,8 +94,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging,
-                Telemetry)
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,

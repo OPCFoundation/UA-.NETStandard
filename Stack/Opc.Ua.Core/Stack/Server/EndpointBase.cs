@@ -152,19 +152,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Activity Source Name.
-        /// </summary>
-        public static readonly string ActivitySourceName = "Opc.Ua.Server-ActivitySource";
-
-        /// <summary>
-        /// Activity Source static instance.
-        /// </summary>
-        public static ActivitySource ActivitySource => s_activitySource.Value;
-
-        private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
-            new ActivitySource(ActivitySourceName, "1.0.0"));
-
-        /// <summary>
         /// Tries to extract the trace details from the AdditionalParametersType.
         /// </summary>
         public static bool TryExtractActivityContextFromParameters(
@@ -979,7 +966,9 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = SecureChannelContext;
 
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -988,7 +977,7 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            using Activity activity = ActivitySource.StartActivity(
+                            using Activity activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);
@@ -1030,7 +1019,9 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = SecureChannelContext;
 
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -1039,7 +1030,7 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            using Activity activity = ActivitySource.StartActivity(
+                            using Activity activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);
@@ -1144,7 +1135,9 @@ namespace Opc.Ua
                     SecureChannelContext.Current = SecureChannelContext;
 
                     Activity activity = null;
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -1153,7 +1146,7 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            activity = ActivitySource.StartActivity(
+                            activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);

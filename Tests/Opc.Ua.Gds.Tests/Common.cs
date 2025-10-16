@@ -38,6 +38,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -402,7 +403,6 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task<GlobalDiscoveryTestServer> StartGDSAsync(
             bool clean,
-            ITelemetryContext telemetry,
             string storeType = CertificateStoreType.Directory)
         {
             GlobalDiscoveryTestServer server = null;
@@ -413,7 +413,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 try
                 {
-                    server = new GlobalDiscoveryTestServer(true, telemetry);
+                    server = new GlobalDiscoveryTestServer(true, NUnitTelemetryContext.Create(true));
                     await server.StartServerAsync(clean, testPort, storeType).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)

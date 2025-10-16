@@ -802,7 +802,7 @@ namespace Opc.Ua
         private static string BuildExceptionTrace(Exception exception)
         {
             return new StringBuilder()
-                .AppendException(exception, string.Empty)
+                .AppendException(exception)
                 .ToString();
         }
 

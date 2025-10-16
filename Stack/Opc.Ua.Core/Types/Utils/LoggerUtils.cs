@@ -202,14 +202,16 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(indent));
             }
-            while (true)
+            for (int i = 0; i < 100; i++)
             {
-                if (buffer.Length > 0)
+                if (i > 0)
                 {
                     buffer
                         .AppendLine()
                         .Append(indent)
-                        .AppendLine(">>>> (Inner) >>>>")
+                        .Append(">>>> (Inner #")
+                        .Append(i)
+                        .AppendLine(") >>>>")
                         .Append(indent);
                 }
 

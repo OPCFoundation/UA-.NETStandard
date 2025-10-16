@@ -102,7 +102,7 @@ namespace Opc.Ua.Gds.Tests
         {
             // start GDS
             m_telemetry = NUnitTelemetryContext.Create();
-            m_server = await TestUtils.StartGDSAsync(true, m_telemetry, m_storeType).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, m_storeType).ConfigureAwait(false);
 
             // load client
             m_gdsClient = new GlobalDiscoveryTestClient(true, m_telemetry, m_storeType);
