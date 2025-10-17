@@ -81,9 +81,8 @@ namespace Opc.Ua
         protected virtual void Dispose(bool disposing)
         {
             // clean up managed resources.
-            if (disposing && !m_disposed)
+            if (disposing)
             {
-                m_disposed = true;
                 m_lock.Wait();
                 try
                 {
@@ -226,15 +225,14 @@ namespace Opc.Ua
                         password.Length == 0 ? string.Empty : new string(password);
 
                     const int retryDelay = 100;
-                    int retryCounter = 10;
-                    while (retryCounter-- > 0)
+                    for (int i = 0; ; i++)
                     {
                         try
                         {
                             data = certificate.Export(X509ContentType.Pkcs12, passcode);
                             break;
                         }
-                        catch (CryptographicException)
+                        catch (Exception) when (i < 10)
                         {
                             await Task.Delay(retryDelay, ct).ConfigureAwait(false);
                         }
@@ -1325,6 +1323,5 @@ namespace Opc.Ua
         private DirectoryInfo m_privateKeySubdir;
         private readonly Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
-        private bool m_disposed;
     }
 }
