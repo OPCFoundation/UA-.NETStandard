@@ -746,8 +746,17 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
-        /// This tests that instantiating two application instances the second with a SubjectName being a substring of the first one's CN,
-        /// succeeds without throwing exceptions.
+        /// This tests that instantiating three application instances the second with a SubjectName
+        /// being a substring of the first one's CN, but without containing the "CN=", failes due to the legacy fuzzy search
+        /// matching the first certificate, which is invalid for the second application instance (different ApplicationUri
+        /// The test shows 3 cases of creating application instances:
+        ///     1 succeeds since there is no certificate identification collision (store is empty).
+        ///     2 fails because in the process of finding the Application certificate the
+        ///         1'st - AppCertificate (Wrong one) is selected due to the Fuzzy search,
+        ///         and further on the validation fails (different ApplicationUri, etc).
+        ///     3 succeeds because in the process of finding the Application certificate the correct application certificate
+        ///         with correct subjectName "CN=UA, O=...." and ApplicationUri is searched for, no fuzzy search performed,
+        ///         none is found and a new one gets created, selected, further validations succeed.
         /// </summary>
         /// <returns></returns>
         [Test]
@@ -792,6 +801,7 @@ namespace Opc.Ua.Configuration.Tests
                     await applicationInstance2.CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false));
             Assert.AreEqual(StatusCodes.BadConfigurationError, exception.StatusCode);
+
             subjectName = "CN=UA";// UA is a substring of the previous certificate SubjectName CN
             var applicationInstance3 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var configuration3 = await applicationInstance3

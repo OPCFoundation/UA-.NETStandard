@@ -738,7 +738,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.AreEqual(certSubjectSubstring.Thumbprint, resultSubjectSubstring.Thumbprint);
 
             // Test that exact match is done if CN is in subject name and multiple matches exist
-            // and the longest duration certificate is selected in that case
+            // and the longest remaining validity certificate is selected in that case
             X509Certificate2 resultSubjectWithCnDuplicate = CertificateIdentifier.Find(
                 collection,
                 null,
@@ -750,7 +750,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
              resultSubjectWithCnDuplicate.Thumbprint);
 
-            // Test that longest duration certificate is selected when multiple matches exist
+            // Test that longest remaining validity certificate is selected when multiple matches exist
             // and CN is not in subject name
             X509Certificate2 resultLongestDuration = CertificateIdentifier.Find(
                 collection,
@@ -774,7 +774,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(resultApplicationUri);
             Assert.AreEqual(certSubjectSubstring.Thumbprint, resultApplicationUri.Thumbprint);
 
-            // Test search by applicationUri works for multiple matches and longest duration is selected
+            // Test search by applicationUri works for multiple matches and longest remaining validity is selected
             X509Certificate2 resultApplicationUriDuplicate = CertificateIdentifier.Find(
                 collection,
                 null,
@@ -796,7 +796,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetCAConstraint()
                 .CreateForRSA();
 
-            // Create a CA-signed certificate with shorter duration than the self-signed ones
+            // Create a CA-signed certificate with shorter remaining validity than the self-signed ones
             X509Certificate2 caSignedCert = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(startCreation.AddDays(-2))
                 .SetNotAfter(startCreation.AddDays(540)) // Valid for ~18 months
@@ -809,7 +809,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             collectionWithCASigned.AddRange(testCertificatesCollection);
             collectionWithCASigned.Add(caSignedCert);
 
-            // Test that CA-signed certificate is picked over self-signed even with shorter duration
+            // Test that CA-signed certificate is picked over self-signed even with shorter remaining validity
             X509Certificate2 resultCASigned = CertificateIdentifier.Find(
                 collectionWithCASigned,
                 null,
@@ -818,7 +818,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 false);
             Assert.NotNull(resultCASigned);
-            Assert.AreEqual(caSignedCert.Thumbprint, resultCASigned.Thumbprint);
+            Assert.AreEqual(caSignedCert.Thumbprint, resultCASigned.Thumbprint,
+                "Should pick CA-signed certificate over self-signed even with shorter remaining validity");
 
             // Test that CA-signed certificate is picked by applicationUri over self-signed
             X509Certificate2 resultCASignedByUri = CertificateIdentifier.Find(
@@ -831,7 +832,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(resultCASignedByUri);
             Assert.AreEqual(caSignedCert.Thumbprint, resultCASignedByUri.Thumbprint);
 
-            // Test multiple valid certificates - should pick one with longest remaining validity
+            // Test multiple valid certificates - should pick CA-signed first, then longest remaining validity
             X509Certificate2 validShortRemaining = CreateDuplicateCertificate(
                 "CN=Opc.Ua.Core.Tests",
                 "urn:localhost:UA:Opc.Ua.Core.Tests.ValidShortRemaining",
@@ -866,8 +867,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // Test expired certificate handling 
             // --------------------------------------------------------------------------
-            
+
             // Test 1: All certificates expired - should pick least expired (most recent NotAfter)
+
             X509Certificate2 expiredCert1 = CreateDuplicateCertificate(
                 "CN=Opc.Ua.Core.Tests",
                 "urn:localhost:UA:Opc.Ua.Core.Tests.Expired1",
@@ -884,10 +886,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validityMonths: 24,
                 startingFromDays: -800); // Expired ~70 days ago (-800 + 730)
 
-            var expiredCollection = new X509Certificate2Collection();
-            expiredCollection.Add(expiredCert1);
-            expiredCollection.Add(expiredCert2);
-            expiredCollection.Add(expiredCert3);
+            var expiredCollection = new X509Certificate2Collection
+            {
+                expiredCert1,
+                expiredCert2,
+                expiredCert3
+            };
 
             X509Certificate2 resultExpired = CertificateIdentifier.Find(
                 expiredCollection,
@@ -935,22 +939,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2 expiredSelfSigned = CreateDuplicateCertificate(
                 "CN=Opc.Ua.Core.Tests",
                 "urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredSelfSigned",
-                validityMonths: 12,
-                startingFromDays: -400); // Expired self-signed
-            
+                validityMonths: 6,
+                startingFromDays: -200); // Expired ~20 days ago - least expired self-signed
+
             // CA-signed cert must have dates within CA's validity period
+
             X509Certificate2 expiredCASigned = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(startCreation.AddDays(-500))
-                .SetNotAfter(startCreation.AddDays(-320)) // Expired ~320 days ago (more expired than -400+365≈-35)
+                .SetNotAfter(startCreation.AddDays(-320)) // Expired ~320 days ago (more expired than self-signed)
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
                 .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredCA", 
                     new[] { "CN=Opc.Ua.Core.Tests" }))
                 .SetIssuer(caCertificate)
                 .CreateForRSA(); // More expired but CA-signed
 
-            var expiredCACollection = new X509Certificate2Collection();
-            expiredCACollection.Add(expiredSelfSigned);
-            expiredCACollection.Add(expiredCASigned);
+            var expiredCACollection = new X509Certificate2Collection
+            {
+                expiredSelfSigned,
+                expiredCASigned
+            };
 
             X509Certificate2 resultExpiredCA = CertificateIdentifier.Find(
                 expiredCACollection,
@@ -961,7 +968,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 false);
             Assert.NotNull(resultExpiredCA);
             Assert.AreEqual(expiredCASigned.Thumbprint, resultExpiredCA.Thumbprint,
-                "Should prioritize CA-signed over self-signed even when both expired");
+                "Should prioritize CA-signed over self-signed even when CA-signed is more expired");
 
             // Test 4: Certificate not yet valid (NotBefore in future) - should be treated as invalid
             X509Certificate2 notYetValid = CreateDuplicateCertificate(
@@ -991,7 +998,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "Should pick currently valid certificate over not-yet-valid certificate");
 
             // Test 5: All expired with same NotAfter, CA-signed should win
-            // CA starts at startCreation - 1000 days, so it can sign expired certs
             DateTime sameExpiry = startCreation.AddDays(-50); // Expired 50 days ago
             DateTime sameExpiryStart = sameExpiry.AddDays(-365); // Started 365 days before expiry
             X509Certificate2 expiredSelfSigned1 = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
@@ -1001,7 +1007,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.SameExpirySelf", 
                     new[] { "CN=Opc.Ua.Core.Tests" }))
                 .CreateForRSA();
-            
+    
             X509Certificate2 expiredCASigned1 = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(sameExpiryStart)
                 .SetNotAfter(sameExpiry)
@@ -1026,16 +1032,103 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.AreEqual(expiredCASigned1.Thumbprint, resultSameExpiry.Thumbprint,
                 "Should prioritize CA-signed over self-signed when both have same NotAfter");
 
-            // Test 6: Search by applicationUri with all expired certificates
-       
-            expiredCollection.Add(expiredCertLong);
-            expiredCollection.Add(expiredCert2);
-            expiredCollection.Add(expiredSelfSigned);
-            expiredCollection.Add(expiredCASigned);
-            expiredCollection.Add(notYetValid);
-            expiredCollection.Add(expiredSelfSigned1);
-            expiredCollection.Add(expiredCASigned1);
+            // Test 6: Mix of expired and not-yet-valid - should pick soonest to become valid
+            X509Certificate2 notYetValidSoon = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests.FutureSoon",
+                validityMonths: 12,
+                startingFromDays: 5); // Becomes valid in 5 days
+            X509Certificate2 notYetValidLater = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests.FutureLater",
+                validityMonths: 12,
+                startingFromDays: 30); // Becomes valid in 30 days
+            X509Certificate2 expiredRecent = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredRecent",
+                validityMonths: 6,
+                startingFromDays: -200); // Expired ~20 days ago
 
+            var mixedExpiredFutureCollection = new X509Certificate2Collection();
+            mixedExpiredFutureCollection.Add(notYetValidSoon);
+            mixedExpiredFutureCollection.Add(notYetValidLater);
+            mixedExpiredFutureCollection.Add(expiredRecent);
+
+            X509Certificate2 resultMixedExpiredFuture = CertificateIdentifier.Find(
+                mixedExpiredFutureCollection,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultMixedExpiredFuture);
+            Assert.AreEqual(notYetValidSoon.Thumbprint, resultMixedExpiredFuture.Thumbprint,
+                "Should pick soonest to become valid when both expired and not-yet-valid exist (5 days < 20 days)");
+
+            // Test 7: All not-yet-valid - should pick soonest to become valid
+            var allNotYetValidCollection = new X509Certificate2Collection();
+            allNotYetValidCollection.Add(notYetValidSoon);
+            allNotYetValidCollection.Add(notYetValidLater);
+
+            X509Certificate2 resultAllNotYetValid = CertificateIdentifier.Find(
+                allNotYetValidCollection,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultAllNotYetValid);
+            Assert.AreEqual(notYetValidSoon.Thumbprint, resultAllNotYetValid.Thumbprint,
+                "Should pick soonest to become valid when all are not-yet-valid");
+
+            // Test 8: Not-yet-valid CA-signed vs self-signed - should prioritize CA-signed
+            X509Certificate2 notYetValidCASigned = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+                .SetNotBefore(startCreation.AddDays(20))
+                .SetNotAfter(startCreation.AddDays(20).AddMonths(12))
+                .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.FutureCA", 
+                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .SetIssuer(caCertificate)
+                .CreateForRSA(); // Becomes valid in 20 days, but CA-signed
+
+            var notYetValidCACollection = new X509Certificate2Collection();
+            notYetValidCACollection.Add(notYetValidSoon); // Self-signed, becomes valid in 5 days
+            notYetValidCACollection.Add(notYetValidCASigned); // CA-signed, becomes valid in 20 days
+
+            X509Certificate2 resultNotYetValidCA = CertificateIdentifier.Find(
+                notYetValidCACollection,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultNotYetValidCA);
+            Assert.AreEqual(notYetValidCASigned.Thumbprint, resultNotYetValidCA.Thumbprint,
+                "Should prioritize CA-signed over self-signed even when CA-signed becomes valid later");
+
+            // Test 9: Mix of expired and not-yet-valid with CA-signed - should pick CA-signed not-yet-valid
+            X509Certificate2 expiredSelfSignedRecent = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredSelfRecent",
+                validityMonths: 6,
+                startingFromDays: -190); // Expired ~10 days ago - least expired self-signed
+
+            var mixedCACollection = new X509Certificate2Collection();
+            mixedCACollection.Add(expiredSelfSignedRecent);
+            mixedCACollection.Add(notYetValidCASigned);
+
+            X509Certificate2 resultMixedCA = CertificateIdentifier.Find(
+                mixedCACollection,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultMixedCA);
+            Assert.AreEqual(notYetValidCASigned.Thumbprint, resultMixedCA.Thumbprint,
+                "Should pick CA-signed not-yet-valid over self-signed expired when comparing soonest to become valid");
+
+            // Test 10: Search by applicationUri with expired certificates
             X509Certificate2 resultExpiredByUri = CertificateIdentifier.Find(
                 expiredCollection,
                 null,
@@ -1046,6 +1139,37 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(resultExpiredByUri);
             Assert.AreEqual(expiredCert2.Thumbprint, resultExpiredByUri.Thumbprint,
                 "Should find least expired certificate when searching by applicationUri");
+
+            // Test 11: Valid CA-signed with shorter remaining validity beats self-signed with longer remaining validity
+            X509Certificate2 validSelfSignedLonger = CreateDuplicateCertificate(
+                "CN=Opc.Ua.Core.Tests",
+                "urn:localhost:UA:Opc.Ua.Core.Tests.ValidSelfLonger",
+                validityMonths: 48,
+                startingFromDays: -2); // Valid for ~48 months
+
+            X509Certificate2 validCASignedShorter = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+                .SetNotBefore(startCreation.AddDays(-2))
+                .SetNotAfter(startCreation.AddDays(180)) // Valid for ~6 months
+                .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ValidCAShorter", 
+                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .SetIssuer(caCertificate)
+                .CreateForRSA();
+
+            var validCAvsSelfCollection = new X509Certificate2Collection();
+            validCAvsSelfCollection.Add(validSelfSignedLonger);
+            validCAvsSelfCollection.Add(validCASignedShorter);
+
+            X509Certificate2 resultValidCAvsSeIf = CertificateIdentifier.Find(
+                validCAvsSelfCollection,
+                null,
+                "CN=Opc.Ua.Core.Tests",
+                null,
+                null,
+                false);
+            Assert.NotNull(resultValidCAvsSeIf);
+            Assert.AreEqual(validCASignedShorter.Thumbprint, resultValidCAvsSeIf.Thumbprint,
+                "Should pick CA-signed valid certificate over self-signed valid even with shorter remaining validity");
         }
 
         private X509Certificate2 GetTestCert()

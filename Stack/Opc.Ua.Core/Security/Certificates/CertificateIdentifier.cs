@@ -367,62 +367,151 @@ namespace Opc.Ua
 
         /// <summary>
         /// Picks the best certificate from the collection.
-        /// Ignores not-yet-valid certificates (NotBefore > now) as they have never been used.
+        /// Does not ignore expired certificates nor not-yet-valid certificates.
         /// Selection criteria in order of priority:
-        /// 1. Valid certificates preferred over expired certificates
-        /// 2. CA-signed certificates preferred over self-signed (within same validity status)
-        /// 3. Longest remaining validity if valid, or least expired if all expired
+        /// 1. Valid certificates preferred over expired certificates and over not-yet-valid certificates.
+        /// 2. CA-signed certificates preferred over self-signed (within same validity status).
+        /// 3. Longest remaining validity if there are any valid certificates.
+        /// 4. Least expired if all expired.
+        /// 5. The most soon-to-become-valid if all not-yet-valid.
+        /// 6. The most soon-to-become-valid if only expired and soon-to-become-valid.
         /// </summary>
-        /// <param name="collection">The collection of certificates to evaluate.</param>
-        /// <returns>The best matching certificate, or null if the collection is empty or all are not-yet-valid.</returns>
-        static X509Certificate2 PickBestCertificate(X509Certificate2Collection collection)
+        /// <param name="collection">
+        /// The collection of certificates to evaluate. The "best" certificate is determined by the following criteria, in order:
+        /// (1) Validity (currently valid over expired or not-yet-valid), (2) CA-signed over self-signed within the same validity status,
+        /// (3) longest remaining validity if valid, (4) least expired if all expired, (5) soonest to become valid if all not-yet-valid,
+        /// (6) soonest to become valid if only expired and not-yet-valid certificates exist.
+        /// </param>
+        /// <returns>
+        /// The best matching certificate according to the selection criteria, or <c>null</c> if the collection is empty or no suitable certificate is found.
+        /// </returns>
+        private static X509Certificate2 PickBestCertificate(X509Certificate2Collection collection)
         {
             if (collection == null || collection.Count == 0)
             {
                 return null;
             }
 
-            X509Certificate2 bestMatch = null;
-            TimeSpan bestRemainingValidity = TimeSpan.MinValue;
-            bool bestIsCASigned = false;
-            bool bestIsValid = false;
+            X509Certificate2 bestValid = null;
+            TimeSpan bestValidRemaining = TimeSpan.MinValue;
+            bool bestValidIsCASigned = false;
+
+            X509Certificate2 bestExpired = null;
+            TimeSpan bestExpiredTime = TimeSpan.MaxValue; // Most recently expired (closest to now)
+            bool bestExpiredIsCASigned = false;
+
+            X509Certificate2 bestNotYetValid = null;
+            TimeSpan bestNotYetValidTime = TimeSpan.MaxValue; // Soonest to become valid
+            bool bestNotYetValidIsCASigned = false;
 
             DateTime now = DateTime.UtcNow;
 
             foreach (X509Certificate2 certificate in collection)
             {
-                // Skip not-yet-valid certificates (they have never been used)
-                if (certificate.NotBefore > now)
-                {
-                    continue;
-                }
-
-                TimeSpan remainingValidity = certificate.NotAfter - now;
                 bool isCASigned = !X509Utils.IsSelfSigned(certificate);
-                bool isValid = certificate.NotAfter >= now;  // NotBefore already checked above
 
-                // Prioritize:
-                // 1. Valid over expired
-                // 2. CA-signed over self-signed (within same validity status)
-                // 3. Longest remaining validity (or least expired if all expired)
-                bool isBetter = (isValid && !bestIsValid) ||
-                                (isValid == bestIsValid && isCASigned && !bestIsCASigned) ||
-                                (isValid == bestIsValid && isCASigned == bestIsCASigned && remainingValidity > bestRemainingValidity);
+                // Normalize certificate times to UTC for consistent comparison
+                // X509Certificate2 NotBefore/NotAfter return local time
+                DateTime notBefore = certificate.NotBefore.ToUniversalTime();
+                DateTime notAfter = certificate.NotAfter.ToUniversalTime();
 
-                if (isBetter)
+                if (notBefore <= now && notAfter >= now)
                 {
-                    bestMatch = certificate;
-                    bestRemainingValidity = remainingValidity;
-                    bestIsCASigned = isCASigned;
-                    bestIsValid = isValid;
+                    // Valid certificate
+                    TimeSpan remainingValidity = notAfter - now;
+                    bool isValidBetter = bestValid == null ||
+                        (isCASigned && !bestValidIsCASigned) ||
+                        (isCASigned == bestValidIsCASigned && remainingValidity > bestValidRemaining);
+
+                    if (isValidBetter)
+                    {
+                        bestValid = certificate;
+                        bestValidRemaining = remainingValidity;
+                        bestValidIsCASigned = isCASigned;
+                    }
+                }
+                else if (notAfter < now)
+                {
+                    // Expired certificate
+                    TimeSpan expiredTime = now - notAfter; // How long expired
+                    bool isExpiredBetter = bestExpired == null ||
+                        (isCASigned && !bestExpiredIsCASigned) ||
+                        (isCASigned == bestExpiredIsCASigned && expiredTime < bestExpiredTime);
+
+                    if (isExpiredBetter)
+                    {
+                        bestExpired = certificate;
+                        bestExpiredTime = expiredTime;
+                        bestExpiredIsCASigned = isCASigned;
+                    }
+                }
+                else // notBefore > now
+                {
+                    // Not yet valid certificate
+                    TimeSpan notYetValidTime = notBefore - now; // How long until valid
+                    bool isNotYetValidBetter = bestNotYetValid == null ||
+                        (isCASigned && !bestNotYetValidIsCASigned) ||
+                        (isCASigned == bestNotYetValidIsCASigned && notYetValidTime < bestNotYetValidTime);
+
+                    if (isNotYetValidBetter)
+                    {
+                        bestNotYetValid = certificate;
+                        bestNotYetValidTime = notYetValidTime;
+                        bestNotYetValidIsCASigned = isCASigned;
+                    }
                 }
             }
 
-            return bestMatch;
+            // Return in priority order: valid > expired > not-yet-valid
+            if (bestValid != null)
+            {
+                return bestValid;
+            }
+
+            if (bestExpired != null && bestNotYetValid != null)
+            {
+                // Both expired and not-yet-valid exist valid certificates do not 
+                // Prioritize CA-signed over self-signed
+                if (bestNotYetValidIsCASigned && !bestExpiredIsCASigned)
+                {
+                    return bestNotYetValid;
+                }
+                if (bestExpiredIsCASigned && !bestNotYetValidIsCASigned)
+                {
+                    return bestExpired;
+                }
+                // If both have same CA-signed status, pick the soonest to become valid
+                return bestNotYetValidTime < bestExpiredTime ? bestNotYetValid : bestExpired;
+            }
+
+            if (bestExpired != null)
+            {
+                return bestExpired;
+            }
+
+            return bestNotYetValid;
         }
 
         /// <summary>
+        /// <para>
         /// Finds a certificate in the specified collection.
+        /// The order of search is:
+        /// 1. By thumbprint.
+        /// 2. By subject name, with exact match on CN= if specified and fuzzy match if not
+        /// 3. By application uri.
+        /// </para>
+        /// <para>
+        /// Excepting the thumbprint criteria, multiple matches are possible due to leftover certificates in the certificate store.
+        /// If such multiple matches are found, the best matching certificate is selected using the following criteria, in order of priority:
+        /// </para>
+        /// <para>
+        /// 1. Valid certificates preferred over expired certificates and over not-yet-valid certificates.
+        /// 2. CA-signed certificates preferred over self-signed (within same validity status).
+        /// 3. Longest remaining validity if there are any valid certificates.
+        /// 4. Least expired if all expired.
+        /// 5. The most soon-to-become-valid if all not-yet-valid.
+        /// 6. The most soon-to-become-valid if only expired and soon-to-become-valid certificates exist.
+        /// </para>
         /// </summary>
         /// <param name="collection">The collection.</param>
         /// <param name="thumbprint">The thumbprint of the certificate.</param>
@@ -489,6 +578,8 @@ namespace Opc.Ua
 
                 bool hasCommonName = subjectName.IndexOf("CN=", StringComparison.OrdinalIgnoreCase) >= 0;
 
+                // If parsedSubjectName did not match the certificate distinguished name
+                // If "CN=" exists in the subject name than an exact match on CN is required
                 if (hasCommonName)
                 {
                     string commonNameEntry = parsedSubjectName
@@ -517,6 +608,7 @@ namespace Opc.Ua
                         }
                     }
                 }
+                // If no "CN=" specified than a fuzzy match is allowed
                 else
                 {
                     X509Certificate2Collection fuzzyMatches = collection.Find(
