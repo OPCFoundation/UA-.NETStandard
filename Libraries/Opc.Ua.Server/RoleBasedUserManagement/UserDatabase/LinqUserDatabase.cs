@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            string hash = LinqUserDatabase.Hash(password);
+            string hash = Hash(password);
 
             bool added = true;
             User newUser = m_users.AddOrUpdate(userName,
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            return LinqUserDatabase.Check(user.Hash, password);
+            return Check(user.Hash, password);
         }
 
         /// <inheritdoc/>
@@ -207,9 +207,9 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            if (LinqUserDatabase.Check(user.Hash, oldPassword))
+            if (Check(user.Hash, oldPassword))
             {
-                user.Hash = LinqUserDatabase.Hash(newPassword);
+                user.Hash = Hash(newPassword);
                 return true;
             }
 

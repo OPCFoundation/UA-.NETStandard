@@ -270,7 +270,7 @@ namespace Opc.Ua.Client.Tests
 
             var sessionClient = new SessionClient(channel, telemetry)
             {
-                ReturnDiagnostics = DiagnosticsMasks.All
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
             };
 
             var request = new ReadRequest { RequestHeader = null };
@@ -1963,8 +1963,6 @@ namespace Opc.Ua.Client.Tests
             )]
                 string securityPolicy)
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
             var eccCurveHashPairs = new ECCurveHashPairCollection
             {
                 { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
@@ -1996,7 +1994,7 @@ namespace Opc.Ua.Client.Tests
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();
 
-                    var userIdentity = new UserIdentity(cert, telemetry);
+                    var userIdentity = new UserIdentity(cert);
 
                     // the first channel determines the endpoint
                     ConfiguredEndpoint endpoint = await ClientFixture

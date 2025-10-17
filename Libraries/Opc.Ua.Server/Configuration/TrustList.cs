@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -261,11 +262,7 @@ namespace Opc.Ua.Server
                 data = new byte[length];
 
                 int bytesRead = m_strm.Read(data, 0, length);
-
-                if (bytesRead < 0)
-                {
-                    return StatusCodes.BadUnexpectedError;
-                }
+                Debug.Assert(bytesRead >= 0);
 
                 if (bytesRead < length)
                 {

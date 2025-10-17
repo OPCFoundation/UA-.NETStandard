@@ -2393,7 +2393,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Certificate = CertificateFactory.Create(rawData, true, null);
+            Certificate = X509CertificateLoader.LoadCertificate(rawData);
         }
 
         /// <summary>
@@ -2555,8 +2555,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                ITelemetryContext telemetry = AmbientMessageContext.Telemetry;
-                m_certificate = CertificateFactory.Create(value, true, telemetry);
+                m_certificate = X509CertificateLoader.LoadCertificate(value);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 CertificateType = GetCertificateType(m_certificate);

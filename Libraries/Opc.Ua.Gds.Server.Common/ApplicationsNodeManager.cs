@@ -381,9 +381,8 @@ namespace Opc.Ua.Gds.Server
                     {
                         m_logger.LogError(
                             e,
-                            "Unexpected error initializing certificateGroup: {CertificateGroupId}\n{StackTrace}",
-                            certificateGroupConfiguration.Id,
-                            ServiceResult.BuildExceptionTrace(e));
+                            "Unexpected error initializing certificateGroup: {CertificateGroupId}",
+                            certificateGroupConfiguration.Id);
                         // make sure gds server doesn't start without cert groups!
                         throw;
                     }

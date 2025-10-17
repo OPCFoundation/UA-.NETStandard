@@ -50,17 +50,23 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpointUrl">The endpoint Url.</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server</param>
+        /// <param name="diagnosticsMasks"></param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
             IUserIdentity adminUserIdentity = null,
-            ISessionFactory sessionFactory = null)
+            ISessionFactory sessionFactory = null,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration;
             MessageContext = configuration.CreateMessageContext(true);
             EndpointUrl = endpointUrl;
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory(MessageContext.Telemetry);
+            m_sessionFactory = sessionFactory ??
+                new DefaultSessionFactory(MessageContext.Telemetry)
+                {
+                    ReturnDiagnostics = diagnosticsMasks
+                };
             // preset admin
             AdminCredentials = adminUserIdentity;
         }
@@ -81,13 +87,6 @@ namespace Opc.Ua.Gds.Client
         public IUserIdentity AdminCredentials { get; set; }
 
         /// <summary>
-        /// Raised when admin credentials are required.
-        /// </summary>
-#pragma warning disable CS0067
-        public event EventHandler<AdminCredentialsRequiredEventArgs> AdminCredentialsRequired;
-#pragma warning restore CS0067
-
-        /// <summary>
         /// Gets the session.
         /// </summary>
         public ISession Session { get; private set; }
@@ -105,16 +104,18 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                if (Session != null && Session.ConfiguredEndpoint != null)
+                lock (m_lock)
                 {
-                    return Session.ConfiguredEndpoint;
+                    if (Session != null && Session.ConfiguredEndpoint != null)
+                    {
+                        return Session.ConfiguredEndpoint;
+                    }
                 }
-
                 return m_endpoint;
             }
             set
             {
-                if (Session != null)
+                if (IsConnected)
                 {
                     throw new InvalidOperationException(
                         "Session must be closed before changing endpoint.");
@@ -145,7 +146,16 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         ///   <c>true</c> if [is connected]; otherwise, <c>false</c>.
         /// </value>
-        public bool IsConnected => Session != null && Session.Connected;
+        public bool IsConnected
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return Session != null && Session.Connected;
+                }
+            }
+        }
 
         /// <summary>
         ///  Returns list of servers known to the LDS, excluding GDS servers.
@@ -166,7 +176,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="lds">The LDS to use.</param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>
-        /// TRUE if successful; FALSE otherwise.
+        /// Whatever urls were found.
         /// </returns>
         public async Task<List<string>> GetDefaultServerUrlsAsync(
             LocalDiscoveryServerClient lds,
@@ -212,7 +222,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="lds">The LDS to use.</param>
         /// <returns>
-        /// TRUE if successful; FALSE otherwise.
+        /// Whatever urls were found.
         /// </returns>
         [Obsolete("Use GetDefaultGdsUrlsAsync instead.")]
         public List<string> GetDefaultGdsUrls(LocalDiscoveryServerClient lds)
@@ -226,7 +236,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="lds">The LDS to use.</param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>
-        /// TRUE if successful; FALSE otherwise.
+        /// Whatever urls were found.
         /// </returns>
         public async Task<List<string>> GetDefaultGdsUrlsAsync(
             LocalDiscoveryServerClient lds,
@@ -310,10 +320,9 @@ namespace Opc.Ua.Gds.Client
                     nameof(endpointUrl));
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 60;
+            for (int attempt = 0; ; attempt++)
             {
-                serverHalted = false;
                 try
                 {
                     EndpointDescription endpointDescription =
@@ -329,14 +338,19 @@ namespace Opc.Ua.Gds.Client
                         endpointDescription,
                         endpointConfiguration);
 
-                    await ConnectAsync(endpoint, ct).ConfigureAwait(false);
+                    await ConnectInternalAsync(endpoint, ct).ConfigureAwait(false);
+                    return;
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
         }
 
         /// <summary>
@@ -374,42 +388,25 @@ namespace Opc.Ua.Gds.Client
                 }
             }
 
-            if (Session != null)
+            const int maxAttempts = 60;
+            for (int attempt = 0; ; attempt++)
             {
-                Session.Dispose();
-                Session = null;
+                try
+                {
+                    await ConnectInternalAsync(endpoint, ct).ConfigureAwait(false);
+                    return;
+                }
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
+                {
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
+                    await Task.Delay(1000, ct).ConfigureAwait(false);
+                }
             }
-
-            Session = await m_sessionFactory
-                .CreateAsync(
-                    Configuration,
-                    endpoint,
-                    false,
-                    false,
-                    Configuration.ApplicationName,
-                    60000,
-                    AdminCredentials,
-                    PreferredLocales,
-                    ct)
-                .ConfigureAwait(false);
-
-            m_endpoint = Session.ConfiguredEndpoint;
-
-            Session.SessionClosing += Session_SessionClosing;
-            Session.KeepAlive += Session_KeepAlive;
-            Session.KeepAlive += KeepAlive;
-            // TODO: implement, suppress warning/error
-            if (ServerStatusChanged != null)
-            {
-            }
-
-            if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
-            {
-                Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
-            }
-
-            Session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-            EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
         }
 
         /// <summary>
@@ -426,11 +423,17 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public async Task DisconnectAsync(CancellationToken ct = default)
         {
-            if (Session != null)
+            ISession session;
+            lock (m_lock)
             {
-                KeepAlive?.Invoke(Session, null);
-                await (Session?.CloseAsync(ct)).ConfigureAwait(false);
+                session = Session;
                 Session = null;
+            }
+            if (session != null)
+            {
+                KeepAlive?.Invoke(session, null);
+                await session.CloseAsync(ct).ConfigureAwait(false);
+                session.Dispose();
             }
         }
 
@@ -438,8 +441,14 @@ namespace Opc.Ua.Gds.Client
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                Session?.Dispose();
-                Session = null;
+                lock (m_lock)
+                {
+                    if (session == Session)
+                    {
+                        Session.Dispose();
+                        Session = null;
+                    }
+                }
             }
         }
 
@@ -479,10 +488,7 @@ namespace Opc.Ua.Gds.Client
             string applicationUri,
             CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession Session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
             IList<object> outputArguments = await Session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
@@ -646,14 +652,11 @@ namespace Opc.Ua.Gds.Client
         {
             DateTime lastCounterResetTime = DateTime.MinValue;
 
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_QueryServers, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_QueryServers, session.NamespaceUris),
                 ct,
                 startingRecordId,
                 maxRecordsToReturn,
@@ -742,16 +745,13 @@ namespace Opc.Ua.Gds.Client
             DateTime lastCounterResetTime = DateTime.MinValue;
             uint nextRecordId = 0;
 
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_QueryApplications,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 startingRecordId,
                 maxRecordsToReturn,
@@ -797,14 +797,11 @@ namespace Opc.Ua.Gds.Client
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetApplication, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetApplication, session.NamespaceUris),
                 ct,
                 applicationId).ConfigureAwait(false);
 
@@ -838,16 +835,13 @@ namespace Opc.Ua.Gds.Client
             ApplicationRecordDataType application,
             CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_RegisterApplication,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 application).ConfigureAwait(false);
 
@@ -899,16 +893,13 @@ namespace Opc.Ua.Gds.Client
             NodeId[] certificateTypeIds = [];
             byte[][] certificates = [];
 
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.CertificateDirectoryType_GetCertificates,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationId,
                 certificateGroupId).ConfigureAwait(false);
@@ -951,16 +942,13 @@ namespace Opc.Ua.Gds.Client
             StatusCode certificateStatus = StatusCodes.Good;
             DateTime validityTime = DateTime.MinValue;
 
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.CertificateDirectoryType_CheckRevocationStatus,
-                    Session.NamespaceUris
+                    session.NamespaceUris
                 ),
                 ct,
                 certificate).ConfigureAwait(false);
@@ -990,16 +978,13 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         public async Task UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_UpdateApplication,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 application).ConfigureAwait(false);
         }
@@ -1021,16 +1006,13 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         public async Task UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_UnregisterApplication,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationId).ConfigureAwait(false);
         }
@@ -1054,16 +1036,13 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         public async Task RevokeCertificateAsync(NodeId applicationId, byte[] certificate, CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.CertificateDirectoryType_RevokeCertificate,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationId,
                 certificate).ConfigureAwait(false);
@@ -1126,16 +1105,13 @@ namespace Opc.Ua.Gds.Client
             char[] privateKeyPassword,
             CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_StartNewKeyPairRequest,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationId,
                 certificateGroupId,
@@ -1191,16 +1167,13 @@ namespace Opc.Ua.Gds.Client
             byte[] certificateRequest,
             CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_StartSigningRequest,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationId,
                 certificateGroupId,
@@ -1252,14 +1225,11 @@ namespace Opc.Ua.Gds.Client
             byte[] privateKey = null;
             byte[][] issuerCertificates = null;
 
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_FinishRequest, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_FinishRequest, session.NamespaceUris),
                 ct,
                 applicationId,
                 requestId).ConfigureAwait(false);
@@ -1301,16 +1271,13 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         public async Task<NodeId[]> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_GetCertificateGroups,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationId).ConfigureAwait(false);
 
@@ -1341,14 +1308,11 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         public async Task<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetTrustList, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetTrustList, session.NamespaceUris),
                 ct,
                 applicationId,
                 certificateGroupId).ConfigureAwait(false);
@@ -1389,16 +1353,13 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateTypeId,
             CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_GetCertificateStatus,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationId,
                 certificateGroupId,
@@ -1430,12 +1391,9 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public async Task<TrustListDataType> ReadTrustListAsync(NodeId trustListId, CancellationToken ct = default)
         {
-            if (!IsConnected)
-            {
-                await ConnectAsync(ct).ConfigureAwait(false);
-            }
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
+            IList<object> outputArguments = await session.CallAsync(
                 trustListId,
                 Ua.MethodIds.FileType_Open,
                 ct,
@@ -1449,7 +1407,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     const int length = 4096;
 
-                    outputArguments = await Session.CallAsync(
+                    outputArguments = await session.CallAsync(
                         trustListId,
                         Ua.MethodIds.FileType_Read,
                         ct,
@@ -1471,23 +1429,95 @@ namespace Opc.Ua.Gds.Client
             }
             finally
             {
-                if (IsConnected)
-                {
-                    await Session.CallAsync(trustListId, Ua.MethodIds.FileType_Close, ct, fileHandle).ConfigureAwait(false);
-                }
+                await session.CallAsync(trustListId, Ua.MethodIds.FileType_Close, ct, fileHandle).ConfigureAwait(false);
             }
 
             ostrm.Position = 0;
 
             var trustList = new TrustListDataType();
-            using (var decoder = new BinaryDecoder(ostrm, Session.MessageContext))
+            using (var decoder = new BinaryDecoder(ostrm, session.MessageContext))
             {
                 trustList.Decode(decoder);
             }
             return trustList;
         }
 
+        /// <summary>
+        /// Connect the session
+        /// </summary>
+        /// <param name="endpoint"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        private async Task ConnectInternalAsync(ConfiguredEndpoint endpoint, CancellationToken ct)
+        {
+            lock (m_lock)
+            {
+                if (Session != null)
+                {
+                    Session.Dispose();
+                    Session = null;
+                }
+            }
+
+            ISession session = await m_sessionFactory.CreateAsync(
+                Configuration,
+                endpoint,
+                false,
+                false,
+                Configuration.ApplicationName,
+                60000,
+                AdminCredentials,
+                PreferredLocales,
+                ct)
+            .ConfigureAwait(false);
+
+            m_endpoint = session.ConfiguredEndpoint;
+            lock (m_lock)
+            {
+                Session?.Dispose();
+                Session = session;
+
+                Session.SessionClosing += Session_SessionClosing;
+                Session.KeepAlive += Session_KeepAlive;
+                Session.KeepAlive += KeepAlive;
+
+                // TODO: implement, suppress warning/error
+                if (ServerStatusChanged != null)
+                {
+                }
+
+                if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
+                {
+                    Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
+                }
+
+                EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
+                m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
+            }
+        }
+
+        /// <summary>
+        /// Connect the client if not connected
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        private async Task<ISession> ConnectIfNeededAsync(CancellationToken ct)
+        {
+            while (true)
+            {
+                lock (m_lock)
+                {
+                    if (Session != null && Session.Connected)
+                    {
+                        return Session;
+                    }
+                }
+                await ConnectAsync(ct).ConfigureAwait(false);
+            }
+        }
+
         private ConfiguredEndpoint m_endpoint;
+        private readonly Lock m_lock = new();
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
     }

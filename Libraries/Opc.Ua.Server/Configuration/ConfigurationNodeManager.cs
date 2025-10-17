@@ -652,7 +652,7 @@ namespace Opc.Ua.Server
                                     passwordProvider?.GetPassword(existingCertIdentifier));
                             break;
                     }
-                    //dispose temporary new private key as it is no longer needed
+                    // dispose temporary new private key as it is no longer needed
                     certificateGroup.TemporaryApplicationCertificate?.Dispose();
                     certificateGroup.TemporaryApplicationCertificate = null;
 
@@ -759,8 +759,8 @@ namespace Opc.Ua.Server
                     {
                         m_logger.LogError(
                             Utils.TraceMasks.Security,
-                            "{StackTrace}",
-                            ServiceResult.BuildExceptionTrace(ex));
+                            ex,
+                            "Failed to update certificate");
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "Failed to update certificate.",

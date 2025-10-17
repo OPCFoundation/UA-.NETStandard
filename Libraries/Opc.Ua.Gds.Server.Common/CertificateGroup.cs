@@ -503,8 +503,6 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            X509Certificate2 certificate;
-
             ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
@@ -512,7 +510,7 @@ namespace Opc.Ua.Gds.Server
                 .SetCAConstraint();
 
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+            using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder
                     .SetHashAlgorithm(
@@ -520,7 +518,7 @@ namespace Opc.Ua.Gds.Server
                     .SetRSAKeySize(Configuration.CACertificateKeySize)
                     .CreateForRSA();
 #else
-            certificate = builder
+            using X509Certificate2 certificate = builder
                 .SetHashAlgorithm(
                     X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                 .SetRSAKeySize(Configuration.CACertificateKeySize)
@@ -553,8 +551,6 @@ namespace Opc.Ua.Gds.Server
                         .ConfigureAwait(false);
                 }
             }
-
-            Utils.SilentDispose(certificate);
 
             return Certificates[certificateType];
         }
