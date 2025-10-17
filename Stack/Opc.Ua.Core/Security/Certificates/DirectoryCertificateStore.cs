@@ -93,7 +93,7 @@ namespace Opc.Ua
                 finally
                 {
                     m_lock.Release();
-                    m_lock.Dispose();
+                    // m_lock.Dispose(); // Fix store model
                 }
             }
             Close();
@@ -226,7 +226,7 @@ namespace Opc.Ua
                         password.Length == 0 ? string.Empty : new string(password);
 
                     const int retryDelay = 100;
-                    int retryCounter = 3;
+                    int retryCounter = 10;
                     while (retryCounter-- > 0)
                     {
                         try
