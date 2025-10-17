@@ -16,7 +16,6 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Opc.Ua.Bindings
 {
