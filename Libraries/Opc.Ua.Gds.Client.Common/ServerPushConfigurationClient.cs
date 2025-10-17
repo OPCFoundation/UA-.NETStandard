@@ -227,7 +227,7 @@ namespace Opc.Ua.Gds.Client
                     nameof(endpointUrl));
             }
 
-            const int maxAttempts = 60;
+            const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
             {
                 try
@@ -245,7 +245,7 @@ namespace Opc.Ua.Gds.Client
                         endpointDescription,
                         endpointConfiguration);
 
-                    await ConnectInternalAsync(endpoint, ct).ConfigureAwait(false);
+                    await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException e) when ((e.StatusCode is
@@ -295,12 +295,12 @@ namespace Opc.Ua.Gds.Client
                 }
             }
 
-            const int maxAttempts = 60;
+            const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
             {
                 try
                 {
-                    await ConnectInternalAsync(endpoint, ct).ConfigureAwait(false);
+                    await ConnectInternalAsync(endpoint, true, ct).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException e) when ((e.StatusCode is
@@ -1105,10 +1105,10 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connect the session
         /// </summary>
-        /// <param name="endpoint"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        private async Task ConnectInternalAsync(ConfiguredEndpoint endpoint, CancellationToken ct)
+        private async Task ConnectInternalAsync(
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            CancellationToken ct)
         {
             lock (m_lock)
             {
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Gds.Client
             ISession session = await m_sessionFactory.CreateAsync(
                 Configuration,
                 endpoint,
-                false,
+                updateBeforeConnect,
                 false,
                 Configuration.ApplicationName,
                 60000,

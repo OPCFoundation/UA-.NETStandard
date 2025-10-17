@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.Tests
                     nameof(endpointUrl));
             }
 
-            const int maxAttempts = 60;
+            const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
             {
                 try
@@ -272,7 +272,7 @@ namespace Opc.Ua.Client.Tests
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            const int maxAttempts = 60;
+            const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
             {
                 try
