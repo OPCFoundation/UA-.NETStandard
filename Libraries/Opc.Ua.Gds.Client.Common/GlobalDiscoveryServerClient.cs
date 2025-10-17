@@ -87,14 +87,36 @@ namespace Opc.Ua.Gds.Client
         public IUserIdentity AdminCredentials { get; set; }
 
         /// <summary>
-        /// Gets the session.
-        /// </summary>
-        public ISession Session { get; private set; }
-
-        /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
         public string EndpointUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets the preferred locales.
+        /// </summary>
+        public string[] PreferredLocales { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether the session is connected.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if the session is connected; otherwise, <c>false</c>.
+        /// </value>
+        public bool IsConnected
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return Session != null && Session.Connected;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the session.
+        /// </summary>
+        public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets the endpoint.
@@ -129,31 +151,6 @@ namespace Opc.Ua.Gds.Client
                 }
 
                 m_endpoint = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the preferred locales.
-        /// </summary>
-        /// <value>
-        /// The preferred locales.
-        /// </value>
-        public string[] PreferredLocales { get; set; }
-
-        /// <summary>
-        /// Gets a value indicating whether a session is connected.
-        /// </summary>
-        /// <value>
-        ///   <c>true</c> if [is connected]; otherwise, <c>false</c>.
-        /// </value>
-        public bool IsConnected
-        {
-            get
-            {
-                lock (m_lock)
-                {
-                    return Session != null && Session.Connected;
-                }
             }
         }
 
@@ -347,7 +344,7 @@ namespace Opc.Ua.Gds.Client
                     StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
             }
@@ -367,7 +364,7 @@ namespace Opc.Ua.Gds.Client
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        /// <param name="ct"> The cancellationToken</param>
+        /// <param name="ct">The cancellationToken</param>
         /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async Task ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
@@ -402,8 +399,7 @@ namespace Opc.Ua.Gds.Client
                     StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
-                    attempt++;
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
             }
@@ -1471,7 +1467,6 @@ namespace Opc.Ua.Gds.Client
                 ct)
             .ConfigureAwait(false);
 
-            m_endpoint = session.ConfiguredEndpoint;
             lock (m_lock)
             {
                 Session?.Dispose();
@@ -1491,6 +1486,7 @@ namespace Opc.Ua.Gds.Client
                     Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
                 }
 
+                m_endpoint = Session.ConfiguredEndpoint;
                 EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
                 m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
             }
@@ -1516,9 +1512,9 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private ConfiguredEndpoint m_endpoint;
         private readonly Lock m_lock = new();
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
+        private ConfiguredEndpoint m_endpoint;
     }
 }

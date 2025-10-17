@@ -293,6 +293,8 @@ namespace Opc.Ua.Tests
                         // Also write to progress/error which captures all output not just test
                         logRecord = sb
                             .Clear()
+                            .Append(TestContext.CurrentContext?.Test?.DisplayName ?? string.Empty)
+                            .Append(' ')
                             .AppendLine(TestContext.CurrentContext?.Test?.Name ?? string.Empty)
                             .Append('\t')
                             .Append(m_context)
