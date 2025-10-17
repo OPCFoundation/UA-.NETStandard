@@ -211,14 +211,16 @@ namespace Opc.Ua
                         .Append(indent)
                         .Append(">>>> (Inner #")
                         .Append(i)
-                        .AppendLine(") >>>>")
-                        .Append(indent);
+                        .AppendLine(") >>>>");
                 }
 
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "[{0}]",
-                    exception.Message ?? exception.GetType().Name);
+                buffer
+                    .Append(indent)
+                    .Append('[')
+                    .Append(exception.GetType().Name)
+                    .Append(']')
+                    .Append(' ')
+                    .Append(exception.Message ?? "(No message)");
 
                 if (!string.IsNullOrEmpty(exception.StackTrace))
                 {

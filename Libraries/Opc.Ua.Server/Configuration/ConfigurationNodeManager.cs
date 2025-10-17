@@ -629,14 +629,16 @@ namespace Opc.Ua.Server
                         }
                         case "PFX":
                         {
-                            X509Certificate2 certWithPrivateKey = X509Utils
-                                .CreateCertificateFromPKCS12(
-                                    privateKey,
-                                    passwordProvider?.GetPassword(existingCertIdentifier),
-                                    false);
-                            // was: true - but changed to false
-                            // true introduced in https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
-                            // CopyWithPrivateKey apparently does not support ephimeralkeysets but it seems to work.
+                            X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
+                                privateKey,
+                                passwordProvider?.GetPassword(existingCertIdentifier),
+                                false);
+                            // was: true - but changed to false. true was introduced in
+                            // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+                            // Reason there. CopyWithPrivateKey apparently does not support ephimeralkeysets
+                            // but: All tests are passing with ephimeral key set. If issues arise in GDS then
+                            // this change needs to be reconsidered. If not, consider removing the flag because
+                            // this method seems to be the only one setting it to true.
                             updateCertificate.CertificateWithPrivateKey =
                                 CertificateFactory.CreateCertificateWithPrivateKey(
                                     newCert,
