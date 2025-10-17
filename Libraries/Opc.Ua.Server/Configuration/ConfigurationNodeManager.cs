@@ -445,16 +445,16 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
-           ISystemContext context,
-           MethodState method,
-           NodeId objectId,
-           NodeId certificateGroupId,
-           NodeId certificateTypeId,
-           byte[] certificate,
-           byte[][] issuerCertificates,
-           string privateKeyFormat,
-           byte[] privateKey,
-           CancellationToken cancellation)
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            byte[] certificate,
+            byte[][] issuerCertificates,
+            string privateKeyFormat,
+            byte[] privateKey,
+            CancellationToken cancellation)
         {
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
@@ -484,13 +484,11 @@ namespace Opc.Ua.Server
                 }
 
                 privateKeyFormat = privateKeyFormat?.ToUpper();
-                if (!(string.IsNullOrEmpty(privateKeyFormat) ||
-                    privateKeyFormat == "PEM" ||
-                    privateKeyFormat == "PFX"))
+                if (privateKeyFormat is not null and not "PEM" and not "PFX" and not "")
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        "The private key format is not supported.");
+                        $"The private key format {privateKeyFormat} is not supported.");
                 }
 
                 ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
@@ -599,7 +597,7 @@ namespace Opc.Ua.Server
                         case "":
                         {
                             X509Certificate2 exportableKey;
-                            //use the new generated private key if one exists and matches the provided public key
+                            // use the new generated private key if one exists and matches the provided public key
                             if (certificateGroup.TemporaryApplicationCertificate != null &&
                                 X509Utils.VerifyKeyPair(
                                     newCert,
@@ -635,7 +633,10 @@ namespace Opc.Ua.Server
                                 .CreateCertificateFromPKCS12(
                                     privateKey,
                                     passwordProvider?.GetPassword(existingCertIdentifier),
-                                    true);
+                                    false);
+                            // was: true - but changed to false
+                            // true introduced in https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+                            // CopyWithPrivateKey apparently does not support ephimeralkeysets but it seems to work.
                             updateCertificate.CertificateWithPrivateKey =
                                 CertificateFactory.CreateCertificateWithPrivateKey(
                                     newCert,
