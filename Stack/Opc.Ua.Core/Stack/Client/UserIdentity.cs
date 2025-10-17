@@ -100,7 +100,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        X509Certificate2 cert = X509CertificateLoader.LoadCertificate(
+                        X509Certificate2 cert = CertificateFactory.Create(
                             x509Token.CertificateData);
                         DisplayName = cert.Subject;
                     }

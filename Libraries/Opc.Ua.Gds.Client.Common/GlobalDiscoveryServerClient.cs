@@ -47,20 +47,17 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
-        /// <param name="endpointUrl">The endpoint Url.</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server</param>
         /// <param name="diagnosticsMasks">Return diagnostics to use for all requests</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
-            string endpointUrl,
             IUserIdentity adminUserIdentity = null,
             ISessionFactory sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration;
             MessageContext = configuration.CreateMessageContext(true);
-            EndpointUrl = endpointUrl;
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
             m_sessionFactory = sessionFactory ??
                 new DefaultSessionFactory(MessageContext.Telemetry)
@@ -89,7 +86,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
-        public string EndpointUrl { get; set; }
+        public string EndpointUrl => m_endpoint?.EndpointUrl.ToString();
 
         /// <summary>
         /// Gets or sets the preferred locales.
@@ -1487,7 +1484,6 @@ namespace Opc.Ua.Gds.Client
                 }
 
                 m_endpoint = Session.ConfiguredEndpoint;
-                EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
                 m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
             }
         }
@@ -1499,8 +1495,10 @@ namespace Opc.Ua.Gds.Client
         /// <returns></returns>
         private async Task<ISession> ConnectIfNeededAsync(CancellationToken ct)
         {
+            // Either connect or ct will throw or Session will be valid
             while (true)
             {
+                ct.ThrowIfCancellationRequested();
                 lock (m_lock)
                 {
                     if (Session != null && Session.Connected)

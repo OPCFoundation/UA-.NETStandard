@@ -961,7 +961,7 @@ namespace Opc.Ua.Gds.Tests
                 else
                 {
                     csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                        X509CertificateLoader.LoadCertificate(application.Certificate),
+                        CertificateFactory.Create(application.Certificate),
                         application.PrivateKey,
                         application.PrivateKeyPassword);
                 }
@@ -1306,7 +1306,7 @@ namespace Opc.Ua.Gds.Tests
             else
             {
                 csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                    X509CertificateLoader.LoadCertificate(application.Certificate),
+                    CertificateFactory.Create(application.Certificate),
                     application.PrivateKey,
                     application.PrivateKeyPassword);
             }

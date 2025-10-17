@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.Tests
 
                 if (endpoint.ServerCertificate != null)
                 {
-                    using X509Certificate2 cert = X509CertificateLoader.LoadCertificate(
+                    using X509Certificate2 cert = CertificateFactory.Create(
                         endpoint.ServerCertificate);
                     TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                 }

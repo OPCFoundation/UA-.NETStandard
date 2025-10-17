@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestClient
     {
         public GlobalDiscoveryServerClient GDSClient { get; private set; }
-
+        public string EndpointUrl { get; private set; }
         public static bool AutoAccept { get; set; }
 
         public GlobalDiscoveryTestClient(
@@ -172,15 +172,10 @@ namespace Opc.Ua.Gds.Tests
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            GDSClient = new GlobalDiscoveryServerClient(
-                Configuration,
-                gdsClientConfiguration.GlobalDiscoveryServerUrl)
-            {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
-                    gdsClientConfiguration.GlobalDiscoveryServerUrl,
-                    port)
-            };
-
+            GDSClient = new GlobalDiscoveryServerClient(Configuration);
+            EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
+                gdsClientConfiguration.GlobalDiscoveryServerUrl,
+                port);
             await SetEndpointAsync(SecurityPolicies.Aes256_Sha256_RsaPss)
                 .ConfigureAwait(false);
 
@@ -271,7 +266,7 @@ namespace Opc.Ua.Gds.Tests
             byte[] certificate,
             byte[] privateKey)
         {
-            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+            using X509Certificate2 x509 = CertificateFactory.Create(certificate);
             X509Certificate2 certWithPrivateKey = CertificateFactory
                 .CreateCertificateWithPEMPrivateKey(
                     x509,
@@ -375,7 +370,7 @@ namespace Opc.Ua.Gds.Tests
             }
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             using var discoveryClient = DiscoveryClient.Create(
-                new Uri(GDSClient.EndpointUrl),
+                new Uri(EndpointUrl),
                 endpointConfiguration,
                 m_telemetry);
             EndpointDescriptionCollection endpoints =

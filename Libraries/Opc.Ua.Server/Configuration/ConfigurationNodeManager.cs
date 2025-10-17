@@ -500,7 +500,7 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    newCert = X509CertificateLoader.LoadCertificate(certificate);
+                    newCert = CertificateFactory.Create(certificate);
                 }
                 catch
                 {
@@ -542,9 +542,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (byte[] issuerRawCert in issuerCertificates)
                         {
-                            X509Certificate2 newIssuerCert = X509CertificateLoader.LoadCertificate(
-                                issuerRawCert);
-                            newIssuerCollection.Add(newIssuerCert);
+                            newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
                         }
                     }
                 }
@@ -702,11 +700,11 @@ namespace Opc.Ua.Server
                                     cancellation)
                                 .Wait(cancellation);
                             // keep only track of cert without private key
-                            X509Certificate2 certOnly = X509CertificateLoader.LoadCertificate(
+                            X509Certificate2 certOnly = CertificateFactory.Create(
                                 updateCertificate.CertificateWithPrivateKey.RawData);
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
-                            //update certificate identifier with new certificate
+                            // update certificate identifier with new certificate
                             await existingCertIdentifier.FindAsync(
                                 m_configuration.ApplicationUri,
                                 Server.Telemetry,

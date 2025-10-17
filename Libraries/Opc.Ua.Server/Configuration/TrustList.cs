@@ -397,7 +397,7 @@ namespace Opc.Ua.Server
                         trustedCertificates = [];
                         foreach (byte[] cert in trustList.TrustedCertificates)
                         {
-                            trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                            trustedCertificates.Add(CertificateFactory.Create(cert));
                         }
                     }
                     if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -502,7 +502,7 @@ namespace Opc.Ua.Server
                     X509Certificate2 cert = null;
                     try
                     {
-                        cert = X509CertificateLoader.LoadCertificate(certificate);
+                        cert = CertificateFactory.Create(certificate);
                     }
                     catch
                     {

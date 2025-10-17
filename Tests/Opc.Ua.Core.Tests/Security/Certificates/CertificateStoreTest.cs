@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 storePath,
                 telemetry: telemetry)
                 .ConfigureAwait(false);
-            using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 publicKey = CertificateFactory.Create(
                 appCertificate.RawData);
             Assert.NotNull(publicKey);
             Assert.False(publicKey.HasPrivateKey);
@@ -168,7 +168,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             await appCertificate.AddToStoreAsync(certificateStoreIdentifier, password, telemetry: telemetry)
                 .ConfigureAwait(false);
 
-            using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 publicKey = CertificateFactory.Create(
                 appCertificate.RawData);
             Assert.NotNull(publicKey);
             Assert.False(publicKey.HasPrivateKey);

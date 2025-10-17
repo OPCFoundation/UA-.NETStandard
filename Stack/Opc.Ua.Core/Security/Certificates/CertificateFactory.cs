@@ -50,10 +50,18 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
-        [Obsolete("Use X509CertificateLoader.LoadCertificate instead")]
+        [Obsolete("Use Create without useCache parameter")]
         public static X509Certificate2 Create(
             ReadOnlyMemory<byte> encodedData,
             bool useCache)
+        {
+            return Create(encodedData);
+        }
+
+        /// <summary>
+        /// Creates a certificate from a buffer with DER encoded certificate.
+        /// </summary>
+        public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData)
         {
 #if NET6_0_OR_GREATER
             return X509CertificateLoader.LoadCertificate(encodedData.Span);
@@ -350,13 +358,11 @@ namespace Opc.Ua
                 using ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(
                     pemDataBlob,
                     password);
-                return X509CertificateLoader.LoadCertificate(certificate.RawData)
-                    .CopyWithPrivateKey(ecdsaPrivateKey);
+                return Create(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
             }
             using RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
 
-            return X509CertificateLoader.LoadCertificate(certificate.RawData)
-                .CopyWithPrivateKey(rsaPrivateKey);
+            return Create(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
         }
 #else
         /// <summary>

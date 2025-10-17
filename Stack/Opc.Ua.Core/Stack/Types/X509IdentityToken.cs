@@ -34,7 +34,7 @@ namespace Opc.Ua
         {
             if (Certificate == null && m_certificateData != null)
             {
-                Certificate = X509CertificateLoader.LoadCertificate(m_certificateData);
+                Certificate = CertificateFactory.Create(m_certificateData);
             }
             return Certificate;
         }
@@ -48,7 +48,7 @@ namespace Opc.Ua
             ITelemetryContext telemetry)
         {
             X509Certificate2 certificate = Certificate ??
-                X509CertificateLoader.LoadCertificate(m_certificateData);
+                CertificateFactory.Create(m_certificateData);
 
             SignatureData signatureData = SecurityPolicies.Sign(
                 certificate,
@@ -73,7 +73,7 @@ namespace Opc.Ua
             try
             {
                 X509Certificate2 certificate = Certificate ??
-                    X509CertificateLoader.LoadCertificate(m_certificateData);
+                    CertificateFactory.Create(m_certificateData);
 
                 bool valid = SecurityPolicies.Verify(
                     certificate,

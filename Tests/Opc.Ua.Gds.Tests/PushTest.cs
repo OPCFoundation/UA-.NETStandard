@@ -190,7 +190,7 @@ namespace Opc.Ua.Gds.Tests
 
             await RegisterPushServerApplicationAsync(m_pushClient.PushClient.EndpointUrl, telemetry).ConfigureAwait(false);
 
-            m_selfSignedServerCert = X509CertificateLoader.LoadCertificate(
+            m_selfSignedServerCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             m_domainNames = [.. X509Utils.GetDomainsFromCertificate(m_selfSignedServerCert)];
 
@@ -497,7 +497,7 @@ namespace Opc.Ua.Gds.Tests
             using X509Certificate2 invalidCert = CertificateFactory
                 .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null)
                 .CreateForRSA();
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -625,7 +625,7 @@ namespace Opc.Ua.Gds.Tests
                 NUnit.Framework.Assert.Ignore("Test only supported for RSA");
             }
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -917,7 +917,7 @@ namespace Opc.Ua.Gds.Tests
 
             NUnit.Framework.Assert.That(certificateTypeIds.Length == certificates.Length);
             Assert.NotNull(certificates[0]);
-            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificates[0]);
+            using X509Certificate2 x509 = CertificateFactory.Create(certificates[0]);
             Assert.NotNull(x509);
         }
 
@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Gds.Tests
                 issuerCertificates = [];
                 foreach (byte[] cert in trustList.IssuerCertificates)
                 {
-                    issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                    issuerCertificates.Add(CertificateFactory.Create(cert));
                 }
             }
             if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
@@ -1139,7 +1139,7 @@ namespace Opc.Ua.Gds.Tests
                 trustedCertificates = [];
                 foreach (byte[] cert in trustList.TrustedCertificates)
                 {
-                    trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                    trustedCertificates.Add(CertificateFactory.Create(cert));
                 }
             }
             if ((masks & (int)TrustListMasks.TrustedCrls) != 0)

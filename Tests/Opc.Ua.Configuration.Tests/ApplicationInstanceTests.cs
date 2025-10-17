@@ -424,7 +424,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 byte[] rawData = applicationCertificate.Certificate.RawData;
-                await store.AddAsync(X509CertificateLoader.LoadCertificate(rawData))
+                await store.AddAsync(CertificateFactory.Create(rawData))
                     .ConfigureAwait(false);
             }
 
@@ -558,7 +558,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StorePath,
                     password: null,
                     telemetry).ConfigureAwait(false);
-                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
+                publicKey = CertificateFactory.Create(testCert.RawData);
             }
 
             using (publicKey)
@@ -677,7 +677,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StorePath,
                     password: null,
                     telemetry).ConfigureAwait(false);
-                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
+                publicKey = CertificateFactory.Create(testCert.RawData);
             }
 
             using (publicKey)
@@ -896,7 +896,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
-            return [appCert, X509CertificateLoader.LoadCertificate(rootCA.RawData)];
+            return [appCert, CertificateFactory.Create(rootCA.RawData)];
         }
 
         private string m_pkiRoot;

@@ -2487,11 +2487,7 @@ namespace Opc.Ua
                     certificateData = AsnUtils.ParseX509Blob(certificateData);
                 }
 #endif
-#if NET6_0_OR_GREATER
-                return X509CertificateLoader.LoadCertificate(certificateData.Span);
-#else
-                return X509CertificateLoader.LoadCertificate(certificateData.ToArray());
-#endif
+                return CertificateFactory.Create(certificateData);
             }
             catch (Exception e)
             {
@@ -2531,11 +2527,7 @@ namespace Opc.Ua
                         certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
 #endif
-#if NET6_0_OR_GREATER
-                    certificate = X509CertificateLoader.LoadCertificate(certBlob.Span);
-#else
-                    certificate = X509CertificateLoader.LoadCertificate(certBlob.ToArray());
-#endif
+                    certificate = CertificateFactory.Create(certBlob);
                 }
                 catch (Exception e)
                 {

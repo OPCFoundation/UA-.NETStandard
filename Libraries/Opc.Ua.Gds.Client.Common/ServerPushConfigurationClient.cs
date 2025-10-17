@@ -959,7 +959,7 @@ namespace Opc.Ua.Gds.Client
                 var collection = new X509Certificate2Collection();
                 foreach (byte[] rawCertificate in rawCertificates)
                 {
-                    collection.Add(X509CertificateLoader.LoadCertificate(rawCertificate));
+                    collection.Add(CertificateFactory.Create(rawCertificate));
                 }
                 return collection;
             }
@@ -1170,8 +1170,10 @@ namespace Opc.Ua.Gds.Client
         /// <returns></returns>
         private async Task<ISession> ConnectIfNeededAsync(CancellationToken ct)
         {
+            // Either connect or ct will throw or Session will be valid
             while (true)
             {
+                ct.ThrowIfCancellationRequested();
                 lock (m_lock)
                 {
                     if (Session != null && Session.Connected)
