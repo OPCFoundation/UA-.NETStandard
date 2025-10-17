@@ -936,28 +936,53 @@ namespace Opc.Ua.Server
 
             if (disconnectSessions)
             {
+                // When a Server Certificate or TrustList changes active SecureChannels
+                // are not immediately affected. This ensures the caller of ApplyChanges
+                // can get a response to the Method call. Once the Method response is
+                // returned the Server shall force existing SecureChannels affected by
+                // the changes to renegotiate and use the new Server Certificate
+                // and/or TrustLists.
+
+                // TODO: This needs fixing, the 1 second might or might not work to give
+                // Time to the client to receive the response.  Also, this needs to cut
+                // all channels and reevaluate sessions, this needs to be implemented in
+                // Transport side presumably.
+
                 Task.Run(async () =>
                 {
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Apply Changes for application certificate update.");
+                        "----- Apply Changes of application certificate starts in 1 second...");
+
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
+
                     try
                     {
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "----- Apply Changes for application certificate update running...");
+
                         await m_configuration
                             .CertificateValidator.UpdateCertificateAsync(
                                 m_configuration.SecurityConfiguration,
                                 m_configuration.ApplicationUri)
                             .ConfigureAwait(false);
+
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "----- Apply Changes for application certificate update completed.");
                     }
                     catch (Exception ex)
                     {
                         m_logger.LogCritical(
                             ex,
-                            "Failed to sucessfully Apply Changes: Error updating application instance certificates. Server could be in faulted state.");
-                        throw;
+                            "----- Apply Changes for application certificate update failed: " +
+                            "Error updating application instance certificates. " +
+                            "Server could be in faulted state.");
+
+                        // Throws to nowhere since no one is listening ... // throw;
                     }
                 });
             }
