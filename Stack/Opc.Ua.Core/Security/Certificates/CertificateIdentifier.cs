@@ -572,7 +572,6 @@ namespace Opc.Ua
         /// <summary>
         /// Map a security policy to a list of supported certificate types.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
         public static IList<NodeId> MapSecurityPolicyToCertificateTypes(string securityPolicy)
         {
             var result = new List<NodeId>();
@@ -608,9 +607,6 @@ namespace Opc.Ua
                 case SecurityPolicies.Https:
                     result.Add(ObjectTypeIds.HttpsCertificateType);
                     break;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Failed to match unknown security policy {securityPolicy} to certificate type.");
             }
             return result;
         }

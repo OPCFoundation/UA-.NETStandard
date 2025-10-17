@@ -50,7 +50,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpointUrl">The endpoint Url.</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server</param>
-        /// <param name="diagnosticsMasks"></param>
+        /// <param name="diagnosticsMasks">Return diagnostics to use for all requests</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,

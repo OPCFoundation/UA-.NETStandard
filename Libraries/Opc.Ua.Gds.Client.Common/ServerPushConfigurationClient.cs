@@ -48,7 +48,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="sessionFactory">Used to create session to the server.</param>
-        /// <param name="diagnosticsMasks"></param>
+        /// <param name="diagnosticsMasks">Return diagnostics to use for all requests</param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,
             ISessionFactory sessionFactory = null,
