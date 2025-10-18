@@ -203,8 +203,6 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            byte[] data = null;
-
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -219,6 +217,7 @@ namespace Opc.Ua
 
                 bool writePrivateKey = !NoPrivateKeys && certificate.HasPrivateKey;
 
+                byte[] data;
                 if (writePrivateKey)
                 {
                     string passcode = password == null ||

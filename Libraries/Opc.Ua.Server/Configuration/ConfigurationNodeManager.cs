@@ -454,7 +454,7 @@ namespace Opc.Ua.Server
             byte[][] issuerCertificates,
             string privateKeyFormat,
             byte[] privateKey,
-            CancellationToken cancellation)
+            CancellationToken ct)
         {
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
@@ -614,7 +614,7 @@ namespace Opc.Ua.Server
                                         passwordProvider,
                                         m_configuration.ApplicationUri,
                                         Server.Telemetry,
-                                        cancellation)
+                                        ct)
                                     .ConfigureAwait(false);
                                 exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                     certWithPrivateKey,
@@ -687,8 +687,10 @@ namespace Opc.Ua.Server
                                 Utils.TraceMasks.Security,
                                 "Delete application certificate {Certificate}",
                                 existingCertIdentifier.Certificate.AsLogSafeString());
-                            appStore.DeleteAsync(existingCertIdentifier.Thumbprint, cancellation)
-                                .Wait(cancellation);
+                            await appStore.DeleteAsync(
+                                existingCertIdentifier.Thumbprint,
+                                ct)
+                                .ConfigureAwait(false);
                             m_logger.LogInformation(
                                 Utils.TraceMasks.Security,
                                 "Add new application certificate {Certificate}",
@@ -696,12 +698,11 @@ namespace Opc.Ua.Server
                             ICertificatePasswordProvider passwordProvider = m_configuration
                                 .SecurityConfiguration
                                 .CertificatePasswordProvider;
-                            appStore
-                                .AddAsync(
-                                    updateCertificate.CertificateWithPrivateKey,
-                                    passwordProvider?.GetPassword(existingCertIdentifier),
-                                    cancellation)
-                                .Wait(cancellation);
+                            await appStore.AddAsync(
+                                updateCertificate.CertificateWithPrivateKey,
+                                passwordProvider?.GetPassword(existingCertIdentifier),
+                                ct)
+                                .ConfigureAwait(false);
                             // keep only track of cert without private key
                             X509Certificate2 certOnly = CertificateFactory.Create(
                                 updateCertificate.CertificateWithPrivateKey.RawData);
@@ -711,7 +712,7 @@ namespace Opc.Ua.Server
                             await existingCertIdentifier.FindAsync(
                                 m_configuration.ApplicationUri,
                                 Server.Telemetry,
-                                cancellation)
+                                ct)
                                 .ConfigureAwait(false);
                         }
 
@@ -733,8 +734,7 @@ namespace Opc.Ua.Server
                                         Utils.TraceMasks.Security,
                                         "Add new issuer certificate {Certificate}",
                                         issuer.AsLogSafeString());
-                                    issuerStore.AddAsync(issuer, ct: cancellation)
-                                        .Wait(cancellation);
+                                    await issuerStore.AddAsync(issuer, ct: ct).ConfigureAwait(false);
                                 }
                                 catch (ArgumentException)
                                 {
