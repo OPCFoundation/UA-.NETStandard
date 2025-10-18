@@ -28,17 +28,10 @@ Following are basic rules on how the OPC Foundation licenses the
 different components:
 
  1. OPC UA core components (OPC UA Stacks, OPC UA Local Discovery Server
-    - LDS) follow a dual-license model:
-      * *OPC Foundation Corporate Members*: RCL
-        <https://opcfoundation.org/license/rcl.html>
-        enables OPC Foundation corporate members to deploy their
-        applications using the core component sources without being
-        required to disclose the application code.
-         
-      * *Users that are not OPC Foundation corporate-members*: GPL 2.0
-        <https://opcfoundation.org/license/gpl.html>
-        Based on the GPL 2.0 license terms these users must disclose
-        their application code when using the core component sources.
+    - LDS):
+    All OPC UA core components are provided under the MIT
+    license <https://opcfoundation.org/license/mit.html> for OPC
+    Foundation Members and Non-Members.
          
  2. Samples and Utilities:
     All samples and most of the utilities are provided under the MIT
