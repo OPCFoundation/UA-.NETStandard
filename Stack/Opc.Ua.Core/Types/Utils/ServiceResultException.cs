@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -146,11 +147,15 @@ namespace Opc.Ua
         public string ToLongString()
         {
             var buffer = new StringBuilder();
-
-            buffer.AppendLine(Message)
-                .Append(Result.ToLongString());
-
+            buffer.AppendLine(Message);
+            Result.AppendLong(buffer);
             return buffer.ToString();
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return ToLongString();
         }
 
         /// <summary>
@@ -197,6 +202,35 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Unexpected error occurred
+        /// </summary>
+        /// <param name="format"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public static ServiceResultException Unexpected(
+            string format,
+            params object[] args)
+        {
+#if DEBUG
+            string message = format == null ?
+                "An unexpected error occurred" :
+                Utils.Format(format, args);
+#if DEBUGCHK
+            Debug.Fail(message);
+#endif
+            Debug.WriteLine($"{message}\n{new StackTrace()}");
+#endif
+            if (format == null)
+            {
+                return new ServiceResultException(
+                    StatusCodes.BadUnexpectedError);
+            }
+            return new ServiceResultException(
+                StatusCodes.BadUnexpectedError,
+                Utils.Format(format, args));
+        }
+
+        /// <summary>
         /// Extracts an exception message from a Result object.
         /// </summary>
         private static string GetMessage(ServiceResult status)
@@ -204,11 +238,6 @@ namespace Opc.Ua
             if (status == null)
             {
                 return Strings.DefaultMessage;
-            }
-
-            if (!LocalizedText.IsNullOrEmpty(status.LocalizedText))
-            {
-                return status.LocalizedText.Text;
             }
 
             return status.ToString();

@@ -34,6 +34,7 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
@@ -42,7 +43,7 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestClient
     {
         public GlobalDiscoveryServerClient GDSClient { get; private set; }
-
+        public string EndpointUrl { get; private set; }
         public static bool AutoAccept { get; set; }
 
         public GlobalDiscoveryTestClient(
@@ -51,6 +52,7 @@ namespace Opc.Ua.Gds.Tests
             string storeType = CertificateStoreType.Directory)
         {
             m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<GlobalDiscoveryTestClient>();
             AutoAccept = autoAccept;
             m_storeType = storeType;
         }
@@ -63,7 +65,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
         {
-            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
 
             string configSectionName = "Opc.Ua.GlobalDiscoveryTestClient";
             if (m_storeType == CertificateStoreType.X509Store)
@@ -170,15 +172,10 @@ namespace Opc.Ua.Gds.Tests
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            GDSClient = new GlobalDiscoveryServerClient(
-                Configuration,
-                gdsClientConfiguration.GlobalDiscoveryServerUrl)
-            {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
-                    gdsClientConfiguration.GlobalDiscoveryServerUrl,
-                    port)
-            };
-
+            GDSClient = new GlobalDiscoveryServerClient(Configuration);
+            EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
+                gdsClientConfiguration.GlobalDiscoveryServerUrl,
+                port);
             await SetEndpointAsync(SecurityPolicies.Aes256_Sha256_RsaPss)
                 .ConfigureAwait(false);
 
@@ -240,7 +237,7 @@ namespace Opc.Ua.Gds.Tests
             }
             catch (ArgumentException e)
             {
-                Console.WriteLine("RegisterTestClientAtGds at GDS failed" + e);
+                m_logger.LogError(e, "RegisterTestClientAtGds at GDS failed");
                 return false;
             }
 
@@ -249,7 +246,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task DisconnectClientAsync()
         {
-            Console.WriteLine("Disconnect Session. Waiting for exit...");
+            m_logger.LogInformation("Disconnect Session. Waiting for exit...");
 
             if (GDSClient != null)
             {
@@ -269,7 +266,7 @@ namespace Opc.Ua.Gds.Tests
             byte[] certificate,
             byte[] privateKey)
         {
-            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+            using X509Certificate2 x509 = CertificateFactory.Create(certificate);
             X509Certificate2 certWithPrivateKey = CertificateFactory
                 .CreateCertificateWithPEMPrivateKey(
                     x509,
@@ -321,7 +318,7 @@ namespace Opc.Ua.Gds.Tests
             return id;
         }
 
-        private static void CertificateValidator_CertificateValidation(
+        private void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
             CertificateValidationEventArgs e)
         {
@@ -330,11 +327,11 @@ namespace Opc.Ua.Gds.Tests
                 e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
                 }
                 else
                 {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
                 }
             }
         }
@@ -373,7 +370,7 @@ namespace Opc.Ua.Gds.Tests
             }
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             using var discoveryClient = DiscoveryClient.Create(
-                new Uri(GDSClient.EndpointUrl),
+                new Uri(EndpointUrl),
                 endpointConfiguration,
                 m_telemetry);
             EndpointDescriptionCollection endpoints =
@@ -398,6 +395,7 @@ namespace Opc.Ua.Gds.Tests
         private ApplicationInstance m_application;
         private readonly string m_storeType;
         private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

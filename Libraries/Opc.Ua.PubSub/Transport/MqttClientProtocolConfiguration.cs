@@ -59,7 +59,8 @@ namespace Opc.Ua.PubSub.Transport
 
             if (!string.IsNullOrEmpty(CaCertificatePath))
             {
-                m_caCertificate = X509CertificateLoader.LoadCertificateFromFile(CaCertificatePath);
+                m_caCertificate = X509CertificateLoader.LoadCertificateFromFile(
+                    CaCertificatePath);
             }
             if (!string.IsNullOrEmpty(clientCertificatePath))
             {

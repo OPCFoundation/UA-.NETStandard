@@ -40,6 +40,11 @@ namespace Opc.Ua.Client
     public interface ISessionFactory
     {
         /// <summary>
+        /// Set diagnostics for all sessions created by the factory
+        /// </summary>
+        DiagnosticsMasks ReturnDiagnostics { get; set; }
+
+        /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>

@@ -42,7 +42,7 @@ namespace Opc.Ua
             X509Certificate2 certificate;
             try
             {
-                certificate = CertificateFactory.Create(signedCertificate, true, telemetry);
+                certificate = CertificateFactory.Create(signedCertificate);
                 validator.Validate(certificate);
             }
             catch (Exception e)

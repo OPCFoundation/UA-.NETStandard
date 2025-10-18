@@ -81,16 +81,16 @@ namespace Opc.Ua.Client
         {
             using Activity activity = Telemetry.GetActivitySource().StartActivity();
             ISession session = await base.CreateAsync(
-                    configuration,
-                    endpoint,
-                    updateBeforeConnect,
-                    false,
-                    sessionName,
-                    sessionTimeout,
-                    identity,
-                    preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
+                configuration,
+                endpoint,
+                updateBeforeConnect,
+                false,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct)
+            .ConfigureAwait(false);
             return new TraceableSession(session, Telemetry);
         }
 
@@ -119,6 +119,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
 
@@ -151,6 +152,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
 

@@ -206,7 +206,7 @@ namespace Opc.Ua.Gds.Server
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
                 args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(userNameToken, MessageContext.Telemetry),
+                    new UserIdentity(userNameToken),
                     roles);
                 return;
             }
@@ -224,7 +224,7 @@ namespace Opc.Ua.Gds.Server
                     args.Identity.DisplayName,
                     Role.AuthenticatedUser);
                 args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(x509Token, MessageContext.Telemetry),
+                    new UserIdentity(x509Token),
                     [Role.AuthenticatedUser]);
                 return;
             }

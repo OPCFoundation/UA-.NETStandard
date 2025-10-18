@@ -94,6 +94,7 @@ namespace Opc.Ua.Client.Tests
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }
@@ -123,6 +124,7 @@ namespace Opc.Ua.Client.Tests
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }

@@ -23,7 +23,7 @@ namespace Opc.Ua.Server.Tests
         public async Task TestComponentCacheAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ServerFixture<StandardServer>(telemetry);
+            var fixture = new ServerFixture<StandardServer>();
 
             try
             {
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.Tests
         public async Task TestPredefinedNodesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ServerFixture<StandardServer>(telemetry);
+            var fixture = new ServerFixture<StandardServer>();
 
             try
             {

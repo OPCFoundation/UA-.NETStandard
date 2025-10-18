@@ -847,7 +847,11 @@ namespace Opc.Ua.Client
             {
                 if (!silent)
                 {
-                    throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
+                    if (e is ServiceResultException)
+                    {
+                        throw;
+                    }
+                    throw new ServiceResultException(e, StatusCodes.Bad);
                 }
             }
             // always put object in disconnected state even if an error occurs.

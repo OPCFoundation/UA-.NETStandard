@@ -299,7 +299,15 @@ namespace Opc.Ua
                 foreach (CertificateIdentifier applicationCertificate in securityConfiguration
                     .ApplicationCertificates)
                 {
-                    applicationCertificate.DisposeCertificate();
+                    //
+                    // crash occurs if the cert is in use still and this has not run yet.
+                    // This might be the intended design but this runs on a free task that
+                    // might not be scheduled right away.
+                    //
+                    // TODO: We need a better way to disconnect all sessions when the cert is
+                    // updated. (See caller of this method)
+
+                    // applicationCertificate.DisposeCertificate();
                 }
 
                 foreach (CertificateIdentifier applicationCertificate in securityConfiguration

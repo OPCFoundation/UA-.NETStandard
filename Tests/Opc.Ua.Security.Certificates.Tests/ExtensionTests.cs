@@ -54,7 +54,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Theory]
         public void DecodeExtensions(CertificateAsset certAsset)
         {
-            using X509Certificate2 x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert);
+            using X509Certificate2 x509Cert = CertificateFactory.Create(certAsset.Cert);
             Assert.NotNull(x509Cert);
             TestContext.Out.WriteLine("CertificateAsset:");
             TestContext.Out.WriteLine(x509Cert);
