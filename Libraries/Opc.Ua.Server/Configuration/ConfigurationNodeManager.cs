@@ -662,11 +662,15 @@ namespace Opc.Ua.Server
                     updateCertificate.IssuerCollection = newIssuerCollection;
                     updateCertificate.SessionId = context.SessionId;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    m_logger.LogError(
+                        Utils.TraceMasks.Security,
+                        ex,
+                        "Failed to verify integrity of the new certificate and the private key.");
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
-                        "Failed to verify integrity of the new certificate and the private key.");
+                        "Failed to verify integrity of the new certificate and the private key.", ex);
                 }
 
                 certificateGroup.UpdateCertificate = updateCertificate;

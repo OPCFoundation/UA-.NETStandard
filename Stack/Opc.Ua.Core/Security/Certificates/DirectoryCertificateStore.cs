@@ -223,7 +223,7 @@ namespace Opc.Ua
                     string passcode = password == null ||
                         password.Length == 0 ? string.Empty : new string(password);
 
-                    const int retryDelay = 100;
+                    const int retryDelay = 200;
                     for (int i = 0; ; i++)
                     {
                         try
