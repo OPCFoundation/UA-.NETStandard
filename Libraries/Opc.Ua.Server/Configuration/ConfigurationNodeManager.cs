@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
+using System.Runtime.InteropServices;
+
 #if ECC_SUPPORT
 using System.Security.Cryptography;
 #endif
@@ -632,13 +634,13 @@ namespace Opc.Ua.Server
                             X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
                                 privateKey,
                                 passwordProvider?.GetPassword(existingCertIdentifier),
+#if !NET9_0_OR_GREATER
+// https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+// CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
+                                RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
+#else // But it seems to work on .net 9 - and we prefer that over files
                                 false);
-                            // was: true - but changed to false. true was introduced in
-                            // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
-                            // Reason there. CopyWithPrivateKey apparently does not support ephimeralkeysets
-                            // but: All tests are passing with ephimeral key set. If issues arise in GDS then
-                            // this change needs to be reconsidered. If not, consider removing the flag because
-                            // this method seems to be the only one setting it to true.
+#endif
                             updateCertificate.CertificateWithPrivateKey =
                                 CertificateFactory.CreateCertificateWithPrivateKey(
                                     newCert,
