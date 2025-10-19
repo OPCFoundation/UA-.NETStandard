@@ -797,7 +797,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                certWithPrivateKey?.Dispose();
+                // certWithPrivateKey?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult
