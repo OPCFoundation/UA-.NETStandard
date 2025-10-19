@@ -599,9 +599,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            const int retryDelay = 100;
-            int retryCounter = 3;
-            while (retryCounter-- > 0)
+            for (int i = 0; ; i++)
             {
                 bool certificateFound = false;
                 Exception importException = null;
@@ -720,9 +718,13 @@ namespace Opc.Ua
                                                 certificate.Thumbprint);
                                             return certificate;
                                         }
+                                        m_logger.LogDebug("PFX Private key could not be verified for [{Thumbprint}].",
+                                            certificate.Thumbprint);
                                     }
                                     catch (Exception ex)
                                     {
+                                        m_logger.LogDebug(ex, "Failed to import the PFX private for [{Thumbprint}].",
+                                            certificate.Thumbprint);
                                         importException = ex;
                                         certificate?.Dispose();
                                     }
@@ -749,9 +751,13 @@ namespace Opc.Ua
                                             certificate.Thumbprint);
                                         return certificate;
                                     }
+                                    m_logger.LogDebug("PEM Private key could not be verified for [{Thumbprint}].",
+                                        certificate.Thumbprint);
                                 }
                                 catch (Exception exception)
                                 {
+                                    m_logger.LogDebug(exception, "Failed to import the PEM private for [{Thumbprint}].",
+                                        certificate.Thumbprint);
                                     certificate?.Dispose();
                                     importException = exception;
                                 }
@@ -777,9 +783,13 @@ namespace Opc.Ua
                                             certificate.Thumbprint);
                                         return certificate;
                                     }
+                                    m_logger.LogDebug("PEM Private key could not be verified for [{Thumbprint}].",
+                                        certificate.Thumbprint);
                                 }
                                 catch (Exception exception)
                                 {
+                                    m_logger.LogDebug(exception, "Failed to import the PEM private for [{Thumbprint}].",
+                                        certificate.Thumbprint);
                                     certificate?.Dispose();
                                     importException = exception;
                                 }
@@ -797,45 +807,66 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             e,
-                            "Could not load private key for certificate {Subject}",
-                            subjectName);
+                            "Could not load private key for certificate with thumbprint [{Thumbprint}]",
+                            thumbprint ?? "Unknown");
                     }
                 }
 
                 // found a certificate, but some error occurred
                 if (certificateFound)
                 {
-                    m_logger.LogError(
-                        Utils.TraceMasks.Security,
-                        "The private key for the certificate with subject {Subject} failed to import.",
-                        Redact.Create(subjectName));
                     if (importException != null)
                     {
-                        m_logger.LogError(importException, "Certificate import failed.");
+                        m_logger.LogError(
+                            Utils.TraceMasks.Security,
+                            importException,
+                            "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.",
+                            thumbprint ?? "Unknown");
+                    }
+                    else
+                    {
+                        m_logger.LogError(
+                            Utils.TraceMasks.Security,
+                            "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.",
+                            thumbprint ?? "Unknown");
                     }
                 }
                 else
                 {
-                    if (!string.IsNullOrEmpty(thumbprint))
-                    {
-                        m_logger.LogError(
-                            Utils.TraceMasks.Security,
-                            "A Private key for the certificate with thumbprint {Thumbprint} was not found.",
-                            thumbprint);
-                    }
+                    m_logger.LogDebug(
+                        Utils.TraceMasks.Security,
+                        "A Private key for the certificate with thumbprint [{Thumbprint}] was not found.",
+                        thumbprint ?? "Unknown");
                     // if no private key was found, no need to retry
                     break;
                 }
 
-                // retry within a few ms
-                if (retryCounter > 0)
+                const int maxAttempts = 3;
+                if (i >= maxAttempts)
                 {
-                    m_logger.LogInformation(
+                    if (importException != null)
+                    {
+                        m_logger.LogDebug(
+                            Utils.TraceMasks.Security,
+                            importException,
+                            "Exceeded maximum retries to import private key for certificate with thumbprint [{Thumbprint}].",
+                            thumbprint ?? "Unknown");
+                        throw importException;
+                    }
+                    m_logger.LogError(
                         Utils.TraceMasks.Security,
-                        "Retry to import private key after {Duration} ms.",
-                        retryDelay);
-                    await Task.Delay(retryDelay, ct).ConfigureAwait(false);
+                        "Exceeded maximum retries to import private key for certificate with thumbprint [{Thumbprint}].",
+                        thumbprint ?? "Unknown");
+                    break;
                 }
+                // retry within a few ms
+                const int retryDelay = 100;
+                m_logger.LogInformation(
+                    Utils.TraceMasks.Security,
+                    "Retry to import private key for certificate with thumbprint [{Thumbprint}] after {Duration} ms.",
+                    thumbprint ?? "Unknown",
+                    retryDelay);
+                await Task.Delay(retryDelay, ct).ConfigureAwait(false);
             }
 
             return null;

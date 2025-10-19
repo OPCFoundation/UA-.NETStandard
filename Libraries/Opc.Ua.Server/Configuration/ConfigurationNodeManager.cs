@@ -625,6 +625,12 @@ namespace Opc.Ua.Server
                                         Server.Telemetry,
                                         ct)
                                     .ConfigureAwait(false);
+                                if (certWithPrivateKey == null)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadSecurityChecksFailed,
+                                        "A private key was not found");
+                                }
                                 exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                     certWithPrivateKey,
                                     false);
