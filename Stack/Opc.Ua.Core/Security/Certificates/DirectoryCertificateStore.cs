@@ -21,8 +21,6 @@ using System.Threading.Tasks;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
-using System.Security.Cryptography;
-
 
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
@@ -223,7 +221,6 @@ namespace Opc.Ua
                     string passcode = password == null ||
                         password.Length == 0 ? string.Empty : new string(password);
 
-                    const int retryDelay = 200;
                     for (int i = 0; ; i++)
                     {
                         try
@@ -231,8 +228,25 @@ namespace Opc.Ua
                             data = certificate.Export(X509ContentType.Pkcs12, passcode);
                             break;
                         }
-                        catch (Exception) when (i < 10)
+                        catch (Exception ex)
                         {
+                            const int maxAttempt = 10;
+                            if (i >= maxAttempt)
+                            {
+                                m_logger.LogError(
+                                    Utils.TraceMasks.Security,
+                                    ex,
+                                    "Cannot add certificate - error exporting {Certificate} with private key.",
+                                    certificate.AsLogSafeString());
+                                throw;
+                            }
+                            m_logger.LogDebug(
+                                Utils.TraceMasks.Security,
+                                ex,
+                                "Attempt {Attempt}: Error exporting {Certificate} with private key - retrying ...",
+                                i + 1,
+                                certificate.AsLogSafeString());
+                            const int retryDelay = 200;
                             await Task.Delay(retryDelay, ct).ConfigureAwait(false);
                         }
                     }
@@ -337,9 +351,14 @@ namespace Opc.Ua
                         // try to delete
                         entry.CertificateFile.Delete();
                     }
-                    catch (IOException)
+                    catch (IOException ex)
                     {
                         // file to delete may still be in use, force reload
+                        m_logger.LogDebug(
+                            Utils.TraceMasks.Security,
+                            ex,
+                            "Failed to delete {FileName} - force reload.",
+                            entry.CertificateFile.FullName);
                         reload = true;
                     }
                 }

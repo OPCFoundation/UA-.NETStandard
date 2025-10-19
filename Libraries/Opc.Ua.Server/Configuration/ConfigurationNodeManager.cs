@@ -553,7 +553,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
-                        "Certificate data is invalid.");
+                        "Issuer certificate data is invalid.");
                 }
 
                 // self signed
@@ -583,6 +583,11 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
+                        m_logger.LogError(
+                            Utils.TraceMasks.Security,
+                            ex,
+                            "Failed to verify integrity of the new certificate {Certificate} and the issuer list.",
+                            newCert.AsLogSafeString());
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "Failed to verify integrity of the new certificate and the issuer list.",
@@ -600,7 +605,6 @@ namespace Opc.Ua.Server
                     {
                         case null:
                         case "":
-                        {
                             X509Certificate2 exportableKey;
                             // use the new generated private key if one exists and matches the provided public key
                             if (certificateGroup.TemporaryApplicationCertificate != null &&
@@ -631,16 +635,15 @@ namespace Opc.Ua.Server
                                     newCert,
                                     exportableKey);
                             break;
-                        }
+
                         case "PFX":
-                        {
                             certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
-                                privateKey,
-                                passwordProvider?.GetPassword(existingCertIdentifier),
+                                    privateKey,
+                                    passwordProvider?.GetPassword(existingCertIdentifier),
 #if !NET9_0_OR_GREATER
-// https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
-// CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
-                                RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
+                                    // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+                                    // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
+                                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
 #else // But it seems to work on .net 9 - and we prefer that over files
                                 false);
 #endif
@@ -649,7 +652,7 @@ namespace Opc.Ua.Server
                                     newCert,
                                     certWithPrivateKey);
                             break;
-                        }
+
                         case "PEM":
                             updateCertificate.CertificateWithPrivateKey =
                                 CertificateFactory.CreateCertificateWithPEMPrivateKey(
@@ -670,7 +673,8 @@ namespace Opc.Ua.Server
                     m_logger.LogError(
                         Utils.TraceMasks.Security,
                         ex,
-                        "Failed to verify integrity of the new certificate and the private key.");
+                        "Failed to verify integrity of the new certificate {Certificate} and the private key.",
+                        newCert.AsLogSafeString());
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
                         "Failed to verify integrity of the new certificate and the private key.", ex);
@@ -700,13 +704,13 @@ namespace Opc.Ua.Server
                                 existingCertIdentifier.Thumbprint,
                                 ct)
                                 .ConfigureAwait(false);
+                            ICertificatePasswordProvider passwordProvider = m_configuration
+                                .SecurityConfiguration
+                                .CertificatePasswordProvider;
                             m_logger.LogInformation(
                                 Utils.TraceMasks.Security,
                                 "Add new application certificate {Certificate}",
                                 updateCertificate.CertificateWithPrivateKey.AsLogSafeString());
-                            ICertificatePasswordProvider passwordProvider = m_configuration
-                                .SecurityConfiguration
-                                .CertificatePasswordProvider;
                             Debug.Assert(updateCertificate.CertificateWithPrivateKey.HasPrivateKey);
                             await appStore.AddAsync(
                                 updateCertificate.CertificateWithPrivateKey,
@@ -771,7 +775,8 @@ namespace Opc.Ua.Server
                         m_logger.LogError(
                             Utils.TraceMasks.Security,
                             ex,
-                            "Failed to update certificate");
+                            "Failed to update certificate {Certificate}.",
+                            newCert.AsLogSafeString());
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "Failed to update certificate.",
@@ -794,10 +799,6 @@ namespace Opc.Ua.Server
                 // Raise audit certificate event
                 Server.ReportAuditCertificateEvent(newCert, e, m_logger);
                 throw;
-            }
-            finally
-            {
-                // certWithPrivateKey?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult
