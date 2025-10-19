@@ -18,7 +18,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 
@@ -341,7 +340,6 @@ namespace Opc.Ua
                         deleteEntryList.Add(entry);
                     }
                 }
-
 
                 bool reload = false;
                 foreach (Entry entry in deleteEntryList)
@@ -844,19 +842,6 @@ namespace Opc.Ua
                 const int maxAttempts = 3;
                 if (i >= maxAttempts)
                 {
-                    if (importException != null)
-                    {
-                        m_logger.LogDebug(
-                            Utils.TraceMasks.Security,
-                            importException,
-                            "Exceeded maximum retries to import private key for certificate with thumbprint [{Thumbprint}].",
-                            thumbprint ?? "Unknown");
-                        throw importException;
-                    }
-                    m_logger.LogError(
-                        Utils.TraceMasks.Security,
-                        "Exceeded maximum retries to import private key for certificate with thumbprint [{Thumbprint}].",
-                        thumbprint ?? "Unknown");
                     break;
                 }
                 // retry within a few ms

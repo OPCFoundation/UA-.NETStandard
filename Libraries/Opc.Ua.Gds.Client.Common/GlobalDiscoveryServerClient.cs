@@ -481,13 +481,13 @@ namespace Opc.Ua.Gds.Client
             string applicationUri,
             CancellationToken ct = default)
         {
-            ISession Session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await Session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+            IList<object> outputArguments = await session.CallAsync(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_FindApplications,
-                    Session.NamespaceUris),
+                    session.NamespaceUris),
                 ct,
                 applicationUri).ConfigureAwait(false);
 

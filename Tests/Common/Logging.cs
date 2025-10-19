@@ -332,6 +332,7 @@ namespace Opc.Ua.Tests
 
             private readonly ConcurrentDictionary<string, Logger> m_loggers =
                   new(StringComparer.OrdinalIgnoreCase);
+
             private readonly string m_context;
         }
     }

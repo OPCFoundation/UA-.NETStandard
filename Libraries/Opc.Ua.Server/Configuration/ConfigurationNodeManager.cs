@@ -35,10 +35,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
-
-
+#if !NET9_0_OR_GREATER
+using System.Runtime.InteropServices;
+#endif
 #if ECC_SUPPORT
 using System.Security.Cryptography;
 #endif
@@ -641,15 +641,14 @@ namespace Opc.Ua.Server
                                     newCert,
                                     exportableKey);
                             break;
-
                         case "PFX":
                             certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
-                                    privateKey,
-                                    passwordProvider?.GetPassword(existingCertIdentifier),
+                                privateKey,
+                                passwordProvider?.GetPassword(existingCertIdentifier),
 #if !NET9_0_OR_GREATER
-                                    // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
-                                    // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
-                                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
+                                // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+                                // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
+                                RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
 #else // But it seems to work on .net 9 - and we prefer that over files
                                 false);
 #endif
@@ -658,7 +657,6 @@ namespace Opc.Ua.Server
                                     newCert,
                                     certWithPrivateKey);
                             break;
-
                         case "PEM":
                             updateCertificate.CertificateWithPrivateKey =
                                 CertificateFactory.CreateCertificateWithPEMPrivateKey(

@@ -168,11 +168,11 @@ namespace Opc.Ua
         {
             if (certificate != null)
             {
-                return Format("{0:X} [{1}], [{2}] {3}",
-                    certificate.Handle,
+                return Format("[{0}], [{1}] {2} {3}",
                     Redact.Create(certificate.Subject),
-                    certificate.Thumbprint,
-                    certificate.HasPrivateKey ? "(with Private Key)" : string.Empty);
+                    Redact.Create(certificate.Thumbprint),
+                    certificate.HasPrivateKey ? "(with Private Key)" : string.Empty,
+                    certificate.Handle == IntPtr.Zero ? "DISPOSED" : string.Empty);
             }
             return "(none)";
         }
