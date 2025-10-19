@@ -36,6 +36,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
+
 
 #if ECC_SUPPORT
 using System.Security.Cryptography;
@@ -471,6 +473,7 @@ namespace Opc.Ua.Server
                 privateKey
             ];
             X509Certificate2 newCert = null;
+            X509Certificate2 certWithPrivateKey = null;
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
                 context,
@@ -611,7 +614,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                X509Certificate2 certWithPrivateKey = await existingCertIdentifier
+                                certWithPrivateKey = await existingCertIdentifier
                                     .LoadPrivateKeyExAsync(
                                         passwordProvider,
                                         m_configuration.ApplicationUri,
@@ -631,7 +634,7 @@ namespace Opc.Ua.Server
                         }
                         case "PFX":
                         {
-                            X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
+                            certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
                                 privateKey,
                                 passwordProvider?.GetPassword(existingCertIdentifier),
 #if !NET9_0_OR_GREATER
@@ -704,6 +707,7 @@ namespace Opc.Ua.Server
                             ICertificatePasswordProvider passwordProvider = m_configuration
                                 .SecurityConfiguration
                                 .CertificatePasswordProvider;
+                            Debug.Assert(updateCertificate.CertificateWithPrivateKey.HasPrivateKey);
                             await appStore.AddAsync(
                                 updateCertificate.CertificateWithPrivateKey,
                                 passwordProvider?.GetPassword(existingCertIdentifier),
@@ -790,6 +794,10 @@ namespace Opc.Ua.Server
                 // Raise audit certificate event
                 Server.ReportAuditCertificateEvent(newCert, e, m_logger);
                 throw;
+            }
+            finally
+            {
+                certWithPrivateKey?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult
