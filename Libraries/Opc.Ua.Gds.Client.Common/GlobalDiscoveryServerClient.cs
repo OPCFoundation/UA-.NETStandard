@@ -461,6 +461,10 @@ namespace Opc.Ua.Gds.Client
                 ISession session = Session;
                 Session = null;
 
+                if (session == null)
+                {
+                    return;
+                }
                 try
                 {
                     KeepAlive?.Invoke(session, null);
@@ -468,7 +472,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 finally
                 {
-                    session?.Dispose();
+                    session.Dispose();
                 }
             }
             finally

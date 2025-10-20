@@ -378,7 +378,6 @@ namespace Opc.Ua.Gds.Client
                 {
                     return;
                 }
-
                 try
                 {
                     KeepAlive?.Invoke(session, null);
@@ -386,7 +385,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 finally
                 {
-                    session?.Dispose();
+                    session.Dispose();
                     RaiseConnectionStatusChangedEvent();
                 }
             }

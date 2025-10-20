@@ -36,8 +36,6 @@
 // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Abstractions/src/LoggerExtensions.cs
 //
 
-// Disable: 'Use the LoggerMessage delegates'
-
 #nullable enable
 
 using System;
@@ -45,7 +43,6 @@ using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Redaction;
-using Opc.Ua.Security.Certificates;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable CA2254 // Template should be a static expression
