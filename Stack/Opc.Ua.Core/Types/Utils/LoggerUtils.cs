@@ -185,16 +185,7 @@ namespace Opc.Ua
             }
             else if (certificate.HasPrivateKey)
             {
-                buffer.Append(" (with Private Key");
-#if DEBUG || NETFRAMEWORK
-                string keyFileName = X509PfxUtilsDebug.GetKeyFileName(certificate);
-                buffer
-                    .Append(' ')
-                    .Append(keyFileName)
-                    .Append(" in ")
-                    .Append(X509PfxUtilsDebug.GetKeyFileDirectory(keyFileName));
-#endif
-                buffer.Append(')');
+                buffer.Append(" (with Private Key)");
             }
             return buffer.ToString();
         }

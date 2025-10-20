@@ -1732,7 +1732,6 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Matrix.");
-
                     case BuiltInType.Enumeration:
                         if (array is not int[] ints)
                         {

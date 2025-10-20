@@ -368,24 +368,31 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public async Task DisconnectAsync(CancellationToken ct = default)
         {
-            ISession session;
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                session = Session;
+                ISession session = Session;
                 Session = null;
+
+                if (session == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    KeepAlive?.Invoke(session, null);
+                    await session.CloseAsync(ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    session?.Dispose();
+                    RaiseConnectionStatusChangedEvent();
+                }
             }
             finally
             {
                 m_lock.Release();
-            }
-
-            if (session != null)
-            {
-                KeepAlive?.Invoke(session, null);
-                await session.CloseAsync(ct).ConfigureAwait(false);
-                session.Dispose();
-                RaiseConnectionStatusChangedEvent();
             }
         }
 
@@ -1103,8 +1110,12 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private async void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
+        private async void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
         {
+            if (m_disposed)
+            {
+                return;
+            }
             try
             {
                 await m_lock.WaitAsync().ConfigureAwait(false);
@@ -1175,7 +1186,7 @@ namespace Opc.Ua.Gds.Client
                     ct)
                 .ConfigureAwait(false);
 
-                Session.KeepAlive += Session_KeepAlive;
+                Session.KeepAlive += Session_KeepAliveAsync;
                 Session.KeepAlive += KeepAlive;
 
                 if (Session.Factory.GetSystemType(Ua.DataTypeIds.TrustListDataType) == null)
