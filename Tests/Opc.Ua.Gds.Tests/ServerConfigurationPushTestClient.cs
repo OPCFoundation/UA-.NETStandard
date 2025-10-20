@@ -38,7 +38,7 @@ using Opc.Ua.Gds.Client;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class ServerConfigurationPushTestClient
+    public sealed class ServerConfigurationPushTestClient : IDisposable
     {
         public ServerPushConfigurationClient PushClient { get; private set; }
         public static bool AutoAccept { get; set; }
@@ -54,6 +54,12 @@ namespace Opc.Ua.Gds.Tests
         public IUserIdentity SysAdminUser { get; private set; }
         public string TempStorePath { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
+        public string EndpointUrl { get; private set; }
+
+        public void Dispose()
+        {
+            PushClient?.Dispose();
+        }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
@@ -133,13 +139,10 @@ namespace Opc.Ua.Gds.Tests
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 application.ApplicationConfiguration
                     .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration)
-            {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
-                    clientConfiguration.ServerUrl,
-                    port)
-            };
-
+            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration);
+            EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
+                clientConfiguration.ServerUrl,
+                port);
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
                 AppUser = new UserIdentity();
@@ -164,7 +167,14 @@ namespace Opc.Ua.Gds.Tests
             {
                 ServerPushConfigurationClient pushClient = PushClient;
                 PushClient = null;
-                await pushClient.DisconnectAsync().ConfigureAwait(false);
+                try
+                {
+                    await pushClient.DisconnectAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    pushClient.Dispose();
+                }
             }
         }
 
@@ -208,7 +218,7 @@ namespace Opc.Ua.Gds.Tests
             await PushClient.DisconnectAsync().ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Config);
             using var discoveryClient = DiscoveryClient.Create(
-                new Uri(PushClient.EndpointUrl),
+                new Uri(EndpointUrl),
                 endpointConfiguration,
                 m_telemetry);
             EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
@@ -224,7 +234,8 @@ namespace Opc.Ua.Gds.Tests
             }
             if (selectedEndpoint == null)
             {
-                throw new ArgumentException($"No endpoint found for SecurityPolicyUri '{securityPolicyUri}' and SecurityMode '{securityMode}'.");
+                throw new ArgumentException(
+                    $"No endpoint found for SecurityPolicyUri '{securityPolicyUri}' and SecurityMode '{securityMode}'.");
             }
             PushClient.Endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
 

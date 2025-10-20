@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate != null && certificate.Length > 0)
             {
-                using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
                 NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
@@ -237,8 +237,7 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(
-                        certificate);
+                    using X509Certificate2 x509 = CertificateFactory.Create(certificate);
                     try
                     {
                         Security.Certificates.X509CRL crl = await certificateGroup
@@ -850,7 +849,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
                 if (chain.Build(x509))
                 {
                     result.CertificateStatus = StatusCodes.Good;
@@ -1559,7 +1558,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                certificate = X509CertificateLoader.LoadCertificate(result.Certificate);
+                certificate = CertificateFactory.Create(result.Certificate);
             }
 
             // TODO: return chain, verify issuer chain cert is up to date, otherwise update local chain

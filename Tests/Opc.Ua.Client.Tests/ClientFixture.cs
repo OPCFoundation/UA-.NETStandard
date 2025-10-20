@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.Tests
                     nameof(endpointUrl));
             }
 
-            const int maxAttempts = 60;
+            const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
             {
                 try
@@ -246,7 +246,7 @@ namespace Opc.Ua.Client.Tests
                     attempt < maxAttempts)
                 {
                     attempt++;
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
             }
@@ -272,7 +272,7 @@ namespace Opc.Ua.Client.Tests
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            const int maxAttempts = 60;
+            const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
             {
                 try
@@ -290,8 +290,7 @@ namespace Opc.Ua.Client.Tests
                     StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
-                    attempt++;
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt);
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000).ConfigureAwait(false);
                 }
             }

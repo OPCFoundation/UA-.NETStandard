@@ -814,8 +814,7 @@ namespace Opc.Ua.PubSub.Transport
                             if (x509cert is X509Certificate2 x509Certificate2)
                             {
                                 x509Certificate2s.Add(
-                                    X509CertificateLoader.LoadCertificate(
-                                        x509Certificate2.RawData));
+                                    CertificateFactory.Create(x509Certificate2.RawData));
                             }
                         }
                     }
@@ -933,7 +932,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            X509Certificate2 brokerCertificate = X509CertificateLoader.LoadCertificate(
+            X509Certificate2 brokerCertificate = CertificateFactory.Create(
                 context.Certificate.GetRawCertData());
 
             try

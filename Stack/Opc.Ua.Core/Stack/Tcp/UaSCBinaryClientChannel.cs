@@ -194,6 +194,11 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                m_logger.LogError(e,
+                    "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId}",
+                    Socket.Handle,
+                    ChannelId);
+
                 Shutdown(ServiceResult.Create(
                     e,
                     StatusCodes.BadTcpInternalError,
@@ -221,12 +226,17 @@ namespace Opc.Ua.Bindings
             {
                 await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
                 m_logger.LogInformation(
-                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId}",
+                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId} (Async)",
                     Socket.Handle,
                     ChannelId);
             }
             catch (Exception e)
             {
+                m_logger.LogError(e,
+                    "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId} (Async)",
+                    Socket.Handle,
+                    ChannelId);
+
                 Shutdown(ServiceResult.Create(
                     e,
                     StatusCodes.BadTcpInternalError,
@@ -687,6 +697,10 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                m_logger.LogDebug(e,
+                   "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",
+                   ChannelId);
+
                 ForceReconnect(
                     ServiceResult.Create(
                         e,
@@ -783,6 +797,10 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                m_logger.LogError(e,
+                   "ChannelId {ChannelId}: Could not process OpenSecureChannelResponse",
+                   ChannelId);
+
                 m_handshakeOperation.Fault(
                     e,
                     StatusCodes.BadTcpInternalError,
@@ -1132,8 +1150,9 @@ namespace Opc.Ua.Bindings
                         "Unexpected error reconnecting or renewing a token.");
 
                     // check for expired channel or token.
-                    if (error.Code is StatusCodes.BadTcpSecureChannelUnknown or StatusCodes
-                        .BadSecurityChecksFailed)
+                    if (error.Code is
+                            StatusCodes.BadTcpSecureChannelUnknown or
+                            StatusCodes.BadSecurityChecksFailed)
                     {
                         m_logger.LogError("ChannelId {ChannelId}: Cannot Recover Channel", ChannelId);
                         Shutdown(error);

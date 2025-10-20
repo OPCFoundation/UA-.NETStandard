@@ -159,8 +159,7 @@ namespace Opc.Ua
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
-                            certificate.RawData);
+                        using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
                         store.Add(publicKey);
                     }
                     else

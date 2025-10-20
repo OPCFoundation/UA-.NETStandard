@@ -2393,7 +2393,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Certificate = X509CertificateLoader.LoadCertificate(rawData);
+            Certificate = CertificateFactory.Create(rawData);
         }
 
         /// <summary>
@@ -2555,7 +2555,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                m_certificate = X509CertificateLoader.LoadCertificate(value);
+                m_certificate = CertificateFactory.Create(value);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 CertificateType = GetCertificateType(m_certificate);

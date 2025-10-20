@@ -36,6 +36,11 @@ namespace Opc.Ua.Gds.Client
 {
     public class LocalDiscoveryServerClient
     {
+        /// <summary>
+        /// Create local discovery client
+        /// </summary>
+        /// <param name="configuration">Application configuration to use</param>
+        /// <param name="diagnosticsMasks">The return diagnostics for all discovery requests</param>
         public LocalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)

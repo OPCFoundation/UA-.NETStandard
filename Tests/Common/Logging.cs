@@ -293,6 +293,8 @@ namespace Opc.Ua.Tests
                         // Also write to progress/error which captures all output not just test
                         logRecord = sb
                             .Clear()
+                            .Append(TestContext.CurrentContext?.Test?.DisplayName ?? string.Empty)
+                            .Append(' ')
                             .AppendLine(TestContext.CurrentContext?.Test?.Name ?? string.Empty)
                             .Append('\t')
                             .Append(m_context)
@@ -330,6 +332,7 @@ namespace Opc.Ua.Tests
 
             private readonly ConcurrentDictionary<string, Logger> m_loggers =
                   new(StringComparer.OrdinalIgnoreCase);
+
             private readonly string m_context;
         }
     }

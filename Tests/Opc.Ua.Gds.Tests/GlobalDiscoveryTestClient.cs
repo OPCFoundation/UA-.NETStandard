@@ -40,10 +40,10 @@ using Opc.Ua.Gds.Client;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class GlobalDiscoveryTestClient
+    public sealed class GlobalDiscoveryTestClient : IDisposable
     {
         public GlobalDiscoveryServerClient GDSClient { get; private set; }
-
+        public string EndpointUrl { get; private set; }
         public static bool AutoAccept { get; set; }
 
         public GlobalDiscoveryTestClient(
@@ -62,6 +62,11 @@ namespace Opc.Ua.Gds.Tests
         public IUserIdentity Anonymous { get; private set; }
         public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
+
+        public void Dispose()
+        {
+            GDSClient?.Dispose();
+        }
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
         {
@@ -172,15 +177,10 @@ namespace Opc.Ua.Gds.Tests
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            GDSClient = new GlobalDiscoveryServerClient(
-                Configuration,
-                gdsClientConfiguration.GlobalDiscoveryServerUrl)
-            {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
-                    gdsClientConfiguration.GlobalDiscoveryServerUrl,
-                    port)
-            };
-
+            GDSClient = new GlobalDiscoveryServerClient(Configuration);
+            EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
+                gdsClientConfiguration.GlobalDiscoveryServerUrl,
+                port);
             await SetEndpointAsync(SecurityPolicies.Aes256_Sha256_RsaPss)
                 .ConfigureAwait(false);
 
@@ -257,7 +257,14 @@ namespace Opc.Ua.Gds.Tests
             {
                 GlobalDiscoveryServerClient gdsClient = GDSClient;
                 GDSClient = null;
-                await gdsClient.DisconnectAsync().ConfigureAwait(false);
+                try
+                {
+                    await gdsClient.DisconnectAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    gdsClient.Dispose();
+                }
             }
         }
 
@@ -271,7 +278,7 @@ namespace Opc.Ua.Gds.Tests
             byte[] certificate,
             byte[] privateKey)
         {
-            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+            using X509Certificate2 x509 = CertificateFactory.Create(certificate);
             X509Certificate2 certWithPrivateKey = CertificateFactory
                 .CreateCertificateWithPEMPrivateKey(
                     x509,
@@ -375,7 +382,7 @@ namespace Opc.Ua.Gds.Tests
             }
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             using var discoveryClient = DiscoveryClient.Create(
-                new Uri(GDSClient.EndpointUrl),
+                new Uri(EndpointUrl),
                 endpointConfiguration,
                 m_telemetry);
             EndpointDescriptionCollection endpoints =

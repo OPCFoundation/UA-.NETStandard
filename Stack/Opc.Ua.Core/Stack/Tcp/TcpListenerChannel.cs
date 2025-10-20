@@ -208,6 +208,11 @@ namespace Opc.Ua.Bindings
         protected void ForceChannelFault(uint statusCode, string format, params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(statusCode, format, args));
+
+            m_logger.LogError(
+                "ChannelId {Id}: ForceChannelFault due to {Message}.",
+                ChannelId,
+                Utils.Format(format, args));
         }
 
         /// <summary>
@@ -220,6 +225,12 @@ namespace Opc.Ua.Bindings
             params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(exception, defaultCode, format, args));
+
+            m_logger.LogError(
+                exception,
+                "ChannelId {Id}: ForceChannelFault due to {Message}.",
+                ChannelId,
+                Utils.Format(format, args));
         }
 
         /// <summary>
@@ -444,6 +455,13 @@ namespace Opc.Ua.Bindings
             {
                 buffers?.Release(BufferManager, "SendServiceFault");
 
+                m_logger.LogError(
+                    e,
+                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
+                    ChannelId,
+                    requestId,
+                    fault.StatusCode);
+
                 ForceChannelFault(
                     ServiceResult.Create(
                         e,
@@ -523,6 +541,13 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 chunksToSend?.Release(BufferManager, "SendServiceFault");
+
+                m_logger.LogError(
+                    e,
+                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
+                    ChannelId,
+                    requestId,
+                    fault.StatusCode);
 
                 ForceChannelFault(
                     ServiceResult.Create(
