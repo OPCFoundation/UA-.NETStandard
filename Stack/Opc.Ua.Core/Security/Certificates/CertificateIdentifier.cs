@@ -374,7 +374,7 @@ namespace Opc.Ua
         /// 3. Longest remaining validity if there are any valid certificates.
         /// 4. Least expired if all expired.
         /// 5. The most soon-to-become-valid if all not-yet-valid.
-        /// 6. The most soon-to-become-valid if only expired and soon-to-become-valid.
+        /// 6. The most soon-to-become-valid if only expired and not-yet-valid certificates exist.
         /// </summary>
         /// <param name="collection">
         /// The collection of certificates to evaluate. The "best" certificate is determined by the following criteria, in order:
