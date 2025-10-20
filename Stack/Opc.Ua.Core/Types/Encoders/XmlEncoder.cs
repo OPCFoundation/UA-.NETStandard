@@ -2293,7 +2293,6 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 array.GetType());
-
                         default:
                             // try to write IEncodeable Array
                             if (array is null or IEncodeable[])

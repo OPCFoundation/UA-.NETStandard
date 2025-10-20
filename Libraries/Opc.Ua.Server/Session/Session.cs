@@ -1012,10 +1012,8 @@ namespace Opc.Ua.Server
                 // decrypt the token.
                 if (m_serverCertificate == null)
                 {
-                    m_serverCertificate = CertificateFactory.Create(
-                        EndpointDescription.ServerCertificate,
-                        true,
-                        m_server.Telemetry);
+                    m_serverCertificate = X509CertificateLoader.LoadCertificate(
+                        EndpointDescription.ServerCertificate);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)

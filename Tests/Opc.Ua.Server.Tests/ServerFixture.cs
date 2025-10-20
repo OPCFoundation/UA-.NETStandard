@@ -33,6 +33,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
@@ -69,9 +70,8 @@ namespace Opc.Ua.Server.Tests
 
         public ServerFixture(
             bool useTracing,
-            bool disableActivityLogging,
-            ITelemetryContext telemetry)
-            : this(telemetry)
+            bool disableActivityLogging)
+            : this()
         {
             UseTracing = useTracing;
             if (UseTracing)
@@ -80,10 +80,10 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        public ServerFixture(ITelemetryContext telemetry)
+        public ServerFixture()
         {
-            m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<ServerFixture<T>>();
+            m_telemetry = NUnitTelemetryContext.Create(true);
+            m_logger = m_telemetry.CreateLogger<ServerFixture<T>>();
         }
 
         public async Task LoadConfigurationAsync(string pkiRoot = null)
@@ -283,7 +283,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
@@ -295,7 +295,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>

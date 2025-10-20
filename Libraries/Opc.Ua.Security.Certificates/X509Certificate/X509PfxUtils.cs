@@ -152,7 +152,6 @@ namespace Opc.Ua.Security.Certificates
             bool noEphemeralKeySet = false)
         {
             Exception ex = null;
-            X509Certificate2 certificate = null;
 
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.DefaultKeySet;
             if (!noEphemeralKeySet)
@@ -169,13 +168,14 @@ namespace Opc.Ua.Security.Certificates
 
             X509KeyStorageFlags[] storageFlags =
             [
-                defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
-                defaultStorageSet | X509KeyStorageFlags.UserKeySet
+                defaultStorageSet | X509KeyStorageFlags.UserKeySet,
+                defaultStorageSet | X509KeyStorageFlags.MachineKeySet
             ];
 
             // try some combinations of storage flags, support is platform dependent
             foreach (X509KeyStorageFlags flag in storageFlags)
             {
+                X509Certificate2 certificate = null;
                 try
                 {
                     // merge first cert with private key into X509Certificate2
@@ -185,25 +185,22 @@ namespace Opc.Ua.Security.Certificates
                         flag);
                     if (VerifyKeyPair(certificate, certificate, true))
                     {
+                        // Found
                         return certificate;
                     }
                 }
                 catch (Exception e)
                 {
                     ex = e;
-                    certificate?.Dispose();
-                    certificate = null;
                 }
+                certificate?.Dispose();
             }
-
-            if (certificate == null)
+            if (ex != null)
             {
-                throw new NotSupportedException(
-                    "Creating X509Certificate from PKCS #12 store failed",
-                    ex);
+                throw ex;
             }
-
-            return certificate;
+            throw new NotSupportedException(
+                "Creating X509Certificate from PKCS #12 store failed");
         }
 
         /// <summary>

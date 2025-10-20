@@ -477,10 +477,17 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Helper to load a DataDictionary by its NodeId.
         /// </summary>
-        internal async Task<DataDictionary> LoadDictionaryAsync(NodeId dictionaryId, string name)
+        internal async Task<DataDictionary> LoadDictionaryAsync(
+            NodeId dictionaryId,
+            string name,
+            CancellationToken ct = default)
         {
             var dictionaryToLoad = new DataDictionary();
-            await LoadDictionaryAsync(dictionaryToLoad, dictionaryId, name).ConfigureAwait(false);
+            await LoadDictionaryAsync(
+                dictionaryToLoad,
+                dictionaryId,
+                name,
+                ct: ct).ConfigureAwait(false);
             return dictionaryToLoad;
         }
 
@@ -642,9 +649,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (schema == null || schema.Length == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Cannot parse empty data dictionary.");
+                throw ServiceResultException.Unexpected("Cannot parse empty data dictionary.");
             }
 
             // Interoperability: some server may return a null terminated dictionary string

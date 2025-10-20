@@ -35,14 +35,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object as an anonymous user.
-        /// </summary>
-        public UserIdentity(AnonymousIdentityToken anonymousIdentityToken)
-            : this(anonymousIdentityToken, null)
-        {
-        }
-
-        /// <summary>
         /// Initializes the object with a username and utf8 password.
         /// </summary>
         /// <param name="username">The user name.</param>
@@ -71,41 +63,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with a username token.
-        /// </summary>
-        public UserIdentity(UserNameIdentityToken userNameToken)
-            : this(userNameToken, null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with a UA identity token.
-        /// </summary>
-        /// <param name="issuedToken">The token.</param>
-        public UserIdentity(IssuedIdentityToken issuedToken)
-            : this(issuedToken, null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with a X509 certificate identifier.
-        /// </summary>
-        [Obsolete("Use UserIdentityToken(X509IdentityToken, ITelemetryContext) instead.")]
-        public UserIdentity(X509IdentityToken x509Token)
-            : this(x509Token, null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate identifier
-        /// </summary>
-        [Obsolete("Use CreateAsync method instead.")]
-        public UserIdentity(CertificateIdentifier certificateId)
-            : this(certificateId, new CertificatePasswordProvider())
-        {
-        }
-
-        /// <summary>
         /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
         /// </summary>
         [Obsolete("Use CreateAsync method instead.")]
@@ -113,24 +70,15 @@ namespace Opc.Ua
             CertificateIdentifier certificateId,
             CertificatePasswordProvider certificatePasswordProvider)
             : this(certificateId
-                .LoadPrivateKeyExAsync(certificatePasswordProvider).GetAwaiter().GetResult(), null)
+                .LoadPrivateKeyExAsync(certificatePasswordProvider).GetAwaiter().GetResult())
         {
         }
 
         /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
-        [Obsolete("Use UserIdentityToken(X509Certificate2, ITelemetryContext) instead.")]
         public UserIdentity(X509Certificate2 certificate)
-            : this(certificate, null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate
-        /// </summary>
-        public UserIdentity(X509Certificate2 certificate, ITelemetryContext telemetry)
-            : this(Create(certificate), telemetry)
+            : this(Create(certificate))
         {
         }
 
@@ -138,8 +86,7 @@ namespace Opc.Ua
         /// Initializes the object with a UA identity token.
         /// </summary>
         /// <param name="token">The user identity token.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        public UserIdentity(UserIdentityToken token, ITelemetryContext telemetry)
+        public UserIdentity(UserIdentityToken token)
         {
             m_token = token ?? throw new ArgumentNullException(nameof(token));
             switch (m_token)
@@ -154,9 +101,7 @@ namespace Opc.Ua
                     else
                     {
                         X509Certificate2 cert = CertificateFactory.Create(
-                            x509Token.CertificateData,
-                            true,
-                            telemetry);
+                            x509Token.CertificateData);
                         DisplayName = cert.Subject;
                     }
                     break;
@@ -218,7 +163,7 @@ namespace Opc.Ua
                     "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
             }
 
-            return new UserIdentity(certificate, telemetry);
+            return new UserIdentity(certificate);
         }
 
         /// <summary>

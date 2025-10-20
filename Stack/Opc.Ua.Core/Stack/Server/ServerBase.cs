@@ -45,7 +45,11 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            Dispose(true);
+            if (!m_disposed)
+            {
+                Dispose(true);
+                m_disposed = true;
+            }
             GC.SuppressFinalize(this);
         }
 
@@ -1665,5 +1669,6 @@ namespace Opc.Ua
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server
         /// </summary>
         private int m_userTokenPolicyId;
+        private bool m_disposed;
     }
 }
