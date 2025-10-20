@@ -326,18 +326,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Sends a request over the secure channel.
-        /// </summary>
-        /// <param name="request">The request to send.</param>
-        /// <returns>The response returned by the server.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public IServiceResponse SendRequest(IServiceRequest request)
-        {
-            IAsyncResult result = BeginSendRequest(request, null, null);
-            return EndSendRequest(result);
-        }
-
-        /// <summary>
         /// Sends a request over the secure channel (async version).
         /// </summary>
         /// <param name="request">The request to send.</param>
@@ -362,7 +350,6 @@ namespace Opc.Ua.Bindings
         /// The result which must be passed to the EndSendRequest method.
         /// </returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest"/>
         public IAsyncResult BeginSendRequest(
             IServiceRequest request,
             AsyncCallback callback,
@@ -392,7 +379,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="result">The result returned from the BeginSendRequest call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest"/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
             UaSCUaBinaryClientChannel channel =
@@ -410,7 +396,6 @@ namespace Opc.Ua.Bindings
         /// <param name="result">The result returned from the BeginSendRequest call.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest"/>
         public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
         {
             UaSCUaBinaryClientChannel channel =

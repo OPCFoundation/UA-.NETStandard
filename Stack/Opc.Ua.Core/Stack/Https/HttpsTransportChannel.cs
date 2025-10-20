@@ -495,13 +495,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public IServiceResponse SendRequest(IServiceRequest request)
-        {
-            IAsyncResult result = BeginSendRequest(request, null, null);
-            return EndSendRequest(result);
-        }
-
-        /// <inheritdoc/>
         public async Task<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct)

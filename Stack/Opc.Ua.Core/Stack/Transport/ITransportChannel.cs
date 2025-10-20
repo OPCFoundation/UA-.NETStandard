@@ -140,42 +140,10 @@ namespace Opc.Ua
         void EndReconnect(IAsyncResult result);
 
         /// <summary>
-        /// Closes the secure channel.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Close();
-
-        /// <summary>
         /// Closes the secure channel (async).
         /// </summary>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         Task CloseAsync(CancellationToken ct);
-
-        /// <summary>
-        /// Begins an asynchronous operation to close the secure channel.
-        /// </summary>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>The result which must be passed to the EndClose method.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Close" />
-        IAsyncResult BeginClose(AsyncCallback callback, object callbackData);
-
-        /// <summary>
-        /// Completes an asynchronous operation to close the secure channel.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginClose call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Close" />
-        void EndClose(IAsyncResult result);
-
-        /// <summary>
-        /// Sends a request over the secure channel.
-        /// </summary>
-        /// <param name="request">The request to send.</param>
-        /// <returns>The response returned by the server.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        IServiceResponse SendRequest(IServiceRequest request);
 
         /// <summary>
         /// Sends a request over the secure channel, async version.
@@ -194,7 +162,6 @@ namespace Opc.Ua
         /// <param name="callbackData">The callback data to return with the callback.</param>
         /// <returns>The result which must be passed to the EndSendRequest method.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest" />
         IAsyncResult BeginSendRequest(
             IServiceRequest request,
             AsyncCallback callback,
@@ -205,7 +172,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="result">The result returned from the BeginSendRequest call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest" />
         IServiceResponse EndSendRequest(IAsyncResult result);
 
         /// <summary>
@@ -215,8 +181,31 @@ namespace Opc.Ua
         /// <param name="result">The result returned from the BeginSendRequest call.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest" />
         Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct);
+
+        /// <summary>
+        /// Closes the secure channel.
+        /// </summary>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        void Close();
+
+        /// <summary>
+        /// Begins an asynchronous operation to close the secure channel.
+        /// </summary>
+        /// <param name="callback">The callback to call when the operation completes.</param>
+        /// <param name="callbackData">The callback data to return with the callback.</param>
+        /// <returns>The result which must be passed to the EndClose method.</returns>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <seealso cref="Close" />
+        IAsyncResult BeginClose(AsyncCallback callback, object callbackData);
+
+        /// <summary>
+        /// Completes an asynchronous operation to close the secure channel.
+        /// </summary>
+        /// <param name="result">The result returned from the BeginClose call.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <seealso cref="Close" />
+        void EndClose(IAsyncResult result);
     }
 
     /// <summary>
