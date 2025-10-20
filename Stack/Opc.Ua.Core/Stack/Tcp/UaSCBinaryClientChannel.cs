@@ -430,8 +430,7 @@ namespace Opc.Ua.Bindings
                 if (result is WriteOperation operation && m_requests.TryRemove(operation.RequestId, out _))
                 {
                     operation.Fault(
-                        statusCode.Code,
-                        "The channel has been detached.");
+                        statusCode.Code);
                 }
             }
         }
