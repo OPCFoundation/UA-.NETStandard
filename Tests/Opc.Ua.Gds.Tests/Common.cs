@@ -33,10 +33,12 @@ using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -304,8 +306,14 @@ namespace Opc.Ua.Gds.Tests
 
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {
+        private readonly ILogger m_logger;
         private string m_message = string.Empty;
         private bool m_ask;
+
+        public ApplicationMessageDlg(ILogger logger)
+        {
+            m_logger = logger;
+        }
 
         public override void Message(string text, bool ask)
         {
@@ -313,32 +321,18 @@ namespace Opc.Ua.Gds.Tests
             m_ask = ask;
         }
 
-        public override async Task<bool> ShowAsync()
+        public override Task<bool> ShowAsync()
         {
             if (m_ask)
             {
                 m_message += " (y/n, default y): ";
-                Console.Write(m_message);
+                m_logger.LogInformation("ASK: {Message}", m_message);
             }
             else
             {
-                Console.WriteLine(m_message);
+                m_logger.LogInformation("MSG: {Message}", m_message);
             }
-            if (m_ask)
-            {
-                try
-                {
-                    ConsoleKeyInfo result = Console.ReadKey();
-                    Console.WriteLine();
-                    return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r')
-                        .ConfigureAwait(false);
-                }
-                catch
-                {
-                    // intentionally fall through
-                }
-            }
-            return await Task.FromResult(true).ConfigureAwait(false);
+            return Task.FromResult(true);
         }
     }
 
@@ -409,7 +403,6 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task<GlobalDiscoveryTestServer> StartGDSAsync(
             bool clean,
-            ITelemetryContext telemetry,
             string storeType = CertificateStoreType.Directory)
         {
             GlobalDiscoveryTestServer server = null;
@@ -420,8 +413,8 @@ namespace Opc.Ua.Gds.Tests
             {
                 try
                 {
-                    server = new GlobalDiscoveryTestServer(true);
-                    await server.StartServerAsync(clean, telemetry, testPort, storeType).ConfigureAwait(false);
+                    server = new GlobalDiscoveryTestServer(true, NUnitTelemetryContext.Create(true));
+                    await server.StartServerAsync(clean, testPort, storeType).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {

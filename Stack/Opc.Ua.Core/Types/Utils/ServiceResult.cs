@@ -101,15 +101,30 @@ namespace Opc.Ua
             string symbolicId,
             string namespaceUri,
             LocalizedText localizedText)
-            : this(code, symbolicId, namespaceUri, localizedText, null, (ServiceResult)null)
+            : this(
+                  code,
+                  symbolicId,
+                  namespaceUri,
+                  localizedText,
+                  null,
+                  (ServiceResult)null)
         {
         }
 
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(StatusCode code, string symbolicId, string namespaceUri)
-            : this(code, symbolicId, namespaceUri, (string)null, null, (ServiceResult)null)
+        public ServiceResult(
+            StatusCode code,
+            string symbolicId,
+            string namespaceUri)
+            : this(
+                  code,
+                  symbolicId,
+                  namespaceUri,
+                  (string)null,
+                  null,
+                  (ServiceResult)null)
         {
         }
 
@@ -141,17 +156,17 @@ namespace Opc.Ua
         /// <summary>
         /// Constructs an object from a StatusCode.
         /// </summary>
-        public ServiceResult(StatusCode status)
+        public ServiceResult(uint code)
+            : this(new StatusCode(code))
         {
-            Code = status.Code;
         }
 
         /// <summary>
         /// Constructs an object from a StatusCode.
         /// </summary>
-        public ServiceResult(uint code)
+        public ServiceResult(StatusCode status)
         {
-            Code = code;
+            Code = status.Code;
         }
 
         /// <summary>
@@ -310,7 +325,12 @@ namespace Opc.Ua
             uint defaultCode,
             string defaultSymbolicId,
             string defaultNamespaceUri)
-            : this(exception, defaultCode, defaultSymbolicId, defaultNamespaceUri, null)
+            : this(
+                  exception,
+                  defaultCode,
+                  defaultSymbolicId,
+                  defaultNamespaceUri,
+                  GetDefaultMessage(exception, defaultCode))
         {
         }
 
@@ -321,7 +341,7 @@ namespace Opc.Ua
         /// The code parameter is ignored for ServiceResultExceptions.
         /// </remarks>
         public ServiceResult(Exception exception, uint defaultCode)
-            : this(exception, defaultCode, null, null, GetDefaultMessage(exception))
+            : this(exception, defaultCode, null, null)
         {
         }
 
@@ -329,7 +349,7 @@ namespace Opc.Ua
         /// Constructs an object from an exception.
         /// </summary>
         public ServiceResult(Exception exception)
-            : this(exception, StatusCodes.Bad, null, null, GetDefaultMessage(exception))
+            : this(exception, StatusCodes.Bad)
         {
         }
 
@@ -618,47 +638,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a string containing all nested exceptions.
-        /// </summary>
-        public static string BuildExceptionTrace(Exception exception)
-        {
-            var buffer = new StringBuilder();
-
-            while (exception != null)
-            {
-                if (buffer.Length > 0)
-                {
-                    buffer
-                        .AppendLine()
-                        .AppendLine(">>>> (Inner) >>>>");
-                }
-
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "[{0}]",
-                    exception.Message ?? exception.GetType().Name);
-
-                if (!string.IsNullOrEmpty(exception.StackTrace))
-                {
-                    string[] trace = exception.StackTrace.Split(Environment.NewLine.ToCharArray());
-                    for (int ii = 0; ii < trace.Length; ii++)
-                    {
-                        if (!string.IsNullOrEmpty(trace[ii]))
-                        {
-                            buffer
-                                .AppendLine()
-                                .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
-                        }
-                    }
-                }
-
-                exception = exception.InnerException;
-            }
-
-            return buffer.ToString();
-        }
-
-        /// <summary>
         /// The status code associated with the result.
         /// </summary>
         public uint Code { get; private set; }
@@ -709,7 +688,27 @@ namespace Opc.Ua
         public override string ToString()
         {
             var buffer = new StringBuilder();
+            Append(buffer);
 
+            return buffer.ToString();
+        }
+
+        /// <summary>
+        /// Returns a formatted string with the contents of service result.
+        /// </summary>
+        public string ToLongString()
+        {
+            var buffer = new StringBuilder();
+            AppendLong(buffer);
+            return buffer.ToString();
+        }
+
+        /// <summary>
+        /// Append to buffer
+        /// </summary>
+        /// <param name="buffer"></param>
+        internal void Append(StringBuilder buffer)
+        {
             buffer.Append(LookupSymbolicId(Code));
 
             if (!string.IsNullOrEmpty(SymbolicId))
@@ -738,16 +737,19 @@ namespace Opc.Ua
                 buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", 0x0000FFFF & Code);
             }
 
-            return buffer.ToString();
+            if (!string.IsNullOrEmpty(AdditionalInfo))
+            {
+                buffer.AppendLine()
+                    .Append(AdditionalInfo);
+            }
         }
 
         /// <summary>
-        /// Returns a formatted string with the contents of exception.
+        /// Append details to string buffer
         /// </summary>
-        public string ToLongString()
+        /// <param name="buffer"></param>
+        internal void AppendLong(StringBuilder buffer)
         {
-            var buffer = new StringBuilder();
-
             buffer.Append("Id: ")
                 .Append(StatusCodes.GetBrowseName(Code));
 
@@ -779,8 +781,6 @@ namespace Opc.Ua
                     .AppendLine("===")
                     .Append(innerResult.ToLongString());
             }
-
-            return buffer.ToString();
         }
 
         /// <summary>
@@ -797,26 +797,37 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns a string containing all nested exceptions.
+        /// </summary>
+        private static string BuildExceptionTrace(Exception exception)
+        {
+            return new StringBuilder()
+                .AppendException(exception)
+                .ToString();
+        }
+
+        /// <summary>
         /// Extract a default message from an exception.
         /// </summary>
-        private static string GetDefaultMessage(Exception exception)
+        private static LocalizedText GetDefaultMessage(Exception exception, uint code)
         {
             if (exception == null)
             {
-                return string.Empty;
+                return LocalizedText.Null;
             }
+
             if (exception.Message != null)
             {
                 if (exception.Message.StartsWith('['))
                 {
                     return exception.Message;
                 }
-#if !DEBUG
                 if (exception is ServiceResultException)
                 {
+#if !DEBUG
                     return exception.Message;
-                }
 #endif
+                }
                 return Utils.Format("[{0}] {1}",
                     exception.GetType().Name,
 #if !DEBUG
@@ -825,16 +836,13 @@ namespace Opc.Ua
                     BuildExceptionTrace(exception));
 #endif
             }
-            if (exception is not ServiceResultException)
-            {
-                return Utils.Format("[{0}]",
+
+            return Utils.Format("[{0}]",
 #if !DEBUG
-                    exception.GetType().Name);
+                exception.GetType().Name);
 #else
-                    BuildExceptionTrace(exception));
+                BuildExceptionTrace(exception));
 #endif
-            }
-            return string.Empty;
         }
     }
 }

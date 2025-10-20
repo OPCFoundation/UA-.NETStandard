@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests
         public async Task RegisterNamespaceManagerNewNamespaceAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ServerFixture<StandardServer>(telemetry);
+            var fixture = new ServerFixture<StandardServer>();
 
             try
             {
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests
         public async Task RegisterNamespaceManagerExistingNamespaceAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ServerFixture<StandardServer>(telemetry);
+            var fixture = new ServerFixture<StandardServer>();
 
             try
             {
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server.Tests
             int indexToRemove)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ServerFixture<StandardServer>(telemetry);
+            var fixture = new ServerFixture<StandardServer>();
 
             try
             {
@@ -201,7 +201,7 @@ namespace Opc.Ua.Server.Tests
         public async Task UnregisterNamespaceManagerNotInCollectionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ServerFixture<StandardServer>(telemetry);
+            var fixture = new ServerFixture<StandardServer>();
 
             try
             {
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server.Tests
         public async Task UnregisterNamespaceManagerUnknownNamespaceAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ServerFixture<StandardServer>(telemetry);
+            var fixture = new ServerFixture<StandardServer>();
 
             try
             {
