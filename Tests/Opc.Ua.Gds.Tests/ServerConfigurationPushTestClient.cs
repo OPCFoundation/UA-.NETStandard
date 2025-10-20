@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Tests
 
         public void Dispose()
         {
-            PushClient.Dispose();
+            PushClient?.Dispose();
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
