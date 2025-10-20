@@ -2717,10 +2717,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void DetachChannel()
+        public ITransportChannel DetachChannel()
         {
             using Activity activity = m_telemetry.StartActivity();
-            Session.DetachChannel();
+            return Session.DetachChannel();
         }
 
         /// <inheritdoc/>

@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -420,6 +421,17 @@ namespace Opc.Ua.Bindings
                     "Channel has been closed.");
 
             return channel.EndSendRequestAsync(result, ct);
+        }
+
+        /// <summary>
+        /// Faults outstanding requests and removes them from the request queue.
+        /// </summary>
+        /// <param name="outstandingRequests">The outstanding async requests to fault.</param>
+        /// <param name="statusCode">The status code to apply to the requests</param>
+        public void FaultOutstandingRequests(IEnumerable<IAsyncResult> outstandingRequests, StatusCode statusCode)
+        {
+            UaSCUaBinaryClientChannel channel = m_channel;
+            channel?.FaultOutstandingRequests(outstandingRequests, statusCode);
         }
 
         /// <summary>

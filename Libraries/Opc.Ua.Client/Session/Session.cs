@@ -349,6 +349,38 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Detaches the transport channel from the client and aborts outstanding requests.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        public new virtual ITransportChannel DetachChannel()
+        {
+            //Is this a valid restriction?
+            //if (Connected)
+            //{
+            //    throw new InvalidOperationException(
+            //        "Cannot detach channel while session is connected. Close the session first.");
+            //}
+
+            if (Reconnecting)
+            {
+                throw new InvalidOperationException(
+                    "Cannot detach channel while session is reconnecting.");
+            }
+
+            ITransportChannel channel = base.DetachChannel();
+
+            // abort any outstanding requests (keepalive & publish requests).
+            IEnumerable<IAsyncResult> requestsToAbort;
+            lock (m_outstandingRequests)
+            {
+                requestsToAbort = [.. m_outstandingRequests.Select(r => r.Result)];
+            }
+            channel?.FaultOutstandingRequests(requestsToAbort, StatusCodes.BadSecureChannelClosed);
+
+            return channel;
+        }
+
+        /// <summary>
         /// Closes the session and the underlying channel.
         /// </summary>
         protected override void Dispose(bool disposing)
@@ -378,18 +410,14 @@ namespace Opc.Ua.Client
             }
 
             // abort any outstanding requests (keepalive & publish requests).
+            IEnumerable<IAsyncResult> requestsToAbort;
             lock (m_outstandingRequests)
             {
-                for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
-                    ii != null;
-                    ii = ii.Next)
-                {
-                    if (ii.Value.Result is ChannelAsyncOperation<int> operation && !operation.IsCompleted)
-                    {
-                        operation.Fault(false, new ServiceResult(StatusCodes.BadSessionClosed));
-                    }
-                }
+                requestsToAbort = [.. m_outstandingRequests.Select(r => r.Result)];
+                m_outstandingRequests.Clear();
             }
+
+            NullableTransportChannel?.FaultOutstandingRequests(requestsToAbort, StatusCodes.BadSessionClosed);
 
             base.Dispose(disposing);
 

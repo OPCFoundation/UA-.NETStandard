@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -522,6 +523,16 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             return Task.Factory.FromAsync(BeginSendRequest, EndSendRequest, request, null);
+        }
+
+        /// <summary>
+        /// Faults outstanding requests and removes them from the request queue.
+        /// </summary>
+        /// <param name="outstandingRequests">The outstanding async requests to fault.</param>
+        /// <param name="statusCode">The status code to apply to the requests</param>
+        public virtual void FaultOutstandingRequests(IEnumerable<IAsyncResult> outstandingRequests, StatusCode statusCode)
+        {
+            UaBypassChannel?.FaultOutstandingRequests(outstandingRequests, statusCode);
         }
 
         /// <summary>

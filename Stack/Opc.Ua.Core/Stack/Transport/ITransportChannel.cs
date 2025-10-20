@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
@@ -217,6 +218,13 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="SendRequest" />
         Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct);
+
+        /// <summary>
+        /// Faults outstanding requests and removes them from the request queue.
+        /// </summary>
+        /// <param name="outstandingRequests">The outstanding async requests to fault.</param>
+        /// <param name="statusCode">The status code to apply to the requests</param>
+        void FaultOutstandingRequests(IEnumerable<IAsyncResult> outstandingRequests, StatusCode statusCode);
     }
 
     /// <summary>

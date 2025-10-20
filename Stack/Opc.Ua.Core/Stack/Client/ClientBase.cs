@@ -176,9 +176,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual void DetachChannel()
+        public virtual ITransportChannel DetachChannel()
         {
-            Interlocked.Exchange(ref m_channel, null);
+            return Interlocked.Exchange(ref m_channel, null);
         }
 
         /// <inheritdoc/>

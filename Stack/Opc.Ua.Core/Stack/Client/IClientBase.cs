@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <summary>
         /// Detach the channel.
         /// </summary>
-        void DetachChannel();
+        ITransportChannel DetachChannel();
 
         /// <summary>
         /// Closes the channel using async call.

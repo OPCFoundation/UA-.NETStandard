@@ -414,6 +414,29 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Faults outstanding requests and removes them from the request queue.
+        /// </summary>
+        /// <param name="outstandingRequests">The outstanding async requests to fault.</param>
+        /// <param name="statusCode">The status code to apply to the requests</param>
+        public void FaultOutstandingRequests(IEnumerable<IAsyncResult> outstandingRequests, StatusCode statusCode)
+        {
+            if (outstandingRequests == null)
+            {
+                return;
+            }
+
+            foreach (IAsyncResult result in outstandingRequests)
+            {
+                if (result is WriteOperation operation && m_requests.TryRemove(operation.RequestId, out _))
+                {
+                    operation.Fault(
+                        statusCode.Code,
+                        "The channel has been detached.");
+                }
+            }
+        }
+
+        /// <summary>
         /// Sends a Hello message.
         /// </summary>
         private void SendHelloMessage(WriteOperation operation)

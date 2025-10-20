@@ -21,7 +21,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-
+using System.Collections.Generic;
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -616,6 +616,15 @@ namespace Opc.Ua.Bindings
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
                 CertificateValidator = settings.CertificateValidator
             };
+        }
+
+        /// <summary>
+        /// Fault outstanding requests.
+        /// Not possible as https transport channel doesn't maintain a request queue.
+        /// </summary>
+        public void FaultOutstandingRequests(IEnumerable<IAsyncResult> outstandingRequests, StatusCode statusCode)
+        {
+            // HTTPS transport channel doesn't maintain a request queue
         }
 
         private Uri m_url;
