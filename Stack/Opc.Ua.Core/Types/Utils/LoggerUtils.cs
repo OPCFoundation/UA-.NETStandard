@@ -45,6 +45,7 @@ using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Redaction;
+using Opc.Ua.Security.Certificates;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable CA2254 // Template should be a static expression
@@ -166,15 +167,36 @@ namespace Opc.Ua
         /// <returns></returns>
         public static string AsLogSafeString(this X509Certificate2 certificate)
         {
-            if (certificate != null)
+            if (certificate == null)
             {
-                return Format("[{0}], [{1}] {2} {3}",
-                    Redact.Create(certificate.Subject),
-                    Redact.Create(certificate.Thumbprint),
-                    certificate.HasPrivateKey ? "(with Private Key)" : string.Empty,
-                    certificate.Handle == IntPtr.Zero ? "DISPOSED" : string.Empty);
+                return "(none)";
             }
-            return "(none)";
+            var buffer = new StringBuilder();
+            buffer
+                .Append('[')
+                .Append(Redact.Create(certificate.Subject))
+                .Append("], [")
+                .Append(Redact.Create(certificate.Thumbprint))
+                .Append(']');
+
+            if (certificate.Handle == IntPtr.Zero)
+            {
+                buffer.Append(" !!DISPOSED!!");
+            }
+            else if (certificate.HasPrivateKey)
+            {
+                buffer.Append(" (with Private Key");
+#if DEBUG || NETFRAMEWORK
+                string keyFileName = X509PfxUtilsDebug.GetKeyFileName(certificate);
+                buffer
+                    .Append(' ')
+                    .Append(keyFileName)
+                    .Append(" in ")
+                    .Append(X509PfxUtilsDebug.GetKeyFileDirectory(keyFileName));
+#endif
+                buffer.Append(')');
+            }
+            return buffer.ToString();
         }
 
         /// <summary>

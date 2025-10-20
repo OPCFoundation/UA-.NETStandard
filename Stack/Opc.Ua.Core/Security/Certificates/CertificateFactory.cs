@@ -219,6 +219,17 @@ namespace Opc.Ua
             return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
         }
 
+        /// <summary>
+        /// Create a X509Certificate2 with a private key by combining
+        /// the certificate with a private key from a PEM stream
+        /// </summary>
+        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
+            X509Certificate2 certificate,
+            byte[] pemDataBlob)
+        {
+            return CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, default);
+        }
+
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
@@ -331,17 +342,6 @@ namespace Opc.Ua
                 using RSA privateKey = certificateWithPrivateKey.GetRSAPrivateKey();
                 return certificate.CopyWithPrivateKey(privateKey);
             }
-        }
-
-        /// <summary>
-        /// Create a X509Certificate2 with a private key by combining
-        /// the certificate with a private key from a PEM stream
-        /// </summary>
-        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
-            X509Certificate2 certificate,
-            byte[] pemDataBlob)
-        {
-            return CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, default);
         }
 
         /// <summary>

@@ -41,7 +41,7 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
-    public class GlobalDiscoveryServerClient
+    public class GlobalDiscoveryServerClient : IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
@@ -93,6 +93,35 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public string[] PreferredLocales { get; set; }
 
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Called when the client is disposed
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected void Dispose(bool disposing)
+        {
+            if (disposing && !m_disposed)
+            {
+                m_disposed = true;
+                m_lock.Wait();
+                try
+                {
+                    Session?.Dispose();
+                }
+                finally
+                {
+                    m_lock.Release();
+                    m_lock.Dispose();
+                }
+            }
+        }
+
         /// <summary>
         /// Gets a value indicating whether the session is connected.
         /// </summary>
@@ -103,9 +132,14 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                lock (m_lock)
+                m_lock.Wait();
+                try
                 {
                     return Session != null && Session.Connected;
+                }
+                finally
+                {
+                    m_lock.Release();
                 }
             }
         }
@@ -123,14 +157,19 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                lock (m_lock)
+                m_lock.Wait();
+                try
                 {
                     if (Session != null && Session.ConfiguredEndpoint != null)
                     {
                         return Session.ConfiguredEndpoint;
                     }
+                    return m_endpoint;
                 }
-                return m_endpoint;
+                finally
+                {
+                    m_lock.Release();
+                }
             }
             set
             {
@@ -417,10 +456,15 @@ namespace Opc.Ua.Gds.Client
         public async Task DisconnectAsync(CancellationToken ct = default)
         {
             ISession session;
-            lock (m_lock)
+            await m_lock.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
                 session = Session;
                 Session = null;
+            }
+            finally
+            {
+                m_lock.Release();
             }
             if (session != null)
             {
@@ -430,17 +474,26 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
+        private async void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                lock (m_lock)
+                await m_lock.WaitAsync().ConfigureAwait(false);
+                try
                 {
                     if (session == Session)
                     {
                         Session.Dispose();
                         Session = null;
                     }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(ex, "Error during KeepAlive handling.");
+                }
+                finally
+                {
+                    m_lock.Release();
                 }
             }
         }
@@ -1443,31 +1496,26 @@ namespace Opc.Ua.Gds.Client
             bool updateBeforeConnect,
             CancellationToken ct)
         {
-            lock (m_lock)
+            await m_lock.WaitAsync().ConfigureAwait(false);
+            try
             {
                 if (Session != null)
                 {
                     Session.Dispose();
                     Session = null;
                 }
-            }
 
-            ISession session = await m_sessionFactory.CreateAsync(
-                Configuration,
-                endpoint,
-                updateBeforeConnect,
-                false,
-                Configuration.ApplicationName,
-                60000,
-                AdminCredentials,
-                PreferredLocales,
-                ct)
-            .ConfigureAwait(false);
-
-            lock (m_lock)
-            {
-                Session?.Dispose();
-                Session = session;
+                Session = await m_sessionFactory.CreateAsync(
+                    Configuration,
+                    endpoint,
+                    updateBeforeConnect,
+                    false,
+                    Configuration.ApplicationName,
+                    60000,
+                    AdminCredentials,
+                    PreferredLocales,
+                    ct)
+                .ConfigureAwait(false);
 
                 Session.SessionClosing += Session_SessionClosing;
                 Session.KeepAlive += Session_KeepAlive;
@@ -1486,6 +1534,10 @@ namespace Opc.Ua.Gds.Client
                 m_endpoint = Session.ConfiguredEndpoint;
                 m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
             }
+            finally
+            {
+                m_lock.Release();
+            }
         }
 
         /// <summary>
@@ -1499,20 +1551,26 @@ namespace Opc.Ua.Gds.Client
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
-                lock (m_lock)
+                await m_lock.WaitAsync(ct).ConfigureAwait(false);
+                try
                 {
                     if (Session != null && Session.Connected)
                     {
                         return Session;
                     }
                 }
+                finally
+                {
+                    m_lock.Release();
+                }
                 await ConnectAsync(ct).ConfigureAwait(false);
             }
         }
 
-        private readonly Lock m_lock = new();
+        private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
         private ConfiguredEndpoint m_endpoint;
+        private bool m_disposed;
     }
 }

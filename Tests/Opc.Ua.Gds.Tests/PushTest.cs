@@ -214,9 +214,14 @@ namespace Opc.Ua.Gds.Tests
             catch
             {
             }
-            m_gdsClient = null;
-            m_pushClient = null;
-            m_server = null;
+            finally
+            {
+                m_pushClient.Dispose();
+                m_gdsClient.Dispose();
+                m_gdsClient = null;
+                m_pushClient = null;
+                m_server = null;
+            }
         }
 
         [SetUp]

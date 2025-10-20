@@ -38,7 +38,7 @@ using Opc.Ua.Gds.Client;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class ServerConfigurationPushTestClient
+    public sealed class ServerConfigurationPushTestClient : IDisposable
     {
         public ServerPushConfigurationClient PushClient { get; private set; }
         public static bool AutoAccept { get; set; }
@@ -55,6 +55,11 @@ namespace Opc.Ua.Gds.Tests
         public string TempStorePath { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public string EndpointUrl { get; private set; }
+
+        public void Dispose()
+        {
+            PushClient.Dispose();
+        }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
@@ -162,7 +167,14 @@ namespace Opc.Ua.Gds.Tests
             {
                 ServerPushConfigurationClient pushClient = PushClient;
                 PushClient = null;
-                await pushClient.DisconnectAsync().ConfigureAwait(false);
+                try
+                {
+                    await pushClient.DisconnectAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    pushClient.Dispose();
+                }
             }
         }
 

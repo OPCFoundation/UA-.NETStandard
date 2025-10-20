@@ -40,7 +40,7 @@ using Opc.Ua.Gds.Client;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class GlobalDiscoveryTestClient
+    public sealed class GlobalDiscoveryTestClient : IDisposable
     {
         public GlobalDiscoveryServerClient GDSClient { get; private set; }
         public string EndpointUrl { get; private set; }
@@ -62,6 +62,11 @@ namespace Opc.Ua.Gds.Tests
         public IUserIdentity Anonymous { get; private set; }
         public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
+
+        public void Dispose()
+        {
+            GDSClient?.Dispose();
+        }
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
         {
@@ -252,7 +257,14 @@ namespace Opc.Ua.Gds.Tests
             {
                 GlobalDiscoveryServerClient gdsClient = GDSClient;
                 GDSClient = null;
-                await gdsClient.DisconnectAsync().ConfigureAwait(false);
+                try
+                {
+                    await gdsClient.DisconnectAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    gdsClient.Dispose();
+                }
             }
         }
 
