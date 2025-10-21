@@ -247,7 +247,7 @@ namespace Opc.Ua.Client
             m_latestAcknowledgementsSent = new Dictionary<uint, uint>();
 #endif
             m_identityHistory = [];
-            m_publishRequestTasks = [];
+            m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
             m_tooManyPublishRequests = 0;
             m_minPublishRequestCount = kDefaultPublishRequestCount;
@@ -703,15 +703,15 @@ namespace Opc.Ua.Client
         public int LastKeepAliveTickCount { get; private set; }
 
         /// <summary>
-        /// Gets the number of outstanding publish requests.
+        /// Gets the number of outstanding publish or keep alive requests.
         /// </summary>
         public int OutstandingRequestCount
         {
             get
             {
-                lock (m_publishRequestTasks)
+                lock (m_outstandingRequests)
                 {
-                    return m_publishRequestTasks.Count(t => !t.IsCompleted);
+                    return m_outstandingRequests.Count;
                 }
             }
         }
@@ -723,9 +723,21 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (m_publishRequestTasks)
+                lock (m_outstandingRequests)
                 {
-                    return m_publishRequestTasks.Count(t => t.IsFaulted);
+                    int count = 0;
+
+                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                        ii != null;
+                        ii = ii.Next)
+                    {
+                        if (ii.Value.Defunct)
+                        {
+                            count++;
+                        }
+                    }
+
+                    return count;
                 }
             }
         }
@@ -737,9 +749,21 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (m_publishRequestTasks)
+                lock (m_outstandingRequests)
                 {
-                    return m_publishRequestTasks.Count(t => !t.IsFaulted);
+                    int count = 0;
+
+                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                        ii != null;
+                        ii = ii.Next)
+                    {
+                        if (!ii.Value.Defunct && ii.Value.RequestTypeId == DataTypes.PublishRequest)
+                        {
+                            count++;
+                        }
+                    }
+
+                    return count;
                 }
             }
         }
@@ -4474,7 +4498,7 @@ namespace Opc.Ua.Client
                     // start timer
                     m_keepAliveWorker = Task
                         .Factory.StartNew(
-                            () => KeepAliveWorkerAsync(
+                            () => OnSendKeepAliveAsync(
                                 nodesToRead,
                                 m_keepAliveCancellation.Token),
                             m_keepAliveCancellation.Token,
@@ -4538,9 +4562,104 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Removes a completed async request.
+        /// </summary>
+        private AsyncRequestState RemoveRequest(IAsyncResult result, uint requestId, uint typeId)
+        {
+            lock (m_outstandingRequests)
+            {
+                for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                    ii != null;
+                    ii = ii.Next)
+                {
+                    if (ReferenceEquals(result, ii.Value.Result) ||
+                        (requestId == ii.Value.RequestId && typeId == ii.Value.RequestTypeId))
+                    {
+                        AsyncRequestState state = ii.Value;
+                        m_outstandingRequests.Remove(ii);
+                        return state;
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Adds a new async request.
+        /// </summary>
+        private void AsyncRequestStarted(IAsyncResult result, uint requestId, uint typeId)
+        {
+            lock (m_outstandingRequests)
+            {
+                // check if the request completed asynchronously.
+                AsyncRequestState state = RemoveRequest(result, requestId, typeId);
+
+                // add a new request.
+                if (state == null)
+                {
+                    state = new AsyncRequestState
+                    {
+                        Defunct = false,
+                        RequestId = requestId,
+                        RequestTypeId = typeId,
+                        Result = result,
+                        TickCount = HiResClock.TickCount
+                    };
+
+                    m_outstandingRequests.AddLast(state);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes a completed async request.
+        /// </summary>
+        private void AsyncRequestCompleted(IAsyncResult result, uint requestId, uint typeId)
+        {
+            lock (m_outstandingRequests)
+            {
+                // remove the request.
+                AsyncRequestState state = RemoveRequest(result, requestId, typeId);
+
+                if (state != null)
+                {
+                    // mark any old requests as default (i.e. the should have returned before this request).
+                    const int maxAge = 1000;
+
+                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                        ii != null;
+                        ii = ii.Next)
+                    {
+                        if (ii.Value.RequestTypeId == typeId &&
+                            (state.TickCount - ii.Value.TickCount) > maxAge)
+                        {
+                            ii.Value.Defunct = true;
+                        }
+                    }
+                }
+
+                // add a dummy placeholder since the begin request has not completed yet.
+                if (state == null)
+                {
+                    state = new AsyncRequestState
+                    {
+                        Defunct = true,
+                        RequestId = requestId,
+                        RequestTypeId = typeId,
+                        Result = result,
+                        TickCount = HiResClock.TickCount
+                    };
+
+                    m_outstandingRequests.AddLast(state);
+                }
+            }
+        }
+
+        /// <summary>
         /// Sends a keep alive by reading from the server.
         /// </summary>
-        private async Task KeepAliveWorkerAsync(
+        private async Task OnSendKeepAliveAsync(
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
@@ -4650,6 +4769,19 @@ namespace Opc.Ua.Client
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
                 LastKeepAliveTickCount = HiResClock.TickCount;
+
+                lock (m_outstandingRequests)
+                {
+                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                        ii != null;
+                        ii = ii.Next)
+                    {
+                        if (ii.Value.RequestTypeId == DataTypes.PublishRequest)
+                        {
+                            ii.Value.Defunct = true;
+                        }
+                    }
+                }
 
                 StartPublishing(OperationTimeout, false);
             }
@@ -5547,99 +5679,38 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Create the publish requests for the active subscriptions.
+        /// Sends an additional publish request.
         /// </summary>
-        public void StartPublishing(int timeout, bool fullQueue)
-        {
-            int publishCount = GetDesiredPublishRequestCount(true);
-
-            if (publishCount > 0)
-            {
-                lock (m_publishRequestTasks)
-                {
-                    if (fullQueue)
-                    {
-                        m_publishRequestTasks.RemoveAll(t => t.IsFaulted);
-                    }
-
-                    // Send at least one publish request if subscriptions are active.
-                    m_publishRequestTasks.Add(PublishWorkerAsync(timeout));
-
-                    // refill pipeline.
-                    int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
-                    for (int ii = startCount; ii < publishCount; ii++)
-                    {
-                        m_publishRequestTasks.Add(PublishWorkerAsync(timeout));
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Queues a publish request if there are not enough outstanding requests.
-        /// </summary>
-        private void QueueNextPublishRequest(int timeout)
-        {
-            int publishCount = GetDesiredPublishRequestCount(true);
-            if (publishCount > 0)
-            {
-                lock (m_publishRequestTasks)
-                {
-                    // Get a completed publish request and remove it, then add a new one
-                    Task first = m_publishRequestTasks.FirstOrDefault(t => t.IsCompleted);
-                    if (first != null)
-                    {
-                        m_publishRequestTasks.Remove(first);
-                    }
-                    if (m_publishRequestTasks.Count < publishCount)
-                    {
-                        m_publishRequestTasks.Add(PublishWorkerAsync(timeout));
-                    }
-                    else
-                    {
-                        m_logger.LogDebug(
-                            "PUBLISH - Did not send another publish request. " +
-                            "DesiredPublishCount={DesiredPublishCount}, CurrentPublishCount={Count}",
-                            publishCount,
-                            m_publishRequestTasks.Count);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Sends a publish request and processes the response.
-        /// </summary>
-        private async Task PublishWorkerAsync(int timeout, CancellationToken ct = default)
+        public IAsyncResult BeginPublish(int timeout)
         {
             // do not publish if reconnecting or the session is in closed state.
             if (!Connected)
             {
                 m_logger.LogWarning("Publish skipped due to session not connected");
-                return;
+                return null;
             }
 
             if (Reconnecting)
             {
                 m_logger.LogWarning("Publish skipped due to session reconnect");
-                return;
+                return null;
             }
 
             // get event handler to modify ack list
-            PublishSequenceNumbersToAcknowledgeEventHandler ackCallback
+            PublishSequenceNumbersToAcknowledgeEventHandler callback
                 = m_PublishSequenceNumbersToAcknowledge;
 
             // collect the current set if acknowledgements.
             SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
             lock (m_acknowledgementsToSendLock)
             {
-                if (ackCallback != null)
+                if (callback != null)
                 {
                     try
                     {
                         var deferredAcknowledgementsToSend
                             = new SubscriptionAcknowledgementCollection();
-                        ackCallback(
+                        callback(
                             this,
                             new PublishSequenceNumbersToAcknowledgeEventArgs(
                                 m_acknowledgementsToSend,
@@ -5681,21 +5752,97 @@ namespace Opc.Ua.Client
                 RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
             };
 
-            uint subscriptionId = 0;
-            NodeId sessionId = SessionId; // Capture session id before publish so we can see if it changed after
+            var state = new AsyncRequestState
+            {
+                RequestTypeId = DataTypes.PublishRequest,
+                RequestId = requestHeader.RequestHandle,
+                TickCount = HiResClock.TickCount
+            };
+
+            m_logger.LogTrace("PUBLISH #{RequestHandle} SENT", requestHeader.RequestHandle);
+            CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
+
             try
             {
-                m_logger.LogTrace("PUBLISH #{RequestHandle} SENT", requestHeader.RequestHandle);
-                CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
-                PublishResponse publishResult = await PublishAsync(requestHeader, acknowledgementsToSend, ct)
-                    .ConfigureAwait(false);
-                m_logger.LogTrace("PUBLISH #{RequestHandle} RECEIVED", requestHeader.RequestHandle);
-                CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
+#pragma warning disable CS0618 // Type or member is obsolete
+                IAsyncResult result = BeginPublish(
+                    requestHeader,
+                    acknowledgementsToSend,
+                    OnPublishComplete,
+                    new object[] { SessionId, acknowledgementsToSend, requestHeader });
+#pragma warning restore CS0618 // Type or member is obsolete
 
-                subscriptionId = publishResult.SubscriptionId;
+                AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
+
+                return result;
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Unexpected error sending publish request.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Create the publish requests for the active subscriptions.
+        /// </summary>
+        public void StartPublishing(int timeout, bool fullQueue)
+        {
+            int publishCount = GetDesiredPublishRequestCount(true);
+
+            // refill pipeline. Send at least one publish request if subscriptions are active.
+            if (publishCount > 0 && BeginPublish(timeout) != null)
+            {
+                int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
+                for (int ii = startCount; ii < publishCount; ii++)
+                {
+                    if (BeginPublish(timeout) == null)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Completes an asynchronous publish operation.
+        /// </summary>
+        private void OnPublishComplete(IAsyncResult result)
+        {
+            // extract state information.
+            object[] state = (object[])result.AsyncState;
+            var sessionId = (NodeId)state[0];
+            var acknowledgementsToSend = (SubscriptionAcknowledgementCollection)state[1];
+            var requestHeader = (RequestHeader)state[2];
+            uint subscriptionId = 0;
+
+            AsyncRequestCompleted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
+
+            m_logger.LogTrace("PUBLISH #{RequestHandle} RECEIVED", requestHeader.RequestHandle);
+            CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
+
+            try
+            {
+                // gate entry if transfer/reactivate is busy
+                m_reconnectLock.Wait();
+                bool reconnecting = Reconnecting;
+                m_reconnectLock.Release();
+
+                // complete publish.
+
+#pragma warning disable CS0618 // Type or member is obsolete
+                ResponseHeader responseHeader = EndPublish(
+                    result,
+                    out subscriptionId,
+                    out UInt32Collection availableSequenceNumbers,
+                    out bool moreNotifications,
+                    out NotificationMessage notificationMessage,
+                    out StatusCodeCollection acknowledgeResults,
+                    out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 LogLevel logLevel = LogLevel.Warning;
-                foreach (StatusCode code in publishResult.Results)
+                foreach (StatusCode code in acknowledgeResults)
                 {
                     if (StatusCode.IsBad(code) && code != StatusCodes.BadSequenceNumberUnknown)
                     {
@@ -5728,30 +5875,19 @@ namespace Opc.Ua.Client
                 m_logger.LogTrace(
                     "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}",
                     subscriptionId,
-                    publishResult.NotificationMessage.SequenceNumber);
+                    notificationMessage.SequenceNumber);
                 CoreClientUtils.EventLog.NotificationReceived(
                     (int)subscriptionId,
-                    (int)publishResult.NotificationMessage.SequenceNumber);
+                    (int)notificationMessage.SequenceNumber);
 
                 // process response.
                 ProcessPublishResponse(
-                    publishResult.ResponseHeader,
+                    responseHeader,
                     subscriptionId,
-                    publishResult.AvailableSequenceNumbers,
-                    publishResult.MoreNotifications,
-                    publishResult.NotificationMessage);
+                    availableSequenceNumbers,
+                    moreNotifications,
+                    notificationMessage);
 
-                // gate entry if transfer/reactivate is busy
-                bool reconnecting;
-                m_reconnectLock.Wait(ct);
-                try
-                {
-                    reconnecting = Reconnecting;
-                }
-                finally
-                {
-                    m_reconnectLock.Release();
-                }
                 // nothing more to do if reconnecting.
                 if (reconnecting)
                 {
@@ -5871,8 +6007,12 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadTcpServerTooBusy:
                     case StatusCodes.BadServerTooBusy:
                         // throttle the next publish to reduce server load
-                        await Task.Delay(100, ct).ConfigureAwait(false);
-                        break;
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(100).ConfigureAwait(false);
+                            QueueBeginPublish();
+                        });
+                        return;
                     case StatusCodes.BadTimeout:
                         break;
                     default:
@@ -5884,8 +6024,8 @@ namespace Opc.Ua.Client
                         goto case StatusCodes.BadServerTooBusy;
                 }
             }
-            ct.ThrowIfCancellationRequested();
-            QueueNextPublishRequest(timeout);
+
+            QueueBeginPublish();
         }
 
         /// <summary>
@@ -5911,6 +6051,29 @@ namespace Opc.Ua.Client
                 "Could not recreate session {0}:{1}",
                 sessionName,
                 e.Message);
+        }
+
+        /// <summary>
+        /// Queues a publish request if there are not enough outstanding requests.
+        /// </summary>
+        private void QueueBeginPublish()
+        {
+            int requestCount = GoodPublishRequestCount;
+
+            int minPublishRequestCount = GetDesiredPublishRequestCount(false);
+
+            if (requestCount < minPublishRequestCount)
+            {
+                BeginPublish(OperationTimeout);
+            }
+            else
+            {
+                m_logger.LogDebug(
+                    "PUBLISH - Did not send another publish request. " +
+                    "GoodPublishRequestCount={GoodRequestCount}, MinPublishRequestCount={MinRequestCount}",
+                    requestCount,
+                    minPublishRequestCount);
+            }
         }
 
         /// <summary>
@@ -7146,12 +7309,22 @@ namespace Opc.Ua.Client
         private SemaphoreSlim m_reconnectLock;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
-        private List<Task> m_publishRequestTasks;
+        private LinkedList<AsyncRequestState> m_outstandingRequests;
         private string m_userTokenSecurityPolicyUri;
         private Nonce m_eccServerEphemeralKey;
         private Subscription m_defaultSubscription;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
+
+        private class AsyncRequestState
+        {
+            public uint RequestTypeId;
+            public uint RequestId;
+            public int TickCount;
+            public IAsyncResult Result;
+            public bool Defunct;
+        }
+
         private event KeepAliveEventHandler m_KeepAlive;
         private event NotificationEventHandler m_Publish;
         private event PublishErrorEventHandler m_PublishError;

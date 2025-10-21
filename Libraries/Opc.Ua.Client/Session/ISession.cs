@@ -744,6 +744,11 @@ namespace Opc.Ua.Client
             params object[] args);
 
         /// <summary>
+        /// Sends an additional publish request.
+        /// </summary>
+        IAsyncResult BeginPublish(int timeout);
+
+        /// <summary>
         /// Create the publish requests for the active subscriptions.
         /// </summary>
         void StartPublishing(int timeout, bool fullQueue);
