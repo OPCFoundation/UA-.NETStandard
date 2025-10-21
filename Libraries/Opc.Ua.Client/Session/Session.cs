@@ -354,12 +354,11 @@ namespace Opc.Ua.Client
         /// <exception cref="InvalidOperationException"></exception>
         public new virtual ITransportChannel DetachChannel()
         {
-            //Is this a valid restriction?
-            //if (Connected)
-            //{
-            //    throw new InvalidOperationException(
-            //        "Cannot detach channel while session is connected. Close the session first.");
-            //}
+            if (Connected)
+            {
+                throw new InvalidOperationException(
+                    "Cannot detach channel while session is connected. Close the session first.");
+            }
 
             if (Reconnecting)
             {
