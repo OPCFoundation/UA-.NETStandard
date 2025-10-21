@@ -653,12 +653,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IAsyncResult BeginPublish(int timeout)
-        {
-            return Session.BeginPublish(timeout);
-        }
-
-        /// <inheritdoc/>
         public void StartPublishing(int timeout, bool fullQueue)
         {
             using Activity activity = m_telemetry.StartActivity();

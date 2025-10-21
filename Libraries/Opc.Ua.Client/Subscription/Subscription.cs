@@ -1888,7 +1888,7 @@ namespace Opc.Ua.Client
                     PublishStateChangedMask.Stopped);
 
                 // try to send a publish to recover stopped publishing.
-                session.BeginPublish(BeginPublishTimeout());
+                session.StartPublishing(BeginPublishTimeout(), false);
             }
             else
             {
