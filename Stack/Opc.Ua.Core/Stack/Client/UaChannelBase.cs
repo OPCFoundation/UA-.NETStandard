@@ -195,7 +195,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
         /// </summary>
-        public int OperationTimeout { get; set; }
+        public int OperationTimeout { get; set; } = 60000;
 
         /// <summary>
         /// Initializes a secure channel with the endpoint identified by the URL.
