@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 using X509Extension = System.Security.Cryptography.X509Certificates.X509Extension;
@@ -76,20 +77,23 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             var generalNames = new List<GeneralName>();
             for (int i = 0; i < domainNames.Count; i++)
             {
-                int domainType;
                 switch (Uri.CheckHostName(domainNames[i]))
                 {
                     case UriHostNameType.Dns:
-                        domainType = GeneralName.DnsName;
+                        generalNames.Add(new GeneralName(GeneralName.DnsName, domainNames[i]));
                         break;
                     case UriHostNameType.IPv4:
                     case UriHostNameType.IPv6:
-                        domainType = GeneralName.IPAddress;
+                        generalNames.Add(new GeneralName(GeneralName.IPAddress, domainNames[i]));
+                        break;
+                    case UriHostNameType.Basic:
+                    case UriHostNameType.Unknown:
+                        // Skip unknown types
                         break;
                     default:
-                        continue;
+                        Debug.Fail("Unknown UriHostNameType returned from Uri.CheckHostName");
+                        break;
                 }
-                generalNames.Add(new GeneralName(domainType, domainNames[i]));
             }
             return generalNames;
         }

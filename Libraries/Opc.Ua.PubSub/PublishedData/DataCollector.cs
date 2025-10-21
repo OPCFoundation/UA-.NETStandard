@@ -124,6 +124,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         ///  Create and return a DataSet object created from its dataSetName
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public DataSet CollectData(string dataSetName)
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
@@ -212,7 +213,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                         givenStrlen > field.FieldMetaData.MaxStringLength;
                                 }
 
-                                switch ((BuiltInType)field.FieldMetaData.BuiltInType)
+                                var builtInType = (BuiltInType)field.FieldMetaData.BuiltInType;
+                                switch (builtInType)
                                 {
                                     case BuiltInType.String:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
@@ -288,6 +290,11 @@ namespace Opc.Ua.PubSub.PublishedData
                                             dataValue.Value = valueArray;
                                         }
                                         break;
+                                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                                        break;
+                                    default:
+                                        throw ServiceResultException.Unexpected(
+                                            $"Unexpected BuiltInType {builtInType}");
                                 }
 
                                 dataSet.Fields[i].Value = dataValue;

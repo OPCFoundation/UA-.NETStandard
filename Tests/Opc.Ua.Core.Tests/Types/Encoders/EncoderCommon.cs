@@ -876,9 +876,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return decoder.ReadDiagnosticInfo(fieldName);
                 case BuiltInType.Variant:
                     return decoder.ReadVariant(fieldName);
+                default:
+                    NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
+                    return null;
             }
-            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
-            return null;
         }
 
         /// <summary>

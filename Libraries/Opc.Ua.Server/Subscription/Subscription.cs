@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -2701,6 +2702,9 @@ namespace Opc.Ua.Server
                         itemsToCheck,
                         itemsToPublish,
                         sentMessages);
+                    break;
+                default:
+                    Debug.Fail($"Unexpected TraceStateId: {id}");
                     break;
             }
         }

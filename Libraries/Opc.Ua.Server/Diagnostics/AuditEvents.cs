@@ -645,7 +645,7 @@ namespace Opc.Ua.Server
             {
                 if (StatusCode.IsBad(sre.InnerResult.Code))
                 {
-                    AuditCertificateEventState auditCertificateEventState = null;
+                    AuditCertificateEventState auditCertificateEventState;
                     switch (sre.StatusCode)
                     {
                         case StatusCodes.BadCertificateTimeInvalid:
@@ -680,40 +680,40 @@ namespace Opc.Ua.Server
                             auditCertificateEventState = new AuditCertificateMismatchEventState(
                                 null);
                             break;
+                        default:
+                            return;
                     }
-                    if (auditCertificateEventState != null)
-                    {
-                        auditCertificateEventState.Initialize(
-                            systemContext,
-                            null,
-                            EventSeverity.Min,
-                            sre.Message,
-                            false,
-                            DateTime.UtcNow
-                        ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
-                        auditCertificateEventState.SetChildValue(
-                            systemContext,
-                            BrowseNames.SourceName,
-                            "Security/Certificate",
-                            false);
+                    auditCertificateEventState.Initialize(
+                        systemContext,
+                        null,
+                        EventSeverity.Min,
+                        sre.Message,
+                        false,
+                        DateTime.UtcNow
+                    ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
-                        // set AuditSecurityEventType fields
-                        auditCertificateEventState.SetChildValue(
-                            systemContext,
-                            BrowseNames.StatusCodeId,
-                            sre.InnerResult.StatusCode,
-                            false);
+                    auditCertificateEventState.SetChildValue(
+                        systemContext,
+                        BrowseNames.SourceName,
+                        "Security/Certificate",
+                        false);
 
-                        // set AuditCertificateEventType fields
-                        auditCertificateEventState.SetChildValue(
-                            systemContext,
-                            BrowseNames.Certificate,
-                            clientCertificate?.RawData,
-                            false);
+                    // set AuditSecurityEventType fields
+                    auditCertificateEventState.SetChildValue(
+                        systemContext,
+                        BrowseNames.StatusCodeId,
+                        sre.InnerResult.StatusCode,
+                        false);
 
-                        server.ReportAuditEvent(systemContext, auditCertificateEventState);
-                    }
+                    // set AuditCertificateEventType fields
+                    auditCertificateEventState.SetChildValue(
+                        systemContext,
+                        BrowseNames.Certificate,
+                        clientCertificate?.RawData,
+                        false);
+
+                    server.ReportAuditEvent(systemContext, auditCertificateEventState);
                 }
             }
             catch (Exception ex)

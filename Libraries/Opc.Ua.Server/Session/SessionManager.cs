@@ -548,6 +548,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Raises an event related to a session.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual void RaiseSessionEvent(ISession session, SessionEventReason reason)
         {
             lock (m_eventLock)
@@ -568,6 +569,11 @@ namespace Opc.Ua.Server
                     case SessionEventReason.ChannelKeepAlive:
                         handler = m_SessionChannelKeepAlive;
                         break;
+                    case SessionEventReason.Impersonating:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected SessionEventReason {reason}");
                 }
 
                 if (handler != null)

@@ -352,6 +352,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the list of base addresses.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
             BaseAddresses = [];
@@ -409,6 +410,9 @@ namespace Opc.Ua
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            $"Unsupported scheme for base address: {address.Url}");
                 }
 
                 BaseAddresses.Add(address);
