@@ -764,7 +764,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var subjectName = SubjectName;
+            string subjectName = SubjectName;
             //Arrange Application Instance
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration = await applicationInstance
@@ -778,7 +778,8 @@ namespace Opc.Ua.Configuration.Tests
                 .CreateAsync()
                 .ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
+            NUnit.Framework.Assert.DoesNotThrowAsync(
+                async () => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
 
             subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
             var applicationInstance2 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
@@ -793,7 +794,7 @@ namespace Opc.Ua.Configuration.Tests
                 .CreateAsync()
                 .ConfigureAwait(false);
 
-            // Since the SubjectName is a substring of the first one's CN, 
+            // Since the SubjectName is a substring of the first one's CN,
             // the matching algorithm will find the first certificate because a fuzzy match is done on the SubjectName when SubjectName does not contain CN=.
             // However, since the ApplicationUri is different, the certificate will be considered invalid
             ServiceResultException exception = NUnit.Framework.Assert
@@ -804,7 +805,7 @@ namespace Opc.Ua.Configuration.Tests
 
             subjectName = "CN=UA";// UA is a substring of the previous certificate SubjectName CN
             var applicationInstance3 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var configuration3 = await applicationInstance3
+            ApplicationConfiguration configuration3 = await applicationInstance3
                 .Build(ApplicationUri + "3", ProductUri + "3")
                 .AsClient()
                 .AddSecurityConfigurationStores(subjectName,
@@ -816,7 +817,8 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
 
             // Since the SubjectName contains CN=UA, the matching algorithm will not do a fuzzy match and will not find the first certificate.
-            Assert.DoesNotThrowAsync(async () => await applicationInstance3.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
+            NUnit.Framework.Assert.DoesNotThrowAsync(
+                async () => await applicationInstance3.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
         }
 
         /// <summary>
