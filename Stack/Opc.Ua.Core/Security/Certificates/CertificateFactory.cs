@@ -565,6 +565,11 @@ namespace Opc.Ua
                 subjectName = Utils.Format("CN={0}", subjectName);
             }
 
+            if (!subjectName.Contains("O=", StringComparison.Ordinal))
+            {
+                subjectName += Utils.Format(", O={0}", "OPC Foundation");
+            }
+
             if (domainNames != null && domainNames.Count > 0)
             {
                 if (!subjectName.Contains("DC=", StringComparison.Ordinal) &&
