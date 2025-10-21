@@ -4675,7 +4675,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // check if session has been closed.
-                    if (!Connected || m_keepAliveTimer == null)
+                    if (!Connected)
                     {
                         continue;
                     }
