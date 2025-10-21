@@ -5006,8 +5006,7 @@ namespace Opc.Ua.Client
 
                     if (nodeClass == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Node does not have a valid value for NodeClass: {0}.",
                             values[ii].Value);
                     }
@@ -5056,11 +5055,6 @@ namespace Opc.Ua.Client
             DataValue value;
             switch ((NodeClass)nodeClass.Value)
             {
-                default:
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUnexpectedError,
-                        "Node does not have a valid value for NodeClass: {0}.",
-                        nodeClass.Value);
                 case NodeClass.Object:
                     var objectNode = new ObjectNode();
 
@@ -5068,8 +5062,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Object does not support the EventNotifier attribute.");
                     }
 
@@ -5083,8 +5076,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "ObjectType does not support the IsAbstract attribute.");
                     }
 
@@ -5099,8 +5091,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the DataType attribute.");
                     }
 
@@ -5111,8 +5102,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the ValueRank attribute.");
                     }
 
@@ -5138,8 +5128,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the AccessLevel attribute.");
                     }
 
@@ -5150,8 +5139,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the UserAccessLevel attribute.");
                     }
 
@@ -5162,8 +5150,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the Historizing attribute.");
                     }
 
@@ -5197,8 +5184,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "VariableType does not support the IsAbstract attribute.");
                     }
 
@@ -5209,8 +5195,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "VariableType does not support the DataType attribute.");
                     }
 
@@ -5221,8 +5206,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "VariableType does not support the ValueRank attribute.");
                     }
 
@@ -5246,8 +5230,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Method does not support the Executable attribute.");
                     }
 
@@ -5258,8 +5241,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "Method does not support the UserExecutable attribute.");
                     }
 
@@ -5275,8 +5257,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "DataType does not support the IsAbstract attribute.");
                     }
 
@@ -5300,8 +5281,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "ReferenceType does not support the IsAbstract attribute.");
                     }
 
@@ -5312,8 +5292,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "ReferenceType does not support the Symmetric attribute.");
                     }
 
@@ -5338,8 +5317,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "View does not support the EventNotifier attribute.");
                     }
 
@@ -5350,8 +5328,7 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUnexpectedError,
+                        throw ServiceResultException.Unexpected(
                             "View does not support the ContainsNoLoops attribute.");
                     }
 
@@ -5359,6 +5336,13 @@ namespace Opc.Ua.Client
 
                     node = viewNode;
                     break;
+                case NodeClass.Unspecified:
+                    throw ServiceResultException.Unexpected(
+                        "Node does not have a valid value for NodeClass: {0}.",
+                        nodeClass.Value);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected NodeClass: {nodeClass.Value}.");
             }
 
             // NodeId Attribute
@@ -5366,8 +5350,7 @@ namespace Opc.Ua.Client
 
             if (value == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Node does not support the NodeId attribute.");
             }
 
@@ -5379,8 +5362,7 @@ namespace Opc.Ua.Client
 
             if (value == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Node does not support the BrowseName attribute.");
             }
 
@@ -5391,8 +5373,7 @@ namespace Opc.Ua.Client
 
             if (value == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Node does not support the DisplayName attribute.");
             }
 
@@ -5460,8 +5441,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a dictionary of attributes to read for a nodeclass.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static Dictionary<uint, DataValue> CreateAttributes(
-            NodeClass nodeclass = NodeClass.Unspecified,
+            NodeClass nodeClass = NodeClass.Unspecified,
             bool optionalAttributes = true)
         {
             // Attributes to read for all types of nodes
@@ -5473,7 +5455,7 @@ namespace Opc.Ua.Client
                 { Attributes.DisplayName, null }
             };
 
-            switch (nodeclass)
+            switch (nodeClass)
             {
                 case NodeClass.Object:
                     attributes.Add(Attributes.EventNotifier, null);
@@ -5514,7 +5496,7 @@ namespace Opc.Ua.Client
                     attributes.Add(Attributes.EventNotifier, null);
                     attributes.Add(Attributes.ContainsNoLoops, null);
                     break;
-                default:
+                case NodeClass.Unspecified:
                     // build complete list of attributes.
                     attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes)
                     {
@@ -5546,6 +5528,9 @@ namespace Opc.Ua.Client
                         { Attributes.AccessLevelEx, null }
                     };
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected NodeClass: {nodeClass}.");
             }
 
             if (optionalAttributes)

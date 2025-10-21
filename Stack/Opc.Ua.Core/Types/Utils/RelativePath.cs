@@ -128,6 +128,9 @@ namespace Opc.Ua
                             element.ReferenceTypeName);
                         parsedElement.IsInverse = true;
                         break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            "Unexpected ElementType value: {0}", element.ElementType);
                 }
 
                 if (NodeId.IsNull(parsedElement.ReferenceTypeId))
@@ -194,6 +197,9 @@ namespace Opc.Ua
                                 .ElementType
                                 .InverseReference;
                         break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            "Unexpected ElementType value: {0}", element.ElementType);
                 }
 
                 if (NodeId.IsNull(parsedElement.ReferenceTypeId))
@@ -587,6 +593,7 @@ namespace Opc.Ua
             /// <param name="format">(Unused) Always pass null</param>
             /// <param name="formatProvider">(Unused) Always pass null</param>
             /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
+            /// <exception cref="ServiceResultException"></exception>
             public string ToString(string format, IFormatProvider formatProvider)
             {
                 if (format == null)
@@ -632,6 +639,9 @@ namespace Opc.Ua
                             }
 
                             break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                "Unexpected ElementType value: {0}", ElementType);
                     }
 
                     // write the target browse name component.

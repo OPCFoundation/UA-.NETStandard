@@ -695,20 +695,13 @@ namespace Opc.Ua
             X509Certificate2Collection clientCertificateChain,
             IServiceMessageContext messageContext)
         {
-            string uriScheme = new Uri(description.EndpointUrl).Scheme;
-
-            switch (description.TransportProfileUri)
+            string uriScheme = description.TransportProfileUri switch
             {
-                case Profiles.UaTcpTransport:
-                    uriScheme = Utils.UriSchemeOpcTcp;
-                    break;
-                case Profiles.HttpsBinaryTransport:
-                    uriScheme = Utils.UriSchemeOpcHttps;
-                    break;
-                case Profiles.UaWssTransport:
-                    uriScheme = Utils.UriSchemeOpcWss;
-                    break;
-            }
+                Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
+                Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
+                Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
+                _ => new Uri(description.EndpointUrl).Scheme
+            };
 
             // initialize the channel which will be created with the server.
             ITransportChannel channel =

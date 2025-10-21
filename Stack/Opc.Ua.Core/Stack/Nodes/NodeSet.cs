@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -234,11 +235,13 @@ namespace Opc.Ua
                             m_namespaceUris,
                             namespaceUris);
                     }
-
+                    return value;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return value;
+                default:
+                    Debug.Fail("Unexpected built-in type {typeInfo.BuiltInType}");
                     return value;
             }
-
-            return value;
         }
 
         /// <summary>

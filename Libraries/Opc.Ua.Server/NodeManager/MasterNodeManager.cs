@@ -294,7 +294,11 @@ namespace Opc.Ua.Server
                     return PermissionType.InsertHistory;
                 case PerformUpdateType.Update:
                     return PermissionType.InsertHistory | PermissionType.ModifyHistory;
-                default: // PerformUpdateType.Replace or PerformUpdateType.Remove
+                case PerformUpdateType.Replace:
+                case PerformUpdateType.Remove:
+                    return PermissionType.ModifyHistory;
+                default:
+                    Debug.Fail($"Unexpected update type {updateType}");
                     return PermissionType.ModifyHistory;
             }
         }

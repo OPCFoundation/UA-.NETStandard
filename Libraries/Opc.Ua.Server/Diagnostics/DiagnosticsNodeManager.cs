@@ -592,9 +592,9 @@ namespace Opc.Ua.Server
                 case VariableTypes.SubscriptionDiagnosticsArrayType:
                 case VariableTypes.SamplingIntervalDiagnosticsArrayType:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>

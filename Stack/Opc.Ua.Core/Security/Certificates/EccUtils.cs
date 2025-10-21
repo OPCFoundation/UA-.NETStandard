@@ -77,6 +77,8 @@ namespace Opc.Ua
                     case SecurityPolicies.ECC_curve25519:
                     case SecurityPolicies.ECC_curve448:
                         return true;
+                    default:
+                        return false;
                 }
             }
 
@@ -179,8 +181,9 @@ namespace Opc.Ua
                         return BrainpoolP256r1;
                     case BrainpoolP384r1KeyParameters:
                         return BrainpoolP384r1;
+                    default:
+                        return signatureQualifier;
                 }
-                return signatureQualifier;
             }
             return string.Empty;
         }
@@ -313,6 +316,7 @@ namespace Opc.Ua
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -324,12 +328,15 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                     return HashAlgorithmName.SHA256;
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
                 default:
-                    return HashAlgorithmName.SHA256;
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected security policy URI for ECC: {0}", securityPolicyUri);
             }
         }
 
@@ -846,25 +853,33 @@ namespace Opc.Ua
             out byte[] encryptingKey,
             out byte[] iv)
         {
-            int encryptingKeySize = 32;
-            int blockSize = 16;
-            HashAlgorithmName algorithmName = HashAlgorithmName.SHA256;
+            int encryptingKeySize;
+            int blockSize;
+            HashAlgorithmName algorithmName;
 
             switch (securityPolicyUri)
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                    blockSize = 16;
                     encryptingKeySize = 16;
+                    algorithmName = HashAlgorithmName.SHA256;
                     break;
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     encryptingKeySize = 32;
+                    blockSize = 16;
                     algorithmName = HashAlgorithmName.SHA384;
                     break;
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                     encryptingKeySize = 32;
                     blockSize = 12;
+                    algorithmName = HashAlgorithmName.SHA256;
+                    break;
+                default:
+                    encryptingKeySize = 32;
+                    blockSize = 16;
                     algorithmName = HashAlgorithmName.SHA256;
                     break;
             }
@@ -1002,13 +1017,15 @@ namespace Opc.Ua
             message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
             // get the algorithm used for the signature.
-            HashAlgorithmName signatureAlgorithm = HashAlgorithmName.SHA256;
-
+            HashAlgorithmName signatureAlgorithm;
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     signatureAlgorithm = HashAlgorithmName.SHA384;
+                    break;
+                default:
+                    signatureAlgorithm = HashAlgorithmName.SHA256;
                     break;
             }
 
@@ -1068,13 +1085,16 @@ namespace Opc.Ua
             }
 
             // get the algorithm used for the signature.
-            HashAlgorithmName signatureAlgorithm = HashAlgorithmName.SHA256;
+            HashAlgorithmName signatureAlgorithm;
 
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     signatureAlgorithm = HashAlgorithmName.SHA384;
+                    break;
+                default:
+                    signatureAlgorithm = HashAlgorithmName.SHA256;
                     break;
             }
 
@@ -1425,6 +1445,7 @@ namespace Opc.Ua
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"><paramref name="securityPolicyUri"/> is unsupported.</exception>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -1436,12 +1457,15 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                     return HashAlgorithmName.SHA256;
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
                 default:
-                    return HashAlgorithmName.SHA256;
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected security policy URI for ECC: {0}", securityPolicyUri);
             }
         }
 

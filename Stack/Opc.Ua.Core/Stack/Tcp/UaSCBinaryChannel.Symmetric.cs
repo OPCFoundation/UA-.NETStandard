@@ -416,6 +416,11 @@ namespace Opc.Ua.Bindings
                     aesCbcDecryptorProvider.IV = token.ServerInitializationVector;
                     token.ServerEncryptor = aesCbcDecryptorProvider;
                     break;
+                default:
+                    // TODO: is this even legal or should we throw? What are the implications
+                    token.ClientEncryptor = null;
+                    token.ServerEncryptor = null;
+                    break;
             }
 
             switch (SecurityPolicyUri)
@@ -437,6 +442,11 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     token.ServerHmac = new HMACSHA384(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA384(token.ClientSigningKey);
+                    break;
+                default:
+                    // TODO: is this even legal or should we throw? What are the implications
+                    token.ServerHmac = null;
+                    token.ClientHmac = null;
                     break;
             }
         }
@@ -738,7 +748,9 @@ namespace Opc.Ua.Bindings
             // check for valid token.
             ChannelToken currentToken =
                 CurrentToken ??
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel{0}: Token missing to read symmetric messagee.", Id);
 
             // find the token.
             if (currentToken.TokenId != tokenId &&

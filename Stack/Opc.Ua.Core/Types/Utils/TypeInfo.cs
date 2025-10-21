@@ -286,6 +286,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeInfo">The type info.</param>
         /// <returns>An data type identifier for a node in a server's address space.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static NodeId GetDataTypeId(TypeInfo typeInfo)
         {
             switch (typeInfo.BuiltInType)
@@ -348,9 +349,12 @@ namespace Opc.Ua
                     return DataTypeIds.UInteger;
                 case BuiltInType.Enumeration:
                     return DataTypeIds.Enumeration;
+                case BuiltInType.Null:
+                    return NodeId.Null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
-
-            return NodeId.Null;
         }
 
         /// <summary>
@@ -453,18 +457,16 @@ namespace Opc.Ua
                 case DataTypes.NumericRange:
                 case DataTypes.TimeString:
                     return BuiltInType.String;
+                default:
+                    var builtInType = (BuiltInType)Enum.ToObject(
+                        typeof(BuiltInType),
+                        datatypeId.Identifier);
+                    if (builtInType is > BuiltInType.DiagnosticInfo and not BuiltInType.Enumeration)
+                    {
+                        return BuiltInType.Null;
+                    }
+                    return builtInType;
             }
-
-            var builtInType = (BuiltInType)Enum.ToObject(
-                typeof(BuiltInType),
-                datatypeId.Identifier);
-
-            if (builtInType is > BuiltInType.DiagnosticInfo and not BuiltInType.Enumeration)
-            {
-                return BuiltInType.Null;
-            }
-
-            return builtInType;
         }
 
         /// <summary>
@@ -727,9 +729,9 @@ namespace Opc.Ua
                 case DataTypes.NumericRange:
                 case DataTypes.TimeString:
                     goto case DataTypes.String;
+                default:
+                    return factory.GetSystemType(datatypeId);
             }
-
-            return factory.GetSystemType(datatypeId);
         }
 
         /// <summary>
@@ -847,6 +849,7 @@ namespace Opc.Ua
         /// <returns>
         /// An data type info if the value is an instance of the data type with the specified value rank; otherwise <c>null</c>.
         /// </returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static TypeInfo IsInstanceOfDataType(
             object value,
             NodeId expectedDataTypeId,
@@ -882,10 +885,13 @@ namespace Opc.Ua
                     case BuiltInType.Variant:
                     case BuiltInType.ExtensionObject:
                         return CreateScalar(expectedType);
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        // nulls not allowed.
+                        return null;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {expectedType}");
                 }
-
-                // nulls not allowed.
-                return null;
             }
 
             // A ByteString is equivalent to an Array of Bytes.
@@ -936,8 +942,11 @@ namespace Opc.Ua
                                 }
 
                                 break;
-                            default:
+                            case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                                 return null;
+                            default:
+                                throw ServiceResultException.Unexpected(
+                                    $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                         }
 
                         break;
@@ -956,8 +965,11 @@ namespace Opc.Ua
                                 }
 
                                 break;
-                            default:
+                            case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                                 return null;
+                            default:
+                                throw ServiceResultException.Unexpected(
+                                    $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                         }
 
                         break;
@@ -976,10 +988,12 @@ namespace Opc.Ua
                                 }
 
                                 break;
-                            default:
+                            case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                                 return null;
+                            default:
+                                throw ServiceResultException.Unexpected(
+                                    $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                         }
-
                         break;
                     case DataTypes.Enumeration:
                         if (typeInfo.BuiltInType == BuiltInType.Int32)
@@ -1000,7 +1014,6 @@ namespace Opc.Ua
                         {
                             return typeInfo;
                         }
-
                         break;
                 }
             }
@@ -1178,6 +1191,7 @@ namespace Opc.Ua
         /// <param name="builtInType">A built-in type.</param>
         /// <param name="valueRank">The value rank.</param>
         /// <returns>A system type equivalent to the built-in type.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static Type GetSystemType(BuiltInType builtInType, int valueRank)
         {
             if (valueRank == ValueRanks.Scalar)
@@ -1239,7 +1253,11 @@ namespace Opc.Ua
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
+                    case BuiltInType.Null:
                         return typeof(Variant);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                             $"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank == ValueRanks.OneDimension)
@@ -1302,6 +1320,11 @@ namespace Opc.Ua
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
                         return typeof(Variant[]);
+                    case BuiltInType.Null:
+                        return typeof(Variant);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
@@ -1364,10 +1387,17 @@ namespace Opc.Ua
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
                         return typeof(Variant).MakeArrayType(valueRank);
+                    case BuiltInType.Null:
+                        return typeof(Variant);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
-
-            return typeof(Variant);
+            else
+            {
+                return typeof(Variant);
+            }
         }
 
         /// <summary>
@@ -1567,6 +1597,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="type">The Built-in type.</param>
         /// <returns>The default value.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static object GetDefaultValue(BuiltInType type)
         {
             switch (type)
@@ -1625,9 +1656,14 @@ namespace Opc.Ua
                     return (long)0;
                 case BuiltInType.UInteger:
                     return (ulong)0;
+                case BuiltInType.Null:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DiagnosticInfo:
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {type}");
             }
-
-            return null;
         }
 
         /// <summary>
@@ -1655,50 +1691,56 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (dataType != null &&
-                dataType.IdType == IdType.Numeric &&
-                dataType.NamespaceIndex == 0)
+            if (dataType == null ||
+                dataType.IdType != IdType.Numeric ||
+                dataType.NamespaceIndex != 0)
             {
-                uint id = (uint)dataType.Identifier;
-
-                // if we want an array then go into a loop
-                if (id <= DataTypes.DiagnosticInfo)
-                {
-                    return GetDefaultValue((BuiltInType)(int)id);
-                }
-
-                switch (id)
-                {
-                    case DataTypes.Duration:
-                        return (double)0;
-                    case DataTypes.UtcTime:
-                        return DateTime.MinValue;
-                    case DataTypes.Counter:
-
-                    case DataTypes.IntegerId:
-                        return (uint)0;
-                    case DataTypes.Number:
-                        return (double)0;
-                    case DataTypes.UInteger:
-                        return (ulong)0;
-                    case DataTypes.Integer:
-                        return (long)0;
-                    case DataTypes.IdType:
-                        return (int)IdType.Numeric;
-                    case DataTypes.NodeClass:
-                        return (int)NodeClass.Unspecified;
-                    case DataTypes.Enumeration:
-                        return 0;
-                }
+                return GetDefaultValueInternal(dataType, typeTree);
             }
 
-            BuiltInType builtInType = GetBuiltInType(dataType, typeTree);
-            if (builtInType != BuiltInType.Null)
+            uint id = (uint)dataType.Identifier;
+
+            if (id <= DataTypes.DiagnosticInfo)
             {
-                return GetDefaultValue(builtInType);
+                // Handle built-in types.
+                return GetDefaultValue((BuiltInType)(int)id);
             }
 
-            return null;
+            // Handle known UA types that derive from built in type
+            switch (id)
+            {
+                case DataTypes.Duration:
+                    return (double)0;
+                case DataTypes.UtcTime:
+                    return DateTime.MinValue;
+                case DataTypes.Counter:
+                case DataTypes.IntegerId:
+                    return (uint)0;
+                case DataTypes.Number:
+                    return (double)0;
+                case DataTypes.UInteger:
+                    return (ulong)0;
+                case DataTypes.Integer:
+                    return (long)0;
+                case DataTypes.IdType:
+                    return (int)IdType.Numeric;
+                case DataTypes.NodeClass:
+                    return (int)NodeClass.Unspecified;
+                case DataTypes.Enumeration:
+                    return 0;
+                default:
+                    return GetDefaultValueInternal(dataType, typeTree);
+            }
+
+            static object GetDefaultValueInternal(NodeId dataType, ITypeTable typeTree)
+            {
+                BuiltInType builtInType = GetBuiltInType(dataType, typeTree);
+                if (builtInType != BuiltInType.Null)
+                {
+                    return GetDefaultValue(builtInType);
+                }
+                return null;
+            }
         }
 
         /// <summary>
@@ -1708,6 +1750,7 @@ namespace Opc.Ua
         /// <param name="dimensions">The dimensions.</param>
         /// <returns>The default value for the specified built-in type</returns>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static Array CreateArray(BuiltInType type, params int[] dimensions)
         {
             if (dimensions == null || dimensions.Length == 0)
@@ -1784,6 +1827,9 @@ namespace Opc.Ua
 
                     case BuiltInType.UInteger:
                         return new Variant[length];
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {type}");
                 }
             }
             // create higher dimension arrays.
@@ -1851,11 +1897,11 @@ namespace Opc.Ua
 
                     case BuiltInType.UInteger:
                         return Array.CreateInstance(typeof(Variant), dimensions);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {type}");
                 }
             }
-
-            // should never happen.
-            return null;
         }
 
         /// <summary>
@@ -1878,6 +1924,7 @@ namespace Opc.Ua
         /// <param name="targetType">Type of the target.</param>
         /// <returns>Return casted value.</returns>
         /// <exception cref="InvalidCastException">if impossible to cast.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static object Cast(object source, TypeInfo sourceType, BuiltInType targetType)
         {
             // null always casts to null.
@@ -1958,9 +2005,15 @@ namespace Opc.Ua
                     return Cast(source, sourceType, ToInt32);
                 case BuiltInType.XmlElement:
                     return Cast(source, sourceType, ToXmlElement);
+                case BuiltInType.Null:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {targetType}");
             }
-
-            throw new InvalidCastException();
         }
 
         /// <summary>
@@ -2159,15 +2212,16 @@ namespace Opc.Ua
                     return BuiltInType.ExtensionObject;
                 case "Object":
                     return BuiltInType.Variant;
+                default:
+                    return BuiltInType.Null;
             }
-
-            return BuiltInType.Null;
         }
 
         /// <summary>
         /// Converts a value to a Boolean
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static bool ToBoolean(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2197,16 +2251,20 @@ namespace Opc.Ua
                     return Convert.ToBoolean((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToBoolean((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a SByte
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static sbyte ToSByte(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2236,16 +2294,20 @@ namespace Opc.Ua
                     return Convert.ToSByte((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToSByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a Byte
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static byte ToByte(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2275,16 +2337,20 @@ namespace Opc.Ua
                     return Convert.ToByte((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a Int16
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static short ToInt16(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2314,16 +2380,20 @@ namespace Opc.Ua
                     return Convert.ToInt16((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToInt16((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a UInt16
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static ushort ToUInt16(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2356,16 +2426,20 @@ namespace Opc.Ua
                 case BuiltInType.StatusCode:
                     var code = (StatusCode)value;
                     return (ushort)(code.CodeBits >> 16);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a Int32
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static int ToInt32(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2397,16 +2471,20 @@ namespace Opc.Ua
                     return XmlConvert.ToInt32((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a UInt32
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static uint ToUInt32(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2438,16 +2516,20 @@ namespace Opc.Ua
                     return XmlConvert.ToUInt32((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a Int64
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static long ToInt64(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2479,16 +2561,20 @@ namespace Opc.Ua
                     return XmlConvert.ToInt64((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a UInt64
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static ulong ToUInt64(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2520,16 +2606,20 @@ namespace Opc.Ua
                     return XmlConvert.ToUInt64((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a Float
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static float ToFloat(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2559,16 +2649,20 @@ namespace Opc.Ua
                     return Convert.ToSingle((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToSingle((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a Double
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static double ToDouble(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2598,16 +2692,20 @@ namespace Opc.Ua
                     return Convert.ToDouble((float)value);
                 case BuiltInType.String:
                     return XmlConvert.ToDouble((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a String
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static string ToString(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2659,16 +2757,20 @@ namespace Opc.Ua
                     return ((ExtensionObject)value).ToString();
                 case BuiltInType.Null:
                     return null;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a DateTime
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static DateTime ToDateTime(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2680,16 +2782,20 @@ namespace Opc.Ua
                     return XmlConvert.ToDateTime(
                         (string)value,
                         XmlDateTimeSerializationMode.Unspecified);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a Guid
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static Uuid ToGuid(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2708,10 +2814,13 @@ namespace Opc.Ua
                     }
 
                     return (Uuid)value;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
@@ -2719,6 +2828,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="FormatException"></exception>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static byte[] ToByteString(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2792,16 +2902,20 @@ namespace Opc.Ua
                     }
                 case BuiltInType.Guid:
                     return ((Guid)(Uuid)value).ToByteArray();
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a XmlElement
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static XmlElement ToXmlElement(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2813,16 +2927,20 @@ namespace Opc.Ua
                     var document = new XmlDocument();
                     document.LoadInnerXml((string)value);
                     return document.DocumentElement;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a NodeId
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static NodeId ToNodeId(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2834,16 +2952,20 @@ namespace Opc.Ua
                     return (NodeId)(ExpandedNodeId)value;
                 case BuiltInType.String:
                     return NodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a ExpandedNodeId
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static ExpandedNodeId ToExpandedNodeId(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2855,16 +2977,20 @@ namespace Opc.Ua
                     return (ExpandedNodeId)(NodeId)value;
                 case BuiltInType.String:
                     return ExpandedNodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a StatusCode
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static StatusCode ToStatusCode(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2902,16 +3028,20 @@ namespace Opc.Ua
                     return (StatusCode)Convert.ToUInt32(
                         (string)value,
                         CultureInfo.InvariantCulture);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a QualifiedName
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static QualifiedName ToQualifiedName(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2921,16 +3051,20 @@ namespace Opc.Ua
                     return (QualifiedName)value;
                 case BuiltInType.String:
                     return QualifiedName.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
         /// Converts a value to a LocalizedText
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static LocalizedText ToLocalizedText(object value, TypeInfo sourceType)
         {
             // handle for supported conversions.
@@ -2940,10 +3074,13 @@ namespace Opc.Ua
                     return (LocalizedText)value;
                 case BuiltInType.String:
                     return new LocalizedText((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
             }
-
-            // conversion not supported.
-            throw new InvalidCastException();
         }
 
         /// <summary>
