@@ -586,33 +586,31 @@ namespace Opc.Ua
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     result.Add(ObjectTypeIds.RsaSha256ApplicationCertificateType);
-                    break;
+                    goto default;
                 case SecurityPolicies.ECC_nistP256:
                     result.Add(ObjectTypeIds.EccNistP256ApplicationCertificateType);
                     goto case SecurityPolicies.ECC_nistP384;
                 case SecurityPolicies.ECC_nistP384:
                     result.Add(ObjectTypeIds.EccNistP384ApplicationCertificateType);
-                    break;
+                    goto default;
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     result.Add(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
                     goto case SecurityPolicies.ECC_brainpoolP384r1;
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     result.Add(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
-                    break;
+                    goto default;
                 case SecurityPolicies.ECC_curve25519:
                     result.Add(ObjectTypeIds.EccCurve25519ApplicationCertificateType);
-                    break;
+                    goto default;
                 case SecurityPolicies.ECC_curve448:
                     result.Add(ObjectTypeIds.EccCurve448ApplicationCertificateType);
-                    break;
+                    goto default;
                 case SecurityPolicies.Https:
                     result.Add(ObjectTypeIds.HttpsCertificateType);
-                    break;
+                    goto default;
                 default:
-                    throw ServiceResultException.Unexpected(
-                        $"Failed to match unknown security policy {securityPolicy} to certificate type.");
+                    return result;
             }
-            return result;
         }
 
         /// <summary>

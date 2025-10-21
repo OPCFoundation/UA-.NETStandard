@@ -82,7 +82,7 @@ namespace Opc.Ua.Configuration
                         : ApplicationType.Client;
                     break;
                 case ApplicationType.DiscoveryServer:
-                    throw new ArgumentException("Discovery server type is now allowed as client.");
+                    throw new ArgumentException("Discovery server type is not allowed as client.");
                 default:
                     throw new ArgumentException("Invalid application type for client.");
             }
@@ -378,7 +378,7 @@ namespace Opc.Ua.Configuration
                 case ApplicationType.ClientAndServer:
                     break;
                 case ApplicationType.DiscoveryServer:
-                    throw new ArgumentException("Discovery server type is now allowed as server.");
+                    throw new ArgumentException("Discovery server type is not allowed as server.");
                 default:
                     throw new ArgumentException("Invalid application type for server.");
             }
