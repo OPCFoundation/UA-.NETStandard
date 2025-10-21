@@ -653,7 +653,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IAsyncResult BeginPublish(int timeout)
+        public object BeginPublish(int timeout)
         {
             return Session.BeginPublish(timeout);
         }

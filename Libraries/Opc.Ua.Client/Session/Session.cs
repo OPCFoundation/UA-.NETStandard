@@ -4554,7 +4554,13 @@ namespace Opc.Ua.Client
                 keepAliveCancellation.Cancel();
                 await keepAliveWorker.ConfigureAwait(false);
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Keep alive task did not stop cleanly.");
+            }
             finally
             {
                 keepAliveCancellation.Dispose();
@@ -4564,7 +4570,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Removes a completed async request.
         /// </summary>
-        private AsyncRequestState RemoveRequest(IAsyncResult result, uint requestId, uint typeId)
+        private AsyncRequestState RemoveRequest(object result, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {
@@ -4588,7 +4594,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds a new async request.
         /// </summary>
-        private void AsyncRequestStarted(IAsyncResult result, uint requestId, uint typeId)
+        private void AsyncRequestStarted(object result, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {
@@ -4615,7 +4621,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Removes a completed async request.
         /// </summary>
-        private void AsyncRequestCompleted(IAsyncResult result, uint requestId, uint typeId)
+        private void AsyncRequestCompleted(object result, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {
@@ -5681,7 +5687,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
-        public IAsyncResult BeginPublish(int timeout)
+        public object BeginPublish(int timeout)
         {
             // do not publish if reconnecting or the session is in closed state.
             if (!Connected)
@@ -5764,17 +5770,12 @@ namespace Opc.Ua.Client
 
             try
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                IAsyncResult result = BeginPublish(
-                    requestHeader,
-                    acknowledgementsToSend,
-                    OnPublishComplete,
-                    new object[] { SessionId, acknowledgementsToSend, requestHeader });
-#pragma warning restore CS0618 // Type or member is obsolete
-
-                AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
-
-                return result;
+                Task<PublishResponse> task = PublishAsync(requestHeader, acknowledgementsToSend, default);
+                AsyncRequestStarted(task, requestHeader.RequestHandle, DataTypes.PublishRequest);
+                task.ConfigureAwait(false)
+                    .GetAwaiter()
+                    .OnCompleted(() => OnPublishComplete(task, SessionId, acknowledgementsToSend, requestHeader));
+                return task;
             }
             catch (Exception e)
             {
@@ -5807,16 +5808,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Completes an asynchronous publish operation.
         /// </summary>
-        private void OnPublishComplete(IAsyncResult result)
+        private void OnPublishComplete(
+            Task<PublishResponse> task,
+            NodeId sessionId,
+            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            RequestHeader requestHeader)
         {
             // extract state information.
-            object[] state = (object[])result.AsyncState;
-            var sessionId = (NodeId)state[0];
-            var acknowledgementsToSend = (SubscriptionAcknowledgementCollection)state[1];
-            var requestHeader = (RequestHeader)state[2];
             uint subscriptionId = 0;
 
-            AsyncRequestCompleted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
+            AsyncRequestCompleted(task, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
             m_logger.LogTrace("PUBLISH #{RequestHandle} RECEIVED", requestHeader.RequestHandle);
             CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
@@ -5829,17 +5830,14 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Release();
 
                 // complete publish.
-
-#pragma warning disable CS0618 // Type or member is obsolete
-                ResponseHeader responseHeader = EndPublish(
-                    result,
-                    out subscriptionId,
-                    out UInt32Collection availableSequenceNumbers,
-                    out bool moreNotifications,
-                    out NotificationMessage notificationMessage,
-                    out StatusCodeCollection acknowledgeResults,
-                    out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
-#pragma warning restore CS0618 // Type or member is obsolete
+                PublishResponse response = task.Result;
+                ResponseHeader responseHeader = response.ResponseHeader;
+                subscriptionId = response.SubscriptionId;
+                UInt32Collection availableSequenceNumbers = response.AvailableSequenceNumbers;
+                bool moreNotifications = response.MoreNotifications;
+                NotificationMessage notificationMessage = response.NotificationMessage;
+                StatusCodeCollection acknowledgeResults = response.Results;
+                DiagnosticInfoCollection acknowledgeDiagnosticInfos = response.DiagnosticInfos;
 
                 LogLevel logLevel = LogLevel.Warning;
                 foreach (StatusCode code in acknowledgeResults)
@@ -7321,7 +7319,7 @@ namespace Opc.Ua.Client
             public uint RequestTypeId;
             public uint RequestId;
             public int TickCount;
-            public IAsyncResult Result;
+            public object Result;
             public bool Defunct;
         }
 
