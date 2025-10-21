@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>(m_telemetry)
+            m_fixture = new ServerFixture<ReferenceServer>
             {
                 AllNodeManagers = true,
                 OperationLimits = true,
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server.Tests
         public void GlobalSetup()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>(null) { AllNodeManagers = true };
+            m_fixture = new ServerFixture<ReferenceServer> { AllNodeManagers = true };
             m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }

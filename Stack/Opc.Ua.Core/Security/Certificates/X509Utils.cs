@@ -221,7 +221,7 @@ namespace Opc.Ua
             {
                 if (string.Equals(
                     domainNames[jj],
-                    endpointUrl.DnsSafeHost,
+                    endpointUrl.IdnHost,
                     StringComparison.OrdinalIgnoreCase))
                 {
                     return true;

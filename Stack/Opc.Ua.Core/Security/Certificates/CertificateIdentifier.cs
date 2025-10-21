@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -293,15 +294,6 @@ namespace Opc.Ua
                 }
             }
 
-            // use the single instance in the certificate cache.
-            if (needPrivateKey)
-            {
-                certificate = m_certificate = CertificateFactory.Load(
-                    certificate,
-                    true,
-                    telemetry);
-            }
-
             return certificate;
         }
 
@@ -367,7 +359,152 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Picks the best certificate from the collection.
+        /// Does not ignore expired certificates nor not-yet-valid certificates.
+        /// Selection criteria in order of priority:
+        /// 1. Valid certificates preferred over expired certificates and over not-yet-valid certificates.
+        /// 2. CA-signed certificates preferred over self-signed (within same validity status).
+        /// 3. Longest remaining validity if there are any valid certificates.
+        /// 4. Least expired if all expired.
+        /// 5. The most soon-to-become-valid if all not-yet-valid.
+        /// 6. The most soon-to-become-valid if only expired and not-yet-valid certificates exist.
+        /// </summary>
+        /// <param name="collection">
+        /// The collection of certificates to evaluate. The "best" certificate is determined by the following criteria, in order:
+        /// (1) Validity (currently valid over expired or not-yet-valid), (2) CA-signed over self-signed within the same validity status,
+        /// (3) longest remaining validity if valid, (4) least expired if all expired, (5) soonest to become valid if all not-yet-valid,
+        /// (6) soonest to become valid if only expired and not-yet-valid certificates exist.
+        /// </param>
+        /// <returns>
+        /// The best matching certificate according to the selection criteria, or <c>null</c> if the collection is empty or no suitable certificate is found.
+        /// </returns>
+        private static X509Certificate2 PickBestCertificate(X509Certificate2Collection collection)
+        {
+            if (collection == null || collection.Count == 0)
+            {
+                return null;
+            }
+
+            X509Certificate2 bestValid = null;
+            TimeSpan bestValidRemaining = TimeSpan.MinValue;
+            bool bestValidIsCASigned = false;
+
+            X509Certificate2 bestExpired = null;
+            TimeSpan bestExpiredTime = TimeSpan.MaxValue; // Most recently expired (closest to now)
+            bool bestExpiredIsCASigned = false;
+
+            X509Certificate2 bestNotYetValid = null;
+            TimeSpan bestNotYetValidTime = TimeSpan.MaxValue; // Soonest to become valid
+            bool bestNotYetValidIsCASigned = false;
+
+            DateTime now = DateTime.UtcNow;
+
+            foreach (X509Certificate2 certificate in collection)
+            {
+                bool isCASigned = !X509Utils.IsSelfSigned(certificate);
+
+                // Normalize certificate times to UTC for consistent comparison
+                // X509Certificate2 NotBefore/NotAfter return local time
+                DateTime notBefore = certificate.NotBefore.ToUniversalTime();
+                DateTime notAfter = certificate.NotAfter.ToUniversalTime();
+
+                if (notBefore <= now && notAfter >= now)
+                {
+                    // Valid certificate
+                    TimeSpan remainingValidity = notAfter - now;
+                    bool isValidBetter = bestValid == null ||
+                        (isCASigned && !bestValidIsCASigned) ||
+                        (isCASigned == bestValidIsCASigned && remainingValidity > bestValidRemaining);
+
+                    if (isValidBetter)
+                    {
+                        bestValid = certificate;
+                        bestValidRemaining = remainingValidity;
+                        bestValidIsCASigned = isCASigned;
+                    }
+                }
+                else if (notAfter < now)
+                {
+                    // Expired certificate
+                    TimeSpan expiredTime = now - notAfter; // How long expired
+                    bool isExpiredBetter = bestExpired == null ||
+                        (isCASigned && !bestExpiredIsCASigned) ||
+                        (isCASigned == bestExpiredIsCASigned && expiredTime < bestExpiredTime);
+
+                    if (isExpiredBetter)
+                    {
+                        bestExpired = certificate;
+                        bestExpiredTime = expiredTime;
+                        bestExpiredIsCASigned = isCASigned;
+                    }
+                }
+                else // notBefore > now
+                {
+                    // Not yet valid certificate
+                    TimeSpan notYetValidTime = notBefore - now; // How long until valid
+                    bool isNotYetValidBetter = bestNotYetValid == null ||
+                        (isCASigned && !bestNotYetValidIsCASigned) ||
+                        (isCASigned == bestNotYetValidIsCASigned && notYetValidTime < bestNotYetValidTime);
+
+                    if (isNotYetValidBetter)
+                    {
+                        bestNotYetValid = certificate;
+                        bestNotYetValidTime = notYetValidTime;
+                        bestNotYetValidIsCASigned = isCASigned;
+                    }
+                }
+            }
+
+            // Return in priority order: valid > expired > not-yet-valid
+            if (bestValid != null)
+            {
+                return bestValid;
+            }
+
+            if (bestExpired != null && bestNotYetValid != null)
+            {
+                // Both expired and not-yet-valid exist valid certificates do not 
+                // Prioritize CA-signed over self-signed
+                if (bestNotYetValidIsCASigned && !bestExpiredIsCASigned)
+                {
+                    return bestNotYetValid;
+                }
+                if (bestExpiredIsCASigned && !bestNotYetValidIsCASigned)
+                {
+                    return bestExpired;
+                }
+                // If both have same CA-signed status, pick the soonest to become valid
+                return bestNotYetValidTime < bestExpiredTime ? bestNotYetValid : bestExpired;
+            }
+
+            if (bestExpired != null)
+            {
+                return bestExpired;
+            }
+
+            return bestNotYetValid;
+        }
+
+        /// <summary>
+        /// <para>
         /// Finds a certificate in the specified collection.
+        /// The order of search is:
+        /// 1. By thumbprint.
+        /// 2. By subject name, with exact match on CN= if specified and fuzzy match if not
+        /// 3. By application uri.
+        /// </para>
+        /// <para>
+        /// Excepting the thumbprint criteria, multiple matches are possible due to leftover certificates in the certificate store.
+        /// If such multiple matches are found, the best matching certificate is selected using the following criteria, in order of priority:
+        /// </para>
+        /// <para>
+        /// 1. Valid certificates preferred over expired certificates and over not-yet-valid certificates.
+        /// 2. CA-signed certificates preferred over self-signed (within same validity status).
+        /// 3. Longest remaining validity if there are any valid certificates.
+        /// 4. Least expired if all expired.
+        /// 5. The most soon-to-become-valid if all not-yet-valid.
+        /// 6. The most soon-to-become-valid if only expired and soon-to-become-valid certificates exist.
+        /// </para>
         /// </summary>
         /// <param name="collection">The collection.</param>
         /// <param name="thumbprint">The thumbprint of the certificate.</param>
@@ -408,31 +545,80 @@ namespace Opc.Ua
 
                 return null;
             }
+
+            X509Certificate2Collection matchesOnCriteria = null;
+
             // find by subject name.
             if (!string.IsNullOrEmpty(subjectName))
             {
-                List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
+                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
                     if (ValidateCertificateType(certificate, certificateType) &&
-                        X509Utils.CompareDistinguishedName(certificate, subjectName2))
+                        X509Utils.CompareDistinguishedName(certificate, parsedSubjectName))
                     {
                         if (!needPrivateKey || certificate.HasPrivateKey)
                         {
-                            return certificate;
+                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
                         }
                     }
                 }
-
-                collection = collection.Find(X509FindType.FindBySubjectName, subjectName, false);
-
-                foreach (X509Certificate2 certificate in collection)
+                if (matchesOnCriteria?.Count > 0)
                 {
-                    if (ValidateCertificateType(certificate, certificateType) &&
-                        (!needPrivateKey || certificate.HasPrivateKey))
+                    return PickBestCertificate(matchesOnCriteria);
+                }
+
+                bool hasCommonName = subjectName.IndexOf("CN=", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                // If parsedSubjectName did not match the certificate distinguished name
+                // If "CN=" exists in the subject name than an exact match on CN is required
+                if (hasCommonName)
+                {
+                    string commonNameEntry = parsedSubjectName
+                        .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
+                    string commonName = commonNameEntry?.Length > 3
+                        ? commonNameEntry.Substring(3).Trim()
+                        : null;
+
+                    if (!string.IsNullOrEmpty(commonName))
                     {
-                        return certificate;
+                        foreach (X509Certificate2 certificate in collection)
+                        {
+                            if (ValidateCertificateType(certificate, certificateType) &&
+                                (!needPrivateKey || certificate.HasPrivateKey) &&
+                                string.Equals(
+                                    certificate.GetNameInfo(X509NameType.SimpleName, false),
+                                    commonName,
+                                    StringComparison.Ordinal))
+                            {
+                                (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                            }
+                        }
+                        if (matchesOnCriteria?.Count > 0)
+                        {
+                            return PickBestCertificate(matchesOnCriteria);
+                        }
+                    }
+                }
+                // If no "CN=" specified than a fuzzy match is allowed
+                else
+                {
+                    X509Certificate2Collection fuzzyMatches = collection.Find(
+                        X509FindType.FindBySubjectName,
+                        subjectName,
+                        false);
+                    foreach (X509Certificate2 certificate in fuzzyMatches)
+                    {
+                        if (ValidateCertificateType(certificate, certificateType) &&
+                            (!needPrivateKey || certificate.HasPrivateKey))
+                        {
+                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                        }
+                    }
+                    if (matchesOnCriteria?.Count > 0)
+                    {
+                        return PickBestCertificate(matchesOnCriteria);
                     }
                 }
             }
@@ -446,8 +632,12 @@ namespace Opc.Ua
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {
-                        return certificate;
+                        (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
                     }
+                }
+                if (matchesOnCriteria?.Count > 0)
+                {
+                    return PickBestCertificate(matchesOnCriteria);
                 }
             }
 
@@ -500,16 +690,22 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate with a signature.</param>
         public static NodeId GetCertificateType(X509Certificate2 certificate)
         {
-            return certificate.SignatureAlgorithm.Value switch
+            switch (certificate.SignatureAlgorithm.Value)
             {
-                Oids.ECDsaWithSha1 or Oids.ECDsaWithSha384 or Oids.ECDsaWithSha256 or Oids
-                    .ECDsaWithSha512 =>
-                    EccUtils.GetEccCertificateTypeId(certificate),
-                Oids.RsaPkcs1Sha256 or Oids.RsaPkcs1Sha384 or Oids.RsaPkcs1Sha512 =>
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                Oids.RsaPkcs1Sha1 => ObjectTypeIds.RsaMinApplicationCertificateType,
-                _ => NodeId.Null
-            };
+                case Oids.ECDsaWithSha1:
+                case Oids.ECDsaWithSha384:
+                case Oids.ECDsaWithSha256:
+                case Oids.ECDsaWithSha512:
+                    return EccUtils.GetEccCertificateTypeId(certificate);
+                case Oids.RsaPkcs1Sha256:
+                case Oids.RsaPkcs1Sha384:
+                case Oids.RsaPkcs1Sha512:
+                    return ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                case Oids.RsaPkcs1Sha1:
+                    return ObjectTypeIds.RsaMinApplicationCertificateType;
+                default:
+                    return NodeId.Null;
+            }
         }
 
         /// <summary>

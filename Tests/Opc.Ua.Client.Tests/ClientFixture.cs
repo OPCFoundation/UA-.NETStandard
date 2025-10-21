@@ -75,7 +75,10 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                SessionFactory = new TraceableSessionFactory(telemetry);
+                SessionFactory = new TraceableSessionFactory(telemetry)
+                {
+                    ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+                };
             }
         }
 
@@ -83,7 +86,10 @@ namespace Opc.Ua.Client.Tests
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ClientFixture>();
-            SessionFactory = new DefaultSessionFactory(telemetry);
+            SessionFactory = new DefaultSessionFactory(telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+            };
         }
 
         /// <inheritdoc/>
@@ -195,7 +201,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="ct"">Cancellation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
@@ -213,8 +219,8 @@ namespace Opc.Ua.Client.Tests
                     nameof(endpointUrl));
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 5;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -233,12 +239,17 @@ namespace Opc.Ua.Client.Tests
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
@@ -261,8 +272,8 @@ namespace Opc.Ua.Client.Tests
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 5;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -273,12 +284,16 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
@@ -317,7 +332,6 @@ namespace Opc.Ua.Client.Tests
 
             session.KeepAlive += Session_KeepAlive;
 
-            session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointUrl = session.ConfiguredEndpoint.EndpointUrl.ToString();
 
             return session;
@@ -425,6 +439,7 @@ namespace Opc.Ua.Client.Tests
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
             using var client = DiscoveryClient.Create(url, endpointConfiguration, m_telemetry);
+            client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointDescriptionCollection result = await client.GetEndpointsAsync(null)
                 .ConfigureAwait(false);
             await client.CloseAsync().ConfigureAwait(false);

@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>(telemetry)
+            m_serverFixture = new ServerFixture<ReferenceServer>
             {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,

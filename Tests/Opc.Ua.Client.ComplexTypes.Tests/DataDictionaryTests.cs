@@ -94,8 +94,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging,
-                Telemetry)
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
@@ -238,7 +237,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             var nodeCacheResolver = new NodeCacheResolver(session, Telemetry);
 
             // load the dictionary.
-            return nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString());
+            return nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString(), ct);
         }
 
         /// <summary>

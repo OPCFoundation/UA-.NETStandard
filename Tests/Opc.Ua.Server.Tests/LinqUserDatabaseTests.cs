@@ -19,13 +19,13 @@ namespace Opc.Ua.Server.Tests
             var usersDb = new LinqUserDatabase();
 
             // Act + Assert
-            Assert.Throws<ArgumentException>(
+            NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser(null, "PW"u8, [Role.AuthenticatedUser]));
-            Assert.Throws<ArgumentException>(
+            NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser("Name", null, [Role.AuthenticatedUser]));
-            Assert.Throws<ArgumentException>(
+            NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser(string.Empty, "PW"u8, [Role.AuthenticatedUser]));
-            Assert.Throws<ArgumentException>(
+            NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser("Name", ""u8, [Role.AuthenticatedUser]));
         }
 

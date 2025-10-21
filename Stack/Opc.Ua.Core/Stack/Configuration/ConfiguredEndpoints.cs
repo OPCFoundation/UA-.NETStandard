@@ -1477,13 +1477,13 @@ namespace Opc.Ua
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
                 if (matchUrl == null ||
                     !string.Equals(
-                        discoveryUrl.DnsSafeHost,
-                        matchUrl.DnsSafeHost,
+                        discoveryUrl.IdnHost,
+                        matchUrl.IdnHost,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     var uri = new UriBuilder(matchUrl)
                     {
-                        Host = discoveryUrl.DnsSafeHost,
+                        Host = discoveryUrl.IdnHost,
                         Port = discoveryUrl.Port
                     };
                     match.EndpointUrl = uri.ToString();

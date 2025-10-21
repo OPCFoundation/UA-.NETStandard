@@ -68,8 +68,8 @@ namespace Opc.Ua.Server
 
             string[] namespaceUris =
             [
-                Opc.Ua.Namespaces.OpcUa,
-                Opc.Ua.Namespaces.OpcUa + "Diagnostics"
+                Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa + "Diagnostics"
             ];
             SetNamespaces(namespaceUris);
 

@@ -717,6 +717,69 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Verify encode and decode of a null array
+        /// </summary>
+        [Theory]
+        [Category("Array")]
+        [Repeat(kArrayRepeats)]
+        public void EncodeNullArray(
+            [ValueSource(nameof(EncodingTypesAll))] EncodingTypeGroup encoderTypeGroup,
+            BuiltInType builtInType)
+        {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            SetRepeatedRandomSeed();
+            Assume.That(builtInType != BuiltInType.Null);
+            Array nullArray = null;
+
+            string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
+            Type type = TypeInfo.GetSystemType(builtInType, -1);
+            TestContext.Out.WriteLine(encodeInfo);
+
+            byte[] buffer;
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(
+                MemoryStreamType.MemoryStream))
+            {
+                using (
+                    IEncoder encoder = CreateEncoder(
+                        encoderType,
+                        Context,
+                        encoderStream,
+                        type,
+                        jsonEncodingType,
+                        false))
+                {
+                    encoder.WriteArray(
+                        builtInType.ToString(),
+                        nullArray,
+                        ValueRanks.OneDimension,
+                        builtInType);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
+            object result;
+            using (var decoderStream = new MemoryStream(buffer))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            {
+                result = decoder.ReadArray(
+                    builtInType.ToString(),
+                    ValueRanks.OneDimension,
+                    builtInType);
+            }
+
+            // Both are allowed, empty array or null
+            if (result is Array resultArray)
+            {
+                Assert.AreEqual(0, resultArray.Length, encodeInfo);
+            }
+            else
+            {
+                Assert.IsNull(result, encodeInfo);
+            }
+        }
+
+        /// <summary>
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
