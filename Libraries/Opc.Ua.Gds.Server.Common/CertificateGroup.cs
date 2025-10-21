@@ -261,7 +261,6 @@ namespace Opc.Ua.Gds.Server
                 m_telemetry,
                 ct)
                 .ConfigureAwait(false);
-            X509Certificate2 certificate;
 
             ICertificateBuilderIssuer builder = CertificateFactory
                 .CreateCertificate(
@@ -273,11 +272,11 @@ namespace Opc.Ua.Gds.Server
                     domainNames)
                 .SetIssuer(signingKey);
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+            using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder.CreateForRSA();
 #else
-            certificate = builder.CreateForRSA();
+            using X509Certificate2 certificate = builder.CreateForRSA();
 #endif
 
             byte[] privateKey;
@@ -309,8 +308,7 @@ namespace Opc.Ua.Gds.Server
                     "Invalid private key format");
             }
 
-            X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
-            Utils.SilentDispose(certificate);
+            X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
 
             return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
         }
@@ -503,8 +501,6 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            X509Certificate2 certificate;
-
             ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
@@ -512,7 +508,7 @@ namespace Opc.Ua.Gds.Server
                 .SetCAConstraint();
 
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+            using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder
                     .SetHashAlgorithm(
@@ -520,21 +516,29 @@ namespace Opc.Ua.Gds.Server
                     .SetRSAKeySize(Configuration.CACertificateKeySize)
                     .CreateForRSA();
 #else
-            certificate = builder
+            using X509Certificate2 certificate = builder
                 .SetHashAlgorithm(
                     X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                 .SetRSAKeySize(Configuration.CACertificateKeySize)
                 .CreateForRSA();
 #endif
 
-            await certificate.AddToStoreAsync(AuthoritiesStore, password: null, m_telemetry, ct).ConfigureAwait(false);
+            await certificate.AddToStoreAsync(
+                AuthoritiesStore,
+                password: null,
+                m_telemetry,
+                ct).ConfigureAwait(false);
 
             // save only public key
-            Certificates[certificateType] = X509CertificateLoader.LoadCertificate(
-                certificate.RawData);
+            Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
 
             // initialize revocation list
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, m_telemetry, ct)
+            X509CRL crl = await RevokeCertificateAsync(
+                AuthoritiesStore,
+                certificate,
+                issuerKeyFilePassword: null,
+                m_telemetry,
+                ct)
                 .ConfigureAwait(false);
 
             //Update TrustedList Store
@@ -553,8 +557,6 @@ namespace Opc.Ua.Gds.Server
                         .ConfigureAwait(false);
                 }
             }
-
-            Utils.SilentDispose(certificate);
 
             return Certificates[certificateType];
         }
@@ -754,7 +756,7 @@ namespace Opc.Ua.Gds.Server
                             .ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(
+                            using X509Certificate2 x509 = CertificateFactory.Create(
                                 certificate.RawData);
                             await trustedOrIssuerStore.AddAsync(x509, ct: ct).ConfigureAwait(false);
                         }

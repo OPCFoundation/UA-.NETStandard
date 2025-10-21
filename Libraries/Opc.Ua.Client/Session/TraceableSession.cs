@@ -57,7 +57,10 @@ namespace Opc.Ua.Client
         {
             Session = session;
             m_telemetry = telemetry;
-            SessionFactory = new TraceableSessionFactory(telemetry);
+            SessionFactory = new TraceableSessionFactory(telemetry)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
         }
 
         /// <inheritdoc/>

@@ -132,7 +132,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                string domainName = url.DnsSafeHost;
+                string domainName = url.IdnHost;
 
                 if (url.HostNameType == UriHostNameType.Dns)
                 {

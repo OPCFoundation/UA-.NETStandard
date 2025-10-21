@@ -81,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var uriBuilder = new UriBuilder
             {
                 Scheme = uri.Scheme,
-                Host = uri.DnsSafeHost,
+                Host = uri.IdnHost,
                 Port = uri.Port,
                 Path = uri.AbsolutePath
             };
