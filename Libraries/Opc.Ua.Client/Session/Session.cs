@@ -363,6 +363,11 @@ namespace Opc.Ua.Client
         /// </summary>
         protected override void Dispose(bool disposing)
         {
+            if (Disposed && disposing)
+            {
+                return;
+            }
+
             if (disposing)
             {
                 StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
@@ -401,6 +406,8 @@ namespace Opc.Ua.Client
                 m_SubscriptionsChanged = null;
                 m_SessionClosing = null;
                 m_SessionConfigurationChanged = null;
+
+                Debug.Assert(Disposed);
             }
         }
 
@@ -1215,23 +1222,25 @@ namespace Opc.Ua.Client
             // initialize the channel which will be created with the server.
             if (connection != null)
             {
-                return UaChannelBase.CreateUaBinaryChannel(
+                return await UaChannelBase.CreateUaBinaryChannelAsync(
                     configuration,
                     connection,
                     endpointDescription,
                     endpointConfiguration,
                     clientCertificate,
                     clientCertificateChain,
-                    messageContext);
+                    messageContext,
+                    ct).ConfigureAwait(false);
             }
 
-            return SessionChannel.Create(
+            return await UaChannelBase.CreateUaBinaryChannelAsync(
                 configuration,
                 endpointDescription,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1450,6 +1459,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
         {
+            ThrowIfDisposed();
             if (sessionConfiguration == null)
             {
                 throw new ArgumentNullException(nameof(sessionConfiguration));
@@ -1661,6 +1671,7 @@ namespace Opc.Ua.Client
             bool closeChannel,
             CancellationToken ct)
         {
+            ThrowIfDisposed();
             OpenValidateIdentity(
                 ref identity,
                 out UserIdentityToken identityToken,
@@ -1987,6 +1998,7 @@ namespace Opc.Ua.Client
             StringCollection preferredLocales,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             byte[] serverNonce = null;
 
             lock (SyncRoot)
@@ -2118,6 +2130,7 @@ namespace Opc.Ua.Client
             Subscription subscription,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             if (subscription == null)
             {
                 throw new ArgumentNullException(nameof(subscription));
@@ -2148,6 +2161,7 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptions,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             if (subscriptions == null)
             {
                 throw new ArgumentNullException(nameof(subscriptions));
@@ -2176,6 +2190,7 @@ namespace Opc.Ua.Client
             bool sendInitialValues,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
@@ -3750,7 +3765,7 @@ namespace Opc.Ua.Client
             messageContext.Factory = sessionTemplate.Factory;
 
             // create the channel object used to connect to the server.
-            ITransportChannel channel = SessionChannel.Create(
+            ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 sessionTemplate.m_configuration,
                 sessionTemplate.ConfiguredEndpoint.Description,
                 sessionTemplate.ConfiguredEndpoint.Configuration,
@@ -3758,7 +3773,8 @@ namespace Opc.Ua.Client
                 sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain
                     ? sessionTemplate.m_instanceCertificateChain
                     : null,
-                messageContext);
+                messageContext,
+                ct).ConfigureAwait(false);
 
             // create the session object.
             Session session = sessionTemplate.CloneSession(channel, true);
@@ -3806,7 +3822,7 @@ namespace Opc.Ua.Client
             messageContext.Factory = sessionTemplate.Factory;
 
             // create the channel object used to connect to the server.
-            ITransportChannel channel = SessionChannel.Create(
+            ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 sessionTemplate.m_configuration,
                 connection,
                 sessionTemplate.m_endpoint.Description,
@@ -3815,7 +3831,8 @@ namespace Opc.Ua.Client
                 sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain
                     ? sessionTemplate.m_instanceCertificateChain
                     : null,
-                messageContext);
+                messageContext,
+                ct).ConfigureAwait(false);
 
             // create the session object.
             Session session = sessionTemplate.CloneSession(channel, true);
@@ -4019,6 +4036,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -4039,6 +4057,7 @@ namespace Opc.Ua.Client
             ITransportChannel transportChannel,
             CancellationToken ct)
         {
+            ThrowIfDisposed();
             bool resetReconnect = false;
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -4142,12 +4161,12 @@ namespace Opc.Ua.Client
                     if (channel != null &&
                         (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                     {
-                        channel.Reconnect(connection);
+                        await channel.ReconnectAsync(connection, ct).ConfigureAwait(false);
                     }
                     else
                     {
                         // initialize the channel which will be created with the server.
-                        channel = SessionChannel.Create(
+                        channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                             m_configuration,
                             connection,
                             m_endpoint.Description,
@@ -4156,7 +4175,8 @@ namespace Opc.Ua.Client
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? m_instanceCertificateChain
                                 : null,
-                            MessageContext);
+                            MessageContext,
+                            ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
                         TransportChannel = channel;
@@ -4174,12 +4194,12 @@ namespace Opc.Ua.Client
                     if (channel != null &&
                         (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                     {
-                        channel.Reconnect();
+                        await channel.ReconnectAsync(ct: ct).ConfigureAwait(false);
                     }
                     else
                     {
                         // initialize the channel which will be created with the server.
-                        channel = SessionChannel.Create(
+                        channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                             m_configuration,
                             m_endpoint.Description,
                             m_endpoint.Configuration,
@@ -4187,7 +4207,8 @@ namespace Opc.Ua.Client
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? m_instanceCertificateChain
                                 : null,
-                            MessageContext);
+                            MessageContext,
+                            ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
                         TransportChannel = channel;
@@ -4371,6 +4392,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
         {
+            ThrowIfDisposed();
             if (subscription == null)
             {
                 throw new ArgumentNullException(nameof(subscription));
@@ -4396,6 +4418,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
+            ThrowIfDisposed();
             if (subscription == null)
             {
                 throw new ArgumentNullException(nameof(subscription));
@@ -4485,12 +4508,12 @@ namespace Opc.Ua.Client
                 }
             };
 
-            // restart the publish timer.
-
             await StopKeepAliveTimerAsync().ConfigureAwait(false);
 
             lock (SyncRoot)
             {
+                ThrowIfDisposed();
+
                 if (m_keepAliveWorker == null)
                 {
                     m_keepAliveCancellation = new CancellationTokenSource();
@@ -4535,6 +4558,8 @@ namespace Opc.Ua.Client
 
             lock (SyncRoot)
             {
+                ThrowIfDisposed();
+
                 keepAliveWorker = m_keepAliveWorker;
                 keepAliveCancellation = m_keepAliveCancellation;
 
@@ -4669,13 +4694,13 @@ namespace Opc.Ua.Client
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested)
+            while (!ct.IsCancellationRequested && !Disposed)
             {
                 await m_keepAliveEvent.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
                     // check if session has been closed.
-                    if (!Connected || m_keepAliveTimer == null)
+                    if (!Connected || Disposed)
                     {
                         continue;
                     }
@@ -4747,6 +4772,10 @@ namespace Opc.Ua.Client
                 {
                     // recover from error condition when secure channel is still alive
                     OnKeepAliveError(sre.Result);
+                }
+                catch (ObjectDisposedException) when (Disposed)
+                {
+                    // This should not happen, but we fail gracefully anyway
                 }
                 catch (Exception e)
                 {
@@ -6512,7 +6541,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private byte[] GetCurrentTokenServerNonce()
         {
-            ChannelToken currentToken = NullableTransportChannel?.CurrentToken;
+            ChannelToken currentToken = (NullableTransportChannel as ISecureChannel)?.CurrentToken;
             return currentToken?.ServerNonce;
         }
 

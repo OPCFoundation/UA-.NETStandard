@@ -19,6 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for AsyncResult objects
     /// </summary>
+    [Obsolete("Use System.Threading.Tasks and async/await instead.")]
     public class AsyncResultBase : IAsyncResult, IDisposable
     {
         /// <summary>

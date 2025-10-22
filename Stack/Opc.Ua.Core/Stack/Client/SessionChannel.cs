@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
@@ -17,16 +18,13 @@ namespace Opc.Ua
     /// <summary>
     ///  A channel object used by clients to access a UA service.
     /// </summary>
+    [Obsolete("Use UaChannelBase methods instead.")]
     public partial class SessionChannel
     {
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        /// <param name="description">The description for the endpoint.</param>
-        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync method instead.")]
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
@@ -34,24 +32,19 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             IServiceMessageContext messageContext)
         {
-            return Create(
+            return ClientChannelFactory.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext);
+                messageContext).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        /// <param name="description">The description for the endpoint.</param>
-        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="clientCertificateChain">The client certificate chain.</param>
-        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync method instead.")]
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
@@ -60,26 +53,19 @@ namespace Opc.Ua
             X509Certificate2Collection clientCertificateChain,
             IServiceMessageContext messageContext)
         {
-            // create a UA binary channel.
-            return CreateUaBinaryChannel(
+            return ClientChannelFactory.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        /// <param name="connection">The connection</param>
-        /// <param name="description">The description for the endpoint.</param>
-        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="clientCertificateChain">The client certificate chain.</param>
-        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync method instead.")]
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
@@ -90,14 +76,14 @@ namespace Opc.Ua
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
-            return CreateUaBinaryChannel(
+            return ClientChannelFactory.CreateUaBinaryChannelAsync(
                 configuration,
                 connection,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext).AsTask().GetAwaiter().GetResult();
         }
     }
 }

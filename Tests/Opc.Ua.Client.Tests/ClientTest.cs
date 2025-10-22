@@ -143,7 +143,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
@@ -192,7 +195,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             ApplicationDescriptionCollection servers = await client.FindServersAsync(null)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
@@ -221,7 +227,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             try
             {
                 FindServersOnNetworkResponse response = await client
@@ -260,7 +269,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null).ConfigureAwait(false);
             Assert.NotNull(endpoints);
@@ -325,7 +337,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             var profileUris = new StringCollection();
             for (int i = 0; i < 10000; i++)
             {
@@ -790,7 +805,7 @@ namespace Opc.Ua.Client.Tests
             // test case: close the first channel after the session is activated on the new channel
             if (!closeChannel)
             {
-                channel1.Close();
+                await channel1.CloseAsync(default).ConfigureAwait(false);
                 channel1.Dispose();
             }
 

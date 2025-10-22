@@ -432,17 +432,22 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Get endpoints from discovery endpoint.
         /// </summary>
-        /// <param name="url">The url of the discovery endpoint.</param>
-        public async Task<EndpointDescriptionCollection> GetEndpointsAsync(Uri url)
+        public async Task<EndpointDescriptionCollection> GetEndpointsAsync(
+            Uri url,
+            CancellationToken ct = default)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
-            using var client = DiscoveryClient.Create(url, endpointConfiguration, m_telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                url,
+                endpointConfiguration,
+                m_telemetry,
+                ct: ct).ConfigureAwait(false);
             client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null)
+            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null, ct)
                 .ConfigureAwait(false);
-            await client.CloseAsync().ConfigureAwait(false);
+            await client.CloseAsync(ct).ConfigureAwait(false);
             return result;
         }
 

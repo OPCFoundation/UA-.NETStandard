@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,7 +28,57 @@ namespace Opc.Ua
         ChannelToken previousToken);
 
     /// <summary>
-    /// This is an interface to a channel which supports
+    /// Secure channels implement this interface and the
+    /// ITransportChannel interface. It is not to be exposed
+    /// to clients but should be implemented by channels.
+    /// </summary>
+    public interface ISecureChannel
+    {
+        /// <summary>
+        /// Gets the channel's current security token.
+        /// </summary>
+        ChannelToken? CurrentToken { get; }
+
+        /// <summary>
+        /// Register for token change events
+        /// </summary>
+        event ChannelTokenActivatedEventHandler OnTokenActivated;
+
+        /// <summary>
+        /// Initializes a secure channel with the endpoint identified
+        /// by the URL.
+        /// </summary>
+        /// <param name="url">The URL for the endpoint.</param>
+        /// <param name="settings">The settings to use when creating
+        /// the channel.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">Thrown if any
+        /// communication error occurs.</exception>
+        ValueTask OpenAsync(
+            Uri url,
+            TransportChannelSettings settings,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Initializes a secure channel with the endpoint of the
+        /// waiting connection
+        /// </summary>
+        /// <param name="connection">A waiting connection</param>
+        /// <param name="settings">The settings to use when creating
+        /// the channel.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">Thrown if any
+        /// communication error occurs.</exception>
+        ValueTask OpenAsync(
+            ITransportWaitingConnection connection,
+            TransportChannelSettings settings,
+            CancellationToken ct);
+    }
+
+    /// <summary>
+    /// This is an interface to a channel which supports sending
+    /// requests and receiving responses. This is the api exposed
+    /// to clients.
     /// </summary>
     public interface ITransportChannel : IDisposable
     {
@@ -37,179 +89,68 @@ namespace Opc.Ua
 
         /// <summary>
         /// Gets the description for the endpoint used by the channel.
+        /// Throws if the channel is not yet opened.
         /// </summary>
         EndpointDescription EndpointDescription { get; }
 
         /// <summary>
         /// Gets the configuration for the channel.
+        /// Throws if the channel is not yet opened.
         /// </summary>
         EndpointConfiguration EndpointConfiguration { get; }
 
         /// <summary>
-        /// Gets the context used when serializing messages exchanged via the channel.
+        /// Gets the context used when serializing messages exchanged
+        /// via the channel. Throws if the channel is not yet opened.
         /// </summary>
         IServiceMessageContext MessageContext { get; }
 
         /// <summary>
-        /// Gets the channel's current security token.
-        /// </summary>
-        ChannelToken CurrentToken { get; }
-
-        /// <summary>
-        /// Register for token change events
-        /// </summary>
-        event ChannelTokenActivatedEventHandler OnTokenActivated;
-
-        /// <summary>
-        /// Gets or sets the default timeout for requests send via the channel.
+        /// Gets or sets the default timeout for requests send via
+        /// the channel.
         /// </summary>
         int OperationTimeout { get; set; }
 
         /// <summary>
-        /// Initializes a secure channel with the endpoint identified by the URL.
-        /// </summary>
-        /// <param name="url">The URL for the endpoint.</param>
-        /// <param name="settings">The settings to use when creating the channel.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Initialize(Uri url, TransportChannelSettings settings);
-
-        /// <summary>
-        /// Initializes a secure channel with the endpoint identified by the URL.
-        /// </summary>
-        void Initialize(ITransportWaitingConnection connection, TransportChannelSettings settings);
-
-        /// <summary>
-        /// Opens a secure channel with the endpoint identified by the URL.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Open();
-
-        /// <summary>
-        /// Begins an asynchronous operation to open a secure channel with the endpoint identified by the URL.
-        /// </summary>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>The result which must be passed to the EndOpen method.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Open"/>
-        IAsyncResult BeginOpen(AsyncCallback callback, object callbackData);
-
-        /// <summary>
-        /// Completes an asynchronous operation to open a secure channel.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginOpen call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Open" />
-        void EndOpen(IAsyncResult result);
-
-        /// <summary>
         /// Closes any existing secure channel and opens a new one.
         /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <param name="connection">The waiting reverse connection
+        /// for the reconnect attempt.</param>
+        /// <exception cref="ServiceResultException">Thrown if any
+        /// communication error occurs.</exception>
+        /// <param name="ct">The cancellation token.</param>
         /// <remarks>
-        /// Calling this method will cause outstanding requests over the current secure channel to fail.
+        /// Calling this method will cause outstanding requests over
+        /// the current secure channel to fail.
         /// </remarks>
-        void Reconnect();
+        ValueTask ReconnectAsync(
+            ITransportWaitingConnection? connection = null,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Closes any existing secure channel and opens a new one.
-        /// </summary>
-        /// <param name="connection">The waiting reverse connection for the reconnect attempt.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <remarks>
-        /// Calling this method will cause outstanding requests over the current secure channel to fail.
-        /// </remarks>
-        void Reconnect(ITransportWaitingConnection connection);
-
-        /// <summary>
-        /// Begins an asynchronous operation to close the existing secure channel and open a new one.
-        /// </summary>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>The result which must be passed to the EndReconnect method.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect()" />
-        IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData);
-
-        /// <summary>
-        /// Completes an asynchronous operation to close the existing secure channel and open a new one.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginReconnect call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect()" />
-        void EndReconnect(IAsyncResult result);
-
-        /// <summary>
-        /// Closes the secure channel (async).
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        Task CloseAsync(CancellationToken ct);
-
-        /// <summary>
-        /// Sends a request over the secure channel, async version.
+        /// Sends a request over the secure channel
         /// </summary>
         /// <param name="request">The request to send.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The response returned by the server.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct);
-
-        /// <summary>
-        /// Begins an asynchronous operation to send a request over the secure channel.
-        /// </summary>
-        /// <param name="request">The request to send.</param>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>The result which must be passed to the EndSendRequest method.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        IAsyncResult BeginSendRequest(
+        /// <exception cref="ServiceResultException">Thrown if any
+        /// communication error occurs.</exception>
+        Task<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
-            AsyncCallback callback,
-            object callbackData);
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Completes an asynchronous operation to send a request over the secure channel.
+        /// Closes the secure channel
         /// </summary>
-        /// <param name="result">The result returned from the BeginSendRequest call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        IServiceResponse EndSendRequest(IAsyncResult result);
-
-        /// <summary>
-        /// Completes an asynchronous operation to send a request over the secure channel.
-        /// Awaitable version
-        /// </summary>
-        /// <param name="result">The result returned from the BeginSendRequest call.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct);
-
-        /// <summary>
-        /// Closes the secure channel.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Close();
-
-        /// <summary>
-        /// Begins an asynchronous operation to close the secure channel.
-        /// </summary>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>The result which must be passed to the EndClose method.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Close" />
-        IAsyncResult BeginClose(AsyncCallback callback, object callbackData);
-
-        /// <summary>
-        /// Completes an asynchronous operation to close the secure channel.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginClose call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Close" />
-        void EndClose(IAsyncResult result);
+        /// <exception cref="ServiceResultException">Thrown if any
+        /// communication error occurs.</exception>
+        Task CloseAsync(CancellationToken ct = default);
     }
 
     /// <summary>
-    /// The masks for the optional features which may not be supported by every transport channel.
+    /// The masks for the optional features which may not be
+    /// supported by every transport channel.
     /// </summary>
     [Flags]
     public enum TransportChannelFeatures
@@ -220,43 +161,13 @@ namespace Opc.Ua
         None = 0x0000,
 
         /// <summary>
-        /// The channel supports Open.
-        /// </summary>
-        Open = 0x0001,
-
-        /// <summary>
-        /// The channel supports asynchronous Open.
-        /// </summary>
-        BeginOpen = 0x0002,
-
-        /// <summary>
         /// The channel supports Reconnect.
         /// </summary>
         Reconnect = 0x0004,
 
         /// <summary>
-        /// The channel supports asynchronous Reconnect.
+        /// The channel supports Reverse connect.
         /// </summary>
-        BeginReconnect = 0x0008,
-
-        /// <summary>
-        /// The channel supports asynchronous Close.
-        /// </summary>
-        BeginClose = 0x0010,
-
-        /// <summary>
-        /// The channel supports asynchronous SendRequest.
-        /// </summary>
-        BeginSendRequest = 0x0020,
-
-        /// <summary>
-        /// The channel supports Reconnect.
-        /// </summary>
-        ReverseConnect = 0x0040,
-
-        /// <summary>
-        /// The channel supports asynchronous SendRequestAsync.
-        /// </summary>
-        SendRequestAsync = 0x0080
+        ReverseConnect = 0x0040
     }
 }
