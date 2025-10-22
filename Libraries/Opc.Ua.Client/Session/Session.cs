@@ -4619,7 +4619,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds a new async request.
         /// </summary>
-        private void AsyncRequestStarted(object result, uint requestId, uint typeId)
+        private void AsyncRequestStarted(Task result, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {
@@ -4646,7 +4646,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Removes a completed async request.
         /// </summary>
-        private void AsyncRequestCompleted(object result, uint requestId, uint typeId)
+        private void AsyncRequestCompleted(Task result, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {
@@ -7348,7 +7348,7 @@ namespace Opc.Ua.Client
             public uint RequestTypeId;
             public uint RequestId;
             public int TickCount;
-            public object Result;
+            public Task Result;
             public bool Defunct;
         }
 
