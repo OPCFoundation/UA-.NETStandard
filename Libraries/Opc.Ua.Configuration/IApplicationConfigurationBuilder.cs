@@ -604,16 +604,6 @@ namespace Opc.Ua.Configuration
             bool suppressNonceValidationErrors);
 
         /// <summary>
-        /// Whether to reject certificates with an ApplicationUri that does not match the configuration.
-        /// If set to true, an exception will be thrown when the ApplicationUri in the configuration
-        /// does not match the ApplicationUri in the certificate.
-        /// If set to false (default), the configuration ApplicationUri will be updated to match the certificate for backward compatibility.
-        /// </summary>
-        /// <param name="rejectCertificateUriMismatch"><see langword="true"/> to reject certificates with mismatched ApplicationUri.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetRejectCertificateUriMismatch(
-            bool rejectCertificateUriMismatch);
-
-        /// <summary>
         /// Whether a certificate chain should be sent with the application certificate.
         /// Only used if the application certificate is CA signed.
         /// </summary>

@@ -340,10 +340,10 @@ namespace Opc.Ua
                 }
             }
 
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
+            var applicationUris = X509Utils.GetApplicationUrisFromCertificate(certificate);
 
             // Subject Alternative Name
-            var subjectAltName = new X509SubjectAltNameExtension(applicationUri, domainNames);
+            var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
             request.CertificateExtensions.Add(new X509Extension(subjectAltName, false));
             if (!isECDsaSignature)
             {

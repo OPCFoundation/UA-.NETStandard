@@ -582,15 +582,6 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderSecurityOptions SetRejectCertificateUriMismatch(
-            bool rejectCertificateUriMismatch)
-        {
-            ApplicationConfiguration.SecurityConfiguration.RejectCertificateUriMismatch =
-                rejectCertificateUriMismatch;
-            return this;
-        }
-
-        /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(
             bool sendCertificateChain)
         {

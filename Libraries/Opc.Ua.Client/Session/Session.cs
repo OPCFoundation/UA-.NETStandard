@@ -1791,6 +1791,8 @@ namespace Opc.Ua.Client
 
                 ValidateServerEndpoints(serverEndpoints);
 
+                ValidateServerCertificateApplicationUri(serverCertificate, m_endpoint);
+
                 ValidateServerSignature(
                     serverCertificate,
                     serverSignature,
@@ -6080,6 +6082,20 @@ namespace Opc.Ua.Client
                         StatusCodes.BadApplicationSignatureInvalid,
                         "Server did not provide a correct signature for the nonce data provided by the client.");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri
+        /// of the Endpoint (Spec Part 4 5.4.1) returned by the CreateSessionResponse.
+        /// Ensure the endpoint was matched in <see cref="ValidateServerEndpoints"/>
+        /// with the applicationUri of the server description before the validation.
+        /// </summary>
+        private void ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        {
+            if (serverCertificate != null)
+            {
+                m_configuration.CertificateValidator.ValidateApplicationUri(serverCertificate, endpoint);
             }
         }
 

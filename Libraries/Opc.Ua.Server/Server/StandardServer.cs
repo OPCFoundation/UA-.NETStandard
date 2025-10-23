@@ -380,31 +380,27 @@ namespace Opc.Ua.Server
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
-                            string certificateApplicationUri = X509Utils
-                                .GetApplicationUriFromCertificate(
-                                    parsedClientCertificate);
-
-                            // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
-                            if (!string.IsNullOrEmpty(certificateApplicationUri) &&
-                                !string.IsNullOrEmpty(clientDescription.ApplicationUri) &&
-                                certificateApplicationUri != clientDescription.ApplicationUri)
+                            // verify if applicationUri from ApplicationDescription matches the applicationUris in the client certificate.
+                            if (!string.IsNullOrEmpty(clientDescription.ApplicationUri))
                             {
-                                // report the AuditCertificateDataMismatch event for invalid uri
-                                ServerInternal?.ReportAuditCertificateDataMismatchEvent(
-                                    parsedClientCertificate,
-                                    null,
-                                    clientDescription.ApplicationUri,
-                                    StatusCodes.BadCertificateUriInvalid,
-                                    m_logger);
+                                if (!X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate, clientDescription.ApplicationUri))
+                                {
+                                    // report the AuditCertificateDataMismatch event for invalid uri
+                                    ServerInternal?.ReportAuditCertificateDataMismatchEvent(
+                                        parsedClientCertificate,
+                                        null,
+                                        clientDescription.ApplicationUri,
+                                        StatusCodes.BadCertificateUriInvalid,
+                                        m_logger);
 
-                                throw ServiceResultException.Create(
-                                    StatusCodes.BadCertificateUriInvalid,
-                                    "The URI specified in the ApplicationDescription {0} does not match the URI in the Certificate: {1}.",
-                                    clientDescription.ApplicationUri,
-                                    certificateApplicationUri);
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadCertificateUriInvalid,
+                                        "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
+                                        clientDescription.ApplicationUri);
+                                }
+
+                                CertificateValidator.Validate(clientCertificateChain);
                             }
-
-                            CertificateValidator.Validate(clientCertificateChain);
                         }
                     }
                     catch (Exception e)

@@ -656,7 +656,6 @@ namespace Opc.Ua
             AddAppCertToTrustedStore = true;
             SendCertificateChain = true;
             SuppressNonceValidationErrors = false;
-            RejectCertificateUriMismatch = false;
             IsDeprecatedConfiguration = false;
         }
 
@@ -951,17 +950,6 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
         public bool SuppressNonceValidationErrors { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether certificate ApplicationUri mismatches should be rejected.
-        /// </summary>
-        /// <remarks>
-        /// If set to true, the application will throw an exception when the ApplicationUri in the configuration
-        /// does not match the ApplicationUri in the certificate, similar to the server behavior for client certificates.
-        /// If set to false (default), the configuration ApplicationUri will be updated to match the certificate for backward compatibility.
-        /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 22)]
-        public bool RejectCertificateUriMismatch { get; set; }
 
         /// <summary>
         /// The type of Configuration (deprecated or not)
