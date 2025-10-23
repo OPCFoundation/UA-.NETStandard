@@ -992,5 +992,87 @@ namespace Opc.Ua.Server.Tests
                 response.StringTable,
                 logger);
         }
+
+        /// <summary>
+        /// Test that Server object EventNotifier has HistoryRead bit set when history capabilities are enabled.
+        /// </summary>
+        [Test]
+        public void ServerEventNotifierHistoryReadBit()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Read Server object EventNotifier attribute
+            var readIdCollection = new ReadValueIdCollection
+            {
+                new ReadValueId
+                {
+                    AttributeId = Attributes.EventNotifier,
+                    NodeId = ObjectIds.Server
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            ResponseHeader response = m_server.Read(
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                readIdCollection,
+                out DataValueCollection serverEventNotifierValues,
+                out DiagnosticInfoCollection diagnosticInfos);
+
+            ServerFixtureUtils.ValidateResponse(response, serverEventNotifierValues, readIdCollection);
+            Assert.AreEqual(1, serverEventNotifierValues.Count);
+            Assert.NotNull(serverEventNotifierValues[0].Value);
+
+            byte eventNotifier = (byte)serverEventNotifierValues[0].Value;
+
+            // Read history capabilities
+            var historyCapabilitiesReadIds = new ReadValueIdCollection
+            {
+                new ReadValueId
+                {
+                    AttributeId = Attributes.Value,
+                    NodeId = VariableIds.HistoryServerCapabilities_AccessHistoryEventsCapability
+                },
+                new ReadValueId
+                {
+                    AttributeId = Attributes.Value,
+                    NodeId = VariableIds.HistoryServerCapabilities_AccessHistoryDataCapability
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            response = m_server.Read(
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                historyCapabilitiesReadIds,
+                out DataValueCollection historyCapabilitiesValues,
+                out diagnosticInfos);
+
+            ServerFixtureUtils.ValidateResponse(response, historyCapabilitiesValues, historyCapabilitiesReadIds);
+            Assert.AreEqual(2, historyCapabilitiesValues.Count);
+
+            bool accessHistoryEventsCapability = historyCapabilitiesValues[0].Value != null && 
+                                                 (bool)historyCapabilitiesValues[0].Value;
+            bool accessHistoryDataCapability = historyCapabilitiesValues[1].Value != null && 
+                                               (bool)historyCapabilitiesValues[1].Value;
+
+            logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
+            logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
+            logger.LogInformation("AccessHistoryDataCapability: {AccessHistoryDataCapability}", accessHistoryDataCapability);
+
+            // If either history capability is enabled, the HistoryRead bit should be set
+            if (accessHistoryEventsCapability || accessHistoryDataCapability)
+            {
+                Assert.IsTrue((eventNotifier & EventNotifiers.HistoryRead) != 0, 
+                    "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
+            }
+
+            // Verify SubscribeToEvents bit is set (Server object should always support events)
+            Assert.IsTrue((eventNotifier & EventNotifiers.SubscribeToEvents) != 0, 
+                "Server EventNotifier should have SubscribeToEvents bit set");
+        }
     }
 }

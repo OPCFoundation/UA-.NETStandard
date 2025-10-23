@@ -127,6 +127,7 @@ namespace Opc.Ua.Client
             m_defaultSubscription = template.m_defaultSubscription;
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
+            PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_minPublishRequestCount = template.m_minPublishRequestCount;
@@ -254,8 +255,10 @@ namespace Opc.Ua.Client
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_sessionName = string.Empty;
             DeleteSubscriptionsOnClose = true;
+            PublishRequestCancelDelayOnCloseSession = 5000; // 5 seconds default
             TransferSubscriptionsOnReconnect = false;
             Reconnecting = false;
+            Closing = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
             ServerMaxContinuationPointsPerBrowse = 0;
         }
@@ -508,6 +511,11 @@ namespace Opc.Ua.Client
         public bool Reconnecting { get; private set; }
 
         /// <summary>
+        /// Whether the session is closing
+        /// </summary>
+        public bool Closing { get; private set; }
+
+        /// <summary>
         /// Gets the period for wich the server will maintain the session if
         /// there is no communication from the client.
         /// </summary>
@@ -605,6 +613,9 @@ namespace Opc.Ua.Client
         /// be transferred or for durable subscriptions.
         /// </remarks>
         public bool DeleteSubscriptionsOnClose { get; set; }
+
+        /// <inheritdoc/>
+        public int PublishRequestCancelDelayOnCloseSession { get; set; }
 
         /// <summary>
         /// If the subscriptions are transferred when a session is reconnected.
@@ -3949,70 +3960,82 @@ namespace Opc.Ua.Client
 
             StatusCode result = StatusCodes.Good;
 
-            // stop the keep alive timer.
-            await StopKeepAliveTimerAsync().ConfigureAwait(false);
+            Closing = true;
 
-            // check if correctly connected.
-            bool connected = Connected;
-
-            // halt all background threads.
-            if (connected && m_SessionClosing != null)
+            try
             {
-                try
-                {
-                    m_SessionClosing(this, null);
-                }
-                catch (Exception e)
-                {
-                    m_logger.LogError(e, "Session: Unexpected error raising SessionClosing event.");
-                }
-            }
+                // stop the keep alive timer.
+                await StopKeepAliveTimerAsync().ConfigureAwait(false);
 
-            // close the session with the server.
-            if (connected && !KeepAliveStopped)
-            {
-                try
-                {
-                    // close the session and delete all subscriptions if specified.
-                    var requestHeader = new RequestHeader
-                    {
-                        TimeoutHint = timeout > 0
-                            ? (uint)timeout
-                            : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
-                    };
-                    CloseSessionResponse response = await base.CloseSessionAsync(
-                            requestHeader,
-                            DeleteSubscriptionsOnClose,
-                            ct)
-                        .ConfigureAwait(false);
+                // check if correctly connected.
+                bool connected = Connected;
 
-                    if (closeChannel)
+                // halt all background threads.
+                if (connected && m_SessionClosing != null)
+                {
+                    try
                     {
-                        await CloseChannelAsync(ct).ConfigureAwait(false);
+                        m_SessionClosing(this, null);
                     }
+                    catch (Exception e)
+                    {
+                        m_logger.LogError(e, "Session: Unexpected error raising SessionClosing event.");
+                    }
+                }
 
-                    // raised notification indicating the session is closed.
-                    SessionCreated(null, null);
-                }
-                // don't throw errors on disconnect, but return them
-                // so the caller can log the error.
-                catch (ServiceResultException sre)
+                // close the session with the server.
+                if (connected && !KeepAliveStopped)
                 {
-                    result = sre.StatusCode;
+                    try
+                    {
+                        // Wait for or cancel outstanding publish requests before closing session.
+                        await WaitForOrCancelOutstandingPublishRequestsAsync(ct).ConfigureAwait(false);
+
+                        // close the session and delete all subscriptions if specified.
+                        var requestHeader = new RequestHeader
+                        {
+                            TimeoutHint = timeout > 0
+                                ? (uint)timeout
+                                : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
+                        };
+                        CloseSessionResponse response = await base.CloseSessionAsync(
+                                requestHeader,
+                                DeleteSubscriptionsOnClose,
+                                ct)
+                            .ConfigureAwait(false);
+
+                        if (closeChannel)
+                        {
+                            await CloseChannelAsync(ct).ConfigureAwait(false);
+                        }
+
+                        // raised notification indicating the session is closed.
+                        SessionCreated(null, null);
+                    }
+                    // don't throw errors on disconnect, but return them
+                    // so the caller can log the error.
+                    catch (ServiceResultException sre)
+                    {
+                        result = sre.StatusCode;
+                    }
+                    catch (Exception)
+                    {
+                        result = StatusCodes.Bad;
+                    }
                 }
-                catch (Exception)
+
+                // clean up.
+                if (closeChannel)
                 {
-                    result = StatusCodes.Bad;
+                    Dispose();
                 }
+
+                return result;
             }
-
-            // clean up.
-            if (closeChannel)
+            finally
             {
-                Dispose();
+                Closing = false;
             }
-
-            return result;
         }
 
         /// <inheritdoc/>
@@ -4589,6 +4612,138 @@ namespace Opc.Ua.Client
             finally
             {
                 keepAliveCancellation.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Waits for outstanding publish requests to complete or cancels them.
+        /// </summary>
+        private async Task WaitForOrCancelOutstandingPublishRequestsAsync(CancellationToken ct)
+        {
+            // Get outstanding publish requests
+            List<uint> publishRequestHandles = [];
+            lock (m_outstandingRequests)
+            {
+                foreach (AsyncRequestState state in m_outstandingRequests)
+                {
+                    if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                    {
+                        publishRequestHandles.Add(state.RequestId);
+                    }
+                }
+            }
+
+            if (publishRequestHandles.Count == 0)
+            {
+                m_logger.LogDebug("No outstanding publish requests to cancel.");
+                return;
+            }
+
+            m_logger.LogInformation(
+                "Waiting for {Count} outstanding publish requests to complete before closing session.",
+                publishRequestHandles.Count);
+
+            // Wait for outstanding requests with timeout
+            if (PublishRequestCancelDelayOnCloseSession != 0)
+            {
+                int waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
+                    ? int.MaxValue
+                    : PublishRequestCancelDelayOnCloseSession;
+
+                int startTime = HiResClock.TickCount;
+                while (true)
+                {
+                    // Check if all publish requests completed
+                    int remainingCount = 0;
+                    lock (m_outstandingRequests)
+                    {
+                        foreach (AsyncRequestState state in m_outstandingRequests)
+                        {
+                            if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                            {
+                                remainingCount++;
+                            }
+                        }
+                    }
+
+                    if (remainingCount == 0)
+                    {
+                        m_logger.LogDebug("All outstanding publish requests completed.");
+                        return;
+                    }
+
+                    // Check timeout
+                    int elapsed = HiResClock.TickCount - startTime;
+                    if (elapsed >= waitTimeout)
+                    {
+                        m_logger.LogWarning(
+                            "Timeout waiting for {Count} publish requests to complete. Cancelling them.",
+                            remainingCount);
+                        break;
+                    }
+
+                    // Check cancellation
+                    if (ct.IsCancellationRequested)
+                    {
+                        m_logger.LogWarning("Cancellation requested while waiting for publish requests.");
+                        break;
+                    }
+
+                    // Wait a bit before checking again
+                    try
+                    {
+                        await Task.Delay(100, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        m_logger.LogWarning("Cancellation requested while waiting for publish requests.");
+                        break;
+                    }
+                }
+            }
+
+            // Cancel remaining outstanding publish requests
+            List<uint> requestsToCancel = [];
+            lock (m_outstandingRequests)
+            {
+                foreach (AsyncRequestState state in m_outstandingRequests)
+                {
+                    if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                    {
+                        requestsToCancel.Add(state.RequestId);
+                    }
+                }
+            }
+
+            if (requestsToCancel.Count > 0)
+            {
+                m_logger.LogInformation(
+                    "Cancelling {Count} outstanding publish requests.",
+                    requestsToCancel.Count);
+
+                // Cancel each outstanding publish request
+                foreach (uint requestHandle in requestsToCancel)
+                {
+                    try
+                    {
+                        var requestHeader = new RequestHeader
+                        {
+                            TimeoutHint = (uint)OperationTimeout
+                        };
+
+                        await CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
+
+                        m_logger.LogDebug("Cancelled publish request with handle {Handle}.", requestHandle);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log but don't throw - we're closing anyway
+                        m_logger.LogWarning(
+                            ex,
+                            "Error cancelling publish request with handle {Handle}.",
+                            requestHandle);
+                    }
+                }
             }
         }
 
@@ -5728,6 +5883,12 @@ namespace Opc.Ua.Client
             if (Reconnecting)
             {
                 m_logger.LogWarning("Publish skipped due to session reconnect");
+                return null;
+            }
+
+            if (Closing)
+            {
+                m_logger.LogWarning("Publish skipped due to session closing");
                 return null;
             }
 
