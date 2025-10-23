@@ -736,7 +736,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             Utils.TraceMasks.Security,
-                            "A Private key for the certificate with thumbpint {Thumbprint} was not found.",
+                            "A Private key for the certificate with thumbprint {Thumbprint} was not found.",
                             thumbprint);
                     }
                     // if no private key was found, no need to retry
