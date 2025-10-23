@@ -850,6 +850,34 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
 
         [Test]
+        public void NodeIdParseInvalidWithNamespace()
+        {
+            // Test cases that should throw an exception because they lack proper identifier prefix
+            // These were incorrectly accepted as string identifiers in the bug
+            string[] invalidNodeIds =
+            [
+                "ns=1;some_text_without_prefix",
+                "ns=4; some_number_or_text_here",
+                "ns=2;12345",
+                "ns=3;not_valid",
+                "ns=0;x=invalid_prefix",
+                "ns=5;",
+                "ns=1;just_text"
+            ];
+
+            foreach (string invalidNodeId in invalidNodeIds)
+            {
+                NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse(invalidNodeId),
+                    $"Expected ArgumentException for invalid NodeId: {invalidNodeId}");
+                NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                {
+                    NodeId _ = invalidNodeId;
+                },
+                    $"Expected ArgumentException for invalid NodeId (implicit): {invalidNodeId}");
+            }
+        }
+
+        [Test]
         [TestCase(ValueRanks.ScalarOrOneDimension)]
         [TestCase(ValueRanks.Scalar)]
         [TestCase(ValueRanks.OneOrMoreDimensions)]
