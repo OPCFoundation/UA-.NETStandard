@@ -60,7 +60,6 @@ namespace Opc.Ua.Client.Tests
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
         public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
-
         public bool SingleSession { get; set; } = true;
         public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; }
@@ -191,7 +190,6 @@ namespace Opc.Ua.Client.Tests
                         .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                         .ConfigureAwait(false);
                     Assert.NotNull(Session);
-                    Session.ReturnDiagnostics = DiagnosticsMasks.All;
                 }
                 catch (Exception e)
                 {
@@ -209,8 +207,7 @@ namespace Opc.Ua.Client.Tests
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging,
-                Telemetry)
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
@@ -467,12 +464,12 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public virtual void GlobalSetup()
         {
-            Console.WriteLine("GlobalSetup: Start Server");
+            m_logger.LogInformation("GlobalSetup: Start Server");
             OneTimeSetUpCoreAsync().GetAwaiter().GetResult();
-            Console.WriteLine("GlobalSetup: Connecting");
+            m_logger.LogInformation("GlobalSetup: Connecting");
             Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter()
                 .GetResult();
-            Console.WriteLine("GlobalSetup: Ready");
+            m_logger.LogInformation("GlobalSetup: Ready");
         }
 
         /// <summary>
@@ -480,9 +477,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public virtual void GlobalCleanup()
         {
-            Console.WriteLine("GlobalCleanup: Disconnect and Stop Server");
+            m_logger.LogInformation("GlobalCleanup: Disconnect and Stop Server");
             OneTimeTearDownAsync().GetAwaiter().GetResult();
-            Console.WriteLine("GlobalCleanup: Done");
+            m_logger.LogInformation("GlobalCleanup: Done");
         }
 
         public async Task GetOperationLimitsAsync()

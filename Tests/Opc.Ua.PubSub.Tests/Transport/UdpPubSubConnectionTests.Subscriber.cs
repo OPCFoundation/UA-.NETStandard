@@ -33,6 +33,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
@@ -378,6 +379,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromDiscoveryResponse_DataSetMetadata()
         {
+            ILogger logger = m_messageContext.Telemetry.CreateLogger<UdpPubSubConnectionTests>();
+
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -525,6 +528,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromDiscoveryResponse_DataSetWriterConfig()
         {
+            ILogger logger = m_messageContext.Telemetry.CreateLogger<UdpPubSubConnectionTests>();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
@@ -1063,7 +1067,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             lock (s_lock)
             {
-                Console.WriteLine("Metadata received:");
+                m_logger.LogInformation("Metadata received:");
                 bool isNetworkMessage = e.NetworkMessage is UadpNetworkMessage;
                 Assert.IsTrue(isNetworkMessage);
                 if (isNetworkMessage && e.NetworkMessage.IsMetaDataMessage)
@@ -1298,7 +1302,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             lock (s_lock)
             {
-                Console.WriteLine("DataSetWriterConfig received:");
+                m_logger.LogInformation("DataSetWriterConfig received:");
 
                 if (e.DataSetWriterConfiguration != null)
                 {

@@ -288,13 +288,17 @@ namespace Opc.Ua
         public static EncryptedData Encrypt(
             X509Certificate2 certificate,
             string securityPolicyUri,
-            byte[] plainText,
+            ReadOnlySpan<byte> plainText,
             ILogger logger)
         {
-            var encryptedData = new EncryptedData { Algorithm = null, Data = plainText };
+            var encryptedData = new EncryptedData
+            {
+                Algorithm = null,
+                Data = plainText.IsEmpty ? null : plainText.ToArray()
+            };
 
             // check if nothing to do.
-            if (plainText == null)
+            if (plainText.IsEmpty)
             {
                 return encryptedData;
             }

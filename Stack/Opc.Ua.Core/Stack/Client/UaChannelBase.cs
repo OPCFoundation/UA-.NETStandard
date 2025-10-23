@@ -750,13 +750,12 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext,
-            ITelemetryContext telemetry)
+            IServiceMessageContext messageContext)
         {
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
             ITransportChannel channel =
-                TransportBindings.Channels.GetChannel(uriScheme, telemetry)
+                TransportBindings.Channels.GetChannel(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
@@ -775,7 +774,7 @@ namespace Opc.Ua
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
                     description.ServerCertificate,
-                    telemetry);
+                    messageContext.Telemetry);
             }
 
             if (configuration != null)
@@ -801,14 +800,12 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <param name="telemetry">Telemetry context to use</param>
         public static ITransportChannel CreateUaBinaryChannel(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext,
-            ITelemetryContext telemetry)
+            IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannel(
                 configuration,
@@ -816,8 +813,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext,
-                telemetry);
+                messageContext);
         }
 
         /// <summary>
@@ -829,7 +825,6 @@ namespace Opc.Ua
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <param name="telemetry">Telemetry context to use</param>
         /// <exception cref="ServiceResultException"></exception>
         public static ITransportChannel CreateUaBinaryChannel(
             ApplicationConfiguration configuration,
@@ -837,27 +832,19 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext,
-            ITelemetryContext telemetry)
+            IServiceMessageContext messageContext)
         {
-            string uriScheme = new Uri(description.EndpointUrl).Scheme;
-
-            switch (description.TransportProfileUri)
+            string uriScheme = description.TransportProfileUri switch
             {
-                case Profiles.UaTcpTransport:
-                    uriScheme = Utils.UriSchemeOpcTcp;
-                    break;
-                case Profiles.HttpsBinaryTransport:
-                    uriScheme = Utils.UriSchemeOpcHttps;
-                    break;
-                case Profiles.UaWssTransport:
-                    uriScheme = Utils.UriSchemeOpcWss;
-                    break;
-            }
+                Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
+                Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
+                Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
+                _ => new Uri(description.EndpointUrl).Scheme
+            };
 
             // initialize the channel which will be created with the server.
             ITransportChannel channel =
-                TransportBindings.Channels.GetChannel(uriScheme, telemetry)
+                TransportBindings.Channels.GetChannel(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
@@ -876,7 +863,7 @@ namespace Opc.Ua
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
                     description.ServerCertificate,
-                    telemetry);
+                    messageContext.Telemetry);
             }
 
             if (configuration != null)

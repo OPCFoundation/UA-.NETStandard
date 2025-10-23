@@ -123,25 +123,23 @@ namespace Opc.Ua.Bindings
                 case Acknowledge:
                 case Error:
                     return true;
-            }
-
-            uint chunkTypeMask = messageType & ChunkTypeMask;
-            if (chunkTypeMask is not Final and not Intermediate and not Abort)
-            {
-                return false;
-            }
-
-            switch (messageType & MessageTypeMask)
-            {
-                case Message:
-                case Open:
-                case Close:
-                    break;
                 default:
-                    return false;
-            }
+                    uint chunkTypeMask = messageType & ChunkTypeMask;
+                    if (chunkTypeMask is not Final and not Intermediate and not Abort)
+                    {
+                        return false;
+                    }
+                    switch (messageType & MessageTypeMask)
+                    {
+                        case Message:
+                        case Open:
+                        case Close:
+                            return true;
+                        default:
+                            return false;
+                    }
 
-            return true;
+            }
         }
     }
 

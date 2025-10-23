@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate != null && certificate.Length > 0)
             {
-                using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
                 NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
@@ -237,8 +237,7 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(
-                        certificate);
+                    using X509Certificate2 x509 = CertificateFactory.Create(certificate);
                     try
                     {
                         Security.Certificates.X509CRL crl = await certificateGroup
@@ -381,9 +380,8 @@ namespace Opc.Ua.Gds.Server
                     {
                         m_logger.LogError(
                             e,
-                            "Unexpected error initializing certificateGroup: {CertificateGroupId}\n{StackTrace}",
-                            certificateGroupConfiguration.Id,
-                            ServiceResult.BuildExceptionTrace(e));
+                            "Unexpected error initializing certificateGroup: {CertificateGroupId}",
+                            certificateGroupConfiguration.Id);
                         // make sure gds server doesn't start without cert groups!
                         throw;
                     }
@@ -408,6 +406,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected override NodeState AddBehaviourToPredefinedNode(
             ISystemContext context,
             NodeState predefinedNode)
@@ -850,25 +849,56 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
                 if (chain.Build(x509))
                 {
                     result.CertificateStatus = StatusCodes.Good;
                     return result;
                 }
 
-                //Assing certificateStatus for invalid chain if no matching found use StatusCodes.BadCertificateRevoked
-                result.CertificateStatus = chain.ChainStatus.FirstOrDefault().Status switch
+                // Assessing certificateStatus for invalid chain
+                X509ChainStatusFlags status = chain.ChainStatus.FirstOrDefault().Status;
+                if ((status & X509ChainStatusFlags.NotTimeValid) ==
+                    X509ChainStatusFlags.NotTimeValid)
                 {
-                    X509ChainStatusFlags.NotTimeValid => StatusCodes.BadCertificateTimeInvalid,
-                    X509ChainStatusFlags.Revoked => StatusCodes.BadCertificateRevoked,
-                    X509ChainStatusFlags.NotSignatureValid => StatusCodes.BadCertificateInvalid,
-                    X509ChainStatusFlags.NotValidForUsage => StatusCodes.BadCertificateUseNotAllowed,
-                    X509ChainStatusFlags.RevocationStatusUnknown => StatusCodes.BadCertificateRevocationUnknown,
-                    X509ChainStatusFlags.PartialChain => StatusCodes.BadCertificateChainIncomplete,
-                    X509ChainStatusFlags.ExplicitDistrust => StatusCodes.BadCertificateUntrusted,
-                    _ => StatusCodes.BadCertificateRevoked
-                };
+                    result.CertificateStatus = StatusCodes.BadCertificateTimeInvalid;
+                }
+                else if ((status & X509ChainStatusFlags.Revoked) ==
+                    X509ChainStatusFlags.Revoked)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
+                }
+                else if ((status & X509ChainStatusFlags.NotSignatureValid) ==
+                    X509ChainStatusFlags.NotSignatureValid)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateInvalid;
+                }
+                else if ((status & X509ChainStatusFlags.NotValidForUsage) ==
+                    X509ChainStatusFlags.NotValidForUsage)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateUseNotAllowed;
+                }
+                else if ((status & X509ChainStatusFlags.RevocationStatusUnknown) ==
+                    X509ChainStatusFlags.RevocationStatusUnknown)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateRevocationUnknown;
+                }
+                else if ((status & X509ChainStatusFlags.PartialChain) ==
+                    X509ChainStatusFlags.PartialChain)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateChainIncomplete;
+                }
+                else if ((status & X509ChainStatusFlags.ExplicitDistrust) ==
+                    X509ChainStatusFlags.ExplicitDistrust)
+                {
+                    result.CertificateStatus = StatusCodes.BadCertificateUntrusted;
+                }
+                else
+                {
+                    // If no matching found use StatusCodes.BadCertificateRevoked
+                    // Even though this is a no error = 0 case, the chain is invalid
+                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
+                }
             }
             catch (CryptographicException)
             {
@@ -972,7 +1002,7 @@ namespace Opc.Ua.Gds.Server
                         var url = new Uri(discoveryUrl);
 
                         if (url.Scheme == Utils.UriSchemeHttps &&
-                            Utils.AreDomainsEqual(commonName, url.DnsSafeHost))
+                            Utils.AreDomainsEqual(commonName, url.IdnHost))
                         {
                             found = true;
                             break;
@@ -1003,7 +1033,7 @@ namespace Opc.Ua.Gds.Server
 
                         if (url.Scheme == Utils.UriSchemeHttps)
                         {
-                            return url.DnsSafeHost;
+                            return url.IdnHost;
                         }
                     }
                 }
@@ -1081,7 +1111,7 @@ namespace Opc.Ua.Gds.Server
 
                         foreach (string name in names)
                         {
-                            if (Utils.AreDomainsEqual(name, url.DnsSafeHost))
+                            if (Utils.AreDomainsEqual(name, url.IdnHost))
                             {
                                 url = null;
                                 break;
@@ -1090,7 +1120,7 @@ namespace Opc.Ua.Gds.Server
 
                         if (url != null)
                         {
-                            names.Add(url.DnsSafeHost);
+                            names.Add(url.IdnHost);
                         }
                     }
                 }
@@ -1242,7 +1272,7 @@ namespace Opc.Ua.Gds.Server
                 subjectName,
                 domainNames,
                 privateKeyFormat,
-                privateKeyPassword,
+                privateKeyPassword?.ToCharArray(),
                 context.UserIdentity?.DisplayName);
 
             if (m_autoApprove)
@@ -1450,7 +1480,7 @@ namespace Opc.Ua.Gds.Server
                     out string subjectName,
                     out string[] domainNames,
                     out string privateKeyFormat,
-                    out string privateKeyPassword);
+                    out ReadOnlySpan<char> privateKeyPassword);
 
                 result.ServiceResult = VerifyApprovedState(state);
                 if (result.ServiceResult != null)
@@ -1501,7 +1531,7 @@ namespace Opc.Ua.Gds.Server
                                 subjectName,
                                 domainNames,
                                 privateKeyFormat,
-                                privateKeyPassword,
+                                privateKeyPassword.ToArray(),
                                 cancellationToken)
                             .Result;
                     }
@@ -1528,7 +1558,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                certificate = X509CertificateLoader.LoadCertificate(result.Certificate);
+                certificate = CertificateFactory.Create(result.Certificate);
             }
 
             // TODO: return chain, verify issuer chain cert is up to date, otherwise update local chain
@@ -1893,9 +1923,11 @@ namespace Opc.Ua.Gds.Server
                         StatusCodes.BadInvalidArgument,
                         "The request has already been accepted by the application.");
                 case CertificateRequestState.Approved:
-                    break;
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected CertificateRequestState {state}");
             }
-            return null;
         }
 
         private readonly bool m_autoApprove;

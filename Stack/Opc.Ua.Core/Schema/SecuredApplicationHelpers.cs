@@ -404,32 +404,13 @@ namespace Opc.Ua.Security
         /// </summary>
         private static ServerSecurityPolicy CreatePolicy(string profileUri)
         {
-            var policy = new ServerSecurityPolicy { SecurityPolicyUri = profileUri };
-
-            if (profileUri != null)
+            return new ServerSecurityPolicy
             {
-                switch (profileUri)
-                {
-                    case SecurityPolicies.None:
-                        policy.SecurityMode = MessageSecurityMode.None;
-                        break;
-                    case SecurityPolicies.Basic128Rsa15:
-                    case SecurityPolicies.Basic256:
-                    case SecurityPolicies.Basic256Sha256:
-                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                    case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    case SecurityPolicies.ECC_nistP256:
-                    case SecurityPolicies.ECC_brainpoolP256r1:
-                    case SecurityPolicies.ECC_nistP384:
-                    case SecurityPolicies.ECC_brainpoolP384r1:
-                    case SecurityPolicies.ECC_curve25519:
-                    case SecurityPolicies.ECC_curve448:
-                        policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                        break;
-                }
-            }
-
-            return policy;
+                SecurityPolicyUri = profileUri,
+                SecurityMode = profileUri == SecurityPolicies.None ?
+                    MessageSecurityMode.None :
+                    MessageSecurityMode.SignAndEncrypt
+            };
         }
 
         /// <summary>

@@ -74,6 +74,9 @@ namespace Quickstarts.ReferenceServer
             if (disposing)
             {
                 // TBD
+
+                Utils.SilentDispose(m_simulationTimer);
+                m_simulationTimer = null;
             }
             base.Dispose(disposing);
         }
@@ -110,8 +113,12 @@ namespace Quickstarts.ReferenceServer
                 case BuiltInType.Float:
                 case BuiltInType.Double:
                     return true;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return false;
+                default:
+                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
+                    return false;
             }
-            return false;
         }
 
         private static Range GetAnalogRange(BuiltInType builtInType)
@@ -138,7 +145,10 @@ namespace Quickstarts.ReferenceServer
                     return new Range(double.MaxValue, double.MinValue);
                 case BuiltInType.Byte:
                     return new Range(byte.MaxValue, byte.MinValue);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return new Range(sbyte.MaxValue, sbyte.MinValue);
                 default:
+                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
                     return new Range(sbyte.MaxValue, sbyte.MinValue);
             }
         }
@@ -3890,9 +3900,14 @@ namespace Quickstarts.ReferenceServer
 
                 AddPredefinedNode(SystemContext, root);
 
-                // reset random generator and generate boundary values
-                ResetRandomGenerator(100, 1);
-                m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
+                if (m_simulationEnabled)
+                {
+                    // reset random generator and generate boundary values
+                    ResetRandomGenerator(100, 1);
+
+                    Utils.SilentDispose(m_simulationTimer);
+                    m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
+                }
             }
         }
 
@@ -4532,7 +4547,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            TypeInfo parentTypeInfo = TypeInfo.Construct(parent.Value);
+            var parentTypeInfo = TypeInfo.Construct(parent.Value);
             Range parentRange = GetAnalogRange(parentTypeInfo.BuiltInType);
             if (parentRange.High < newRange.High || parentRange.Low > newRange.Low)
             {
@@ -4997,8 +5012,22 @@ namespace Quickstarts.ReferenceServer
 
         private void DoSimulation(object state)
         {
+            if (!m_simulationEnabled)
+            {
+                return;
+            }
+            int running = Interlocked.Increment(ref m_simulationsRunning);
             try
             {
+                if (running > 0)
+                {
+                    LogLevel logLevel = running > 1 ?
+                        running > 4 ? LogLevel.Warning : LogLevel.Information :
+                        LogLevel.Debug;
+                    m_logger.Log(logLevel,
+                        "Simulation timer fired while {Count} simulations are already queued to run.",
+                        running);
+                }
                 lock (Lock)
                 {
                     DateTime timeStamp = DateTime.UtcNow;
@@ -5012,7 +5041,11 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error doing simulation.");
+                m_logger.LogError(e, "Unexpected error doing simulation #{Count}.", running);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref m_simulationsRunning);
             }
         }
 
@@ -5087,6 +5120,7 @@ namespace Quickstarts.ReferenceServer
         private Timer m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
+        private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
 
         private static readonly bool[] s_booleanArray

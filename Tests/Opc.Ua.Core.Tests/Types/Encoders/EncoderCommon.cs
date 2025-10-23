@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -875,9 +876,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return decoder.ReadDiagnosticInfo(fieldName);
                 case BuiltInType.Variant:
                     return decoder.ReadVariant(fieldName);
+                default:
+                    NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
+                    return null;
             }
-            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
-            return null;
         }
 
         /// <summary>
@@ -1338,15 +1340,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             private readonly bool m_resetCounter;
         }
 
-        protected class DynamicEncodeableFactory : EncodeableFactory
+        protected class DynamicEncodeableFactory : IEncodeableFactory
         {
-            private readonly Dictionary<ExpandedNodeId, DynamicEncodeable> m_dynamicEncodeables
-                = [];
-
-            public DynamicEncodeableFactory(IEncodeableFactory factory, ITelemetryContext telemetry)
-                : base(factory, telemetry)
+            public DynamicEncodeableFactory(IEncodeableFactory factory)
             {
+                m_inner = factory;
             }
+
+            public IEnumerable<ExpandedNodeId> KnownTypeIds => m_inner.KnownTypeIds;
+
+            public IEncodeableFactoryBuilder Builder => m_inner.Builder;
 
             public DynamicEncodeable GetDynamicEncodeableForEncoding(ExpandedNodeId typeId)
             {
@@ -1366,11 +1369,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_dynamicEncodeables[encodeable.JsonEncodingId] = encodeable;
                 m_dynamicEncodeables[encodeable.BinaryEncodingId] = encodeable;
                 m_dynamicEncodeables[encodeable.TypeId] = encodeable;
-                AddEncodeableType(encodeable.XmlEncodingId, typeof(DynamicEncodeable));
-                AddEncodeableType(encodeable.JsonEncodingId, typeof(DynamicEncodeable));
-                AddEncodeableType(encodeable.BinaryEncodingId, typeof(DynamicEncodeable));
-                AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.XmlEncodingId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.JsonEncodingId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.BinaryEncodingId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
             }
+
+            public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType systemType)
+            {
+                return m_inner.TryGetEncodeableType(typeId, out systemType);
+            }
+
+            private readonly IEncodeableFactory m_inner;
+            private readonly Dictionary<ExpandedNodeId, DynamicEncodeable> m_dynamicEncodeables = [];
         }
     }
 }

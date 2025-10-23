@@ -45,7 +45,11 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            Dispose(true);
+            if (!m_disposed)
+            {
+                Dispose(true);
+                m_disposed = true;
+            }
             GC.SuppressFinalize(this);
         }
 
@@ -348,6 +352,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the list of base addresses.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
             BaseAddresses = [];
@@ -405,6 +410,9 @@ namespace Opc.Ua
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            $"Unsupported scheme for base address: {address.Url}");
                 }
 
                 BaseAddresses.Add(address);
@@ -805,9 +813,8 @@ namespace Opc.Ua
             {
                 m_logger.LogError(
                     e,
-                    "Could not load {Scheme} Stack Listener. {Message}",
-                    endpointUri.Scheme,
-                    e.InnerException.Message);
+                    "Could not load {Scheme} Stack Listener.",
+                    endpointUri.Scheme);
                 throw;
             }
         }
@@ -990,7 +997,7 @@ namespace Opc.Ua
             var accessibleAddresses = new List<BaseAddress>();
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                if (baseAddress.Url.DnsSafeHost == endpointUrl.DnsSafeHost)
+                if (baseAddress.Url.IdnHost == endpointUrl.IdnHost)
                 {
                     accessibleAddresses.Add(baseAddress);
                     continue;
@@ -1000,7 +1007,7 @@ namespace Opc.Ua
                 {
                     foreach (Uri alternateUrl in baseAddress.AlternateUrls)
                     {
-                        if (alternateUrl.DnsSafeHost == endpointUrl.DnsSafeHost)
+                        if (alternateUrl.IdnHost == endpointUrl.IdnHost)
                         {
                             if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
                             {
@@ -1024,7 +1031,7 @@ namespace Opc.Ua
             }
 
             // client gets all of the endpoints if it using a known variant of the hostname
-            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
+            if (NormalizeHostname(endpointUrl.IdnHost) == NormalizeHostname("localhost"))
             {
                 return baseAddresses;
             }
@@ -1667,5 +1674,6 @@ namespace Opc.Ua
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server
         /// </summary>
         private int m_userTokenPolicyId;
+        private bool m_disposed;
     }
 }

@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate.HasPrivateKey)
             {
-                certificate = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                certificate = CertificateFactory.Create(certificate.RawData);
             }
             Certificate = certificate;
             PrivateKeyFormat = privateKeyFormat;
@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword,
+            char[] privateKeyPassword,
             CancellationToken ct = default);
     }
 }

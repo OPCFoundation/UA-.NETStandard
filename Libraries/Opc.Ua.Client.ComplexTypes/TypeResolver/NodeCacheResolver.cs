@@ -89,6 +89,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_session = lruNodeCache.Session;
             m_lruNodeCache = lruNodeCache;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
+            FactoryBuilder = m_session.Factory.Builder;
         }
 #else
         /// <summary>
@@ -98,6 +99,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_session = session;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
+            FactoryBuilder = m_session.Factory.Builder;
         }
 #endif
 
@@ -105,7 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
         /// <inheritdoc/>
-        public IEncodeableFactory Factory => m_session.Factory;
+        public IEncodeableFactoryBuilder FactoryBuilder { get; }
 
         /// <inheritdoc/>
         public NodeIdDictionary<DataDictionary> DataTypeSystem { get; } = [];
@@ -475,10 +477,17 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Helper to load a DataDictionary by its NodeId.
         /// </summary>
-        internal async Task<DataDictionary> LoadDictionaryAsync(NodeId dictionaryId, string name)
+        internal async Task<DataDictionary> LoadDictionaryAsync(
+            NodeId dictionaryId,
+            string name,
+            CancellationToken ct = default)
         {
             var dictionaryToLoad = new DataDictionary();
-            await LoadDictionaryAsync(dictionaryToLoad, dictionaryId, name).ConfigureAwait(false);
+            await LoadDictionaryAsync(
+                dictionaryToLoad,
+                dictionaryId,
+                name,
+                ct: ct).ConfigureAwait(false);
             return dictionaryToLoad;
         }
 
@@ -640,9 +649,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (schema == null || schema.Length == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Cannot parse empty data dictionary.");
+                throw ServiceResultException.Unexpected("Cannot parse empty data dictionary.");
             }
 
             // Interoperability: some server may return a null terminated dictionary string

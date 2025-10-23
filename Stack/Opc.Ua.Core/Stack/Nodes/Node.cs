@@ -60,6 +60,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="source">The source.</param>
         /// <returns>A copy of the source node</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static Node Copy(ILocalNode source)
         {
             if (source == null)
@@ -85,49 +86,52 @@ namespace Opc.Ua
                     return new MethodNode(source);
                 case NodeClass.View:
                     return new ViewNode(source);
-            }
+                case NodeClass.Unspecified:
+                    if (source is IObject)
+                    {
+                        return new ObjectNode(source);
+                    }
 
-            if (source is IObject)
-            {
-                return new ObjectNode(source);
-            }
+                    if (source is IVariable)
+                    {
+                        return new VariableNode(source);
+                    }
 
-            if (source is IVariable)
-            {
-                return new VariableNode(source);
-            }
+                    if (source is IObjectType)
+                    {
+                        return new ObjectTypeNode(source);
+                    }
 
-            if (source is IObjectType)
-            {
-                return new ObjectTypeNode(source);
-            }
+                    if (source is IVariableType)
+                    {
+                        return new VariableTypeNode(source);
+                    }
 
-            if (source is IVariableType)
-            {
-                return new VariableTypeNode(source);
-            }
+                    if (source is IDataType)
+                    {
+                        return new DataTypeNode(source);
+                    }
 
-            if (source is IDataType)
-            {
-                return new DataTypeNode(source);
-            }
+                    if (source is IReferenceType)
+                    {
+                        return new ReferenceTypeNode(source);
+                    }
 
-            if (source is IReferenceType)
-            {
-                return new ReferenceTypeNode(source);
-            }
+                    if (source is IMethod)
+                    {
+                        return new MethodNode(source);
+                    }
 
-            if (source is IMethod)
-            {
-                return new MethodNode(source);
-            }
+                    if (source is IView)
+                    {
+                        return new ViewNode(source);
+                    }
 
-            if (source is IView)
-            {
-                return new ViewNode(source);
+                    return new Node(source);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected NodeClass {source.NodeClass}");
             }
-
-            return new Node(source);
         }
 
         /// <summary>
@@ -280,9 +284,10 @@ namespace Opc.Ua
                 case Attributes.UserRolePermissions:
                 case Attributes.AccessRestrictions:
                     return true;
+                default:
+                    Attributes.ThrowIfOutOfRange(attributeId);
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -329,16 +334,15 @@ namespace Opc.Ua
                 case Attributes.NodeId:
                 case Attributes.NodeClass:
                     return StatusCodes.BadNotWritable;
+                default:
+                    // check data type.
+                    if (attributeId != Attributes.Value &&
+                        Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
+                    {
+                        return StatusCodes.BadTypeMismatch;
+                    }
+                    return Write(attributeId, value.Value);
             }
-
-            // check data type.
-            if (attributeId != Attributes.Value &&
-                Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
-            {
-                return StatusCodes.BadTypeMismatch;
-            }
-
-            return Write(attributeId, value.Value);
         }
 
         /// <summary>
@@ -444,9 +448,10 @@ namespace Opc.Ua
                     return m_userRolePermissions;
                 case Attributes.AccessRestrictions:
                     return m_accessRestrictions;
+                default:
+                    Attributes.ThrowIfOutOfRange(attributeId);
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -484,6 +489,7 @@ namespace Opc.Ua
                     m_accessRestrictions = (ushort)value;
                     break;
                 default:
+                    Attributes.ThrowIfOutOfRange(attributeId);
                     return StatusCodes.BadAttributeIdInvalid;
             }
 
@@ -793,9 +799,9 @@ namespace Opc.Ua
                     return true;
                 case Attributes.ArrayDimensions:
                     return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -832,9 +838,9 @@ namespace Opc.Ua
                     }
 
                     return m_arrayDimensions.ToArray();
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -899,9 +905,9 @@ namespace Opc.Ua
                     }
 
                     return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 
@@ -936,9 +942,9 @@ namespace Opc.Ua
             {
                 case Attributes.EventNotifier:
                     return true;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -952,9 +958,9 @@ namespace Opc.Ua
             {
                 case Attributes.EventNotifier:
                     return m_eventNotifier;
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -1007,9 +1013,9 @@ namespace Opc.Ua
             {
                 case Attributes.IsAbstract:
                     return true;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -1023,9 +1029,9 @@ namespace Opc.Ua
             {
                 case Attributes.IsAbstract:
                     return m_isAbstract;
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -1041,9 +1047,9 @@ namespace Opc.Ua
                 case Attributes.IsAbstract:
                     m_isAbstract = (bool)value;
                     return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 
@@ -1122,9 +1128,9 @@ namespace Opc.Ua
                     return true;
                 case Attributes.ArrayDimensions:
                     return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -1150,9 +1156,9 @@ namespace Opc.Ua
                     }
 
                     return m_arrayDimensions.ToArray();
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -1202,9 +1208,9 @@ namespace Opc.Ua
                     }
 
                     return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 
@@ -1243,9 +1249,9 @@ namespace Opc.Ua
                 case Attributes.InverseName:
                 case Attributes.Symmetric:
                     return true;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -1263,9 +1269,9 @@ namespace Opc.Ua
                     return m_inverseName;
                 case Attributes.Symmetric:
                     return m_symmetric;
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -1287,9 +1293,9 @@ namespace Opc.Ua
                 case Attributes.Symmetric:
                     m_symmetric = (bool)value;
                     return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 
@@ -1326,9 +1332,9 @@ namespace Opc.Ua
                 case Attributes.Executable:
                 case Attributes.UserExecutable:
                     return true;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -1344,9 +1350,9 @@ namespace Opc.Ua
                     return m_executable;
                 case Attributes.UserExecutable:
                     return m_userExecutable;
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -1365,9 +1371,9 @@ namespace Opc.Ua
                 case Attributes.UserExecutable:
                     m_userExecutable = (bool)value;
                     return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 
@@ -1404,9 +1410,9 @@ namespace Opc.Ua
                 case Attributes.EventNotifier:
                 case Attributes.ContainsNoLoops:
                     return true;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -1422,9 +1428,9 @@ namespace Opc.Ua
                     return m_eventNotifier;
                 case Attributes.ContainsNoLoops:
                     return m_containsNoLoops;
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -1443,9 +1449,9 @@ namespace Opc.Ua
                 case Attributes.ContainsNoLoops:
                     m_containsNoLoops = (bool)value;
                     return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 
@@ -1481,9 +1487,9 @@ namespace Opc.Ua
                 case Attributes.IsAbstract:
                 case Attributes.DataTypeDefinition:
                     return true;
+                default:
+                    return base.SupportsAttribute(attributeId);
             }
-
-            return base.SupportsAttribute(attributeId);
         }
 
         /// <summary>
@@ -1499,9 +1505,9 @@ namespace Opc.Ua
                     return m_isAbstract;
                 case Attributes.DataTypeDefinition:
                     return m_dataTypeDefinition;
+                default:
+                    return base.Read(attributeId);
             }
-
-            return base.Read(attributeId);
         }
 
         /// <summary>
@@ -1520,9 +1526,9 @@ namespace Opc.Ua
                 case Attributes.DataTypeDefinition:
                     m_dataTypeDefinition = (ExtensionObject)value;
                     return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 }

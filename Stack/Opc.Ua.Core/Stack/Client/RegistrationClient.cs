@@ -95,8 +95,7 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 clientCertificate,
-                messageContext,
-                telemetry);
+                messageContext);
 
             // create a registration channel.
             if (channel == null)

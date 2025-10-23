@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
         public XmlEncoder(Type systemType, XmlWriter writer, IServiceMessageContext context)
-            : this(EncodeableFactory.GetXmlName(systemType), writer, context)
+            : this(TypeInfo.GetXmlName(systemType), writer, context)
         {
         }
 
@@ -1749,7 +1749,7 @@ namespace Opc.Ua
 
                 // get name for type being encoded.
                 XmlQualifiedName xmlName =
-                    EncodeableFactory.GetXmlName(systemType)
+                    TypeInfo.GetXmlName(systemType)
                     ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
@@ -1799,7 +1799,7 @@ namespace Opc.Ua
 
                 // get name for type being encoded.
                 XmlQualifiedName xmlName =
-                    EncodeableFactory.GetXmlName(systemType) ??
+                    TypeInfo.GetXmlName(systemType) ??
                     new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
@@ -1926,6 +1926,20 @@ namespace Opc.Ua
                         case BuiltInType.Enumeration:
                             WriteInt32("Int32", (int)value);
                             return;
+                        case BuiltInType.Null:
+                        case BuiltInType.Variant:
+                        case BuiltInType.DiagnosticInfo:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            throw new ServiceResultException(
+                                StatusCodes.BadEncodingError,
+                                Utils.Format(
+                                    "Type '{0}' is not allowed in an Variant.",
+                                    value.GetType().FullName));
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
                 // write array.
@@ -2042,6 +2056,19 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 value.GetType());
+                        case BuiltInType.Null:
+                        case BuiltInType.DiagnosticInfo:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            throw new ServiceResultException(
+                                StatusCodes.BadEncodingError,
+                                Utils.Format(
+                                    "Type '{0}' is not allowed in an Variant.",
+                                    value.GetType().FullName));
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
                 // write matrix.
@@ -2050,13 +2077,6 @@ namespace Opc.Ua
                     WriteMatrix("Matrix", (Matrix)value);
                     return;
                 }
-
-                // oops - should never happen.
-                throw new ServiceResultException(
-                    StatusCodes.BadEncodingError,
-                    Utils.Format(
-                        "Type '{0}' is not allowed in an Variant.",
-                        value.GetType().FullName));
             }
             finally
             {
@@ -2107,7 +2127,7 @@ namespace Opc.Ua
             }
 
             // encode extension object in xml.
-            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, Context);
+            XmlQualifiedName xmlName = TypeInfo.GetXmlName(encodeable, Context);
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
             encodeable.Encode(this);
             m_writer.WriteEndElement();
@@ -2242,30 +2262,34 @@ namespace Opc.Ua
                         case BuiltInType.Enumeration:
                             if (array is not int[] ints)
                             {
-                                if (array is not Enum[] enums)
+                                if (array is Enum[] enums)
                                 {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadEncodingError,
-                                        Utils.Format(
-                                            "Type '{0}' is not allowed in an Enumeration.",
-                                            array.GetType().FullName));
+                                    ints = new int[enums.Length];
+                                    for (int ii = 0; ii < enums.Length; ii++)
+                                    {
+                                        ints[ii] = Convert.ToInt32(
+                                            enums[ii],
+                                            CultureInfo.InvariantCulture);
+                                    }
                                 }
-                                ints = new int[enums.Length];
-                                for (int ii = 0; ii < enums.Length; ii++)
+                                else if (array is null)
                                 {
-                                    ints[ii] = Convert.ToInt32(
-                                        enums[ii],
-                                        CultureInfo.InvariantCulture);
+                                    ints = null;
+                                }
+                                else
+                                {
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadEncodingError,
+                                        "Type '{0}' is not allowed in an Enumeration.",
+                                        array.GetType().FullName);
                                 }
                             }
-
                             WriteInt32Array(fieldName, ints);
                             return;
                         case BuiltInType.Variant:
-                        {
-                            if (array is Variant[] variants)
+                            if (array is null or Variant[])
                             {
-                                WriteVariantArray(fieldName, variants);
+                                WriteVariantArray(fieldName, (Variant[])array);
                                 return;
                             }
 
@@ -2289,16 +2313,17 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 array.GetType());
-                        }
-                        default:
-                        {
+                        case BuiltInType.Null:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
                             // try to write IEncodeable Array
-                            if (array is IEncodeable[] encodeableArray)
+                            if (array is null or IEncodeable[])
                             {
                                 WriteEncodeableArray(
                                     fieldName,
-                                    encodeableArray,
-                                    array.GetType().GetElementType());
+                                    (IEncodeable[])array,
+                                    array?.GetType().GetElementType());
                                 return;
                             }
 
@@ -2306,7 +2331,9 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected BuiltInType encountered while encoding an array: {0}",
                                 builtInType);
-                        }
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {builtInType}");
                     }
                 }
                 // write matrix.

@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -70,6 +71,12 @@ namespace Opc.Ua.Gds.Server
         public CertificateStoreIdentifier IssuerCertificatesStore { get; }
 
         protected string SubjectName { get; }
+
+        [Obsolete("Use CertificateGroup(TelemetryContext) instead")]
+        public CertificateGroup()
+            : this(null)
+        {
+        }
 
         public CertificateGroup(ITelemetryContext telemetry)
         {
@@ -230,7 +237,7 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword,
+            char[] privateKeyPassword,
             CancellationToken ct = default)
         {
             if (application == null)
@@ -250,11 +257,10 @@ namespace Opc.Ua.Gds.Server
 
             using X509Certificate2 signingKey = await LoadSigningKeyAsync(
                 Certificates[certificateType],
-                string.Empty,
+                null,
                 m_telemetry,
                 ct)
                 .ConfigureAwait(false);
-            X509Certificate2 certificate;
 
             ICertificateBuilderIssuer builder = CertificateFactory
                 .CreateCertificate(
@@ -266,17 +272,30 @@ namespace Opc.Ua.Gds.Server
                     domainNames)
                 .SetIssuer(signingKey);
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+            using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder.CreateForRSA();
 #else
-            certificate = builder.CreateForRSA();
+            using X509Certificate2 certificate = builder.CreateForRSA();
 #endif
 
             byte[] privateKey;
             if (privateKeyFormat == "PFX")
             {
-                privateKey = certificate.Export(X509ContentType.Pfx, privateKeyPassword);
+                if (privateKeyPassword == null || privateKeyPassword.Length == 0)
+                {
+                    privateKey = certificate.Export(X509ContentType.Pfx);
+                }
+                else
+                {
+                    using var passwordString = new SecureString();
+                    foreach (char c in privateKeyPassword)
+                    {
+                        passwordString.AppendChar(c);
+                    }
+                    passwordString.MakeReadOnly();
+                    privateKey = certificate.Export(X509ContentType.Pfx, passwordString);
+                }
             }
             else if (privateKeyFormat == "PEM")
             {
@@ -289,8 +308,7 @@ namespace Opc.Ua.Gds.Server
                     "Invalid private key format");
             }
 
-            X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
-            Utils.SilentDispose(certificate);
+            X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
 
             return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
         }
@@ -414,7 +432,7 @@ namespace Opc.Ua.Gds.Server
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using X509Certificate2 signingKey = await LoadSigningKeyAsync(
                     Certificates[certificateType],
-                    string.Empty,
+                    null,
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false);
@@ -483,8 +501,6 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            X509Certificate2 certificate;
-
             ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
@@ -492,7 +508,7 @@ namespace Opc.Ua.Gds.Server
                 .SetCAConstraint();
 
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+            using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder
                     .SetHashAlgorithm(
@@ -500,21 +516,29 @@ namespace Opc.Ua.Gds.Server
                     .SetRSAKeySize(Configuration.CACertificateKeySize)
                     .CreateForRSA();
 #else
-            certificate = builder
+            using X509Certificate2 certificate = builder
                 .SetHashAlgorithm(
                     X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                 .SetRSAKeySize(Configuration.CACertificateKeySize)
                 .CreateForRSA();
 #endif
 
-            await certificate.AddToStoreAsync(AuthoritiesStore, password: null, m_telemetry, ct).ConfigureAwait(false);
+            await certificate.AddToStoreAsync(
+                AuthoritiesStore,
+                password: null,
+                m_telemetry,
+                ct).ConfigureAwait(false);
 
             // save only public key
-            Certificates[certificateType] = X509CertificateLoader.LoadCertificate(
-                certificate.RawData);
+            Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
 
             // initialize revocation list
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, m_telemetry, ct)
+            X509CRL crl = await RevokeCertificateAsync(
+                AuthoritiesStore,
+                certificate,
+                issuerKeyFilePassword: null,
+                m_telemetry,
+                ct)
                 .ConfigureAwait(false);
 
             //Update TrustedList Store
@@ -534,8 +558,6 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            Utils.SilentDispose(certificate);
-
             return Certificates[certificateType];
         }
 
@@ -544,7 +566,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         public virtual Task<X509Certificate2> LoadSigningKeyAsync(
             X509Certificate2 signingCertificate,
-            string signingKeyPassword,
+            char[] signingKeyPassword,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
@@ -567,7 +589,7 @@ namespace Opc.Ua.Gds.Server
         public static async Task<X509CRL> RevokeCertificateAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2 certificate,
-            string issuerKeyFilePassword = null,
+            char[] issuerKeyFilePassword = null,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
@@ -734,7 +756,7 @@ namespace Opc.Ua.Gds.Server
                             .ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(
+                            using X509Certificate2 x509 = CertificateFactory.Create(
                                 certificate.RawData);
                             await trustedOrIssuerStore.AddAsync(x509, ct: ct).ConfigureAwait(false);
                         }

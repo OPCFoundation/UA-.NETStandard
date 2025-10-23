@@ -194,6 +194,11 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                m_logger.LogError(e,
+                    "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId}",
+                    Socket.Handle,
+                    ChannelId);
+
                 Shutdown(ServiceResult.Create(
                     e,
                     StatusCodes.BadTcpInternalError,
@@ -221,12 +226,17 @@ namespace Opc.Ua.Bindings
             {
                 await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
                 m_logger.LogInformation(
-                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId}",
+                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId} (Async)",
                     Socket.Handle,
                     ChannelId);
             }
             catch (Exception e)
             {
+                m_logger.LogError(e,
+                    "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId} (Async)",
+                    Socket.Handle,
+                    ChannelId);
+
                 Shutdown(ServiceResult.Create(
                     e,
                     StatusCodes.BadTcpInternalError,
@@ -687,6 +697,10 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                m_logger.LogDebug(e,
+                   "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",
+                   ChannelId);
+
                 ForceReconnect(
                     ServiceResult.Create(
                         e,
@@ -783,6 +797,10 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                m_logger.LogError(e,
+                   "ChannelId {ChannelId}: Could not process OpenSecureChannelResponse",
+                   ChannelId);
+
                 m_handshakeOperation.Fault(
                     e,
                     StatusCodes.BadTcpInternalError,
@@ -1092,7 +1110,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError("ChannelId {ChannelId}: Reconnect Failed {Message}.", ChannelId, e.Message);
+                m_logger.LogError(e, "ChannelId {ChannelId}: Reconnect Failed.", ChannelId);
                 ForceReconnect(
                     ServiceResult.Create(
                         e,
@@ -1124,7 +1142,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "ChannelId {ChannelId}: Handshake Failed {Message}", ChannelId, e.Message);
+                    m_logger.LogError(e, "ChannelId {ChannelId}: Handshake Failed", ChannelId);
 
                     error = ServiceResult.Create(
                         e,
@@ -1132,8 +1150,9 @@ namespace Opc.Ua.Bindings
                         "Unexpected error reconnecting or renewing a token.");
 
                     // check for expired channel or token.
-                    if (error.Code is StatusCodes.BadTcpSecureChannelUnknown or StatusCodes
-                        .BadSecurityChecksFailed)
+                    if (error.Code is
+                            StatusCodes.BadTcpSecureChannelUnknown or
+                            StatusCodes.BadSecurityChecksFailed)
                     {
                         m_logger.LogError("ChannelId {ChannelId}: Cannot Recover Channel", ChannelId);
                         Shutdown(error);
@@ -1164,7 +1183,9 @@ namespace Opc.Ua.Bindings
                 // check for valid token.
                 ChannelToken token =
                     CurrentToken ??
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel{0}: Token missing to send request on client channel.", Id);
 
                 // must return an error to the client if limits are exceeded.
 
@@ -1433,8 +1454,7 @@ namespace Opc.Ua.Bindings
             };
             if (!m_requests.TryAdd(operation.RequestId, operation))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Could not add request {0} to list of pending operations.",
                     operation.RequestId);
             }
@@ -1620,7 +1640,9 @@ namespace Opc.Ua.Bindings
             // check for valid token.
             ChannelToken currentToken =
                 CurrentToken ??
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel{0}:Token missing to send close secure channel request on client channel.", Id);
 
             var request = new CloseSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;

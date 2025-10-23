@@ -3893,8 +3893,8 @@ namespace Opc.Ua.Server
                 return error;
             }
 
-            ISampledDataChangeMonitoredItem dataChangeMonitoredItem = m_monitoredItemManager
-                .CreateMonitoredItem(
+            ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
+                m_monitoredItemManager.CreateMonitoredItem(
                     Server,
                     this,
                     context,
@@ -3909,7 +3909,7 @@ namespace Opc.Ua.Server
                     samplingInterval,
                     revisedQueueSize,
                     createDurable,
-                    monitoredItemId.GetNextId(),
+                    monitoredItemId,
                     AddNodeToComponentCache);
 
             monitoredItem = dataChangeMonitoredItem;

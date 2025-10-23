@@ -324,6 +324,28 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a calculator for one of the standard aggregates.
         /// </summary>
+        [Obsolete("Use CreateStandardCalculator with telemetry context.")]
+        public static IAggregateCalculator CreateStandardCalculator(
+            NodeId aggregateId,
+            DateTime startTime,
+            DateTime endTime,
+            double processingInterval,
+            bool stepped,
+            AggregateConfiguration configuration)
+        {
+            return CreateStandardCalculator(
+                aggregateId,
+                startTime,
+                endTime,
+                processingInterval,
+                stepped,
+                configuration,
+                null);
+        }
+
+        /// <summary>
+        /// Creates a calculator for one of the standard aggregates.
+        /// </summary>
         public static IAggregateCalculator CreateStandardCalculator(
             NodeId aggregateId,
             DateTime startTime,

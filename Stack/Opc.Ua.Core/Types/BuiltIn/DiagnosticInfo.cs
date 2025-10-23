@@ -108,6 +108,32 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a ServiceResult.
         /// </summary>
+        [Obsolete("Use DiagnosticInfo(ServiceResult, DiagnosticsMasks, bool, StringTable, ILogger) instead.")]
+        public DiagnosticInfo(
+            ServiceResult result,
+            DiagnosticsMasks diagnosticsMask,
+            bool serviceLevel,
+            StringTable stringTable)
+            : this(result, diagnosticsMask, serviceLevel, stringTable, 0, Utils.Fallback.Logger)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an exception.
+        /// </summary>
+        [Obsolete("Use DiagnosticInfo(Exception, DiagnosticsMasks, bool, StringTable, ILogger) instead.")]
+        public DiagnosticInfo(
+            Exception exception,
+            DiagnosticsMasks diagnosticsMask,
+            bool serviceLevel,
+            StringTable stringTable)
+            : this(exception, diagnosticsMask, serviceLevel, stringTable, Utils.Fallback.Logger)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a ServiceResult.
+        /// </summary>
         /// <param name="result">The overall transaction result</param>
         /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>

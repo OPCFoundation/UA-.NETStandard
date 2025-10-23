@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,11 +66,10 @@ namespace Opc.Ua.Client.ComplexTypes
             => m_complexTypeResolver.DataTypeSystem;
 
         /// <summary>
-        /// Obsolete constructor
+        /// Initializes the type system with a session to load the custom types.
         /// </summary>
-        [Obsolete("Use ComplexTypeSystem(ISession, ITelemetryContext) instead.")]
         public ComplexTypeSystem(ISession session)
-            : this(session, (ITelemetryContext)null)
+            : this(session, session.MessageContext.Telemetry)
         {
         }
 
@@ -101,13 +101,12 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Obsolete constructor
+        /// Create complex type system with session and custom type builder factory
         /// </summary>
-        [Obsolete("Use ComplexTypeSystem(IComplexTypeResolver, ITelemetryContext) instead.")]
         public ComplexTypeSystem(
             ISession session,
             IComplexTypeFactory complexTypeBuilderFactory)
-            : this(session, complexTypeBuilderFactory, null)
+            : this(session, complexTypeBuilderFactory, session.MessageContext.Telemetry)
         {
         }
 
@@ -210,6 +209,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                     }
                 }
+                // Commit the changes to the factory
+                m_complexTypeResolver.FactoryBuilder.Commit();
                 return GetSystemType(nodeId);
             }
             catch (Exception ex)
@@ -273,6 +274,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     return await LoadDictionaryDataTypesAsync(serverEnumTypes, false, ct)
                         .ConfigureAwait(false);
                 }
+                // Commit the changes to the factory
+                m_complexTypeResolver.FactoryBuilder.Commit();
                 return true;
             }
             catch (Exception ex)
@@ -345,6 +348,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     return await LoadDictionaryDataTypesAsync(serverEnumTypes, true, ct)
                         .ConfigureAwait(false);
                 }
+                // Commit the changes to the factory
+                m_complexTypeResolver.FactoryBuilder.Commit();
                 return true;
             }
             catch (Exception ex)
@@ -1066,7 +1071,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 nodeId = NormalizeExpandedNodeId(nodeId);
             }
-            return m_complexTypeResolver.Factory.GetSystemType(nodeId);
+            return m_complexTypeResolver.FactoryBuilder.GetSystemType(nodeId);
         }
 
         /// <summary>
@@ -1156,7 +1161,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(nodeId);
             m_logger.LogDebug("Adding Type {DataType} as: {NodeId}", type.FullName, internalNodeId);
-            m_complexTypeResolver.Factory.AddEncodeableType(internalNodeId, type);
+            m_complexTypeResolver.FactoryBuilder.AddEncodeableType(internalNodeId, type);
         }
 
         /// <summary>
@@ -1301,8 +1306,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 case StructureType.UnionWithSubtypedValues:
                 case StructureType.StructureWithSubtypedValues:
                     return true;
+                case StructureType.Structure:
+                case StructureType.StructureWithOptionalFields:
+                case StructureType.Union:
+                    return false;
+                default:
+                    Debug.Fail($"Unexpected StructureType {structureDefinition.StructureType}.");
+                    return false;
             }
-            return false;
         }
 
         private async Task<bool> IsAbstractTypeAsync(
@@ -1338,7 +1349,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             Type fieldType =
                 field.DataType.NamespaceIndex == 0
-                    ? TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.Factory)
+                    ? TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.FactoryBuilder)
                     : GetSystemType(field.DataType);
 
             if (fieldType == null)
@@ -1475,8 +1486,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "Unexpected Type in binary schema: {0}.",
                         item.GetType().Name);
                 }

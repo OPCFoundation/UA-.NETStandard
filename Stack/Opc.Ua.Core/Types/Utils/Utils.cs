@@ -15,7 +15,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -30,7 +29,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Microsoft.Extensions.Logging;
 #if !NETFRAMEWORK
 using Opc.Ua.Security.Certificates;
 #endif
@@ -221,9 +219,9 @@ namespace Opc.Ua
             {
                 case "CommonApplicationData":
                     return "ProgramData";
+                default:
+                    return input;
             }
-
-            return input;
         }
 
         /// <summary>
@@ -919,8 +917,8 @@ namespace Opc.Ua
 
             try
             {
-                string domain1 = url1.DnsSafeHost;
-                string domain2 = url2.DnsSafeHost;
+                string domain1 = url1.IdnHost;
+                string domain2 = url2.IdnHost;
 
                 // replace localhost with the computer name.
                 if (domain1 == "localhost")
@@ -993,7 +991,7 @@ namespace Opc.Ua
             // replace localhost with the current hostname.
             Uri parsedUri = ParseUri(instanceUri);
 
-            if (parsedUri != null && parsedUri.DnsSafeHost == "localhost")
+            if (parsedUri != null && parsedUri.IdnHost == "localhost")
             {
                 var builder = new UriBuilder(parsedUri) { Host = GetHostName() };
                 return builder.Uri.ToString();
@@ -1025,20 +1023,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the identifier to a new start value. Thread safe.
+        /// Sets the identifier to a new value. Thread safe.
         /// </summary>
         /// <returns>Returns the new value.</returns>
         public static uint SetIdentifier(ref uint identifier, uint newIdentifier)
         {
-            uint value;
-            uint exchangedValue;
-            do
-            {
-                value = identifier;
-                ref int id = ref Unsafe.As<uint, int>(ref identifier);
-                exchangedValue = (uint)Interlocked.CompareExchange(ref id, (int)newIdentifier, (int)value);
-            } while (exchangedValue != value);
-            return value;
+            Debug.Assert(newIdentifier != 0);
+#if NET8_0_OR_GREATER
+            return Interlocked.Exchange(ref identifier, newIdentifier);
+#else
+            ref int id = ref Unsafe.As<uint, int>(ref identifier);
+            return (uint)Interlocked.Exchange(ref id, (int)newIdentifier);
+#endif
         }
 
         /// <summary>
@@ -1046,11 +1042,15 @@ namespace Opc.Ua
         /// </summary>
         public static uint IncrementIdentifier(ref uint identifier)
         {
-            ref int id = ref Unsafe.As<uint, int>(ref identifier);
             uint result;
             do
             {
+#if NET8_0_OR_GREATER
+                result = Interlocked.Increment(ref identifier);
+#else
+                ref int id = ref Unsafe.As<uint, int>(ref identifier);
                 result = (uint)Interlocked.Increment(ref id);
+#endif
             }
             while (result == 0);
             return result;
@@ -2142,7 +2142,7 @@ namespace Opc.Ua
             if (elementName == null)
             {
                 // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
+                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
 
                 elementName =
                     qname ??
@@ -2229,7 +2229,7 @@ namespace Opc.Ua
             if (elementName == null)
             {
                 // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
+                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
 
                 elementName =
                     qname ??
@@ -2323,7 +2323,9 @@ namespace Opc.Ua
             {
                 if (field.Name == name)
                 {
-                    return (uint)field.GetValue(constants);
+                    return Convert.ToUInt32(
+                        field.GetValue(constants),
+                        CultureInfo.InvariantCulture);
                 }
             }
 
@@ -2475,24 +2477,17 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             bool useAsnParser = false)
         {
-            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-            // use AsnParser on macOS to parse for byteblobs,
-#if !NETFRAMEWORK
-            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#endif
             try
             {
 #if !NETFRAMEWORK
-                if (useAsnParser)
+                // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+                // use AsnParser on macOS to parse for byteblobs,
+                if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
-                    return CertificateFactory.Create(certBlob, true, telemetry);
+                    certificateData = AsnUtils.ParseX509Blob(certificateData);
                 }
-                else
 #endif
-                {
-                    return CertificateFactory.Create(certificateData, true, telemetry);
-                }
+                return CertificateFactory.Create(certificateData);
             }
             catch (Exception e)
             {
@@ -2516,12 +2511,6 @@ namespace Opc.Ua
             bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
-
-            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-            // use AsnParser on macOS to parse for byteblobs,
-#if !NETFRAMEWORK
-            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#endif
             int offset = 0;
             int length = certificateData.Length;
             while (offset < length)
@@ -2529,18 +2518,16 @@ namespace Opc.Ua
                 X509Certificate2 certificate;
                 try
                 {
+                    ReadOnlyMemory<byte> certBlob = certificateData[offset..];
 #if !NETFRAMEWORK
-                    if (useAsnParser)
+                    // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+                    // use AsnParser on macOS to parse for byteblobs,
+                    if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     {
-                        ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(
-                            certificateData[offset..]);
-                        certificate = CertificateFactory.Create(certBlob, true, telemetry);
+                        certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
-                    else
 #endif
-                    {
-                        certificate = CertificateFactory.Create(certificateData[offset..], true, telemetry);
-                    }
+                    certificate = CertificateFactory.Create(certBlob);
                 }
                 catch (Exception e)
                 {
@@ -2696,8 +2683,7 @@ namespace Opc.Ua
             // check for a valid seed.
             if (seed == null)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The HMAC algorithm requires a non-null seed.");
             }
 
@@ -2790,50 +2776,39 @@ namespace Opc.Ua
         /// <param name="certificateType">The certificate type to check.</param>
         public static bool IsSupportedCertificateType(NodeId certificateType)
         {
-            // Handle null or NodeId.Null certificate types
-            // This occurs when:
-            // 1. CertificateIdentifier.CertificateType was never set (property is null)
-            // 2. GetCertificateType() returned NodeId.Null for unknown signature algorithms
-            // 
-            // Return true (don't reject) to allow further certificate validation to proceed.
-            // The actual certificate signature and validity checks will still happen elsewhere.
-            // Older code that doesn't set CertificateType should still work.
-            if (certificateType == null || NodeId.IsNull(certificateType))
+            if (certificateType.Identifier is not uint identifier)
             {
-                return true;
+                return false;
             }
-
-            if (certificateType.Identifier is uint identifier)
+            switch (identifier)
             {
-                switch (identifier)
-                {
 #if ECC_SUPPORT
-                    case ObjectTypes.EccApplicationCertificateType:
-                        return true;
-                    case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[
-                            ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[
-                            ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccNistP256ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
-                            .Value;
-                    case ObjectTypes.EccNistP384ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
-                            .Value;
-                    //case ObjectTypes.EccCurve25519ApplicationCertificateType:
-                    //case ObjectTypes.EccCurve448ApplicationCertificateType:
+                case ObjectTypes.EccApplicationCertificateType:
+                    return true;
+                case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
+                    return s_eccCurveSupportCache[
+                        ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
+                case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
+                    return s_eccCurveSupportCache[
+                        ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
+                case ObjectTypes.EccNistP256ApplicationCertificateType:
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
+                        .Value;
+                case ObjectTypes.EccNistP384ApplicationCertificateType:
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
+                        .Value;
+                // case ObjectTypes.EccCurve25519ApplicationCertificateType:
+                // case ObjectTypes.EccCurve448ApplicationCertificateType:
 #endif
-                    case ObjectTypes.ApplicationCertificateType:
-                    case ObjectTypes.RsaMinApplicationCertificateType:
-                    case ObjectTypes.RsaSha256ApplicationCertificateType:
-                    case ObjectTypes.HttpsCertificateType:
-                    case ObjectTypes.UserCredentialCertificateType:
-                        return true;
-                }
+                case ObjectTypes.ApplicationCertificateType:
+                case ObjectTypes.RsaMinApplicationCertificateType:
+                case ObjectTypes.RsaSha256ApplicationCertificateType:
+                case ObjectTypes.HttpsCertificateType:
+                case ObjectTypes.UserCredentialCertificateType:
+                    return true;
+                default:
+                    return false;
             }
-            return false;
         }
 
 #if ECC_SUPPORT

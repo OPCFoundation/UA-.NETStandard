@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Formats.Asn1;
 using System.Net;
 using System.Security.Cryptography;
@@ -444,6 +445,13 @@ namespace Opc.Ua.Security.Certificates
                     case UriHostNameType.IPv4:
                     case UriHostNameType.IPv6:
                         ipAddresses.Add(generalName);
+                        break;
+                    case UriHostNameType.Unknown:
+                    case UriHostNameType.Basic:
+                        // Unknown type - skip
+                        break;
+                    default:
+                        Debug.Fail("Unknown UriHostNameType returned from Uri.CheckHostName");
                         break;
                 }
             }

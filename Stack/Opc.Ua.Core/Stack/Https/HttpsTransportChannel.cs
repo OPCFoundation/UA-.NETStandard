@@ -549,7 +549,7 @@ namespace Opc.Ua.Bindings
             {
                 if (hre.InnerException is WebException webex)
                 {
-                    StatusCode statusCode = StatusCodes.BadUnknownResponse;
+                    StatusCode statusCode;
                     switch (webex.Status)
                     {
                         case WebExceptionStatus.Timeout:
@@ -558,6 +558,9 @@ namespace Opc.Ua.Bindings
                         case WebExceptionStatus.ConnectionClosed:
                         case WebExceptionStatus.ConnectFailure:
                             statusCode = StatusCodes.BadNotConnected;
+                            break;
+                        default:
+                            statusCode = StatusCodes.BadUnknownResponse;
                             break;
                     }
                     m_logger.LogError(webex, "Exception sending HTTPS request.");

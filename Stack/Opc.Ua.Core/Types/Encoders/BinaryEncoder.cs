@@ -1707,7 +1707,12 @@ namespace Opc.Ua
                         WriteXmlElementArray(null, (XmlElement[])array);
                         break;
                     case BuiltInType.Variant:
-                    {
+                        if (array is null or Variant[])
+                        {
+                            WriteVariantArray(null, (Variant[])array);
+                            return;
+                        }
+
                         // try to write IEncodeable Array
                         if (array is IEncodeable[] encodeableArray)
                         {
@@ -1718,37 +1723,42 @@ namespace Opc.Ua
                             return;
                         }
 
-                        if (array is Variant[] variantArray)
+                        if (array is object[] objects)
                         {
-                            WriteVariantArray(null, variantArray);
+                            WriteObjectArray(fieldName, objects);
                             return;
                         }
 
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Matrix.");
-                    }
                     case BuiltInType.Enumeration:
-                        int[] ints = array as int[];
-                        if (ints == null && array is Enum[] enums)
+                        if (array is not int[] ints)
                         {
-                            ints = new int[enums.Length];
-                            for (int ii = 0; ii < enums.Length; ii++)
+                            if (array is Enum[] enums)
                             {
-                                ints[ii] = Convert.ToInt32(enums[ii], CultureInfo.InvariantCulture);
+                                ints = new int[enums.Length];
+                                for (int ii = 0; ii < enums.Length; ii++)
+                                {
+                                    ints[ii] = Convert.ToInt32(
+                                        enums[ii],
+                                        CultureInfo.InvariantCulture);
+                                }
+                            }
+                            else if (array is null)
+                            {
+                                ints = null;
+                            }
+                            else
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadEncodingError,
+                                    "Type '{0}' is not allowed in an Enumeration.",
+                                    array.GetType().FullName);
                             }
                         }
-                        if (ints != null)
-                        {
-                            WriteInt32Array(null, ints);
-                        }
-                        else
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding an Enumeration Array.");
-                        }
-                        break;
+                        WriteInt32Array(null, ints);
+                        return;
                     case BuiltInType.ExtensionObject:
                         WriteExtensionObjectArray(null, (ExtensionObject[])array);
                         break;
@@ -1758,28 +1768,25 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         WriteDataValueArray(null, (DataValue[])array);
                         break;
-                    default:
-                    {
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         // try to write IEncodeable Array
-                        if (array is IEncodeable[] encodeableArray)
+                        if (array is null or IEncodeable[])
                         {
                             WriteEncodeableArray(
                                 fieldName,
-                                encodeableArray,
-                                array.GetType().GetElementType());
+                                (IEncodeable[])array,
+                                array?.GetType().GetElementType());
                             break;
-                        }
-                        if (array == null)
-                        {
-                            // write zero dimension
-                            WriteInt32(null, -1);
-                            return;
                         }
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an Array with BuiltInType: {0}",
                             builtInType);
-                    }
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank > ValueRanks.OneDimension)
@@ -2068,7 +2075,10 @@ namespace Opc.Ua
                         }
                         break;
                     }
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                     {
                         // try to write IEncodeable Array
                         if (matrix.Elements is IEncodeable[] encodeableArray)
@@ -2084,6 +2094,9 @@ namespace Opc.Ua
                             "Unexpected type encountered while encoding a Matrix with BuiltInType: {0}",
                             matrix.TypeInfo.BuiltInType);
                     }
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {matrix.TypeInfo.BuiltInType}");
                 }
             }
         }
@@ -2331,6 +2344,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the body of a node id to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void WriteNodeIdBody(byte encoding, object identifier, ushort namespaceIndex)
         {
             // write the node id.
@@ -2359,6 +2373,9 @@ namespace Opc.Ua
                     WriteUInt16(null, namespaceIndex);
                     WriteByteString(null, (byte[])identifier);
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected NodeIdEncodingBits {encoding}");
             }
         }
 
@@ -2469,12 +2486,19 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         WriteDiagnosticInfo(null, (DiagnosticInfo)valueToEncode);
                         break;
+                    case BuiltInType.Null:
+                    case BuiltInType.Variant:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Variant: {0}",
+                            value.TypeInfo.BuiltInType);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingError,
-                    "Unexpected type encountered while encoding a Variant: {0}",
-                    value.TypeInfo.BuiltInType);
             }
 
             if (value.TypeInfo.ValueRank >= 0)
@@ -2604,11 +2628,17 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         WriteDiagnosticInfoArray(null, (DiagnosticInfo[])valueToEncode);
                         break;
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Variant: {0}",
                             value.TypeInfo.BuiltInType);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
 
                 // write the dimensions.

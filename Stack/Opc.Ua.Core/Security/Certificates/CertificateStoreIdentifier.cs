@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// <summary>
     /// Describes a certificate store.
     /// </summary>
-    public partial class CertificateStoreIdentifier : IFormattable, ICloneable
+    public partial class CertificateStoreIdentifier : IOpenStore, IFormattable, ICloneable
     {
         /// <summary>
         /// Ctor of a certificate store.
@@ -205,6 +205,15 @@ namespace Opc.Ua
                     throw new ArgumentException($"Invalid store type name: {storeTypeName}");
             }
             return store;
+        }
+
+        /// <summary>
+        /// Obsoleted open call
+        /// </summary>
+        [Obsolete("Use OpenStore(ITelemetryContext) instead")]
+        public ICertificateStore OpenStore()
+        {
+            return OpenStore(null);
         }
 
         /// <summary>

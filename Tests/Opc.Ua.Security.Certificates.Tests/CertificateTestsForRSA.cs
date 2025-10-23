@@ -362,7 +362,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .CreateForRSA(generator))
             {
                 Assert.NotNull(cert);
-                issuer = X509CertificateLoader.LoadCertificate(cert.RawData);
+                issuer = CertificateFactory.Create(cert.RawData);
                 WriteCertificate(cert, "Default root cert with supplied RSA cert");
                 CheckPEMWriter(cert);
             }
@@ -412,7 +412,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .CreateForRSA(generator))
             {
                 Assert.NotNull(cert);
-                issuer = X509CertificateLoader.LoadCertificate(cert.RawData);
+                issuer = CertificateFactory.Create(cert.RawData);
                 WriteCertificate(cert, "Default root cert with supplied RSA cert");
                 CheckPEMWriter(cert);
             }
@@ -449,7 +449,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForRSA(
                     rsaPrivateKey,
                     RSASignaturePadding.Pkcs1);
-                using X509Certificate2 issuer = X509CertificateLoader.LoadCertificate(
+                using X509Certificate2 issuer = CertificateFactory.Create(
                     signingCert.RawData);
                 using X509Certificate2 cert = CertificateBuilder
                     .Create("CN=App Cert")
@@ -468,7 +468,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForRSA(
                     rsaPrivateKey,
                     RSASignaturePadding.Pkcs1);
-                using X509Certificate2 issuer = X509CertificateLoader.LoadCertificate(
+                using X509Certificate2 issuer = CertificateFactory.Create(
                     signingCert.RawData);
                 using X509Certificate2 cert = CertificateBuilder
                     .Create("CN=App Cert")
@@ -488,7 +488,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForRSA(
                     rsaPrivateKey,
                     RSASignaturePadding.Pkcs1);
-                using X509Certificate2 issuer = X509CertificateLoader.LoadCertificate(
+                using X509Certificate2 issuer = CertificateFactory.Create(
                     signingCert.RawData);
                 using X509Certificate2 cert = CertificateBuilder
                     .Create("CN=App Cert")
@@ -517,7 +517,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .CreateForRSA(generator);
             });
 
-            CheckPEMWriter(signingCert, password: "123");
+            CheckPEMWriter(signingCert, password: "123".ToCharArray());
         }
 
         private static void WriteCertificate(X509Certificate2 cert, string message)
@@ -530,7 +530,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
         }
 
-        private static void CheckPEMWriter(X509Certificate2 certificate, string password = null)
+        private static void CheckPEMWriter(X509Certificate2 certificate, ReadOnlySpan<char> password = default)
         {
             PEMWriter.ExportCertificateAsPEM(certificate);
             if (certificate.HasPrivateKey)

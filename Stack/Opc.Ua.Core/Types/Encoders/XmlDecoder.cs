@@ -64,7 +64,7 @@ namespace Opc.Ua
 
             if (systemType != null)
             {
-                XmlQualifiedName typeName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName typeName = TypeInfo.GetXmlName(systemType);
                 ns = typeName.Namespace;
                 name = typeName.Name;
             }
@@ -414,6 +414,12 @@ namespace Opc.Ua
                             VariantCollection collection = ReadVariantArray(typeName);
                             return collection?.ToArray();
                         }
+                        default:
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Element '{1}:{0}' is not allowed in a Variant.",
+                                m_reader.LocalName,
+                                m_reader.NamespaceURI);
                     }
                 }
                 // process scalar types.
@@ -507,14 +513,14 @@ namespace Opc.Ua
                             return typeInfo.ValueRank == ValueRanks.OneDimension
                                 ? matrix.Elements
                                 : matrix;
+                        default:
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Element '{1}:{0}' is not allowed in a Variant.",
+                                m_reader.LocalName,
+                                m_reader.NamespaceURI);
                     }
                 }
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Element '{1}:{0}' is not allowed in a Variant.",
-                    m_reader.LocalName,
-                    m_reader.NamespaceURI);
             }
             finally
             {
@@ -659,7 +665,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(expectedType));
             }
 
-            XmlQualifiedName typeName = EncodeableFactory.GetXmlName(expectedType);
+            XmlQualifiedName typeName = TypeInfo.GetXmlName(expectedType);
             string ns = typeName.Namespace;
             string name = typeName.Name;
 
@@ -1444,7 +1450,7 @@ namespace Opc.Ua
             {
                 if (BeginField(fieldName, true))
                 {
-                    XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(value, Context);
+                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(value, Context);
 
                     PushNamespace(xmlName.Namespace);
                     value.Decode(this);
@@ -2357,7 +2363,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true, out bool isNil))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(systemType);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
@@ -2405,7 +2411,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true, out bool isNil))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(enumType);
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(enumType);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
@@ -2868,7 +2874,10 @@ namespace Opc.Ua
                         VariantCollection collection = ReadVariantArray(fieldName);
                         return collection?.ToArray();
                     }
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
@@ -2877,6 +2886,8 @@ namespace Opc.Ua
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             finally

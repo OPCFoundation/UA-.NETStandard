@@ -16,7 +16,6 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -73,8 +72,7 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(location))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Store Location cannot be empty.");
             }
 
@@ -82,8 +80,7 @@ namespace Opc.Ua
             int index = location.IndexOf('\\', StringComparison.Ordinal);
             if (index == -1)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Path does not specify a store name. Path={0}",
                     location);
             }
@@ -104,12 +101,8 @@ namespace Opc.Ua
             }
             if (!found)
             {
-                var message = new StringBuilder();
-                message.AppendLine("Store location specified not available.")
-                    .AppendLine("Store location={0}");
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    message.ToString(),
+                throw ServiceResultException.Unexpected(
+                    "Store location specified not available. Store location={0}",
                     storeLocation);
             }
 
@@ -142,7 +135,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -166,8 +159,7 @@ namespace Opc.Ua
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
-                            certificate.RawData);
+                        using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
                         store.Add(publicKey);
                     }
                     else
@@ -235,7 +227,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             return Task.FromResult<X509Certificate2>(null);

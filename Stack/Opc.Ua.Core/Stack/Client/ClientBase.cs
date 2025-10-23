@@ -75,9 +75,10 @@ namespace Opc.Ua
 
                 if (channel != null && Disposed)
                 {
-                    throw new ServiceResultException(
+                    // This is a bug in your code.
+                    throw ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
-                        "Channel has been closed.");
+                        "Channel is set but client has been disposed.");
                 }
 
                 return channel;
@@ -90,16 +91,22 @@ namespace Opc.Ua
             get
             {
                 ITransportChannel channel = m_channel;
-
                 if (channel != null)
                 {
-                    if (!Disposed)
+                    if (Disposed)
                     {
-                        return channel;
+                        // This is a bug in your code.
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecureChannelClosed,
+                            "Channel is set but client has been disposed.");
                     }
-                    throw new ServiceResultException(
+                    return channel;
+                }
+                if (Disposed)
+                {
+                    throw ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
-                        "Channel has been disposed.");
+                        "Client has been disposed and channel is closed.");
                 }
                 throw new ServiceResultException(
                     StatusCodes.BadSecureChannelClosed,
@@ -165,6 +172,9 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <inheritdoc/>
+        public int DefaultTimeoutHint { get; set; }
 
         /// <inheritdoc/>
         public virtual void AttachChannel(ITransportChannel channel)
@@ -289,14 +299,14 @@ namespace Opc.Ua
         /// Updates the header of a service request.
         /// </summary>
         /// <param name="request">The request.</param>
-        /// <param name="useDefaults">if set to <c>true</c> use defaults].</param>
+        /// <param name="useDefaults">if set to <c>true</c> use defaults.</param>
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
             lock (SyncRoot)
             {
                 request.RequestHeader ??= new RequestHeader();
 
-                if (useDefaults)
+                if (request.RequestHeader.ReturnDiagnostics == 0)
                 {
                     request.RequestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
                 }
@@ -310,6 +320,18 @@ namespace Opc.Ua
                 if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
                 {
                     request.RequestHeader.AuthenticationToken = AuthenticationToken;
+                }
+
+                if (request.RequestHeader.TimeoutHint == 0)
+                {
+                    if (DefaultTimeoutHint > 0)
+                    {
+                        request.RequestHeader.TimeoutHint = (uint)DefaultTimeoutHint;
+                    }
+                    else if (OperationTimeout > 0)
+                    {
+                        request.RequestHeader.TimeoutHint = (uint)OperationTimeout;
+                    }
                 }
 
                 request.RequestHeader.Timestamp = DateTime.UtcNow;
@@ -455,8 +477,7 @@ namespace Opc.Ua
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
             }
         }
@@ -472,8 +493,7 @@ namespace Opc.Ua
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0 && response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
             }
         }
@@ -522,7 +542,7 @@ namespace Opc.Ua
             // check for null.
             if (value == null)
             {
-                return new ServiceResult(
+                return ServiceResult.Create(
                     StatusCodes.BadUnexpectedError,
                     "The server returned a value for a data value.");
             }

@@ -61,15 +61,14 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
-            bool autoApprove = true,
-            bool createStandardUsers = true)
+            bool autoApprove = true
+            )
         {
             m_database = database;
             m_request = request;
             m_certificateGroup = certificateGroup;
             m_userDatabase = userDatabase;
             m_autoApprove = autoApprove;
-            m_createStandardUsers = createStandardUsers;
         }
 
         /// <summary>
@@ -79,11 +78,6 @@ namespace Opc.Ua.Gds.Server
         {
             base.OnServerStarted(server);
 
-            //ToDo delete this code in a production environment as this creates hardcoded passwords
-            if (m_createStandardUsers)
-            {
-                RegisterDefaultUsers();
-            }
             // request notifications when the user identity is changed. all valid users are accepted by default.
             server.SessionManager.ImpersonateUser += SessionManager_ImpersonateUser;
         }
@@ -212,7 +206,7 @@ namespace Opc.Ua.Gds.Server
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
                 args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(userNameToken, MessageContext.Telemetry),
+                    new UserIdentity(userNameToken),
                     roles);
                 return;
             }
@@ -230,7 +224,7 @@ namespace Opc.Ua.Gds.Server
                     args.Identity.DisplayName,
                     Role.AuthenticatedUser);
                 args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(x509Token, MessageContext.Telemetry),
+                    new UserIdentity(x509Token),
                     [Role.AuthenticatedUser]);
                 return;
             }
@@ -348,34 +342,6 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// registers the default GDS users
-        /// ToDo delete this in a production environment
-        /// </summary>
-        private void RegisterDefaultUsers()
-        {
-            m_userDatabase.CreateUser(
-                "sysadmin",
-                "demo",
-                [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role
-                    .ConfigureAdmin]);
-            m_userDatabase.CreateUser(
-                "appadmin",
-                "demo",
-                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole
-                    .DiscoveryAdmin]);
-            m_userDatabase.CreateUser("appuser", "demo", [Role.AuthenticatedUser]);
-
-            m_userDatabase.CreateUser(
-                "DiscoveryAdmin",
-                "demo",
-                [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
-            m_userDatabase.CreateUser(
-                "CertificateAuthorityAdmin",
-                "demo",
-                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]);
-        }
-
-        /// <summary>
         /// Impersonates the current Session as ApplicationSelfAdmin
         /// </summary>
         /// <param name="session">the current session</param>
@@ -407,6 +373,5 @@ namespace Opc.Ua.Gds.Server
         private readonly ICertificateGroup m_certificateGroup;
         private readonly IUserDatabase m_userDatabase;
         private readonly bool m_autoApprove;
-        private readonly bool m_createStandardUsers;
     }
 }

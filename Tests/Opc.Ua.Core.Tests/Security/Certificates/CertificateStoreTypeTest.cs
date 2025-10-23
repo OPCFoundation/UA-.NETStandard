@@ -113,15 +113,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public bool NoPrivateKeys => m_innerStore.NoPrivateKeys;
 
         /// <inheritdoc/>
-        public Task Add(X509Certificate2 certificate, string password = null)
-        {
-            return m_innerStore.AddAsync(certificate, password);
-        }
-
-        /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
@@ -201,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(

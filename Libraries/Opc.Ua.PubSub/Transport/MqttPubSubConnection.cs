@@ -708,6 +708,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Transform pub sub setting into MqttNet enum
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private static MqttQualityOfServiceLevel GetMqttQualityOfServiceLevel(
             BrokerTransportQualityOfService brokerTransportQualityOfService)
         {
@@ -719,8 +720,14 @@ namespace Opc.Ua.PubSub.Transport
                     return MqttQualityOfServiceLevel.AtMostOnce;
                 case BrokerTransportQualityOfService.ExactlyOnce:
                     return MqttQualityOfServiceLevel.ExactlyOnce;
-                default:
+                case BrokerTransportQualityOfService.NotSpecified:
+                case BrokerTransportQualityOfService.BestEffort:
                     return MqttQualityOfServiceLevel.AtLeastOnce;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(brokerTransportQualityOfService),
+                        brokerTransportQualityOfService,
+                        "Unexpected service level");
             }
         }
 
@@ -807,8 +814,7 @@ namespace Opc.Ua.PubSub.Transport
                             if (x509cert is X509Certificate2 x509Certificate2)
                             {
                                 x509Certificate2s.Add(
-                                    X509CertificateLoader.LoadCertificate(
-                                        x509Certificate2.RawData));
+                                    CertificateFactory.Create(x509Certificate2.RawData));
                             }
                         }
                     }
@@ -926,7 +932,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            X509Certificate2 brokerCertificate = X509CertificateLoader.LoadCertificate(
+            X509Certificate2 brokerCertificate = CertificateFactory.Create(
                 context.Certificate.GetRawCertData());
 
             try

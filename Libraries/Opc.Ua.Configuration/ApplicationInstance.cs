@@ -702,7 +702,7 @@ namespace Opc.Ua.Configuration
                 await configuration
                     .CertificateValidator.ValidateAsync(
                         certificate.HasPrivateKey
-                            ? X509CertificateLoader.LoadCertificate(certificate.RawData)
+                            ? CertificateFactory.Create(certificate.RawData)
                             : certificate,
                         ct)
                     .ConfigureAwait(false);
@@ -1179,9 +1179,7 @@ namespace Opc.Ua.Configuration
                     }
 
                     // add new certificate.
-                    X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
-                        certificate.RawData);
-
+                    using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
                     await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     m_logger.LogInformation("Added application certificate to trusted peer store.");

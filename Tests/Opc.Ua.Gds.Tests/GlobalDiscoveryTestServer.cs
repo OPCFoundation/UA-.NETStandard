@@ -31,9 +31,11 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
@@ -45,18 +47,19 @@ namespace Opc.Ua.Gds.Tests
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
 
-        public GlobalDiscoveryTestServer(bool autoAccept)
+        public GlobalDiscoveryTestServer(bool autoAccept, ITelemetryContext telemetry)
         {
             s_autoAccept = autoAccept;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<GlobalDiscoveryTestServer>();
         }
 
         public async Task StartServerAsync(
             bool clean,
-            ITelemetryContext telemetry,
             int basePort = -1,
             string storeType = CertificateStoreType.Directory)
         {
-            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
 
             string configSectionName = "Opc.Ua.GlobalDiscoveryTestServer";
             if (storeType == CertificateStoreType.X509Store)
@@ -68,7 +71,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
             }
-            Application = new ApplicationInstance(telemetry)
+            Application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
@@ -85,26 +88,26 @@ namespace Opc.Ua.Gds.Tests
                 {
                     using ICertificateStore store = Config.SecurityConfiguration
                         .ApplicationCertificate
-                        .OpenStore(telemetry);
+                        .OpenStore(m_telemetry);
                     await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                 }
 
                 // always start with clean cert store
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.ApplicationCertificate.OpenStore(telemetry))
+                        Config.SecurityConfiguration.ApplicationCertificate, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore(telemetry))
+                        Config.SecurityConfiguration.TrustedIssuerCertificates, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore(telemetry))
+                        Config.SecurityConfiguration.TrustedPeerCertificates, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.RejectedCertificateStore.OpenStore(telemetry))
+                        Config.SecurityConfiguration.RejectedCertificateStore, m_telemetry)
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
@@ -156,14 +159,16 @@ namespace Opc.Ua.Gds.Tests
             }
 
             var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
-            var usersDatabase = JsonUserDatabase.Load(usersDatabaseStorePath);
+            IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath, m_telemetry);
+
+            RegisterDefaultUsers(userDatabase);
 
             // start the server.
             Server = new GlobalDiscoverySampleServer(
                 applicationsDatabase,
                 applicationsDatabase,
-                new CertificateGroup(telemetry),
-                usersDatabase);
+                new CertificateGroup(m_telemetry),
+                userDatabase);
             await Application.StartAsync(Server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;
@@ -177,7 +182,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (Server != null)
             {
-                Console.WriteLine("Server stopped. Waiting for exit...");
+                m_logger.LogInformation("Server stopped. Waiting for exit...");
 
                 using GlobalDiscoverySampleServer server = Server;
                 Server = null;
@@ -186,7 +191,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private static void CertificateValidator_CertificateValidation(
+        private void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
             CertificateValidationEventArgs e)
         {
@@ -195,13 +200,39 @@ namespace Opc.Ua.Gds.Tests
                 e.Accept = s_autoAccept;
                 if (s_autoAccept)
                 {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
                 }
                 else
                 {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates the default GDS users.
+        /// </summary>
+        private static void RegisterDefaultUsers(IUserDatabase userDatabase)
+        {
+            userDatabase.CreateUser(
+                "sysadmin",
+                "demo"u8,
+                [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin]);
+            userDatabase.CreateUser(
+                "appadmin", "demo"u8,
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]);
+            userDatabase.CreateUser(
+                "appuser",
+                "demo"u8,
+                [Role.AuthenticatedUser]);
+
+            userDatabase.CreateUser(
+                "DiscoveryAdmin",
+                "demo"u8,
+                [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
+            userDatabase.CreateUser(
+                "CertificateAuthorityAdmin", "demo"u8,
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]);
         }
 
         private static async Task<ApplicationConfiguration> LoadAsync(
@@ -287,5 +318,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private static bool s_autoAccept;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 }

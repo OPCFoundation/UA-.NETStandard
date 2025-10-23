@@ -582,7 +582,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate));
+                    certValidator.Validate(CertificateFactory.Create(app.Certificate));
                 }
                 TestContext.Out.WriteLine($"Validation: {stopWatch.ElapsedMilliseconds - start}");
             }
@@ -613,7 +613,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateValidator certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate));
+                    certValidator.Validate(CertificateFactory.Create(app.Certificate));
                 }
             }
         }
@@ -645,7 +645,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
                         (StatusCode)serviceResultException.StatusCode,
@@ -688,7 +688,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
                         (StatusCode)serviceResultException.StatusCode,
@@ -722,7 +722,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateValidator certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate));
+                    certValidator.Validate(CertificateFactory.Create(app.Certificate));
                 }
             }
         }
@@ -760,7 +760,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
@@ -803,7 +803,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
@@ -844,7 +844,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await validator
                         .TrustedStore.AddAsync(
-                            X509CertificateLoader.LoadCertificate(app.Certificate))
+                            CertificateFactory.Create(app.Certificate))
                         .ConfigureAwait(false);
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -853,7 +853,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
@@ -895,7 +895,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
@@ -935,7 +935,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await validator
                         .TrustedStore.AddAsync(
-                            X509CertificateLoader.LoadCertificate(app.Certificate))
+                            CertificateFactory.Create(app.Certificate))
                         .ConfigureAwait(false);
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -944,7 +944,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
@@ -975,14 +975,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 await validator
-                    .TrustedStore.AddAsync(X509CertificateLoader.LoadCertificate(app.Certificate))
+                    .TrustedStore.AddAsync(CertificateFactory.Create(app.Certificate))
                     .ConfigureAwait(false);
             }
 
             CertificateValidator certValidator = validator.Update();
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
-                certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate));
+                certValidator.Validate(CertificateFactory.Create(app.Certificate));
             }
         }
 
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await validator
                         .TrustedStore.AddAsync(
-                            X509CertificateLoader.LoadCertificate(app.Certificate))
+                            CertificateFactory.Create(app.Certificate))
                         .ConfigureAwait(false);
                 }
 
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
                         (StatusCode)serviceResultException.StatusCode,
@@ -1046,13 +1046,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
                 CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                    X509CertificateLoader.LoadCertificate(appCert.RawData),
+                    CertificateFactory.Create(appCert.RawData),
                     pemDataBlob);
                 // note: password is ignored
                 X509Certificate2 newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                    X509CertificateLoader.LoadCertificate(appCert.RawData),
+                    CertificateFactory.Create(appCert.RawData),
                     pemDataBlob,
-                    "password");
+                    "password".ToCharArray());
                 X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
             }
         }
@@ -1093,12 +1093,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
                 X509Certificate2 cert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                    X509CertificateLoader.LoadCertificate(appCert.RawData),
+                    CertificateFactory.Create(appCert.RawData),
                     pemDataBlob);
                 Assert.NotNull(cert);
                 // note: password is ignored
                 X509Certificate2 newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                    X509CertificateLoader.LoadCertificate(appCert.RawData),
+                    CertificateFactory.Create(appCert.RawData),
                     pemDataBlob,
                     "password");
                 X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
@@ -1149,7 +1149,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName, cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
@@ -1204,7 +1204,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName, cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
@@ -1734,7 +1734,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
 
                     Assert.AreEqual(
                         v == kCaChainCount - 1
@@ -1784,7 +1784,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
 
                     Assert.IsTrue(
                         StatusCodes.BadCertificateRevocationUnknown == serviceResultException
@@ -1853,7 +1853,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         ServiceResultException serviceResultException =
                             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                                 certValidator.Validate(
-                                    X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                    CertificateFactory.Create(app.Certificate)));
 
                         Assert.AreEqual(
                             v == kCaChainCount - 1
@@ -1865,7 +1865,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     else
                     {
                         certValidator.Validate(
-                            X509CertificateLoader.LoadCertificate(app.Certificate));
+                            CertificateFactory.Create(app.Certificate));
                     }
                 }
             }
@@ -1901,7 +1901,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
                         (StatusCode)serviceResultException.StatusCode,
@@ -1931,7 +1931,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         await validator
                             .TrustedStore.AddAsync(
-                                X509CertificateLoader.LoadCertificate(m_caChain[i].RawData))
+                                CertificateFactory.Create(m_caChain[i].RawData))
                             .ConfigureAwait(false);
                         await validator.TrustedStore.AddCRLAsync(m_crlChain[i])
                             .ConfigureAwait(false);
@@ -1940,7 +1940,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         await validator
                             .IssuerStore.AddAsync(
-                                X509CertificateLoader.LoadCertificate(m_caChain[i].RawData))
+                                CertificateFactory.Create(m_caChain[i].RawData))
                             .ConfigureAwait(false);
                         await validator.IssuerStore.AddCRLAsync(m_crlChain[i])
                             .ConfigureAwait(false);
@@ -1956,7 +1956,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateTimeInvalid,
                         (StatusCode)serviceResultException.StatusCode,
@@ -2002,7 +2002,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateTimeInvalid,
                         (StatusCode)serviceResultException.StatusCode,
@@ -2071,7 +2071,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                             certValidator.Validate(
-                                X509CertificateLoader.LoadCertificate(app.Certificate)));
+                                CertificateFactory.Create(app.Certificate)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateUntrusted,
                         (StatusCode)serviceResultException.StatusCode,

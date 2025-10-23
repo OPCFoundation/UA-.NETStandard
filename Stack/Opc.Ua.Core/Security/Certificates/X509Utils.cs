@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -284,7 +285,7 @@ namespace Opc.Ua
             {
                 if (string.Equals(
                     domainNames[jj],
-                    endpointUrl.DnsSafeHost,
+                    endpointUrl.IdnHost,
                     StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
@@ -686,14 +687,27 @@ namespace Opc.Ua
                 )
             {
                 // see https://github.com/dotnet/runtime/issues/29144
-                string passcode = GeneratePasscode();
-                X509KeyStorageFlags storageFlags = persisted
-                    ? X509KeyStorageFlags.PersistKeySet
-                    : X509KeyStorageFlags.Exportable;
-                return X509CertificateLoader.LoadPkcs12(
-                    certificate.Export(X509ContentType.Pfx, passcode),
-                    passcode,
-                    storageFlags);
+                char[] passcode = GeneratePasscode();
+                try
+                {
+                    // create a secure string for the passcode only on windows
+                    using var securePasscode = new SecureString();
+                    foreach (char c in passcode)
+                    {
+                        securePasscode.AppendChar(c);
+                    }
+                    securePasscode.MakeReadOnly();
+                    X509KeyStorageFlags storageFlags =
+                        persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
+                    return X509CertificateLoader.LoadPkcs12(
+                        certificate.Export(X509ContentType.Pfx, securePasscode),
+                        passcode,
+                        storageFlags);
+                }
+                finally
+                {
+                    Array.Clear(passcode, 0, passcode.Length);
+                }
             }
             return certificate;
         }
@@ -707,7 +721,7 @@ namespace Opc.Ua
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
-            string password,
+            ReadOnlySpan<char> password,
             bool noEphemeralKeySet = false)
         {
             return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password, noEphemeralKeySet);
@@ -759,7 +773,7 @@ namespace Opc.Ua
                 certificate,
                 storeType,
                 storePath,
-                password)
+                password?.ToCharArray())
                 .GetAwaiter().GetResult();
         }
 
@@ -783,7 +797,7 @@ namespace Opc.Ua
             return AddToStoreAsync(
                 certificate,
                 storeIdentifier,
-                password)
+                password?.ToCharArray())
                 .GetAwaiter().GetResult();
         }
 
@@ -805,7 +819,7 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            string password = null,
+            char[] password = null,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
@@ -842,7 +856,7 @@ namespace Opc.Ua
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            string password = null,
+            char[] password = null,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
@@ -892,11 +906,26 @@ namespace Opc.Ua
         /// <summary>
         /// Create secure temporary passcode.
         /// </summary>
-        internal static string GeneratePasscode()
+        /// <remarks>
+        /// Caller is responsible to clear memory after usage.
+        /// </remarks>
+        internal static char[] GeneratePasscode()
         {
             const int kLength = 18;
             byte[] tokenBuffer = Nonce.CreateRandomNonceData(kLength);
-            return Convert.ToBase64String(tokenBuffer);
+            char[] charToken = new char[kLength * 3];
+            int length = Convert.ToBase64CharArray(
+                tokenBuffer,
+                0,
+                tokenBuffer.Length,
+                charToken,
+                0,
+                Base64FormattingOptions.None);
+            Array.Clear(tokenBuffer, 0, tokenBuffer.Length);
+            char[] passcode = new char[length];
+            charToken.AsSpan(0, length).CopyTo(passcode);
+            Array.Clear(charToken, 0, charToken.Length);
+            return passcode;
         }
     }
 }

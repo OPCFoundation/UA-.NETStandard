@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -29,7 +30,7 @@ namespace Opc.Ua
             m_strings = [];
 
 #if DEBUG
-            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -42,7 +43,7 @@ namespace Opc.Ua
 
 #if DEBUG
             m_shared = shared;
-            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -54,7 +55,7 @@ namespace Opc.Ua
         {
             Update(table.m_strings);
 #if DEBUG
-            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -66,14 +67,9 @@ namespace Opc.Ua
             Update(strings);
 
 #if DEBUG
-            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
-
-        /// <summary>
-        /// The synchronization object.
-        /// </summary>
-        public object SyncRoot { get; } = new();
 
 #if DEBUG
         /// <summary>
@@ -93,7 +89,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(strings));
             }
 
-            lock (SyncRoot)
+            lock (m_syncRoot)
             {
                 m_strings = [.. strings];
 
@@ -133,7 +129,7 @@ namespace Opc.Ua
             }
 #endif
 
-            lock (SyncRoot)
+            lock (m_syncRoot)
             {
                 m_strings.Add(value);
                 return m_strings.Count - 1;
@@ -145,7 +141,7 @@ namespace Opc.Ua
         /// </summary>
         public string GetString(uint index)
         {
-            lock (SyncRoot)
+            lock (m_syncRoot)
             {
                 if (index < m_strings.Count)
                 {
@@ -161,7 +157,7 @@ namespace Opc.Ua
         /// </summary>
         public int GetIndex(string value)
         {
-            lock (SyncRoot)
+            lock (m_syncRoot)
             {
                 if (string.IsNullOrEmpty(value))
                 {
@@ -183,7 +179,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            lock (SyncRoot)
+            lock (m_syncRoot)
             {
                 int index = m_strings.IndexOf(value);
 
@@ -212,7 +208,7 @@ namespace Opc.Ua
         /// </summary>
         public string[] ToArray()
         {
-            lock (SyncRoot)
+            lock (m_syncRoot)
             {
                 return [.. m_strings];
             }
@@ -225,7 +221,7 @@ namespace Opc.Ua
         {
             get
             {
-                lock (SyncRoot)
+                lock (m_syncRoot)
                 {
                     return m_strings.Count;
                 }
@@ -274,6 +270,7 @@ namespace Opc.Ua
         /// Access the string table from sub classes
         /// </summary>
         protected List<string> m_strings;
+        private readonly Lock m_syncRoot = new();
 
 #if DEBUG
         /// <summary>

@@ -50,6 +50,15 @@ namespace Opc.Ua.Client
         private const int kRepublishMessageExpiredTimeout = 10000;
 
         /// <summary>
+        /// Create subscription
+        /// </summary>
+        [Obsolete("Use Subscription(TelemetryContext) instead")]
+        public Subscription()
+            : this(null)
+        {
+        }
+
+        /// <summary>
         /// Creates a empty object.
         /// </summary>
         public Subscription(ITelemetryContext telemetry)
@@ -838,7 +847,11 @@ namespace Opc.Ua.Client
             {
                 if (!silent)
                 {
-                    throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
+                    if (e is ServiceResultException)
+                    {
+                        throw;
+                    }
+                    throw new ServiceResultException(e, StatusCodes.Bad);
                 }
             }
             // always put object in disconnected state even if an error occurs.
@@ -1478,12 +1491,10 @@ namespace Opc.Ua.Client
 
             lock (m_cache)
             {
-                if (m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
+                if (!m_monitoredItems.TryAdd(monitoredItem.ClientHandle, monitoredItem))
                 {
                     return;
                 }
-
-                m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
                 monitoredItem.Subscription = this;
             }
 
@@ -1508,14 +1519,8 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in monitoredItems)
                 {
-#if NETFRAMEWORK || NETSTANDARD2_0
-                    if (!m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
-                    {
-                        m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
-#else
                     if (m_monitoredItems.TryAdd(monitoredItem.ClientHandle, monitoredItem))
                     {
-#endif
                         monitoredItem.Subscription = this;
                         added = true;
                     }
@@ -1866,15 +1871,31 @@ namespace Opc.Ua.Client
         {
             // check if a publish has arrived.
             PublishStateChangedEventHandler callback = m_PublishStatusChanged;
+            ISession session = Session;
 
             Interlocked.Increment(ref m_publishLateCount);
 
-            TraceState("PUBLISHING STOPPED");
+            bool connected =
+                session != null &&
+                session.Connected &&
+                !session.Reconnecting;
 
-            PublishingStateChanged(callback, PublishStateChangedMask.Stopped);
+            if (connected)
+            {
+                TraceState("PUBLISHING STOPPED");
 
-            // try to send a publish to recover stopped publishing.
-            Session?.BeginPublish(BeginPublishTimeout());
+                PublishingStateChanged(callback,
+                    PublishStateChangedMask.Stopped);
+
+                // try to send a publish to recover stopped publishing.
+                session.BeginPublish(BeginPublishTimeout());
+            }
+            else
+            {
+                PublishingStateChanged(callback,
+                    PublishStateChangedMask.Stopped |
+                    PublishStateChangedMask.SessionNotConnected);
+            }
         }
 
         /// <summary>
@@ -3016,7 +3037,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The publishing was timed out
         /// </summary>
-        Timeout = 0x20
+        Timeout = 0x20,
+
+        /// <summary>
+        /// Session is not connected
+        /// </summary>
+        SessionNotConnected = 0x40
     }
 
     /// <summary>

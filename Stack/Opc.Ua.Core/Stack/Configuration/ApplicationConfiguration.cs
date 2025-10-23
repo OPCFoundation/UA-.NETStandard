@@ -132,7 +132,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                string domainName = url.DnsSafeHost;
+                string domainName = url.IdnHost;
 
                 if (url.HostNameType == UriHostNameType.Dns)
                 {
@@ -170,12 +170,6 @@ namespace Opc.Ua
                 messageContext.MaxDecoderRecoveries = TransportQuotas.MaxDecoderRecoveries;
             }
 
-            messageContext.NamespaceUris = new NamespaceTable();
-            messageContext.ServerUris = new StringTable();
-            if (clonedFactory)
-            {
-                messageContext.Factory = new EncodeableFactory(m_telemetry);
-            }
             return messageContext;
         }
 

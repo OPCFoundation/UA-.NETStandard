@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var mockResolver = new MockResolver(telemetry);
+            var mockResolver = new MockResolver();
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
 
@@ -344,11 +344,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
-            var mockResolver = new MockResolver(telemetry);
+            var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
-                mockResolver.Factory,
+                mockResolver.FactoryBuilder,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
                 typeof(NamingRuleType));
@@ -588,11 +588,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             SetRepeatedRandomSeed();
 
-            var mockResolver = new MockResolver(telemetry);
+            var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(
-                mockResolver.Factory,
+                mockResolver.FactoryBuilder,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
                 typeof(NamingRuleType));
@@ -668,7 +668,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(testType.ToString());
 
             object value;
-            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.Factory);
+            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
             {
@@ -910,7 +910,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         protected void AddEncodeableType(
-            IEncodeableFactory factory,
+            IEncodeableFactoryBuilder factory,
             NamespaceTable namespaceUris,
             ExpandedNodeId typeId,
             Type enumType)

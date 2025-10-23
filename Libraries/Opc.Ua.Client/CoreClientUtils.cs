@@ -162,8 +162,7 @@ namespace Opc.Ua.Client
             using var client = DiscoveryClient.Create(
                 application,
                 connection,
-                endpointConfiguration,
-                telemetry);
+                endpointConfiguration);
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
@@ -223,7 +222,7 @@ namespace Opc.Ua.Client
             var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
-            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration, telemetry);
+            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
@@ -240,7 +239,7 @@ namespace Opc.Ua.Client
             {
                 var builder = new UriBuilder(endpointUrl)
                 {
-                    Host = uri.DnsSafeHost,
+                    Host = uri.IdnHost,
                     Port = uri.Port
                 };
                 selectedEndpoint.EndpointUrl = builder.ToString();
