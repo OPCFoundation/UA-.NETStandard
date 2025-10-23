@@ -107,15 +107,15 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription
-            => m_settings?.Description ?? throw NotOpen();
+            => m_settings?.Description ?? throw BadNotConnected();
 
         /// <inheritdoc/>
         public EndpointConfiguration EndpointConfiguration
-            => m_settings?.Configuration ?? throw NotOpen();
+            => m_settings?.Configuration ?? throw BadNotConnected();
 
         /// <inheritdoc/>
         public IServiceMessageContext MessageContext
-            => m_quotas?.MessageContext ?? throw NotOpen();
+            => m_quotas?.MessageContext ?? throw BadNotConnected();
 
         /// <inheritdoc/>
         public ChannelToken? CurrentToken => null;
@@ -183,8 +183,8 @@ namespace Opc.Ua.Bindings
             IServiceRequest request,
             CancellationToken ct)
         {
-            IServiceMessageContext context = m_quotas?.MessageContext ?? throw NotOpen();
-            HttpClient client = m_client ?? throw NotOpen();
+            IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
+            HttpClient client = m_client ?? throw BadNotConnected();
             try
             {
                 var content = new ByteArrayContent(
@@ -455,9 +455,12 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private ServiceResultException NotOpen()
+        private ServiceResultException BadNotConnected()
         {
-            return ServiceResultException.Unexpected("{0} not open.", nameof(HttpsTransportChannel));
+            return ServiceResultException.Create(
+                StatusCodes.BadNotConnected,
+                "{0} not open.",
+                nameof(HttpsTransportChannel));
         }
 
         private Uri? m_url;

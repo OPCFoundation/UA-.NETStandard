@@ -837,24 +837,12 @@ namespace Opc.Ua.Client.Tests
                 await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus).ConfigureAwait(false));
 
-            // TODO: Both channel should return BadNotConnected
             if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
             {
-                if (endpoint.EndpointUrl.ToString()
-                    .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
-                {
-                    Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadNotConnected,
-                        (StatusCode)sre.StatusCode,
-                        sre.Message);
-                }
-                else
-                {
-                    Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadUnknownResponse,
-                        (StatusCode)sre.StatusCode,
-                        sre.Message);
-                }
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadNotConnected,
+                    (StatusCode)sre.StatusCode,
+                    sre.Message);
             }
         }
 

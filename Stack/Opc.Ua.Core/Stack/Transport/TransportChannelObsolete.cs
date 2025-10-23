@@ -80,7 +80,10 @@ namespace Opc.Ua
         {
             if (channel is ISecureChannel secure)
             {
-                secure.OpenAsync(url, settings, default).GetAwaiter().GetResult();
+                secure.OpenAsync(url, settings, default)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
             }
         }
 
@@ -95,7 +98,10 @@ namespace Opc.Ua
         {
             if (channel is ISecureChannel secure)
             {
-                secure.OpenAsync(connection, settings, default).GetAwaiter().GetResult();
+                secure.OpenAsync(connection, settings, default)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
             }
         }
 

@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -54,7 +56,12 @@ namespace Opc.Ua.Bindings
         {
             m_logger = telemetry.CreateLogger<UaSCUaBinaryClientChannel>();
 
-            if (endpoint != null && endpoint.SecurityMode != MessageSecurityMode.None)
+            if (endpoint == null)
+            {
+                throw new ArgumentException("Endpoint not specified.", nameof(endpoint));
+            }
+
+            if (endpoint.SecurityMode != MessageSecurityMode.None)
             {
                 if (clientCertificate == null)
                 {
@@ -116,7 +123,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
-        public IAsyncResult BeginConnect(Uri url, int timeout, AsyncCallback callback, object state)
+        private WriteOperation BeginConnect(Uri url, int timeout, AsyncCallback? callback, object? state)
         {
             if (url == null)
             {
@@ -177,7 +184,7 @@ namespace Opc.Ua.Bindings
         /// Finishes a connect operation.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
-        public void EndConnect(IAsyncResult result)
+        private void EndConnect(IAsyncResult result)
         {
             if (result is not WriteOperation operation)
             {
@@ -208,44 +215,25 @@ namespace Opc.Ua.Bindings
             finally
             {
                 OperationCompleted(operation);
+
+                SendQueuedOperations();
             }
         }
 
         /// <summary>
-        /// Finishes a connect operation.
+        /// Connect the channel
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public async Task EndConnectAsync(IAsyncResult result, CancellationToken ct = default)
+        public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
         {
-            if (result is not WriteOperation operation)
-            {
-                throw new ArgumentNullException(nameof(result));
-            }
+            await Task.Factory.FromAsync(
+                Begin,
+                EndConnect,
+                null).ConfigureAwait(false);
 
-            try
+            IAsyncResult Begin(AsyncCallback? callback, object? callbackData)
             {
-                await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
-                m_logger.LogInformation(
-                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId} (Async)",
-                    Socket.Handle,
-                    ChannelId);
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e,
-                    "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId} (Async)",
-                    Socket.Handle,
-                    ChannelId);
-
-                Shutdown(ServiceResult.Create(
-                    e,
-                    StatusCodes.BadTcpInternalError,
-                    "Fatal error during connect."));
-                throw;
-            }
-            finally
-            {
-                OperationCompleted(operation);
+                ct.ThrowIfCancellationRequested();
+                return BeginConnect(url, timeout, callback, callbackData);
             }
         }
 
@@ -254,7 +242,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task CloseAsync(int timeout, CancellationToken ct = default)
         {
-            WriteOperation operation = InternalClose(timeout);
+            WriteOperation? operation = InternalClose(timeout);
 
             // wait for the close to succeed.
             if (operation != null)
@@ -278,44 +266,15 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Closes a connection with the server.
-        /// </summary>
-        public void Close(int timeout)
-        {
-            WriteOperation operation = InternalClose(timeout);
-
-            // wait for the close to succeed.
-            if (operation != null)
-            {
-                try
-                {
-                    operation.End(timeout, false);
-                    ValidateChannelCloseError(operation.Error);
-                }
-                catch (Exception e)
-                {
-                    m_logger.LogError(
-                        e,
-                        "ChannelId {ChannelId}: Could not gracefully close the channel.",
-                        ChannelId);
-                }
-            }
-
-            // shutdown.
-            Shutdown(StatusCodes.BadConnectionClosed);
-        }
-
-        /// <summary>
         /// Sends a request to the server.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public IAsyncResult BeginSendRequest(
+        public async Task<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             int timeout,
-            AsyncCallback callback,
-            object state)
+            CancellationToken ct)
         {
             if (request == null)
             {
@@ -327,90 +286,36 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
             }
 
+            WriteOperation? operation = null;
             lock (DataLock)
             {
-                bool firstCall = false;
-                WriteOperation operation = null;
-
-                // check if this is the first call.
-                if (State == TcpChannelState.Closed)
+                // Queue the operation while connecting and it will be played once connected.
+                if (State == TcpChannelState.Connecting)
                 {
-                    m_queuedOperations ??= [];
-                    firstCall = m_queuedOperations.Count == 0;
+                    operation = BeginOperation(timeout, null, null);
+                    QueueConnectOperation(operation, timeout, request);
                 }
-
-                // queue operations until connect completes.
-                if (m_queuedOperations != null)
+                else
                 {
-                    operation = BeginOperation(timeout, callback, state);
-
-                    bool validConnectOperation = QueueConnectOperation(operation, timeout, request);
-
-                    if (firstCall && validConnectOperation)
+                    if (State != TcpChannelState.Open)
                     {
-                        BeginConnect(m_url, timeout, OnConnectOnDemandComplete, null);
+                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
                     }
 
-                    return operation;
+                    m_logger.LogTrace("ChannelId {ChannelId}: BeginSendRequest()", ChannelId);
+
+                    if (m_reconnecting)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadRequestInterrupted,
+                            "Attempting to reconnect to the server.");
+                    }
+
+                    // send request.
+                    operation = BeginOperation(timeout, null, null);
+                    SendRequest(operation, request);
                 }
-
-                if (State != TcpChannelState.Open)
-                {
-                    throw new ServiceResultException(StatusCodes.BadConnectionClosed);
-                }
-
-                m_logger.LogTrace("ChannelId {ChannelId}: BeginSendRequest()", ChannelId);
-
-                if (m_reconnecting)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadRequestInterrupted,
-                        "Attempting to reconnect to the server.");
-                }
-
-                // send request.
-                operation = BeginOperation(timeout, callback, state);
-                SendRequest(operation, timeout, request);
-                return operation;
             }
-        }
-
-        /// <summary>
-        /// Returns the response to a previously sent request.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public IServiceResponse EndSendRequest(IAsyncResult result)
-        {
-            if (result is not WriteOperation operation)
-            {
-                throw new ArgumentNullException(nameof(result));
-            }
-
-            try
-            {
-                operation.End(int.MaxValue);
-            }
-            finally
-            {
-                OperationCompleted(operation);
-            }
-
-            return operation.MessageBody as IServiceResponse;
-        }
-
-        /// <summary>
-        /// Returns the response to a previously sent request.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public async Task<IServiceResponse> EndSendRequestAsync(
-            IAsyncResult result,
-            CancellationToken ct)
-        {
-            if (result is not WriteOperation operation)
-            {
-                throw new ArgumentNullException(nameof(result));
-            }
-
             try
             {
                 await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
@@ -419,18 +324,29 @@ namespace Opc.Ua.Bindings
             {
                 OperationCompleted(operation);
             }
-
-            return operation.MessageBody as IServiceResponse;
+            if (operation.MessageBody is not IServiceResponse response)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnknownResponse,
+                    "Server did not return a valid Service Response.");
+            }
+            return response;
         }
 
         /// <summary>
         /// Sends a Hello message.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void SendHelloMessage(WriteOperation operation)
         {
+            if (m_url == null)
+            {
+                throw ServiceResultException.Unexpected("Endpoint not defined.");
+            }
+
             m_logger.LogTrace("ChannelId {ChannelId}: SendHelloMessage()", ChannelId);
 
-            byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendHelloMessage");
+            byte[]? buffer = BufferManager.TakeBuffer(SendBufferSize, "SendHelloMessage");
 
             try
             {
@@ -605,8 +521,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends an OpenSecureChannel request.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void SendOpenSecureChannelRequest(bool renew)
         {
+            if (m_handshakeOperation == null)
+            {
+                throw ServiceResultException.Unexpected(
+                    "handshakeOperation not specified.");
+            }
+
             // create a new token.
             ChannelToken token = CreateToken();
             token.ClientNonce = CreateNonce(ClientCertificate);
@@ -626,7 +549,7 @@ namespace Opc.Ua.Bindings
             byte[] buffer = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
 
             // write the asymmetric message.
-            BufferCollection chunksToSend = WriteAsymmetricMessage(
+            BufferCollection? chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
                 m_handshakeOperation.RequestId,
                 ClientCertificate,
@@ -670,7 +593,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check if operation was abandoned.
-            if (m_handshakeOperation == null)
+            if (m_handshakeOperation == null || m_url == null)
             {
                 return false;
             }
@@ -709,7 +632,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            BufferCollection chunksToProcess = null;
+            BufferCollection? chunksToProcess = null;
 
             try
             {
@@ -743,6 +666,11 @@ namespace Opc.Ua.Bindings
                 // the server and client clocks may not be synchronized.
 
                 // update token.
+                if (m_requestedToken == null)
+                {
+                    throw ServiceResultException.Unexpected("requested token invalid.");
+                }
+
                 m_requestedToken.TokenId = response.SecurityToken.TokenId;
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                 m_requestedToken.ServerNonce = response.ServerNonce;
@@ -878,7 +806,7 @@ namespace Opc.Ua.Bindings
                 else if (messageType == TcpMessageType.Error)
                 {
                     //m_logger.LogTrace("ChannelId {ChannelId}: ProcessErrorMessage", ChannelId);
-                    return ProcessErrorMessage(messageType, messageChunk);
+                    return ProcessErrorMessage(messageChunk);
                 }
                 // process open secure channel repsonse.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
@@ -937,6 +865,7 @@ namespace Opc.Ua.Bindings
             int timeout,
             IServiceRequest request)
         {
+            m_queuedOperations ??= [];
             var queuedOperation = new QueuedOperation(operation, timeout, request);
 
             // operations that must be sent first and which allow for a connect.
@@ -967,9 +896,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when the socket is connected.
         /// </summary>
-        private void OnConnectComplete(object sender, IMessageSocketAsyncEventArgs e)
+        private void OnConnectComplete(object? sender, IMessageSocketAsyncEventArgs e)
         {
-            var operation = (WriteOperation)e.UserToken;
+            var operation = (WriteOperation?)e.UserToken;
 
             // ConnectAsync may call in with a null UserToken, ignore
             if (operation == null)
@@ -1015,8 +944,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when it is time to do a handshake.
         /// </summary>
-        private void OnScheduledHandshake(object state)
+        /// <exception cref="ServiceResultException"></exception>
+        private void OnScheduledHandshake(object? state)
         {
+            if (m_via == null)
+            {
+                throw ServiceResultException.Unexpected("Endpoint not defined.");
+            }
             try
             {
                 m_logger.LogInformation(
@@ -1126,7 +1060,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                ServiceResult error = null;
+                ServiceResult? error = null;
                 try
                 {
                     if (m_handshakeOperation == null)
@@ -1173,10 +1107,10 @@ namespace Opc.Ua.Bindings
         /// Sends a request to the server.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void SendRequest(WriteOperation operation, int timeout, IServiceRequest request)
+        private void SendRequest(WriteOperation operation, IServiceRequest request)
         {
             bool success = false;
-            BufferCollection buffers = null;
+            BufferCollection? buffers = null;
 
             try
             {
@@ -1446,7 +1380,7 @@ namespace Opc.Ua.Bindings
         /// Creates an object to manage the state of an asynchronous operation.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
+        private WriteOperation BeginOperation(int timeout, AsyncCallback? callback, object? state)
         {
             var operation = new WriteOperation(timeout, callback, state, m_logger)
             {
@@ -1464,7 +1398,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Cleans up after an asychronous operation completes.
         /// </summary>
-        private void OperationCompleted(WriteOperation operation)
+        private void OperationCompleted(WriteOperation? operation)
         {
             if (operation == null)
             {
@@ -1504,36 +1438,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when the connect operation completes.
         /// </summary>
-        /// <param name="state">The state.</param>
-        private void OnConnectOnDemandComplete(object state)
+        private void SendQueuedOperations()
         {
             lock (DataLock)
             {
-                var operation = (WriteOperation)state;
+                if (m_queuedOperations == null)
+                {
+                    // Already completed
+                    return;
+                }
 
                 for (int ii = 0; ii < m_queuedOperations.Count; ii++)
                 {
                     QueuedOperation request = m_queuedOperations[ii];
-
-                    // have to check for error on connect.
-                    if (ii == 0)
-                    {
-                        try
-                        {
-                            operation.End(request.Timeout);
-                        }
-                        catch (Exception e)
-                        {
-                            request.Operation.Fault(
-                                StatusCodes.BadNoCommunication,
-                                "Error establishing a connection: " + e.Message);
-                            continue;
-                        }
-                        finally
-                        {
-                            OperationCompleted(operation);
-                        }
-                    }
 
                     if (CurrentToken == null)
                     {
@@ -1545,7 +1462,7 @@ namespace Opc.Ua.Bindings
 
                     try
                     {
-                        SendRequest(request.Operation, request.Timeout, request.Request);
+                        SendRequest(request.Operation, request.Request);
                     }
                     catch (Exception e)
                     {
@@ -1558,9 +1475,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private WriteOperation InternalClose(int timeout)
+        private WriteOperation? InternalClose(int timeout)
         {
-            WriteOperation operation = null;
+            WriteOperation? operation = null;
             lock (DataLock)
             {
                 // nothing to do if the connection is already closed.
@@ -1599,7 +1516,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Processes an Error message received over the socket.
         /// </summary>
-        protected bool ProcessErrorMessage(uint messageType, ArraySegment<byte> messageChunk)
+        protected bool ProcessErrorMessage(ArraySegment<byte> messageChunk)
         {
             ServiceResult error;
 
@@ -1650,7 +1567,7 @@ namespace Opc.Ua.Bindings
             // limits should never be exceeded sending a close message.
 
             // construct the message.
-            BufferCollection buffers = WriteSymmetricMessage(
+            BufferCollection? buffers = WriteSymmetricMessage(
                 TcpMessageType.Close,
                 operation.RequestId,
                 currentToken,
@@ -1704,12 +1621,12 @@ namespace Opc.Ua.Bindings
             }
 
             // check if operation is still available.
-            if (!m_requests.TryGetValue(requestId, out WriteOperation operation))
+            if (!m_requests.TryGetValue(requestId, out WriteOperation? operation))
             {
                 return false;
             }
 
-            BufferCollection chunksToProcess = null;
+            BufferCollection? chunksToProcess = null;
 
             // check for replay attacks.
             if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
@@ -1781,20 +1698,20 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private Uri m_url;
-        private Uri m_via;
+        private Uri? m_url;
+        private Uri? m_via;
         private uint m_lastRequestId;
         private readonly ConcurrentDictionary<uint, WriteOperation> m_requests;
-        private WriteOperation m_handshakeOperation;
-        private ChannelToken m_requestedToken;
-        private Timer m_handshakeTimer;
+        private WriteOperation? m_handshakeOperation;
+        private ChannelToken? m_requestedToken;
+        private Timer? m_handshakeTimer;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
         private readonly EventHandler<IMessageSocketAsyncEventArgs> m_connectCallback;
         private readonly IMessageSocketFactory m_socketFactory;
         private readonly TimerCallback m_startHandshake;
         private readonly AsyncCallback m_handshakeComplete;
-        private List<QueuedOperation> m_queuedOperations;
+        private List<QueuedOperation>? m_queuedOperations;
         private readonly Random m_random;
         private readonly ILogger m_logger;
 

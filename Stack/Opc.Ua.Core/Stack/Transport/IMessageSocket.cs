@@ -145,7 +145,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets the local endpoint.
         /// </summary>
-        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// <exception cref="SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
         /// <exception cref="ObjectDisposedException">The Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
@@ -154,7 +154,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets the remote endpoint.
         /// </summary>
-        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// <exception cref="SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
         /// <exception cref="ObjectDisposedException">The Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>

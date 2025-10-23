@@ -546,7 +546,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ReadNextBlock()
         {
-            Socket? socket = null;
+            Socket? socket;
 
             // check if already closed.
             lock (m_socketLock)
@@ -627,11 +627,6 @@ namespace Opc.Ua.Bindings
                     return false;
             }
         }
-
-        /// <summary>
-        /// delegate to handle internal callbacks with socket error
-        /// </summary>
-        private delegate void CallbackAction(SocketError error);
 
         /// <summary>
         /// Sends a buffer.

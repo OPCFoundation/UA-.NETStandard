@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void OnTokenActivatedAddShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
-            Assert.That(() => { sut.OnTokenActivated += (a, b, e) => { }; },
+            Assert.That(() => sut.OnTokenActivated += (a, b, e) => { },
                 Throws.TypeOf<ServiceResultException>().With.Message
                     .Contains("OnTokenActivated called in unexpected state"));
         }
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void OnTokenActivatedRemoveShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
-            Assert.That(() => { sut.OnTokenActivated -= (a, b, e) => { }; },
+            Assert.That(() => sut.OnTokenActivated -= (a, b, e) => { },
                 Throws.TypeOf<ServiceResultException>().With.Message
                     .Contains("OnTokenActivated called in unexpected state"));
         }
