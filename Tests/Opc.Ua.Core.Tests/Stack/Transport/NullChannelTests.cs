@@ -35,7 +35,7 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
     [TestFixture]
-    [Category("ChannelFactory")]
+    [Category("TransportChannelTests")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]

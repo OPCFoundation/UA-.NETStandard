@@ -55,7 +55,4 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Stack\Transport\Obsolete\" />
-  </ItemGroup>
 </Project>
