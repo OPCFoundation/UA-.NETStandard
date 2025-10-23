@@ -5871,25 +5871,25 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
-        public object BeginPublish(int timeout)
+        public bool BeginPublish(int timeout)
         {
             // do not publish if reconnecting or the session is in closed state.
             if (!Connected)
             {
                 m_logger.LogWarning("Publish skipped due to session not connected");
-                return null;
+                return false;
             }
 
             if (Reconnecting)
             {
                 m_logger.LogWarning("Publish skipped due to session reconnect");
-                return null;
+                return false;
             }
 
             if (Closing)
             {
                 m_logger.LogWarning("Publish skipped due to session closing");
-                return null;
+                return false;
             }
 
             // get event handler to modify ack list
@@ -5965,12 +5965,12 @@ namespace Opc.Ua.Client
                 task.ConfigureAwait(false)
                     .GetAwaiter()
                     .OnCompleted(() => OnPublishComplete(task, SessionId, acknowledgementsToSend, requestHeader));
-                return task;
+                return true;
             }
             catch (Exception e)
             {
                 m_logger.LogError(e, "Unexpected error sending publish request.");
-                return null;
+                return false;
             }
         }
 
@@ -5982,12 +5982,12 @@ namespace Opc.Ua.Client
             int publishCount = GetDesiredPublishRequestCount(true);
 
             // refill pipeline. Send at least one publish request if subscriptions are active.
-            if (publishCount > 0 && BeginPublish(timeout) != null)
+            if (publishCount > 0 && BeginPublish(timeout))
             {
                 int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
                 for (int ii = startCount; ii < publishCount; ii++)
                 {
-                    if (BeginPublish(timeout) == null)
+                    if (!BeginPublish(timeout))
                     {
                         break;
                     }

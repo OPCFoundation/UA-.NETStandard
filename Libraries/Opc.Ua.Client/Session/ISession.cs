@@ -756,7 +756,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
-        object BeginPublish(int timeout);
+        bool BeginPublish(int timeout);
 
         /// <summary>
         /// Create the publish requests for the active subscriptions.
