@@ -215,9 +215,9 @@ namespace Opc.Ua
                 "An unexpected error occurred" :
                 Utils.Format(format, args);
 #if DEBUGCHK
-            Debug.Fail(message);
+            System.Diagnostics.Debug.Fail(message);
 #endif
-            Debug.WriteLine($"{message}\n{new StackTrace()}");
+            System.Diagnostics.Debug.WriteLine($"{message}\n{new System.Diagnostics.StackTrace()}");
 #endif
             if (format == null)
             {

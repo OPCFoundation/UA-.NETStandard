@@ -32,13 +32,14 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             IServiceMessageContext messageContext)
         {
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext).AsTask().GetAwaiter().GetResult();
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -53,13 +54,14 @@ namespace Opc.Ua
             X509Certificate2Collection clientCertificateChain,
             IServiceMessageContext messageContext)
         {
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext).AsTask().GetAwaiter().GetResult();
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -76,14 +78,15 @@ namespace Opc.Ua
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 connection,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext).AsTask().GetAwaiter().GetResult();
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
         }
     }
 }

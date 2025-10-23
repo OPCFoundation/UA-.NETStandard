@@ -184,6 +184,7 @@ namespace Opc.Ua.Bindings
             CancellationToken ct)
         {
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw NotOpen();
+            HttpClient client = m_client ?? throw NotOpen();
             try
             {
                 var content = new ByteArrayContent(
@@ -206,8 +207,7 @@ namespace Opc.Ua.Bindings
                     cts.Token,
                     ct))
                 {
-                    Debug.Assert(m_client != null);
-                    response = await m_client!.PostAsync(m_url, content, linkedCts.Token)
+                    response = await client.PostAsync(m_url, content, linkedCts.Token)
                         .ConfigureAwait(false);
                 }
                 response.EnsureSuccessStatusCode();
@@ -457,9 +457,7 @@ namespace Opc.Ua.Bindings
 
         private ServiceResultException NotOpen()
         {
-            return ServiceResultException.Unexpected(
-                "{ChannelType} not open.",
-                nameof(HttpsTransportChannel));
+            return ServiceResultException.Unexpected("{0} not open.", nameof(HttpsTransportChannel));
         }
 
         private Uri? m_url;

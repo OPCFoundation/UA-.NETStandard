@@ -23,9 +23,10 @@ using System.Threading;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Channel factory
+    /// Client side transport channel factory. Manages creation
+    /// of transport channels for clients.
     /// </summary>
-    internal sealed class ClientChannelFactory : ITransportChannelFactory
+    public sealed class ClientChannelManager : ITransportChannelManager
     {
         /// <summary>
         /// Callback to register channel diagnostics
@@ -33,12 +34,17 @@ namespace Opc.Ua
         public event Action<ITransportChannel, TransportChannelDiagnostic>? OnDiagnostics;
 
         /// <summary>
-        /// Create channel factory
+        /// Create client channel factory.
         /// </summary>
-        /// <param name="configuration"></param>
-        public ClientChannelFactory(ApplicationConfiguration configuration)
+        /// <param name="configuration">The application configuration to use</param>
+        /// <param name="channelFactory">An optional factory to create channel types
+        /// from. Uses the default channel bindings if none is provided</param>
+        public ClientChannelManager(
+            ApplicationConfiguration configuration,
+            ITransportChannelBindings? channelFactory = null)
         {
             m_configuration = configuration;
+            m_channelFactory = channelFactory;
         }
 
         /// <inheritdoc/>
@@ -62,6 +68,7 @@ namespace Opc.Ua
                     clientCertificate,
                     clientCertificateChain,
                     context,
+                    m_channelFactory,
                     ct).ConfigureAwait(false);
             }
             else
@@ -73,6 +80,7 @@ namespace Opc.Ua
                     clientCertificate,
                     clientCertificateChain,
                     context,
+                    m_channelFactory,
                     ct).ConfigureAwait(false);
             }
             if (channel is ISecureChannel secureChannel)
@@ -86,7 +94,7 @@ namespace Opc.Ua
         /// Called when channel is disposed
         /// </summary>
         /// <param name="channel"></param>
-        private void CloseChannel(ITransportChannel channel)
+        internal void CloseChannel(ITransportChannel channel)
         {
             if (channel is ISecureChannel secureChannel)
             {
@@ -107,12 +115,14 @@ namespace Opc.Ua
             X509Certificate2? clientCertificate,
             X509Certificate2Collection? clientCertificateChain,
             IServiceMessageContext messageContext,
+            ITransportChannelBindings? transportChannelBindings = null,
             CancellationToken ct = default)
         {
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
+            transportChannelBindings ??= TransportBindings.Channels;
             ITransportChannel channel =
-                TransportBindings.Channels.GetChannel(uriScheme, messageContext.Telemetry)
+                transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
@@ -164,6 +174,7 @@ namespace Opc.Ua
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="transportChannelBindings">Optional bindings to use</param>
         /// <param name="ct">The cancellation token</param>
         /// <exception cref="ServiceResultException"></exception>
         internal static async ValueTask<ITransportChannel> CreateUaBinaryChannelAsync(
@@ -173,6 +184,7 @@ namespace Opc.Ua
             X509Certificate2? clientCertificate,
             X509Certificate2Collection? clientCertificateChain,
             IServiceMessageContext messageContext,
+            ITransportChannelBindings? transportChannelBindings = null,
             CancellationToken ct = default)
         {
             string uriScheme = description.TransportProfileUri switch
@@ -184,8 +196,9 @@ namespace Opc.Ua
             };
 
             // initialize the channel which will be created with the server.
+            transportChannelBindings ??= TransportBindings.Channels;
             ITransportChannel channel =
-                TransportBindings.Channels.GetChannel(uriScheme, messageContext.Telemetry)
+                transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
@@ -353,7 +366,7 @@ namespace Opc.Ua
                 set => m_channel.OperationTimeout = value;
             }
 
-            public ClientChannel(ClientChannelFactory factory, ITransportChannel channel)
+            public ClientChannel(ClientChannelManager factory, ITransportChannel channel)
             {
                 m_channel = channel;
                 m_factory = factory;
@@ -387,9 +400,10 @@ namespace Opc.Ua
             }
 
             private readonly ITransportChannel m_channel;
-            private readonly ClientChannelFactory m_factory;
+            private readonly ClientChannelManager m_factory;
         }
 
         private readonly ApplicationConfiguration m_configuration;
+        private readonly ITransportChannelBindings? m_channelFactory;
     }
 }

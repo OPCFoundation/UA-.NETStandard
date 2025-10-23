@@ -229,12 +229,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="url">The URL.</param>
         /// <param name="settings">The settings.</param>
+        /// <exception cref="ArgumentException"></exception>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             // save the settings.
             m_url = url;
             m_settings = settings;
+
             OperationTimeout = settings.Configuration.OperationTimeout;
+            if (OperationTimeout <= 0)
+            {
+                throw new ArgumentException("Timeout must be greater than 0");
+            }
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
@@ -349,9 +355,7 @@ namespace Opc.Ua.Bindings
 
         private ServiceResultException NotOpen()
         {
-            return ServiceResultException.Unexpected(
-                "{ChannelType} not open.",
-                nameof(UaSCUaBinaryTransportChannel));
+            return ServiceResultException.Unexpected("{0} not open.", nameof(UaSCUaBinaryTransportChannel));
         }
 
         private readonly Lock m_lock = new();

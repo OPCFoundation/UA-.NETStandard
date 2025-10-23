@@ -4595,7 +4595,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Removes a completed async request.
         /// </summary>
-        private AsyncRequestState RemoveRequest(object result, uint requestId, uint typeId)
+        private AsyncRequestState RemoveRequest(Task result, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {

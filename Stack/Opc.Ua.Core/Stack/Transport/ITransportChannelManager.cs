@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Creates channels and provides ability to monitor them
     /// </summary>
-    public interface ITransportChannelFactory
+    public interface ITransportChannelManager
     {
         /// <summary>
         /// Callback to register and receive channel diagnostics

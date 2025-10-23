@@ -505,13 +505,14 @@ namespace Opc.Ua
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 null,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
                 null,
                 messageContext,
+                null,
                 ct);
         }
 
@@ -536,7 +537,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 connection,
                 endpoint,
@@ -544,6 +545,7 @@ namespace Opc.Ua
                 clientCertificate,
                 null,
                 messageContext,
+                null,
                 ct);
         }
 
@@ -568,13 +570,14 @@ namespace Opc.Ua
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
                 null,
                 messageContext,
+                null,
                 ct);
         }
 
@@ -645,7 +648,7 @@ namespace Opc.Ua
                 discoveryUrl,
                 endpointConfiguration,
                 messageContext,
-                clientCertificate).GetAwaiter().GetResult();
+                clientCertificate).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -664,7 +667,7 @@ namespace Opc.Ua
                 connection,
                 endpointConfiguration,
                 messageContext,
-                clientCertificate).GetAwaiter().GetResult();
+                clientCertificate).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -683,7 +686,7 @@ namespace Opc.Ua
                 discoveryUrl,
                 endpointConfiguration,
                 messageContext,
-                clientCertificate).GetAwaiter().GetResult();
+                clientCertificate).AsTask().GetAwaiter().GetResult();
         }
     }
 }

@@ -46,7 +46,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(url));
             }
 
-            ITransportListener listener = TransportBindings.Listeners.GetListener(
+            ITransportListener listener = TransportBindings.Listeners.Create(
                 url.Scheme,
                 m_telemetry);
 

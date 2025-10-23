@@ -38,7 +38,7 @@ namespace Opc.Ua
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 connection,
                 description,
@@ -46,6 +46,7 @@ namespace Opc.Ua
                 clientCertificate,
                 clientCertificateChain,
                 messageContext,
+                null,
                 ct).AsTask();
         }
 
@@ -69,13 +70,14 @@ namespace Opc.Ua
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
                 messageContext,
+                null,
                 ct).AsTask();
         }
 

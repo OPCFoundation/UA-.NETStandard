@@ -129,29 +129,18 @@ namespace Opc.Ua
                 return;
             }
             keyset.Write($"client_iv_{ChannelId}_{TokenId}: ");
-            keyset.WriteLine(TransportChannelDiagnostic.ToHexString([.. Client.Iv]));
+            keyset.WriteLine(Utils.ToHexString([.. Client.Iv]));
             keyset.Write($"client_key_{ChannelId}_{TokenId}: ");
-            keyset.WriteLine(TransportChannelDiagnostic.ToHexString([.. Client.Key]));
+            keyset.WriteLine(Utils.ToHexString([.. Client.Key]));
             keyset.Write($"client_siglen_{ChannelId}_{TokenId}: ");
             keyset.WriteLine(Client.SigLen.ToString(CultureInfo.InvariantCulture));
             keyset.Write($"server_iv_{ChannelId}_{TokenId}: ");
-            keyset.WriteLine(TransportChannelDiagnostic.ToHexString([.. Server.Iv]));
+            keyset.WriteLine(Utils.ToHexString([.. Server.Iv]));
             keyset.Write($"server_key_{ChannelId}_{TokenId}: ");
-            keyset.WriteLine(TransportChannelDiagnostic.ToHexString([.. Server.Key]));
+            keyset.WriteLine(Utils.ToHexString([.. Server.Key]));
             keyset.Write($"server_siglen_{ChannelId}_{TokenId}: ");
             keyset.WriteLine(Server.SigLen.ToString(CultureInfo.InvariantCulture));
             keyset.Flush();
-        }
-
-        private static string ToHexString(byte[] data)
-        {
-#if NET8_0_OR_GREATER
-            return Convert.ToHexString(data);
-#else
-            return BitConverter
-                .ToString(data)
-                .Replace("-", string.Empty, StringComparison.Ordinal);
-#endif
         }
     }
 }

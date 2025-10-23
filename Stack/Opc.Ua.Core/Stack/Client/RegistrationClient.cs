@@ -61,13 +61,14 @@ namespace Opc.Ua
 
             ServiceMessageContext context = configuration.CreateMessageContext();
 
-            ITransportChannel channel = await ClientChannelFactory.CreateUaBinaryChannelAsync(
+            ITransportChannel channel = await ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 instanceCertificate,
                 null,
                 context,
+                null,
                 ct).ConfigureAwait(false);
 
             return new RegistrationClient(channel, context.Telemetry)
@@ -94,13 +95,14 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             IServiceMessageContext messageContext)
         {
-            return ClientChannelFactory.CreateUaBinaryChannelAsync(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext).AsTask().GetAwaiter().GetResult();
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
         }
     }
 }
