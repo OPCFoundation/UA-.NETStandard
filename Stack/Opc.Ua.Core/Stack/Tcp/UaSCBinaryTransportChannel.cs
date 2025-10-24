@@ -131,6 +131,10 @@ namespace Opc.Ua.Bindings
             ITransportWaitingConnection? connection,
             CancellationToken ct)
         {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
+            }
             if (m_url == null)
             {
                 throw BadNotConnected();
@@ -195,6 +199,10 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public async ValueTask CloseAsync(CancellationToken ct)
         {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
+            }
             await m_connecting.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -245,6 +253,14 @@ namespace Opc.Ua.Bindings
             IServiceRequest request,
             CancellationToken ct)
         {
+            if (m_disposed)
+            {
+                // right now this can happen if Dispose is called
+                // Before channel users (e.g. keep alive requests)
+                // are cancelled and stopped.
+                // TODO: Areas like this should be fixed eventually.
+                throw BadNotConnected();
+            }
             UaSCUaBinaryClientChannel? channel;
             await m_connecting.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -278,6 +294,10 @@ namespace Opc.Ua.Bindings
             TransportChannelSettings settings,
             CancellationToken ct)
         {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
+            }
             UaSCUaBinaryClientChannel? channel;
             await m_connecting.WaitAsync(ct).ConfigureAwait(false);
             try
