@@ -4067,23 +4067,6 @@ namespace Opc.Ua.Server
                             Timeout.Infinite);
                     }
                 }
-
-                // set the server status as running.
-                SetServerState(ServerState.Running);
-
-                // all initialization is complete.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
-                OnServerStarted(m_serverInternal);
-
-                // monitor the configuration file.
-                if (!string.IsNullOrEmpty(configuration.SourceFilePath))
-                {
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
-                    m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
-                    m_configurationWatcher.Changed += OnConfigurationChangedAsync;
-                }
-
-                CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
             }
             catch (Exception e)
             {
@@ -4099,6 +4082,23 @@ namespace Opc.Ua.Server
             {
                 SemaphoreSlim.Release();
             }
+
+            // set the server status as running.
+            SetServerState(ServerState.Running);
+
+            // all initialization is complete.
+            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
+            OnServerStarted(m_serverInternal);
+
+            // monitor the configuration file.
+            if (!string.IsNullOrEmpty(configuration.SourceFilePath))
+            {
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
+                m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
+                m_configurationWatcher.Changed += OnConfigurationChangedAsync;
+            }
+
+            CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
         }
 
         /// <summary>

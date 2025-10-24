@@ -167,6 +167,14 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Stops the UA server.
         /// </summary>
+        public ValueTask StopAsync()
+        {
+            return Server.StopAsync();
+        }
+
+        /// <summary>
+        /// Stops the UA server.
+        /// </summary>
         [Obsolete("Use StopAsync")]
         public void Stop()
         {

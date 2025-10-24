@@ -273,7 +273,7 @@ namespace Opc.Ua
             Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
 
             // start the application.
-            await StartApplicationAsync(configuration)
+            await StartApplicationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
 
             // the configuration file may specify multiple security policies or non-HTTP protocols
@@ -563,10 +563,6 @@ namespace Opc.Ua
             {
                 ServerError = new ServiceResult(e);
             }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-            Stop();
-#pragma warning restore CS0618 // Type or member is obsolete
 
             // close any listeners.
             List<ITransportListener> listeners = TransportListeners;
