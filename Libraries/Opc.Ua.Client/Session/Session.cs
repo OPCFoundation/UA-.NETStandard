@@ -373,8 +373,6 @@ namespace Opc.Ua.Client
 
             if (disposing)
             {
-                m_publishCancellation.Cancel();
-
                 StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
 
                 Utils.SilentDispose(m_defaultSubscription);
@@ -402,7 +400,6 @@ namespace Opc.Ua.Client
             if (disposing)
             {
                 m_keepAliveTimer.Dispose();
-                m_publishCancellation.Dispose();
 
                 // suppress spurious events
                 m_KeepAlive = null;
@@ -3967,9 +3964,6 @@ namespace Opc.Ua.Client
 
             try
             {
-                // Cancel all active publishing
-                m_publishCancellation.Cancel();
-
                 // stop the keep alive timer.
                 await StopKeepAliveTimerAsync().ConfigureAwait(false);
 
@@ -5903,7 +5897,7 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            if (m_publishCancellation.IsCancellationRequested)
+            if (Closing)
             {
                 m_logger.LogWarning("Publish cancelled due to session closed");
                 return false;
@@ -5980,7 +5974,7 @@ namespace Opc.Ua.Client
                 Task<PublishResponse> task = PublishAsync(
                     requestHeader,
                     acknowledgementsToSend,
-                    m_publishCancellation.Token);
+                    default); // TODO: Need a session scoped cancellation token.
                 AsyncRequestStarted(task, requestHeader.RequestHandle, DataTypes.PublishRequest);
                 task.ConfigureAwait(false)
                     .GetAwaiter()
@@ -6006,14 +6000,10 @@ namespace Opc.Ua.Client
             int publishCount = GetDesiredPublishRequestCount(true);
 
             // refill pipeline. Send at least one publish request if subscriptions are active.
-            if (publishCount > 0 &&
-                !m_publishCancellation.IsCancellationRequested &&
-                BeginPublish(timeout))
+            if (publishCount > 0 && BeginPublish(timeout))
             {
                 int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
-                for (int ii = startCount;
-                    ii < publishCount &&
-                    !m_publishCancellation.IsCancellationRequested; ii++)
+                for (int ii = startCount; ii < publishCount; ii++)
                 {
                     if (!BeginPublish(timeout))
                     {
@@ -7525,7 +7515,6 @@ namespace Opc.Ua.Client
         private SemaphoreSlim m_reconnectLock;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
-        private CancellationTokenSource m_publishCancellation = new();
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private string m_userTokenSecurityPolicyUri;
         private Nonce m_eccServerEphemeralKey;
@@ -7699,7 +7688,7 @@ namespace Opc.Ua.Client
         public SubscriptionAcknowledgementCollection AcknowledgementsToSend { get; }
 
         /// <summary>
-        /// The deferred list of acknowledgements.m
+        /// The deferred list of acknowledgements.
         /// </summary>
         /// <remarks>
         /// The callee can transfer an outstanding <see cref="SubscriptionAcknowledgement"/>
