@@ -165,6 +165,7 @@ namespace Opc.Ua.Server
             ISession session;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // check session count.
                 if (m_maxSessionCount > 0 && m_sessions.Count >= m_maxSessionCount)
@@ -251,6 +252,10 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
 
             // raise session related event.
