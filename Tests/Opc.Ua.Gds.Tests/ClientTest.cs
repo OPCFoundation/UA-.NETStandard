@@ -142,7 +142,7 @@ namespace Opc.Ua.Gds.Tests
         {
             await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
             m_gdsClient = null;
-            m_server.StopServer();
+            await m_server.StopServerAsync().ConfigureAwait(false);
             m_server = null;
             Thread.Sleep(1000);
         }
