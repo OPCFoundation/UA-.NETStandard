@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Encoding
@@ -59,20 +60,21 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetFlags1EncodingMask.DataSetFlags2;
 
         /// <summary>
-        /// Constructor for <see cref="UadpDataSetMessage"/>.
+        /// Constructor for <see cref="UadpDataSetMessage"/>
         /// </summary>
-        public UadpDataSetMessage()
+        public UadpDataSetMessage(ILogger logger = null)
+            : this(null, logger)
         {
-            // If this bit is set to false, the rest of this DataSetMessage is considered invalid, and shall not be processed by the Subscriber.
-            DataSetFlags1 |= DataSetFlags1EncodingMask.MessageIsValid;
         }
 
         /// <summary>
-        /// Constructor for <see cref="UadpDataSetMessage"/> with DataSet parameter
+        /// Constructor for <see cref="UadpDataSetMessage"/>
         /// </summary>
-        public UadpDataSetMessage(DataSet dataSet = null)
-            : this()
+        public UadpDataSetMessage(DataSet dataSet, ILogger logger = null)
+            : base(logger)
         {
+            // If this bit is set to false, the rest of this DataSetMessage is considered invalid, and shall not be processed by the Subscriber.
+            DataSetFlags1 |= DataSetFlags1EncodingMask.MessageIsValid;
             DataSet = dataSet;
         }
 
@@ -344,9 +346,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode payload data
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void EncodeMessageDataKeyFrame(BinaryEncoder binaryEncoder)
         {
-            switch ((FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1))
+            var fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
+            switch (fieldType)
             {
                 case FieldTypeEncodingMask.Variant:
                     binaryEncoder.WriteUInt16("DataSetFieldCount", (ushort)DataSet.Fields.Length);
@@ -374,12 +378,16 @@ namespace Opc.Ua.PubSub.Encoding
                 case FieldTypeEncodingMask.Reserved:
                     // ignore
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected FieldDataTypeEncodingMask {fieldType}");
             }
         }
 
         /// <summary>
         /// Encode payload data delta frame
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void EncodeMessageDataDeltaFrame(BinaryEncoder binaryEncoder)
         {
             // calculate the number of fields that will be written
@@ -418,6 +426,9 @@ namespace Opc.Ua.PubSub.Encoding
                     case FieldTypeEncodingMask.Reserved:
                         // ignore
                         break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected FieldDataTypeEncodingMask {fieldType}");
                 }
             }
         }
@@ -482,6 +493,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Decode field message data key frame from decoder and using a DataSetReader
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private DataSet DecodeMessageDataKeyFrame(
             BinaryDecoder binaryDecoder,
             DataSetReaderDataType dataSetReader)
@@ -542,6 +554,9 @@ namespace Opc.Ua.PubSub.Encoding
                     case FieldTypeEncodingMask.Reserved:
                         // ignore
                         break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected FieldDataTypeEncodingMask {fieldType}");
                 }
 
                 var dataFields = new List<Field>();
@@ -583,7 +598,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UadpDataSetMessage.DecodeMessageDataKeyFrame");
+                m_logger.LogError(ex, "UadpDataSetMessage.DecodeMessageDataKeyFrame");
                 return null;
             }
         }
@@ -591,6 +606,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Decode field message data delta frame from decoder and using a DataSetReader
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private DataSet DecodeMessageDataDeltaFrame(
             BinaryDecoder binaryDecoder,
             DataSetReaderDataType dataSetReader)
@@ -656,6 +672,9 @@ namespace Opc.Ua.PubSub.Encoding
                             case FieldTypeEncodingMask.Reserved:
                                 // ignore
                                 break;
+                            default:
+                                throw ServiceResultException.Unexpected(
+                                    $"Unexpected FieldDataTypeEncodingMask {fieldType}");
                         }
                     }
 
@@ -671,7 +690,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UadpDataSetMessage.DecodeMessageDataDeltaFrame");
+                m_logger.LogError(ex, "UadpDataSetMessage.DecodeMessageDataDeltaFrame");
             }
             return null;
         }
@@ -679,7 +698,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes field value as RawData
         /// </summary>
-        private static void EncodeFieldAsRawData(
+        /// <exception cref="ServiceResultException"></exception>
+        private void EncodeFieldAsRawData(
             BinaryEncoder binaryEncoder,
             Field field,
             IFormatProvider formatProvider)
@@ -804,6 +824,17 @@ namespace Opc.Ua.PubSub.Encoding
                                 "ExtensionObject",
                                 valueToEncode as ExtensionObject);
                             break;
+                        case BuiltInType.Null:
+                        case BuiltInType.DataValue:
+                        case BuiltInType.Variant:
+                        case BuiltInType.DiagnosticInfo:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {field.FieldMetaData.BuiltInType}");
                     }
                 }
                 else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
@@ -817,14 +848,14 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "Error encoding field {0}.", field.FieldMetaData.Name);
+                m_logger.LogError(ex, "Error encoding field {Name}.", field.FieldMetaData.Name);
             }
         }
 
         /// <summary>
         /// Decode RawData type (for SimpleTypeDescription!?)
         /// </summary>
-        private static object DecodeRawData(
+        private object DecodeRawData(
             BinaryDecoder binaryDecoder,
             FieldMetaData fieldMetaData)
         {
@@ -843,15 +874,15 @@ namespace Opc.Ua.PubSub.Encoding
                                 fieldMetaData.ValueRank,
                                 (BuiltInType)fieldMetaData.BuiltInType);
                         default:
-                            Utils.Trace(
-                                "Decoding ValueRank = {0} not supported yet !!!",
+                            m_logger.LogInformation(
+                                "Decoding ValueRank = {ValueRank} not supported yet !!!",
                                 fieldMetaData.ValueRank);
                             break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "Error reading element for RawData.");
+                    m_logger.LogError(ex, "Error reading element for RawData.");
                     return StatusCodes.BadDecodingError;
                 }
             }
@@ -862,6 +893,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode a scalar type
         /// </summary>
         /// <returns>The decoded object</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private static object DecodeRawScalar(BinaryDecoder binaryDecoder, byte builtInType)
         {
             switch ((BuiltInType)builtInType)
@@ -916,8 +948,15 @@ namespace Opc.Ua.PubSub.Encoding
                     return binaryDecoder.ReadVariant(null);
                 case BuiltInType.ExtensionObject:
                     return binaryDecoder.ReadExtensionObject(null);
-                default:
+                case BuiltInType.Null:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
                     return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {builtInType}");
             }
         }
     }

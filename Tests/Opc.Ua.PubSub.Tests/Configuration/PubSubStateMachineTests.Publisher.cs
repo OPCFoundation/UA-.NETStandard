@@ -30,6 +30,7 @@
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -51,20 +52,19 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             m_publisherConfigurationFile = Utils.GetAbsoluteFilePath(
                 PublisherConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
             m_subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
                 SubscriberConfigurationFileName,
-                true,
-                true,
-                false);
+                checkCurrentDirectory: true,
+                createAlways: false);
         }
 
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Publisher")]
         public void ValidateDisabled_0ToPause_1_Publisher()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -141,7 +141,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Description = "Validate transition of state Disabled_0 to Operational_2 on Publisher")]
         public void ValidateDisabled_0ToOperational_2_Publisher()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -225,7 +226,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate transition of state Paused_1 to Disabled_0 on Publisher")]
         public void ValidatePaused_1ToDisabled_0_Publisher()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -304,7 +306,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate transition of state Paused_1 to Operational_2 on Publisher")]
         public void ValidatePaused_1ToOperational_2_Publisher()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -358,7 +361,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Description = "Validate transition of state Operational_2 to Disabled_0 on Publisher")]
         public void ValidateOperational_2ToDisabled_0_Publisher()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -426,7 +430,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate transition of state Operational_2 to Paused_1 on Publisher")]
         public void ValidateOperational_2ToPaused_1_Publisher()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 

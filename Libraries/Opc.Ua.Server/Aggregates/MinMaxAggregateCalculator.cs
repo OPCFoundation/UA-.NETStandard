@@ -46,14 +46,16 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public MinMaxAggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
-            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration, telemetry)
         {
             SetPartialBit = true;
         }
@@ -65,34 +67,35 @@ namespace Opc.Ua.Server
         {
             uint? id = AggregateId.Identifier as uint?;
 
-            if (id != null)
+            if (id == null)
             {
-                switch (id.Value)
-                {
-                    case Objects.AggregateFunction_Minimum:
-                        return ComputeMinMax(slice, 1, false);
-                    case Objects.AggregateFunction_MinimumActualTime:
-                        return ComputeMinMax(slice, 1, true);
-                    case Objects.AggregateFunction_Maximum:
-                        return ComputeMinMax(slice, 2, false);
-                    case Objects.AggregateFunction_MaximumActualTime:
-                        return ComputeMinMax(slice, 2, true);
-                    case Objects.AggregateFunction_Range:
-                        return ComputeMinMax(slice, 3, false);
-                    case Objects.AggregateFunction_Minimum2:
-                        return ComputeMinMax2(slice, 1, false);
-                    case Objects.AggregateFunction_MinimumActualTime2:
-                        return ComputeMinMax2(slice, 1, true);
-                    case Objects.AggregateFunction_Maximum2:
-                        return ComputeMinMax2(slice, 2, false);
-                    case Objects.AggregateFunction_MaximumActualTime2:
-                        return ComputeMinMax2(slice, 2, true);
-                    case Objects.AggregateFunction_Range2:
-                        return ComputeMinMax2(slice, 3, false);
-                }
+                return base.ComputeValue(slice);
             }
-
-            return base.ComputeValue(slice);
+            switch (id.Value)
+            {
+                case Objects.AggregateFunction_Minimum:
+                    return ComputeMinMax(slice, 1, false);
+                case Objects.AggregateFunction_MinimumActualTime:
+                    return ComputeMinMax(slice, 1, true);
+                case Objects.AggregateFunction_Maximum:
+                    return ComputeMinMax(slice, 2, false);
+                case Objects.AggregateFunction_MaximumActualTime:
+                    return ComputeMinMax(slice, 2, true);
+                case Objects.AggregateFunction_Range:
+                    return ComputeMinMax(slice, 3, false);
+                case Objects.AggregateFunction_Minimum2:
+                    return ComputeMinMax2(slice, 1, false);
+                case Objects.AggregateFunction_MinimumActualTime2:
+                    return ComputeMinMax2(slice, 1, true);
+                case Objects.AggregateFunction_Maximum2:
+                    return ComputeMinMax2(slice, 2, false);
+                case Objects.AggregateFunction_MaximumActualTime2:
+                    return ComputeMinMax2(slice, 2, true);
+                case Objects.AggregateFunction_Range2:
+                    return ComputeMinMax2(slice, 3, false);
+                default:
+                    return base.ComputeValue(slice);
+            }
         }
 
         /// <summary>

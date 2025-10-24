@@ -51,9 +51,8 @@ namespace Opc.Ua.Fuzzing
         public static void Main(string[] args)
         {
             string applicationName = typeof(Program).Assembly.GetName().Name;
-            TextWriter output = Console.Out;
 
-            output.WriteLine($"OPC UA {applicationName}");
+            Console.WriteLine($"OPC UA {applicationName}");
             string usage = $"Usage: {applicationName}.exe [OPTIONS]";
 
             bool showHelp = false;
@@ -73,7 +72,8 @@ namespace Opc.Ua.Fuzzing
                 { "s|stacktrace", "show stacktrace with playback", s => stacktrace = s != null }
             };
 
-            Logging.Configure(applicationName, string.Empty, true, LogLevel.Trace);
+            var telemetry = new Logging();
+            telemetry.Configure(applicationName, string.Empty, true, LogLevel.Trace);
 
             IList<string> extraArgs = null;
             try
@@ -82,13 +82,13 @@ namespace Opc.Ua.Fuzzing
             }
             catch (OptionException e)
             {
-                output.WriteLine(e.Message);
+                Console.WriteLine(e.Message);
                 showHelp = true;
             }
 
             if (testcases)
             {
-                Testcases.Run(DefaultTestcasesFolder);
+                Testcases.Run(DefaultTestcasesFolder, telemetry);
             }
             else if (playback)
             {
@@ -97,16 +97,17 @@ namespace Opc.Ua.Fuzzing
                     Console.WriteLine("--- Fuzzer testcases for {0} ---", encoderType[1..]);
                     Playback.Run(
                         DefaultTestcasesFolder + encoderType + Path.DirectorySeparatorChar,
-                        stacktrace);
+                        stacktrace,
+                        telemetry);
                 }
                 Console.WriteLine("--- afl-fuzz crash findings ---");
-                Playback.Run(DefaultFindingsCrashFolder, stacktrace);
+                Playback.Run(DefaultFindingsCrashFolder, stacktrace, telemetry);
                 Console.WriteLine("--- afl-fuzz timeout findings ---");
-                Playback.Run(DefaultFindingsHangsFolder, stacktrace);
+                Playback.Run(DefaultFindingsHangsFolder, stacktrace, telemetry);
                 Console.WriteLine("--- libfuzzer crashes ---");
-                Playback.Run(DefaultLibFuzzerCrashes, stacktrace);
+                Playback.Run(DefaultLibFuzzerCrashes, stacktrace, telemetry);
                 Console.WriteLine("--- libfuzzer timeouts ---");
-                Playback.Run(DefaultLibFuzzerHangs, stacktrace);
+                Playback.Run(DefaultLibFuzzerHangs, stacktrace, telemetry);
             }
             else
             {
@@ -115,7 +116,7 @@ namespace Opc.Ua.Fuzzing
 
             if (showHelp)
             {
-                options.WriteOptionDescriptions(output);
+                options.WriteOptionDescriptions(Console.Out);
             }
         }
     }

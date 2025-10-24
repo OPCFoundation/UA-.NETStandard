@@ -17,6 +17,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -233,8 +234,7 @@ namespace Opc.Ua.Bindings
                         }
                     }
 
-                    break;
-
+                    return false;
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
@@ -245,9 +245,9 @@ namespace Opc.Ua.Bindings
                     m_remoteNonce = Nonce.CreateNonce(SecurityPolicyUri, nonce);
                     return true;
 #endif
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -787,7 +787,6 @@ namespace Opc.Ua.Bindings
             senderCertificateChain = null;
 
             _ = decoder.ReadUInt32(null);
-
             _ = decoder.ReadUInt32(null);
 
             // decode security header.
@@ -816,7 +815,9 @@ namespace Opc.Ua.Bindings
             // verify sender certificate chain.
             if (certificateData != null && certificateData.Length > 0)
             {
-                senderCertificateChain = Utils.ParseCertificateChainBlob(certificateData);
+                senderCertificateChain = Utils.ParseCertificateChainBlob(
+                    certificateData,
+                    Telemetry);
 
                 try
                 {
@@ -1100,7 +1101,7 @@ namespace Opc.Ua.Bindings
 
             if (!Verify(dataToVerify, signature, senderCertificate))
             {
-                Utils.LogWarning("Could not verify signature on message.");
+                m_logger.LogWarning("Could not verify signature on message.");
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "Could not verify the signature on the message.");
@@ -1163,8 +1164,8 @@ namespace Opc.Ua.Bindings
                 headerSize += decoder.Position;
             }
 
-            Utils.LogInfo("Security Policy: {0}", SecurityPolicyUri);
-            Utils.LogCertificate("Sender Certificate:", senderCertificate);
+            m_logger.LogInformation("Security Policy: {SecurityPolicyUri}", SecurityPolicyUri);
+            m_logger.LogInformation("Sender Certificate {Certificate}", senderCertificate.AsLogSafeString());
 
             // return the body.
             return new ArraySegment<byte>(

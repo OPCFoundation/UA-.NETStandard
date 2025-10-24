@@ -38,6 +38,7 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -377,7 +378,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.NodeId,
-                new NodeId("ns=0;" + kNodeIdString),
+                new NodeId("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -574,7 +575,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.ExpandedNodeId,
-                new ExpandedNodeId("ns=0;" + kNodeIdString),
+                new ExpandedNodeId("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -745,7 +746,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(new NodeId("ns=33;s=StringIdentifier"), null, 23),
+                /*lang=json,strict*/
                 """{"IdType":1,"Id":"StringIdentifier","Namespace":33,"ServerUri": 23}""", // reversible
+                /*lang=json,strict*/
                 """{"IdType":1,"Id":"StringIdentifier","Namespace":33}""", // non-reversible == null == same as reversible
                 """
                 "svr=23;ns=33;s=StringIdentifier"
@@ -1033,7 +1036,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 $"Server Index: {demoServerIndex} != {kDemoServerIndex}");
 
             // for validating benchmark tests
-            m_context = new ServiceMessageContext();
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1059,7 +1063,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_context = new ServiceMessageContext();
+            m_telemetry = new DefaultTelemetry();
+            m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1098,7 +1103,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void ConstructorDefault(bool useReversible, bool topLevelIsArray)
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using var jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray);
             TestEncoding(jsonEncoder, topLevelIsArray);
             string result = jsonEncoder.CloseAndReturnText();
@@ -1153,7 +1158,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         public void ConstructorStream(MemoryStream memoryStream)
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
@@ -1201,7 +1206,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorArraySegmentStreamSequence()
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using var memoryStream = new ArraySegmentStream(BufferManager);
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
@@ -1263,7 +1268,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorRecyclableMemoryStreamSequence()
         {
-            var context = new ServiceMessageContext();
+            var context = new ServiceMessageContext(m_telemetry);
             using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
@@ -1407,7 +1412,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encodeable = new DynamicEncodeable(
                 "FooXml",
                 "urn:dynamic_encoder_test",
-                "ns=2;test_dyn_typeid",
+                "ns=2;s=test_dyn_typeid",
                 "s=test_dyn_binaryencodingid",
                 "s=test_dyn_xmlencodingid",
                 "s=test_dyn_jsonencodingid",
@@ -1447,13 +1452,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "s=test_dyn2_typeid",
                 "s=test_dyn2_binaryencodingid",
                 "s=test_dyn2_xmlencodingid",
-                "ns=1;test_dyn2_jsonencodingid",
+                "ns=1;s=test_dyn2_jsonencodingid",
                 new Dictionary<string, (int, string)> {
                     { "Foo", (1, "bar_1") },
                     { "Foo2", (2, "bar_2") } });
 
-            // Register in the context's Factory, make it a custom factory so the dynamic type can look up its type information when instantiated during encoding/decoding
-            var dynamicContext = new ServiceMessageContext
+            // Register in the context's Factory, make it a custom factory so the dynamic type can
+            // look up its type information when instantiated during encoding/decoding
+            var dynamicContext = new ServiceMessageContext(m_telemetry)
             {
                 Factory = new DynamicEncodeableFactory(Context.Factory),
                 NamespaceUris = Context.NamespaceUris
@@ -1949,7 +1955,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ServiceMessageContext()
         {
-            _ = new ServiceMessageContext();
+            _ = new ServiceMessageContext(m_telemetry);
         }
 
         /// <summary>
@@ -2032,5 +2038,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private IServiceMessageContext m_context;
         private MemoryStream m_memoryStream;
+        private ITelemetryContext m_telemetry;
     }
 }

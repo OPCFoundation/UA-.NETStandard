@@ -30,31 +30,41 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class ServerConfigurationPushTestClient
+    public sealed class ServerConfigurationPushTestClient : IDisposable
     {
         public ServerPushConfigurationClient PushClient { get; private set; }
         public static bool AutoAccept { get; set; }
 
-        public ServerConfigurationPushTestClient(bool autoAccept)
+        public ServerConfigurationPushTestClient(bool autoAccept, ITelemetryContext telemetry)
         {
             AutoAccept = autoAccept;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ServerConfigurationPushTestClient>();
         }
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity SysAdminUser { get; private set; }
         public string TempStorePath { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
+        public string EndpointUrl { get; private set; }
+
+        public void Dispose()
+        {
+            PushClient?.Dispose();
+        }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
-            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            var application = new ApplicationInstance
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
+            var application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
@@ -129,37 +139,42 @@ namespace Opc.Ua.Gds.Tests
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 application.ApplicationConfiguration
                     .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration)
-            {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
-                    clientConfiguration.ServerUrl,
-                    port)
-            };
+            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration);
+            EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
+                clientConfiguration.ServerUrl,
+                port);
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
-                AppUser = new UserIdentity(new AnonymousIdentityToken());
+                AppUser = new UserIdentity();
             }
             else
             {
                 AppUser = new UserIdentity(
                     clientConfiguration.AppUserName,
-                    clientConfiguration.AppPassword);
+                    Encoding.UTF8.GetBytes(clientConfiguration.AppPassword));
             }
             SysAdminUser = new UserIdentity(
                 clientConfiguration.SysAdminUserName,
-                clientConfiguration.SysAdminPassword);
+                Encoding.UTF8.GetBytes(clientConfiguration.SysAdminPassword));
             TempStorePath = clientConfiguration.TempStorePath;
         }
 
         public async Task DisconnectClientAsync()
         {
-            Console.WriteLine("Disconnect Session. Waiting for exit...");
+            m_logger.LogInformation("Disconnect Session. Waiting for exit...");
 
             if (PushClient != null)
             {
                 ServerPushConfigurationClient pushClient = PushClient;
                 PushClient = null;
-                await pushClient.DisconnectAsync().ConfigureAwait(false);
+                try
+                {
+                    await pushClient.DisconnectAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    pushClient.Dispose();
+                }
             }
         }
 
@@ -169,7 +184,7 @@ namespace Opc.Ua.Gds.Tests
                 Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
-        private static void CertificateValidator_CertificateValidation(
+        private void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
             CertificateValidationEventArgs e)
         {
@@ -178,11 +193,11 @@ namespace Opc.Ua.Gds.Tests
                 e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
                 }
                 else
                 {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
                 }
             }
         }
@@ -202,7 +217,10 @@ namespace Opc.Ua.Gds.Tests
             }
             await PushClient.DisconnectAsync().ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Config);
-            var discoveryClient = DiscoveryClient.Create(new Uri(PushClient.EndpointUrl), endpointConfiguration);
+            using var discoveryClient = DiscoveryClient.Create(
+                new Uri(EndpointUrl),
+                endpointConfiguration,
+                m_telemetry);
             EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
             await discoveryClient.CloseAsync().ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;
@@ -216,12 +234,16 @@ namespace Opc.Ua.Gds.Tests
             }
             if (selectedEndpoint == null)
             {
-                throw new ArgumentException($"No endpoint found for SecurityPolicyUri '{securityPolicyUri}' and SecurityMode '{securityMode}'.");
+                throw new ArgumentException(
+                    $"No endpoint found for SecurityPolicyUri '{securityPolicyUri}' and SecurityMode '{securityMode}'.");
             }
             PushClient.Endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
 
             await PushClient.ConnectAsync().ConfigureAwait(false);
         }
+
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

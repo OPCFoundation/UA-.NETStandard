@@ -33,7 +33,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Primitives;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
@@ -46,7 +45,9 @@ namespace Opc.Ua.Client.Tests
     public class ClientFixture : IDisposable
     {
         private const uint kDefaultOperationLimits = 5000;
-        private NUnitTestLogger<ClientFixture> m_traceLogger;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
+
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
         public string EndpointUrl { get; private set; }
@@ -61,25 +62,34 @@ namespace Opc.Ua.Client.Tests
             Utils.TraceMasks.Security |
             Utils.TraceMasks.Information;
 
-        public ISessionFactory SessionFactory { get; set; } = DefaultSessionFactory.Instance;
+        public ISessionFactory SessionFactory { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
-        public ClientFixture(bool useTracing, bool disableActivityLogging)
+        public ClientFixture(bool useTracing, bool disableActivityLogging, ITelemetryContext telemetry)
+            : this(telemetry)
         {
             if (useTracing)
             {
-                SessionFactory = TraceableRequestHeaderClientSessionFactory.Instance;
+                SessionFactory = new TraceableRequestHeaderClientSessionFactory(telemetry);
                 StartActivityListenerInternal(disableActivityLogging);
             }
             else
             {
-                SessionFactory = TraceableSessionFactory.Instance;
+                SessionFactory = new TraceableSessionFactory(telemetry)
+                {
+                    ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+                };
             }
         }
 
-        public ClientFixture()
+        public ClientFixture(ITelemetryContext telemetry)
         {
-            SessionFactory = DefaultSessionFactory.Instance;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ClientFixture>();
+            SessionFactory = new DefaultSessionFactory(telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+            };
         }
 
         /// <inheritdoc/>
@@ -107,7 +117,7 @@ namespace Opc.Ua.Client.Tests
             string pkiRoot = null,
             string clientName = "TestClient")
         {
-            var application = new ApplicationInstance { ApplicationName = clientName };
+            var application = new ApplicationInstance(m_telemetry) { ApplicationName = clientName };
 
             pkiRoot ??= Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
@@ -138,7 +148,6 @@ namespace Opc.Ua.Client.Tests
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
-                .SetTraceMasks(TraceMasks)
                 .CreateAsync()
                 .ConfigureAwait(false);
 
@@ -151,7 +160,7 @@ namespace Opc.Ua.Client.Tests
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            ReverseConnectManager = new ReverseConnectManager();
+            ReverseConnectManager = new ReverseConnectManager(m_telemetry);
         }
 
         /// <summary>
@@ -192,7 +201,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="ct"">Cancellation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
@@ -210,8 +219,8 @@ namespace Opc.Ua.Client.Tests
                     nameof(endpointUrl));
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 5;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -220,6 +229,7 @@ namespace Opc.Ua.Client.Tests
                             Config,
                             endpointUrl,
                             true,
+                            m_telemetry,
                             ct).ConfigureAwait(false);
                     var endpointConfiguration = EndpointConfiguration.Create(Config);
                     var endpoint = new ConfiguredEndpoint(
@@ -229,12 +239,17 @@ namespace Opc.Ua.Client.Tests
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
@@ -257,8 +272,8 @@ namespace Opc.Ua.Client.Tests
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 5;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -269,12 +284,16 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
@@ -313,7 +332,6 @@ namespace Opc.Ua.Client.Tests
 
             session.KeepAlive += Session_KeepAlive;
 
-            session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointUrl = session.ConfiguredEndpoint.EndpointUrl.ToString();
 
             return session;
@@ -420,7 +438,8 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
-            using var client = DiscoveryClient.Create(url, endpointConfiguration);
+            using var client = DiscoveryClient.Create(url, endpointConfiguration, m_telemetry);
+            client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointDescriptionCollection result = await client.GetEndpointsAsync(null)
                 .ConfigureAwait(false);
             await client.CloseAsync().ConfigureAwait(false);
@@ -428,42 +447,18 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Connect the nunit writer with the logger.
-        /// </summary>
-        public void SetTraceOutput(TextWriter writer)
-        {
-            if (m_traceLogger == null)
-            {
-                m_traceLogger = NUnitTestLogger<ClientFixture>.Create(writer);
-            }
-            else
-            {
-                m_traceLogger.SetWriter(writer);
-            }
-        }
-
-        /// <summary>
-        /// Adjust the Log level for the tracer
-        /// </summary>
-        public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
-        {
-            if (m_traceLogger != null)
-            {
-                m_traceLogger.MinimumLogLevel = logLevel;
-            }
-        }
-
-        /// <summary>
         /// Configures Activity Listener and registers with Activity Source.
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging)
         {
+            string expectedName = m_telemetry.GetActivitySource().Name;
+
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
+                    ShouldListenTo = (source) => source.Name == expectedName,
 
                     // Sample all data and recorded activities
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
@@ -478,21 +473,21 @@ namespace Opc.Ua.Client.Tests
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
+                    ShouldListenTo = (source) => source.Name == expectedName,
 
                     // Sample all data and recorded activities
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
-                        Utils.LogInfo(
-                            "Client Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16}",
+                        m_logger.LogInformation(
+                            "Client Started: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16}",
                             activity.OperationName,
                             activity.TraceId,
                             activity.SpanId
                         ),
                     ActivityStopped = activity =>
-                        Utils.LogInfo(
-                            "Client Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} Duration: {3}",
+                        m_logger.LogInformation(
+                            "Client Stopped: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} Duration: {Duration}",
                             activity.OperationName,
                             activity.TraceId,
                             activity.SpanId,
@@ -515,8 +510,8 @@ namespace Opc.Ua.Client.Tests
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                Utils.LogError(
-                    "Session '{0}' keep alive error: {1}",
+                m_logger.LogError(
+                    "Session '{SessionName}' keep alive error: {StatusCode}",
                     session.SessionName,
                     e.Status);
             }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.PublishedData
 {
@@ -39,13 +40,16 @@ namespace Opc.Ua.PubSub.PublishedData
     {
         private readonly Dictionary<string, PublishedDataSetDataType> m_publishedDataSetsByName;
         private readonly IUaPubSubDataStore m_dataStore;
+        private readonly ILogger m_logger;
 
         /// <summary>
         /// Create new instance of <see cref="DataCollector"/>.
         /// </summary>
         /// <param name="dataStore">Reference to the <see cref="IUaPubSubDataStore"/> that will be used to collect data.</param>
-        public DataCollector(IUaPubSubDataStore dataStore)
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public DataCollector(IUaPubSubDataStore dataStore, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<DataCollector>();
             m_dataStore = dataStore;
             m_publishedDataSetsByName = [];
         }
@@ -64,7 +68,7 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             if (publishedDataSet.DataSetMetaData == null)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "The DataSetMetaData field is null.");
+                m_logger.LogError("The DataSetMetaData field is null.");
                 return false;
             }
             if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
@@ -73,8 +77,7 @@ namespace Opc.Ua.PubSub.PublishedData
                 publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields
                     .Count)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                m_logger.LogError(
                     "The DataSetSource.Count is different from DataSetMetaData.Fields.Count.");
                 return false;
             }
@@ -99,9 +102,8 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             else
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
-                    "The PublishedDataSet {0} was not registered because it is not configured properly.",
+                m_logger.LogError(
+                    "The PublishedDataSet {Name} was not registered because it is not configured properly.",
                     publishedDataSet.Name);
             }
         }
@@ -122,6 +124,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         ///  Create and return a DataSet object created from its dataSetName
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public DataSet CollectData(string dataSetName)
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
@@ -210,7 +213,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                         givenStrlen > field.FieldMetaData.MaxStringLength;
                                 }
 
-                                switch ((BuiltInType)field.FieldMetaData.BuiltInType)
+                                var builtInType = (BuiltInType)field.FieldMetaData.BuiltInType;
+                                switch (builtInType)
                                 {
                                     case BuiltInType.String:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
@@ -286,6 +290,11 @@ namespace Opc.Ua.PubSub.PublishedData
                                             dataValue.Value = valueArray;
                                         }
                                         break;
+                                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                                        break;
+                                    default:
+                                        throw ServiceResultException.Unexpected(
+                                            $"Unexpected BuiltInType {builtInType}");
                                 }
 
                                 dataSet.Fields[i].Value = dataValue;
@@ -294,12 +303,10 @@ namespace Opc.Ua.PubSub.PublishedData
                             {
                                 dataSet.Fields[i].Value
                                     = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
-                                Utils.Trace(
-                                    Utils.TraceMasks.Information,
-                                    "DataCollector.CollectData for dataset {0} field {1} resulted in ex {2}",
+                                m_logger.LogInformation(ex,
+                                    "Error DataCollector.CollectData for dataset {Name} field {Index}",
                                     dataSetName,
-                                    i,
-                                    ex);
+                                    i);
                             }
                         }
                         return dataSet;

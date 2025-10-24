@@ -36,8 +36,8 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server
 {
@@ -47,18 +47,11 @@ namespace Opc.Ua.Server
     public class StandardServer : SessionServerBase
     {
         /// <summary>
-        /// Initializes the object with default values.
-        /// </summary>
-        public StandardServer()
-        {
-            m_nodeManagerFactories = [];
-            m_asyncNodeManagerFactories = [];
-        }
-
-        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+        /// <param name="disposing"><c>true</c> to release both managed
+        /// and unmanaged resources;<c>false</c> to release only unmanaged
+        /// resources.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -66,21 +59,21 @@ namespace Opc.Ua.Server
                 // halt any outstanding timer.
                 if (m_registrationTimer != null)
                 {
-                    SilentDispose(m_registrationTimer);
+                    Utils.SilentDispose(m_registrationTimer);
                     m_registrationTimer = null;
                 }
 
                 // close the watcher.
                 if (m_configurationWatcher != null)
                 {
-                    SilentDispose(m_configurationWatcher);
+                    Utils.SilentDispose(m_configurationWatcher);
                     m_configurationWatcher = null;
                 }
 
                 // close the server.
                 if (m_serverInternal != null)
                 {
-                    SilentDispose(m_serverInternal);
+                    Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
             }
@@ -142,7 +135,7 @@ namespace Opc.Ua.Server
                 // parse the url provided by the client.
                 IList<BaseAddress> baseAddresses = BaseAddresses;
 
-                Uri parsedEndpointUrl = ParseUri(endpointUrl);
+                Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
 
                 if (parsedEndpointUrl != null)
                 {
@@ -308,7 +301,7 @@ namespace Opc.Ua.Server
             EndpointDescriptionCollection endpoints = null;
 
             // parse the url provided by the client.
-            Uri parsedEndpointUrl = ParseUri(endpointUrl);
+            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
 
             if (parsedEndpointUrl != null)
             {
@@ -358,7 +351,8 @@ namespace Opc.Ua.Server
                 endpointDescription,
                 request,
                 clientCertificate,
-                exception);
+                exception,
+                m_logger);
         }
 
         /// <inheritdoc/>
@@ -366,7 +360,7 @@ namespace Opc.Ua.Server
             string globalChannelId,
             Exception exception)
         {
-            ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception);
+            ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception, m_logger);
         }
 
         /// <inheritdoc/>
@@ -374,7 +368,7 @@ namespace Opc.Ua.Server
             X509Certificate2 clientCertificate,
             Exception exception)
         {
-            ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception);
+            ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception, m_logger);
         }
 
         /// <summary>
@@ -513,8 +507,9 @@ namespace Opc.Ua.Server
                     try
                     {
                         X509Certificate2Collection clientCertificateChain
-                            = ParseCertificateChainBlob(
-                            clientCertificate);
+                            = Utils.ParseCertificateChainBlob(
+                                clientCertificate,
+                                m_serverInternal.Telemetry);
                         parsedClientCertificate = clientCertificateChain[0];
 
                         if (clientCertificateChain.Count > 1)
@@ -542,7 +537,8 @@ namespace Opc.Ua.Server
                                     parsedClientCertificate,
                                     null,
                                     clientDescription.ApplicationUri,
-                                    StatusCodes.BadCertificateUriInvalid);
+                                    StatusCodes.BadCertificateUriInvalid,
+                                    m_logger);
 
                                 throw ServiceResultException.Create(
                                     StatusCodes.BadCertificateUriInvalid,
@@ -622,14 +618,15 @@ namespace Opc.Ua.Server
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
-                        LogWarning(
-                            "Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.",
+                        m_logger.LogWarning(
+                            "Server - Client connects with an endpointUrl [{EndpointUrl}] which does not match Server hostnames.",
                             endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
                             context?.AuditEntryId,
                             session,
                             revisedSessionTimeout,
-                            endpointUrl);
+                            endpointUrl,
+                            m_logger);
                     }
                 }
 #if ECC_SUPPORT
@@ -673,7 +670,7 @@ namespace Opc.Ua.Server
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Append(parsedClientCertificate.RawData, clientNonce);
+                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
                         serverSignature = SecurityPolicies.Sign(
                             instanceCertificate,
                             context.SecurityPolicyUri,
@@ -691,13 +688,14 @@ namespace Opc.Ua.Server
                     ServerInternal.ServerDiagnostics.CumulatedSessionCount++;
                 }
 
-                LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
+                m_logger.LogInformation("Server - SESSION CREATED. SessionId={SessionId}", sessionId);
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context?.AuditEntryId,
                     session,
-                    revisedSessionTimeout);
+                    revisedSessionTimeout,
+                    m_logger);
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
@@ -723,13 +721,14 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                LogError("Server - SESSION CREATE failed. {0}", e.Message);
+                m_logger.LogError("Server - SESSION CREATE failed. {ErrorMessage}", e.Message);
 
                 // report the failed AuditCreateSessionEvent
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context?.AuditEntryId,
                     session,
                     revisedSessionTimeout,
+                    m_logger,
                     e);
 
                 if (session != null)
@@ -924,6 +923,7 @@ namespace Opc.Ua.Server
                         ServiceResult result = SoftwareCertificate.Validate(
                             CertificateValidator,
                             signedCertificate.CertificateData,
+                            m_serverInternal.Telemetry,
                             out SoftwareCertificate softwareCertificate);
 
                         if (ServiceResult.IsBad(result))
@@ -936,7 +936,8 @@ namespace Opc.Ua.Server
                                 DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                     ServerInternal,
                                     context,
-                                    result);
+                                    result,
+                                    m_logger);
                                 diagnosticInfos.Add(diagnosticInfo);
                                 diagnosticsExist = true;
                             }
@@ -989,10 +990,11 @@ namespace Opc.Ua.Server
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
 #endif
 
-                LogInfo("Server - SESSION ACTIVATED.");
+                m_logger.LogInformation("Server - SESSION ACTIVATED.");
 
                 // report the audit event for session activate
                 ServerInternal.ReportAuditActivateSessionEvent(
+                    m_logger,
                     context?.AuditEntryId,
                     session,
                     softwareCertificates);
@@ -1015,12 +1017,13 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                LogInfo("Server - SESSION ACTIVATE failed. {0}", e.Message);
+                m_logger.LogInformation("Server - SESSION ACTIVATE failed. {ErrorMessage}", e.Message);
 
                 // report the audit event for failed session activate
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(
+                    m_logger,
                     context?.AuditEntryId,
                     session,
                     softwareCertificates,
@@ -1086,9 +1089,9 @@ namespace Opc.Ua.Server
                 case StatusCodes.BadCertificatePolicyCheckFailed:
                 case StatusCodes.BadApplicationSignatureInvalid:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -1114,7 +1117,8 @@ namespace Opc.Ua.Server
                 exception,
                 (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                 true,
-                stringTable);
+                stringTable,
+                m_logger);
             responseHeader.StringTable = stringTable.ToArray();
 
             return responseHeader;
@@ -1145,6 +1149,7 @@ namespace Opc.Ua.Server
                 ServerInternal.ReportAuditCloseSessionEvent(
                     context.AuditEntryId,
                     session,
+                    m_logger,
                     "Session/CloseSession");
 
                 return CreateResponse(requestHeader, context.StringTable);
@@ -1193,6 +1198,7 @@ namespace Opc.Ua.Server
                 ServerInternal.ReportAuditCloseSessionEvent(
                     context.AuditEntryId,
                     session,
+                    m_logger,
                     "Session/CloseSession");
 
                 return new CloseSessionResponse
@@ -1741,7 +1747,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(context, "Read", e);
+                ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -1794,7 +1800,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(context, "Read", e);
+                ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -1866,7 +1872,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(context, "HistoryRead", e);
+                ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -1933,7 +1939,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerInternal.ReportAuditEvent(context, "HistoryRead", e);
+                ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -2346,15 +2352,15 @@ namespace Opc.Ua.Server
                 // check if there is an odd delay.
                 if (DateTime.UtcNow > requestHeader.Timestamp.AddMilliseconds(100))
                 {
-                    Utils.LogTrace(m_eventId,
-                        "WARNING. Unexpected delay receiving Publish request. Time={0:hh:mm:ss.fff}, ReceiveTime={1:hh:mm:ss.fff}",
+                    m_logger.LogTrace(m_eventId,
+                        "WARNING. Unexpected delay receiving Publish request. Time={Now:hh:mm:ss.fff}, ReceiveTime={Timestamp:hh:mm:ss.fff}",
                         DateTime.UtcNow,
                         requestHeader.Timestamp);
                 }
                 */
 
-                LogTrace(
-                    "PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}",
+                m_logger.LogTrace(
+                    "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}",
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
@@ -2371,8 +2377,8 @@ namespace Opc.Ua.Server
                 /*
                 if (notificationMessage != null)
                 {
-                    Utils.LogTrace(m_eventId,
-                        "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
+                    m_logger.LogTrace(m_eventId,
+                        "PublishResponse: SubId={SubscriptionId} SeqNo={SequenceNumber}, PublishTime={PublishTime:mm:ss.fff}, Time={Now:mm:ss.fff}",
                         subscriptionId,
                         notificationMessage.SequenceNumber,
                         notificationMessage.PublishTime,
@@ -2440,8 +2446,8 @@ namespace Opc.Ua.Server
                     operation.Response.DiagnosticInfos = diagnosticInfos;
                     operation.Response.NotificationMessage = notificationMessage;
 
-                    LogTrace(
-                        "PUBLISH: #{0} Completed Synchronously",
+                    m_logger.LogTrace(
+                        "PUBLISH: #{RequestHandle} Completed Synchronously",
                         input.RequestHeader.RequestHandle);
                     request.OperationCompleted(operation.Response, null);
                 }
@@ -3133,6 +3139,7 @@ namespace Opc.Ua.Server
         /// Registers the server with the discovery server.
         /// </summary>
         /// <returns>Boolean value.</returns>
+        [Obsolete("Use RegisterWithDiscoveryServerAsync instead.")]
         public bool RegisterWithDiscoveryServer()
         {
             return RegisterWithDiscoveryServerAsync().AsTask().GetAwaiter().GetResult();
@@ -3149,11 +3156,14 @@ namespace Opc.Ua.Server
             // use a dedicated certificate validator with the registration, but derive behavior from server config
             var registrationCertificateValidator = new CertificateValidationEventHandler(
                 RegistrationValidator_CertificateValidation);
-            configuration.CertificateValidator = new CertificateValidator();
+            configuration.CertificateValidator = new CertificateValidator(MessageContext.Telemetry);
             configuration.CertificateValidator.CertificateValidation
                 += registrationCertificateValidator;
             await configuration
-                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration)
+                .CertificateValidator.UpdateAsync(
+                    configuration.SecurityConfiguration,
+                    applicationUri: null,
+                    ct)
                 .ConfigureAwait(false);
 
             try
@@ -3180,7 +3190,7 @@ namespace Opc.Ua.Server
 
                                 if (updateRequired)
                                 {
-                                    await endpoint.UpdateFromServerAsync(ct).ConfigureAwait(false);
+                                    await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
                                 }
 
                                 lock (m_registrationLock)
@@ -3202,7 +3212,8 @@ namespace Opc.Ua.Server
                                     configuration,
                                     endpoint.Description,
                                     endpoint.Configuration,
-                                    instanceCertificate);
+                                    instanceCertificate,
+                                    MessageContext.Telemetry);
 
                                 client.OperationTimeout = 10000;
 
@@ -3214,7 +3225,7 @@ namespace Opc.Ua.Server
                                     {
                                         ServerCapabilities = configuration.ServerConfiguration
                                             .ServerCapabilities,
-                                        MdnsServerName = GetHostName()
+                                        MdnsServerName = Utils.GetHostName()
                                     };
                                     var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
                                     discoveryConfiguration.Add(extensionObject);
@@ -3238,8 +3249,8 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                LogWarning(
-                                    "RegisterServer{0} failed for at: {1}. Exception={2}",
+                                m_logger.LogWarning(
+                                    "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
                                     m_useRegisterServer2 ? "2" : string.Empty,
                                     endpoint.EndpointUrl,
                                     e.Message);
@@ -3256,8 +3267,8 @@ namespace Opc.Ua.Server
                                     }
                                     catch (Exception e)
                                     {
-                                        LogWarning(
-                                            "Could not cleanly close connection with LDS. Exception={0}",
+                                        m_logger.LogWarning(
+                                            "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
                                             e.Message);
                                     }
                                 }
@@ -3287,11 +3298,11 @@ namespace Opc.Ua.Server
             CertificateValidator sender,
             CertificateValidationEventArgs e)
         {
-            System.Net.IPAddress[] targetAddresses = GetHostAddresses(GetHostName());
+            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
 
             foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
             {
-                foreach (System.Net.IPAddress actualAddress in GetHostAddresses(domain))
+                foreach (System.Net.IPAddress actualAddress in Utils.GetHostAddresses(domain))
                 {
                     foreach (System.Net.IPAddress targetAddress in targetAddresses)
                     {
@@ -3309,7 +3320,7 @@ namespace Opc.Ua.Server
         /// Registers the server endpoints with the LDS.
         /// </summary>
         /// <param name="state">The state.</param>
-        private void OnRegisterServer(object state)
+        private async void OnRegisterServerAsync(object state)
         {
             try
             {
@@ -3323,7 +3334,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (RegisterWithDiscoveryServer())
+                if (await RegisterWithDiscoveryServerAsync().ConfigureAwait(false))
                 {
                     // schedule next registration.
                     lock (m_registrationLock)
@@ -3331,14 +3342,14 @@ namespace Opc.Ua.Server
                         if (m_maxRegistrationInterval > 0)
                         {
                             m_registrationTimer = new Timer(
-                                OnRegisterServer,
+                                OnRegisterServerAsync,
                                 this,
                                 m_maxRegistrationInterval,
                                 Timeout.Infinite);
 
                             m_lastRegistrationInterval = m_minRegistrationInterval;
-                            LogInfo(
-                                "Register server succeeded. Registering again in {0} ms",
+                            m_logger.LogInformation(
+                                "Register server succeeded. Registering again in {RegistrationInterval} ms",
                                 m_maxRegistrationInterval);
                         }
                     }
@@ -3357,13 +3368,13 @@ namespace Opc.Ua.Server
                                 m_lastRegistrationInterval = m_maxRegistrationInterval;
                             }
 
-                            LogInfo(
-                                "Register server failed. Trying again in {0} ms",
+                            m_logger.LogInformation(
+                                "Register server failed. Trying again in {RegistrationInterval} ms",
                                 m_lastRegistrationInterval);
 
                             // create timer.
                             m_registrationTimer = new Timer(
-                                OnRegisterServer,
+                                OnRegisterServerAsync,
                                 this,
                                 m_lastRegistrationInterval,
                                 Timeout.Infinite);
@@ -3373,7 +3384,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                LogError(e, "Unexpected exception handling registration timer.");
+                m_logger.LogError(e, "Unexpected exception handling registration timer.");
             }
         }
 
@@ -3442,7 +3453,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
-                LogInfo(TraceMasks.StartStop, "Server - Enter {0} state.", state.ToString());
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Enter {State} state.", state);
 
                 m_serverInternal.CurrentState = state;
             }
@@ -3512,7 +3523,8 @@ namespace Opc.Ua.Server
             OperationContext context = ServerInternal.SessionManager
                 .ValidateRequest(requestHeader, requestType);
 
-            ServerUtils.EventLog.ServerCallNative(context.RequestType, context.RequestId);
+            ServerUtils.EventLog.ServerCall(context.RequestType, context.RequestId);
+            m_logger.LogTrace("Server Call={RequestType}, Id={RequestId}", context.RequestType, context.RequestId);
 
             // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);
@@ -3682,7 +3694,8 @@ namespace Opc.Ua.Server
                     .LoadAsync(
                         new FileInfo(args.FilePath),
                         Configuration.ApplicationType,
-                        Configuration.GetType())
+                        Configuration.GetType(),
+                        MessageContext.Telemetry)
                     .ConfigureAwait(false);
 
                 await OnUpdateConfigurationAsync(configuration)
@@ -3690,7 +3703,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                LogError(e, "Could not load updated configuration file from: {0}", args);
+                m_logger.LogError(e, "Could not load updated configuration file from: {FilePath}", args.FilePath);
             }
         }
 
@@ -3708,7 +3721,7 @@ namespace Opc.Ua.Server
             try
             {
                 // update security configuration.
-                configuration.SecurityConfiguration.Validate();
+                configuration.SecurityConfiguration.Validate(MessageContext.Telemetry);
 
                 Configuration.SecurityConfiguration.TrustedIssuerCertificates = configuration
                     .SecurityConfiguration
@@ -3728,11 +3741,13 @@ namespace Opc.Ua.Server
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
                     new TraceConfiguration();
 
+#pragma warning disable CS0618 // Type or member is obsolete
                 Configuration.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             catch (Exception e)
             {
-                LogError(e, "Failed to update configuration.");
+                m_logger.LogError(e, "Failed to update configuration.");
             }
             finally
             {
@@ -3814,10 +3829,10 @@ namespace Opc.Ua.Server
 
             StringCollection baseAddresses = configuration.ServerConfiguration.BaseAddresses;
             foreach (
-                string scheme in DefaultUriSchemes.Where(scheme =>
+                string scheme in Utils.DefaultUriSchemes.Where(scheme =>
                     baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
-                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme);
+                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)
                 {
                     endpointsForHost = binding.CreateServiceHost(
@@ -3863,16 +3878,18 @@ namespace Opc.Ua.Server
         /// Starts the server application.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected override async void StartApplication(ApplicationConfiguration configuration)
+        protected override async ValueTask StartApplicationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
-            base.StartApplication(configuration);
-            await SemaphoreSlim.WaitAsync().ConfigureAwait(false);
+            await base.StartApplicationAsync(configuration, cancellationToken)
+                .ConfigureAwait(false);
+            await SemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                LogInfo(
-                    TraceMasks.StartStop,
-                    "Server - Start application {0}.",
+                m_logger.LogInformation(
+                    Utils.TraceMasks.StartStop,
+                    "Server - Start application {ApplicationName}.",
                     configuration.ApplicationName);
 
                 // Setup the minimum nonce length
@@ -3883,23 +3900,23 @@ namespace Opc.Ua.Server
                     ServerProperties,
                     configuration,
                     MessageContext,
-                    new CertificateValidator(),
+                    new CertificateValidator(MessageContext.Telemetry),
                     InstanceCertificateTypesProvider);
 
                 // create the manager responsible for providing localized string resources.
-                LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
                 ResourceManager resourceManager = CreateResourceManager(
                     m_serverInternal,
                     configuration);
 
                 // create the manager responsible for incoming requests.
-                LogInfo(TraceMasks.StartStop, "Server - CreateRequestManager.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateRequestManager.");
                 RequestManager requestManager = CreateRequestManager(
                     m_serverInternal,
                     configuration);
 
                 // create the master node manager.
-                LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
                 MasterNodeManager masterNodeManager = CreateMasterNodeManager(
                     m_serverInternal,
                     configuration);
@@ -3908,11 +3925,11 @@ namespace Opc.Ua.Server
                 m_serverInternal.SetNodeManager(masterNodeManager);
 
                 // put the node manager into a state that allows it to be used by other objects.
-                await masterNodeManager.StartupAsync()
+                await masterNodeManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
                 // create the manager responsible for handling events.
-                LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateEventManager.");
                 EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                 // creates the server object.
@@ -3925,16 +3942,16 @@ namespace Opc.Ua.Server
                 OnNodeManagerStarted(m_serverInternal);
 
                 // create the manager responsible for aggregates.
-                LogInfo(TraceMasks.StartStop, "Server - CreateAggregateManager.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
                 m_serverInternal.SetAggregateManager(
                     CreateAggregateManager(m_serverInternal, configuration));
 
                 // start the session manager.
-                LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
                 ISessionManager sessionManager = CreateSessionManager(
                     m_serverInternal,
                     configuration);
-                await sessionManager.StartupAsync()
+                await sessionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
                 // use event to trigger channel that should not be closed.
@@ -3958,7 +3975,7 @@ namespace Opc.Ua.Server
                 m_serverInternal.SetSubscriptionStore(subscriptionStore);
 
                 // start the subscription manager.
-                LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
                 ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
                     m_serverInternal,
                     configuration);
@@ -3989,7 +4006,7 @@ namespace Opc.Ua.Server
                     m_registrationInfo.SemaphoreFilePath = null;
 
                     // add all discovery urls.
-                    string computerName = GetHostName();
+                    string computerName = Utils.GetHostName();
 
                     for (int ii = 0; ii < BaseAddresses.Count; ii++)
                     {
@@ -4016,11 +4033,11 @@ namespace Opc.Ua.Server
                     {
                         endpoint = new EndpointDescription
                         {
-                            EndpointUrl = Format(DiscoveryUrls[0], "localhost"),
+                            EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost"),
                             SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                                 MessageSecurityMode.SignAndEncrypt,
-                                SecurityPolicies.Basic256Sha256
-                            ),
+                                SecurityPolicies.Basic256Sha256,
+                                m_logger),
                             SecurityMode = MessageSecurityMode.SignAndEncrypt,
                             SecurityPolicyUri = SecurityPolicies.Basic256Sha256
                         };
@@ -4042,9 +4059,9 @@ namespace Opc.Ua.Server
 
                     if (m_maxRegistrationInterval > 0)
                     {
-                        LogInfo(TraceMasks.StartStop, "Server - Registration Timer started.");
+                        m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
                         m_registrationTimer = new Timer(
-                            OnRegisterServer,
+                            OnRegisterServerAsync,
                             this,
                             m_minRegistrationInterval,
                             Timeout.Infinite);
@@ -4055,14 +4072,14 @@ namespace Opc.Ua.Server
                 SetServerState(ServerState.Running);
 
                 // all initialization is complete.
-                LogInfo(TraceMasks.StartStop, "Server - Started.");
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
                 OnServerStarted(m_serverInternal);
 
                 // monitor the configuration file.
                 if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                 {
-                    LogInfo(TraceMasks.StartStop, "Server - Configuration watcher started.");
-                    m_configurationWatcher = new ConfigurationWatcher(configuration);
+                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
+                    m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
                     m_configurationWatcher.Changed += OnConfigurationChangedAsync;
                 }
 
@@ -4071,7 +4088,8 @@ namespace Opc.Ua.Server
             catch (Exception e)
             {
                 const string message = "Unexpected error starting application";
-                LogCritical(TraceMasks.StartStop, e, message);
+                m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
+                Utils.SilentDispose(m_serverInternal);
                 m_serverInternal = null;
                 var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                 ServerError = error;
@@ -4088,7 +4106,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
-            LogInfo(TraceMasks.StartStop, "Server - Stopping.");
+            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Stopping.");
 
             ShutDownDelay();
 
@@ -4138,7 +4156,7 @@ namespace Opc.Ua.Server
                 // ensure that everything is cleaned up.
                 if (m_serverInternal != null)
                 {
-                    SilentDispose(m_serverInternal);
+                    Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
             }
@@ -4202,6 +4220,7 @@ namespace Opc.Ua.Server
                         ServerInternal.ReportAuditCloseSessionEvent(
                             null,
                             session,
+                            m_logger,
                             "Session/Terminated");
                     }
 
@@ -4219,16 +4238,16 @@ namespace Opc.Ua.Server
                             });
 
                         // exit if all client connections are closed.
-                        int sessions = ServerInternal.SessionManager.GetSessions().Count;
-                        if (sessions == 0)
+                        int sessionCount = ServerInternal.SessionManager.GetSessions().Count;
+                        if (sessionCount == 0)
                         {
                             break;
                         }
 
-                        LogInfo(
-                            TraceMasks.StartStop,
-                            "{0} active sessions. Seconds until shutdown: {1}s",
-                            sessions,
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.StartStop,
+                            "{SessionCount} active sessions. Seconds until shutdown: {TimeTillShutdown}s",
+                            sessionCount,
                             timeTillShutdown);
 
                         Thread.Sleep(1000);
@@ -4522,7 +4541,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new MonitoredItemQueueFactory();
+            return new MonitoredItemQueueFactory(MessageContext.Telemetry);
         }
 
         /// <summary>
@@ -4641,7 +4660,7 @@ namespace Opc.Ua.Server
         private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-        private readonly List<INodeManagerFactory> m_nodeManagerFactories;
-        private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories;
+        private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
+        private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
     }
 }

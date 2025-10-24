@@ -29,6 +29,7 @@
 
 using System;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
@@ -80,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var uriBuilder = new UriBuilder
             {
                 Scheme = uri.Scheme,
-                Host = uri.DnsSafeHost,
+                Host = uri.IdnHost,
                 Port = uri.Port,
                 Path = uri.AbsolutePath
             };
@@ -91,7 +92,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void ValidateAppConfigWithoutAppCert()
         {
-            var appConfig = new ApplicationConfiguration
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "Test",
                 ClientConfiguration = new ClientConfiguration(),
@@ -102,8 +105,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             };
-            NUnit.Framework.Assert.DoesNotThrow(() =>
-                appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
+            NUnit.Framework.Assert.DoesNotThrowAsync(() =>
+                appConfig.ValidateAsync(ApplicationType.Client));
         }
     }
 }

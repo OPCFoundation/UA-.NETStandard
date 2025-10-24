@@ -17,6 +17,7 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -55,9 +56,10 @@ namespace Opc.Ua
         /// </summary>
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
-            string filePath)
+            string filePath,
+            ITelemetryContext telemetry)
         {
-            return Load(configuration, filePath, false);
+            return Load(configuration, filePath, false, telemetry);
         }
 
         /// <summary>
@@ -66,9 +68,10 @@ namespace Opc.Ua
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
-            bool overrideConfiguration)
+            bool overrideConfiguration,
+            ITelemetryContext telemetry)
         {
-            ConfiguredEndpointCollection endpoints = Load(filePath);
+            ConfiguredEndpointCollection endpoints = Load(filePath, telemetry);
 
             endpoints.DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
@@ -87,13 +90,15 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(string filePath)
+        public static ConfiguredEndpointCollection Load(
+            string filePath,
+            ITelemetryContext telemetry)
         {
             // load from file.
             ConfiguredEndpointCollection endpoints;
             using (Stream stream = File.OpenRead(filePath))
             {
-                endpoints = Load(stream);
+                endpoints = Load(stream, telemetry);
             }
             endpoints.m_filepath = filePath;
 
@@ -179,11 +184,14 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a stream.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(Stream istrm)
+        public static ConfiguredEndpointCollection Load(
+            Stream istrm,
+            ITelemetryContext telemetry)
         {
             try
             {
                 var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 var endpoints = serializer.ReadObject(istrm) as ConfiguredEndpointCollection;
 
                 if (endpoints != null)
@@ -202,8 +210,9 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(
-                    "Unexpected error loading ConfiguredEndpoints: {0}",
+                ILogger logger = telemetry.CreateLogger<ConfiguredEndpointCollection>();
+                logger.LogError(
+                    "Unexpected error loading ConfiguredEndpoints: {Message}",
                     Redaction.Redact.Create(e));
                 throw;
             }
@@ -1041,7 +1050,7 @@ namespace Opc.Ua
         [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer()
         {
-            UpdateFromServerAsync()
+            UpdateFromServerAsync(null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1055,7 +1064,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri)
+            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri, null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1070,7 +1079,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri)
+            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri, null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1078,12 +1087,47 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
+        [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
         public Task UpdateFromServerAsync(CancellationToken ct = default)
         {
+            return UpdateFromServerAsync(null, ct);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
+        public Task UpdateFromServerAsync(
+            Uri endpointUrl,
+            ITransportWaitingConnection connection,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri,
+            CancellationToken ct = default)
+        {
             return UpdateFromServerAsync(
-                EndpointUrl,
-                m_description.SecurityMode,
-                m_description.SecurityPolicyUri,
+                endpointUrl,
+                connection,
+                securityMode,
+                securityPolicyUri,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
+        public Task UpdateFromServerAsync(
+            Uri endpointUrl,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri,
+            CancellationToken ct = default)
+        {
+            return UpdateFromServerAsync(
+                endpointUrl,
+                securityMode,
+                securityPolicyUri,
+                null,
                 ct);
         }
 
@@ -1094,9 +1138,23 @@ namespace Opc.Ua
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct);
+            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, telemetry, ct);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        public Task UpdateFromServerAsync(ITelemetryContext telemetry, CancellationToken ct = default)
+        {
+            return UpdateFromServerAsync(
+                EndpointUrl,
+                m_description.SecurityMode,
+                m_description.SecurityPolicyUri,
+                telemetry,
+                ct);
         }
 
         /// <summary>
@@ -1107,6 +1165,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             // get the a discovery url.
@@ -1116,11 +1175,11 @@ namespace Opc.Ua
             DiscoveryClient client;
             if (connection != null)
             {
-                client = DiscoveryClient.Create(connection, m_configuration);
+                client = DiscoveryClient.Create(connection, m_configuration, telemetry);
             }
             else
             {
-                client = DiscoveryClient.Create(discoveryUrl, m_configuration);
+                client = DiscoveryClient.Create(discoveryUrl, m_configuration, telemetry);
             }
 
             try
@@ -1201,10 +1260,11 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
+        /// <param name="telemetry">The telemetry context.</param>
         /// <returns>The extension if found. Null otherwise.</returns>
-        public T ParseExtension<T>(XmlQualifiedName elementName)
+        public T ParseExtension<T>(XmlQualifiedName elementName, ITelemetryContext telemetry)
         {
-            return Utils.ParseExtension<T>(m_extensions, elementName);
+            return Utils.ParseExtension<T>(m_extensions, elementName, telemetry);
         }
 
         /// <summary>
@@ -1213,9 +1273,10 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
-        public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
+        /// <param name="telemetry">The telemetry context.</param>
+        public void UpdateExtension<T>(XmlQualifiedName elementName, object value, ITelemetryContext telemetry)
         {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
+            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, telemetry);
         }
 
         /// <summary>
@@ -1416,13 +1477,13 @@ namespace Opc.Ua
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
                 if (matchUrl == null ||
                     !string.Equals(
-                        discoveryUrl.DnsSafeHost,
-                        matchUrl.DnsSafeHost,
+                        discoveryUrl.IdnHost,
+                        matchUrl.IdnHost,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     var uri = new UriBuilder(matchUrl)
                     {
-                        Host = discoveryUrl.DnsSafeHost,
+                        Host = discoveryUrl.IdnHost,
                         Port = discoveryUrl.Port
                     };
                     match.EndpointUrl = uri.ToString();

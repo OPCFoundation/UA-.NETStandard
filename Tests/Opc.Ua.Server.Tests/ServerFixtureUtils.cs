@@ -34,6 +34,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -194,8 +195,7 @@ namespace Opc.Ua.Server.Tests
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
             }
         }
@@ -203,21 +203,19 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Validate the diagnostic response of a service call.
         /// </summary>
-        /// <param name="response">The diagnostic info response.</param>
-        /// <param name="request">The request items of the service call.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos(
             DiagnosticInfoCollection response,
             IList request,
-            StringCollection stringTable)
+            StringCollection stringTable,
+            ILogger logger)
         {
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0)
             {
                 if (response.Count != request.Count)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
                 }
 
@@ -234,16 +232,16 @@ namespace Opc.Ua.Server.Tests
                                 diagnosticInfo.Locale >= stringTable.Count ||
                                 diagnosticInfo.LocalizedText >= stringTable.Count)
                             {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadUnexpectedError,
-                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error.");
+                                throw ServiceResultException.Unexpected(
+                                    "The server forgot to fill in string table for the DiagnosticInfos " +
+                                    "array correctly when returning an operation level error.");
                             }
                             var serviceResult = new ServiceResult(
                                 StatusCodes.Good,
                                 ii,
                                 response,
                                 stringTable);
-                            Utils.LogInfo("DiagnosticInfo: {0}", serviceResult.ToString());
+                            logger.LogInformation("DiagnosticInfo: {ServiceResult}", serviceResult);
                         }
                     }
                 }

@@ -20,6 +20,8 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -40,9 +42,9 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a Https transport channel
         /// </summary>
         /// <returns>The transport channel</returns>
-        public ITransportChannel Create()
+        public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportChannel(UriScheme);
+            return new HttpsTransportChannel(UriScheme, telemetry);
         }
     }
 
@@ -61,9 +63,9 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a Https transport channel
         /// </summary>
         /// <returns>The transport channel</returns>
-        public ITransportChannel Create()
+        public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportChannel(UriScheme);
+            return new HttpsTransportChannel(UriScheme, telemetry);
         }
     }
 
@@ -80,9 +82,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a transport channel based on the uri scheme.
         /// </summary>
-        public HttpsTransportChannel(string uriScheme)
+        public HttpsTransportChannel(string uriScheme, ITelemetryContext telemetry)
         {
             UriScheme = uriScheme;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<HttpsTransportChannel>();
         }
 
         /// <inheritdoc/>
@@ -159,7 +163,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Utils.LogInfo("{0} Open {1}.", nameof(HttpsTransportChannel), m_url);
+                m_logger.LogInformation("{ChannelType} Open {Url}.", nameof(HttpsTransportChannel), m_url);
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
@@ -193,8 +197,8 @@ namespace Opc.Ua.Bindings
                     }
                     catch (CryptographicException ce)
                     {
-                        Utils.LogTrace(
-                            "Copy of the private key for https was denied: {0}",
+                        m_logger.LogTrace(
+                            "Copy of the private key for https was denied: {Message}",
                             ce.Message);
                     }
 #endif
@@ -229,27 +233,27 @@ namespace Opc.Ua.Bindings
                                 if (chain != null && chain.ChainElements != null)
                                 {
                                     int i = 0;
-                                    Utils.LogInfo(
+                                    m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
-                                        "{0} Validate server chain:",
+                                        "{ChannelType} Validate server chain:",
                                         nameof(HttpsTransportChannel));
                                     foreach (X509ChainElement element in chain.ChainElements)
                                     {
-                                        Utils.LogCertificate(
+                                        m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
-                                            "{0}: ",
-                                            element.Certificate,
-                                            i);
+                                            "{Index}: {Certificate}",
+                                            i,
+                                            element.Certificate.AsLogSafeString());
                                         validationChain.Add(element.Certificate);
                                         i++;
                                     }
                                 }
                                 else
                                 {
-                                    Utils.LogCertificate(
+                                    m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
-                                        "{0} Validate Server Certificate: ",
-                                        cert,
+                                        "{ChannelType} Validate Server Certificate: {Certificate}",
+                                        cert.AsLogSafeString(),
                                         nameof(HttpsTransportChannel));
                                     validationChain.Add(cert);
                                 }
@@ -260,17 +264,17 @@ namespace Opc.Ua.Bindings
                             }
                             catch (Exception ex)
                             {
-                                Utils.LogError(
+                                m_logger.LogError(
                                     ex,
-                                    "{0} Failed to validate certificate.",
+                                    "{ChannelType} Failed to validate certificate.",
                                     nameof(HttpsTransportChannel));
                             }
                             return false;
                         };
                         propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
 
-                        Utils.LogInfo(
-                            "{0} ServerCertificate callback enabled.",
+                        m_logger.LogInformation(
+                            "{ChannelType} ServerCertificate callback enabled.",
                             nameof(HttpsTransportChannel));
                     }
                     catch (PlatformNotSupportedException)
@@ -284,7 +288,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Exception creating HTTPS Client.");
+                m_logger.LogError(ex, "Exception creating HTTPS Client.");
                 throw;
             }
         }
@@ -292,7 +296,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Close()
         {
-            Utils.LogInfo("{0} Close {1}.", nameof(HttpsTransportChannel), m_url);
+            m_logger.LogInformation("{ChannelType} Close {Url}.", nameof(HttpsTransportChannel), m_url);
             m_client?.Dispose();
         }
 
@@ -366,7 +370,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogError(ex, "Exception sending HTTPS request.");
+                        m_logger.LogError(ex, "Exception sending HTTPS request.");
                         result.Exception = ex;
                         response = null;
                     }
@@ -378,7 +382,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Exception sending HTTPS request.");
+                m_logger.LogError(ex, "Exception sending HTTPS request.");
                 var result = new HttpsAsyncResult(
                     callback,
                     callbackData,
@@ -422,7 +426,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Exception reading HTTPS response.");
+                m_logger.LogError(ex, "Exception reading HTTPS response.");
                 result2.Exception = ex;
             }
             return result2 as IServiceResponse;
@@ -452,7 +456,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>Not implemented here.</remarks>
         public void Reconnect()
         {
-            Utils.LogInfo("HttpsTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            m_logger.LogInformation("HttpsTransportChannel RECONNECT: Reconnecting to {Url}.", m_url);
         }
 
         /// <inheritdoc/>
@@ -545,7 +549,7 @@ namespace Opc.Ua.Bindings
             {
                 if (hre.InnerException is WebException webex)
                 {
-                    StatusCode statusCode = StatusCodes.BadUnknownResponse;
+                    StatusCode statusCode;
                     switch (webex.Status)
                     {
                         case WebExceptionStatus.Timeout:
@@ -555,23 +559,26 @@ namespace Opc.Ua.Bindings
                         case WebExceptionStatus.ConnectFailure:
                             statusCode = StatusCodes.BadNotConnected;
                             break;
+                        default:
+                            statusCode = StatusCodes.BadUnknownResponse;
+                            break;
                     }
-                    Utils.LogError(webex, "Exception sending HTTPS request.");
+                    m_logger.LogError(webex, "Exception sending HTTPS request.");
                     throw ServiceResultException.Create((uint)statusCode, webex.Message);
                 }
-                Utils.LogError(hre, "Exception sending HTTPS request.");
+                m_logger.LogError(hre, "Exception sending HTTPS request.");
                 throw;
             }
             catch (TaskCanceledException tce)
             {
-                Utils.LogError(tce, "Send request cancelled.");
+                m_logger.LogError(tce, "Send request cancelled.");
                 throw ServiceResultException.Create(
                     StatusCodes.BadRequestTimeout,
                     "Https request was cancelled.");
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Exception sending HTTPS request.");
+                m_logger.LogError(ex, "Exception sending HTTPS request.");
                 throw ServiceResultException.Create(StatusCodes.BadUnknownResponse, ex.Message);
             }
         }
@@ -593,26 +600,23 @@ namespace Opc.Ua.Bindings
             OperationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            {
+                MaxArrayLength = m_settings.Configuration.MaxArrayLength,
+                MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
+                MaxMessageSize = m_settings.Configuration.MaxMessageSize,
+                MaxStringLength = m_settings.Configuration.MaxStringLength,
+                MaxEncodingNestingLevels = m_settings.Configuration.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = m_settings.Configuration.MaxDecoderRecoveries,
+                NamespaceUris = m_settings.NamespaceUris,
+                ServerUris = new StringTable(),
+                Factory = m_settings.Factory
+            })
             {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
-
-                MessageContext = new ServiceMessageContext
-                {
-                    MaxArrayLength = m_settings.Configuration.MaxArrayLength,
-                    MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
-                    MaxMessageSize = m_settings.Configuration.MaxMessageSize,
-                    MaxStringLength = m_settings.Configuration.MaxStringLength,
-                    MaxEncodingNestingLevels = m_settings.Configuration.MaxEncodingNestingLevels,
-                    MaxDecoderRecoveries = m_settings.Configuration.MaxDecoderRecoveries,
-                    NamespaceUris = m_settings.NamespaceUris,
-                    ServerUris = new StringTable(),
-                    Factory = m_settings.Factory
-                },
-
                 CertificateValidator = settings.CertificateValidator
             };
         }
@@ -621,6 +625,8 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
 
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new(
             "application/octet-stream");

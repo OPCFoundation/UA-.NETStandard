@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -21,13 +22,14 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestComponentCacheAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
             {
                 // Arrange
                 const string ns = "http://test.org/UA/Data/";
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
 
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
@@ -62,13 +64,14 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestPredefinedNodesAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
             {
                 // Arrange
                 const string ns = "http://test.org/UA/Data/";
-                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
 
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);

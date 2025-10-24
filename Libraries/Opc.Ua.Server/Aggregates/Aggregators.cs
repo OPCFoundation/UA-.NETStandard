@@ -40,7 +40,8 @@ namespace Opc.Ua.Server
         DateTime endTime,
         double processingInterval,
         bool stepped,
-        AggregateConfiguration configuration);
+        AggregateConfiguration configuration,
+        ITelemetryContext telemetry);
 
     /// <summary>
     /// The set of built-in aggregate factories.
@@ -323,6 +324,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a calculator for one of the standard aggregates.
         /// </summary>
+        [Obsolete("Use CreateStandardCalculator with telemetry context.")]
         public static IAggregateCalculator CreateStandardCalculator(
             NodeId aggregateId,
             DateTime startTime,
@@ -330,6 +332,28 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
+        {
+            return CreateStandardCalculator(
+                aggregateId,
+                startTime,
+                endTime,
+                processingInterval,
+                stepped,
+                configuration,
+                null);
+        }
+
+        /// <summary>
+        /// Creates a calculator for one of the standard aggregates.
+        /// </summary>
+        public static IAggregateCalculator CreateStandardCalculator(
+            NodeId aggregateId,
+            DateTime startTime,
+            DateTime endTime,
+            double processingInterval,
+            bool stepped,
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
         {
             for (int ii = 0; ii < s_mappings.Length; ii++)
             {
@@ -343,7 +367,8 @@ namespace Opc.Ua.Server
                             endTime,
                             processingInterval,
                             stepped,
-                            configuration);
+                            configuration,
+                            telemetry);
                 }
             }
 

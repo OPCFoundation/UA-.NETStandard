@@ -46,6 +46,7 @@ namespace Alarms
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
             bool create = true)
             : base(
+                alarmNodeManager.Server.Telemetry.CreateLogger<OffNormalAlarmTypeHolder>(),
                 alarmNodeManager,
                 parent,
                 trigger,

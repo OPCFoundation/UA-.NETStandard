@@ -30,6 +30,7 @@
 using System;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -105,7 +106,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [Order(100)]
         public async Task LoadStandardDataTypeSystemAsync()
         {
-            var nodeResolver = new NodeCacheResolver(Session);
+            var nodeResolver = new NodeCacheResolver(Session, Telemetry);
             ServiceResultException sre = NUnit.Framework.Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
@@ -135,7 +136,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task LoadAllServerDataTypeSystemsAsync(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.
-            var browser = new Browser(Session)
+            var browser = new Browser(Session, Telemetry)
             {
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -147,15 +148,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 await browser.BrowseAsync(dataTypeSystem).ConfigureAwait(false);
             Assert.NotNull(references);
 
-            TestContext.Out.WriteLine("  Found {0} references", references.Count);
+            ILogger logger = Telemetry.CreateLogger<NodeCacheResolverTests>();
+            logger.LogInformation("  Found {Count} references", references.Count);
 
             // read all type dictionaries in the type system
-            var nodeResolver = new NodeCacheResolver(Session);
+            var nodeResolver = new NodeCacheResolver(Session, Telemetry);
             foreach (ReferenceDescription r in references)
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
-                TestContext.Out
-                    .WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
+                logger.LogInformation("  ReadDictionary {Name} {Id}", r.BrowseName.Name, dictionaryId);
                 DataDictionary dictionaryToLoad = await nodeResolver
                     .LoadDictionaryAsync(dictionaryId, r.BrowseName.Name)
                     .ConfigureAwait(false);
@@ -169,7 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 {
                     try
                     {
-                        dictionaryToLoad.Validate(dictionary, true);
+                        dictionaryToLoad.Validate(dictionary, true, logger);
                     }
                     catch (Exception ex)
                     {
@@ -178,7 +179,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 }
                 else
                 {
-                    dictionaryToLoad.Validate(dictionary, true);
+                    dictionaryToLoad.Validate(dictionary, true, logger);
                 }
             }
         }

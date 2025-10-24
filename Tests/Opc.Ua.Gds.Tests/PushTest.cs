@@ -36,11 +36,13 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using OpcUa = Opc.Ua;
 
@@ -160,17 +162,18 @@ namespace Opc.Ua.Gds.Tests
         {
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
-            m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory, TestContext.Out).ConfigureAwait(false);
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory).ConfigureAwait(false);
             await m_server.StopServerAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
-            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory, TestContext.Out).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory).ConfigureAwait(false);
 
             m_randomSource = new RandomSource(kRandomStart);
 
             // load clients
-            m_gdsClient = new GlobalDiscoveryTestClient(true);
+            m_gdsClient = new GlobalDiscoveryTestClient(true, m_telemetry);
             await m_gdsClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
-            m_pushClient = new ServerConfigurationPushTestClient(true);
+            m_pushClient = new ServerConfigurationPushTestClient(true, m_telemetry);
             await m_pushClient.LoadClientConfigurationAsync(m_server.BasePort)
                 .ConfigureAwait(false);
 
@@ -182,13 +185,16 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
 
             await ConnectGDSClientAsync(true).ConfigureAwait(false);
-            await RegisterPushServerApplicationAsync(m_pushClient.PushClient.EndpointUrl).ConfigureAwait(false);
 
-            m_selfSignedServerCert = X509CertificateLoader.LoadCertificate(
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            await RegisterPushServerApplicationAsync(m_pushClient.PushClient.EndpointUrl, telemetry).ConfigureAwait(false);
+
+            m_selfSignedServerCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             m_domainNames = [.. X509Utils.GetDomainsFromCertificate(m_selfSignedServerCert)];
 
-            await CreateCATestCertsAsync(m_pushClient.TempStorePath).ConfigureAwait(false);
+            await CreateCATestCertsAsync(m_pushClient.TempStorePath, telemetry).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -208,17 +214,19 @@ namespace Opc.Ua.Gds.Tests
             catch
             {
             }
-            m_gdsClient = null;
-            m_pushClient = null;
-            m_server = null;
+            finally
+            {
+                m_pushClient.Dispose();
+                m_gdsClient.Dispose();
+                m_gdsClient = null;
+                m_pushClient = null;
+                m_server = null;
+            }
         }
 
         [SetUp]
         protected void SetUp()
         {
-            m_server.ResetLogFile();
-            m_server.SetTraceOutput(TestContext.Out);
-            m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Error);
         }
 
         [TearDown]
@@ -226,15 +234,6 @@ namespace Opc.Ua.Gds.Tests
         {
             await DisconnectGDSClientAsync().ConfigureAwait(false);
             await DisconnectPushClientAsync().ConfigureAwait(false);
-            try
-            {
-                TestContext.AddTestAttachment(
-                    m_server.GetLogFilePath(),
-                    "GDS Client and Server logs");
-            }
-            catch
-            {
-            }
         }
 
         [Test]
@@ -503,7 +502,7 @@ namespace Opc.Ua.Gds.Tests
             using X509Certificate2 invalidCert = CertificateFactory
                 .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null)
                 .CreateForRSA();
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -631,7 +630,7 @@ namespace Opc.Ua.Gds.Tests
                 NUnit.Framework.Assert.Ignore("Test only supported for RSA");
             }
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -923,7 +922,7 @@ namespace Opc.Ua.Gds.Tests
 
             NUnit.Framework.Assert.That(certificateTypeIds.Length == certificates.Length);
             Assert.NotNull(certificates[0]);
-            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificates[0]);
+            using X509Certificate2 x509 = CertificateFactory.Create(certificates[0]);
             Assert.NotNull(x509);
         }
 
@@ -1019,7 +1018,10 @@ namespace Opc.Ua.Gds.Tests
             await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
         }
 
-        private async Task RegisterPushServerApplicationAsync(string discoveryUrl, CancellationToken ct = default)
+        private async Task RegisterPushServerApplicationAsync(
+            string discoveryUrl,
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             if (m_applicationRecord == null && discoveryUrl != null)
             {
@@ -1027,6 +1029,7 @@ namespace Opc.Ua.Gds.Tests
                     m_gdsClient.Configuration,
                     discoveryUrl,
                     true,
+                    telemetry,
                     ct).ConfigureAwait(false);
                 ApplicationDescription description = endpointDescription.Server;
                 m_applicationRecord = new ApplicationRecordDataType
@@ -1050,12 +1053,15 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(
                 trustListId,
                 ct).ConfigureAwait(false);
-            bool result = AddTrustListToStoreAsync(
+            bool result = await AddTrustListToStoreAsync(
                 m_gdsClient.Configuration.SecurityConfiguration,
-                trustList).Result;
+                trustList,
+                telemetry).ConfigureAwait(false);
             Assert.IsTrue(result);
-            result = AddTrustListToStoreAsync(m_pushClient.Config.SecurityConfiguration, trustList)
-                .Result;
+            result = await AddTrustListToStoreAsync(
+                m_pushClient.Config.SecurityConfiguration,
+                trustList,
+                telemetry).ConfigureAwait(false);
             Assert.IsTrue(result);
         }
 
@@ -1067,6 +1073,9 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task VerifyNewPushServerCertAsync(byte[] certificateBlob)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<PushTest>();
+
             await DisconnectPushClientAsync().ConfigureAwait(false);
 
             const int maxWaitSeconds = 10;
@@ -1080,7 +1089,8 @@ namespace Opc.Ua.Gds.Tests
                     await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
 
                     X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
-                        m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+                        m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate,
+                        telemetry);
 
                     if (Utils.IsEqual(serverCertificate.RawData, certificateBlob))
                     {
@@ -1093,16 +1103,17 @@ namespace Opc.Ua.Gds.Tests
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError(ex, "Failure while verifying new Push Server certificate.");
+                    logger.LogError(ex, "Failure while verifying new Push Server certificate.");
                 }
             }
-            Assert.Fail("Server certificate did not match with the Certificate pushed by " +
+            NUnit.Framework.Assert.Fail("Server certificate did not match with the Certificate pushed by " +
                 "the GDS within the allowed time.");
         }
 
         private static async Task<bool> AddTrustListToStoreAsync(
             SecurityConfiguration config,
-            TrustListDataType trustList)
+            TrustListDataType trustList,
+            ITelemetryContext telemetry)
         {
             int masks = (int)trustList.SpecifiedLists;
 
@@ -1117,7 +1128,7 @@ namespace Opc.Ua.Gds.Tests
                 issuerCertificates = [];
                 foreach (byte[] cert in trustList.IssuerCertificates)
                 {
-                    issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                    issuerCertificates.Add(CertificateFactory.Create(cert));
                 }
             }
             if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
@@ -1133,7 +1144,7 @@ namespace Opc.Ua.Gds.Tests
                 trustedCertificates = [];
                 foreach (byte[] cert in trustList.TrustedCertificates)
                 {
-                    trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                    trustedCertificates.Add(CertificateFactory.Create(cert));
                 }
             }
             if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -1151,13 +1162,17 @@ namespace Opc.Ua.Gds.Tests
             if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
                 await UpdateStoreCertificatesAsync(
                     config.TrustedIssuerCertificates,
-                    issuerCertificates)
+                    issuerCertificates,
+                    telemetry)
                     .ConfigureAwait(false))
             {
                 updateMasks |= (int)TrustListMasks.IssuerCertificates;
             }
             if ((masks & (int)TrustListMasks.IssuerCrls) != 0 &&
-                await UpdateStoreCrlsAsync(config.TrustedIssuerCertificates, issuerCrls)
+                await UpdateStoreCrlsAsync(
+                    config.TrustedIssuerCertificates,
+                    issuerCrls,
+                    telemetry)
                     .ConfigureAwait(false))
             {
                 updateMasks |= (int)TrustListMasks.IssuerCrls;
@@ -1165,13 +1180,17 @@ namespace Opc.Ua.Gds.Tests
             if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
                 await UpdateStoreCertificatesAsync(
                     config.TrustedPeerCertificates,
-                    trustedCertificates)
+                    trustedCertificates,
+                    telemetry)
                     .ConfigureAwait(false))
             {
                 updateMasks |= (int)TrustListMasks.TrustedCertificates;
             }
             if ((masks & (int)TrustListMasks.TrustedCrls) != 0 &&
-                await UpdateStoreCrlsAsync(config.TrustedPeerCertificates, trustedCrls)
+                await UpdateStoreCrlsAsync(
+                    config.TrustedPeerCertificates,
+                    trustedCrls,
+                    telemetry)
                     .ConfigureAwait(false))
             {
                 updateMasks |= (int)TrustListMasks.TrustedCrls;
@@ -1182,13 +1201,14 @@ namespace Opc.Ua.Gds.Tests
 
         private static async Task<bool> UpdateStoreCrlsAsync(
             CertificateTrustList trustList,
-            X509CRLCollection updatedCrls)
+            X509CRLCollection updatedCrls,
+            ITelemetryContext telemetry)
         {
             bool result = true;
             ICertificateStore store = null;
             try
             {
-                store = trustList.OpenStore();
+                store = trustList.OpenStore(telemetry);
                 X509CRLCollection storeCrls = await store.EnumerateCRLsAsync()
                     .ConfigureAwait(false);
                 foreach (X509CRL crl in storeCrls)
@@ -1217,13 +1237,14 @@ namespace Opc.Ua.Gds.Tests
 
         private static async Task<bool> UpdateStoreCertificatesAsync(
             CertificateTrustList trustList,
-            X509Certificate2Collection updatedCerts)
+            X509Certificate2Collection updatedCerts,
+            ITelemetryContext telemetry)
         {
             bool result = true;
             ICertificateStore store = null;
             try
             {
-                store = trustList.OpenStore();
+                store = trustList.OpenStore(telemetry);
                 X509Certificate2Collection storeCerts = await store.EnumerateAsync()
                     .ConfigureAwait(false);
                 foreach (X509Certificate2 cert in storeCerts)
@@ -1259,10 +1280,10 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Create CA test certificates.
         /// </summary>
-        private async Task CreateCATestCertsAsync(string tempStorePath)
+        private async Task CreateCATestCertsAsync(string tempStorePath, ITelemetryContext telemetry)
         {
             var certificateStoreIdentifier = new CertificateStoreIdentifier(tempStorePath, false);
-            Assert.IsTrue(EraseStore(certificateStoreIdentifier));
+            Assert.IsTrue(EraseStore(certificateStoreIdentifier, telemetry));
             const string subjectName = "CN=CA Test Cert, O=OPC Foundation";
 #if ECC_SUPPORT
             ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
@@ -1274,7 +1295,7 @@ namespace Opc.Ua.Gds.Tests
                     .SetCAConstraint()
                     .SetECCurve(curve.Value)
                     .CreateForECDsa()
-                    .AddToStoreAsync(certificateStoreIdentifier)
+                    .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)
                     .ConfigureAwait(false);
             }
             // RSA Certificate
@@ -1285,7 +1306,7 @@ namespace Opc.Ua.Gds.Tests
                     .CreateCertificate(null, null, subjectName, null)
                     .SetCAConstraint()
                     .CreateForRSA()
-                    .AddToStoreAsync(certificateStoreIdentifier)
+                    .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)
                     .ConfigureAwait(false);
 #if ECC_SUPPORT
             }
@@ -1293,16 +1314,16 @@ namespace Opc.Ua.Gds.Tests
 
             // initialize cert revocation list (CRL)
             X509CRL caCrl = await CertificateGroup
-                .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert)
+                .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert, null, m_telemetry)
                 .ConfigureAwait(false);
         }
 
-        private static bool EraseStore(CertificateStoreIdentifier storeIdentifier)
+        private static bool EraseStore(CertificateStoreIdentifier storeIdentifier, ITelemetryContext telemetry)
         {
             bool result = true;
             try
             {
-                using ICertificateStore store = storeIdentifier.OpenStore();
+                using ICertificateStore store = storeIdentifier.OpenStore(telemetry);
                 foreach (X509Certificate2 cert in store.EnumerateAsync().Result)
                 {
                     if (!store.DeleteAsync(cert.Thumbprint).Result)
@@ -1327,6 +1348,7 @@ namespace Opc.Ua.Gds.Tests
 
         private const int kRandomStart = 1;
         private RandomSource m_randomSource;
+        private ITelemetryContext m_telemetry;
         private GlobalDiscoveryTestServer m_server;
         private GlobalDiscoveryTestClient m_gdsClient;
         private ServerConfigurationPushTestClient m_pushClient;

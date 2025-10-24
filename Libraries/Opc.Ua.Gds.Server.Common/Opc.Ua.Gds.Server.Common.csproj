@@ -19,16 +19,9 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY;OPCUA_INCLUDE_ASYNC</DefineConstants>
   </PropertyGroup>
   <!-- select ECC support -->
-  <Choose>
-    <When
-      Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"
-    ></When>
-    <Otherwise>
-      <PropertyGroup>
-        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
+  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Model\Opc.Ua.Gds.PredefinedNodes.uanodes" />
   </ItemGroup>

@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -51,8 +53,11 @@ namespace Opc.Ua.Server
             CertificateStoreIdentifier trustedListStore,
             CertificateStoreIdentifier issuerListStore,
             SecureAccess readAccess,
-            SecureAccess writeAccess)
+            SecureAccess writeAccess,
+            ITelemetryContext telemetry)
         {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<TrustList>();
             m_node = node;
             m_trustedStore = trustedListStore;
             m_issuerStore = issuerListStore;
@@ -153,7 +158,7 @@ namespace Opc.Ua.Server
 
                 var trustList = new TrustListDataType { SpecifiedLists = (uint)masks };
 
-                ICertificateStore store = m_trustedStore.OpenStore();
+                ICertificateStore store = m_trustedStore.OpenStore(m_telemetry);
                 try
                 {
                     if (store == null)
@@ -185,7 +190,7 @@ namespace Opc.Ua.Server
                     store?.Close();
                 }
 
-                store = m_issuerStore.OpenStore();
+                store = m_issuerStore.OpenStore(m_telemetry);
                 try
                 {
                     if (store == null)
@@ -246,22 +251,22 @@ namespace Opc.Ua.Server
             {
                 if (m_sessionId != context.SessionId)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    return ServiceResult.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Session not authorized");
                 }
 
                 if (m_fileHandle != fileHandle)
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "Invalid file handle");
                 }
 
                 data = new byte[length];
 
                 int bytesRead = m_strm.Read(data, 0, length);
-
-                if (bytesRead < 0)
-                {
-                    return StatusCodes.BadUnexpectedError;
-                }
+                Debug.Assert(bytesRead >= 0);
 
                 if (bytesRead < length)
                 {
@@ -342,7 +347,8 @@ namespace Opc.Ua.Server
                 objectId,
                 "Method/CloseAndUpdate",
                 method.NodeId,
-                inputParameters);
+                inputParameters,
+                m_logger);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -391,7 +397,7 @@ namespace Opc.Ua.Server
                         trustedCertificates = [];
                         foreach (byte[] cert in trustList.TrustedCertificates)
                         {
-                            trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                            trustedCertificates.Add(CertificateFactory.Create(cert));
                         }
                     }
                     if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -457,7 +463,8 @@ namespace Opc.Ua.Server
                 "Method/CloseAndUpdate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode);
+                result.StatusCode,
+                m_logger);
 
             return result;
         }
@@ -475,7 +482,8 @@ namespace Opc.Ua.Server
                 objectId,
                 "Method/AddCertificate",
                 method.NodeId,
-                inputParameters);
+                inputParameters,
+                m_logger);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -494,7 +502,7 @@ namespace Opc.Ua.Server
                     X509Certificate2 cert = null;
                     try
                     {
-                        cert = X509CertificateLoader.LoadCertificate(certificate);
+                        cert = CertificateFactory.Create(certificate);
                     }
                     catch
                     {
@@ -507,7 +515,7 @@ namespace Opc.Ua.Server
                     CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
                         ? m_trustedStore
                         : m_issuerStore;
-                    ICertificateStore store = storeIdentifier.OpenStore();
+                    ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
                     try
                     {
                         if (cert != null && store != null)
@@ -531,7 +539,8 @@ namespace Opc.Ua.Server
                 "Method/AddCertificate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode);
+                result.StatusCode,
+                m_logger);
 
             return result;
         }
@@ -549,7 +558,8 @@ namespace Opc.Ua.Server
                 objectId,
                 "Method/RemoveCertificate",
                 method.NodeId,
-                inputParameters);
+                inputParameters,
+                m_logger);
 
             HasSecureWriteAccess(context);
             ServiceResult result = StatusCodes.Good;
@@ -568,7 +578,7 @@ namespace Opc.Ua.Server
                     CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
                         ? m_trustedStore
                         : m_issuerStore;
-                    using (ICertificateStore store = storeIdentifier.OpenStore())
+                    using (ICertificateStore store = storeIdentifier.OpenStore(m_telemetry))
                     {
                         if (store == null)
                         {
@@ -617,8 +627,8 @@ namespace Opc.Ua.Server
                                     if (!store.DeleteCRLAsync(crl).GetAwaiter().GetResult())
                                     {
                                         // intentionally ignore errors, try best effort
-                                        Utils.LogError(
-                                            "RemoveCertificate: Failed to delete CRL {0}.",
+                                        m_logger.LogError(
+                                            "RemoveCertificate: Failed to delete CRL {Crl}.",
                                             crl.ToString());
                                     }
                                 }
@@ -637,7 +647,8 @@ namespace Opc.Ua.Server
                 "Method/RemoveCertificate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode);
+                result.StatusCode,
+                m_logger);
 
             return result;
         }
@@ -646,7 +657,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             TrustListDataType trustList)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext
+            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -666,7 +677,7 @@ namespace Opc.Ua.Server
             MemoryStream strm)
         {
             var trustList = new TrustListDataType();
-            IServiceMessageContext messageContext = new ServiceMessageContext
+            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -680,14 +691,14 @@ namespace Opc.Ua.Server
             return trustList;
         }
 
-        private static async Task<bool> UpdateStoreCrlsAsync(
+        private async Task<bool> UpdateStoreCrlsAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509CRLCollection updatedCrls)
         {
             bool result = true;
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore();
+                ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
                 try
                 {
                     if (store == null)
@@ -724,14 +735,14 @@ namespace Opc.Ua.Server
             return result;
         }
 
-        private static async Task<bool> UpdateStoreCertificatesAsync(
+        private async Task<bool> UpdateStoreCertificatesAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2Collection updatedCerts)
         {
             bool result = true;
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore();
+                ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
                 try
                 {
                     if (store == null)
@@ -805,6 +816,8 @@ namespace Opc.Ua.Server
         private uint m_fileHandle;
         private readonly CertificateStoreIdentifier m_trustedStore;
         private readonly CertificateStoreIdentifier m_issuerStore;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private readonly TrustListState m_node;
         private MemoryStream m_strm;
         private bool m_readMode;

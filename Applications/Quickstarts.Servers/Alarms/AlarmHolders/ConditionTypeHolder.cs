@@ -29,13 +29,15 @@
 
 using System;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 namespace Alarms
 {
-    public class ConditionTypeHolder : BaseEventTypeHolder
+    public abstract class ConditionTypeHolder : BaseEventTypeHolder
     {
         protected ConditionTypeHolder(
+            ILogger logger,
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
@@ -45,6 +47,7 @@ namespace Alarms
             int interval,
             bool optional)
             : base(
+                logger,
                 alarmNodeManager,
                 parent,
                 trigger,
@@ -73,7 +76,7 @@ namespace Alarms
             alarm.ConditionClassName.Value
                 = new LocalizedText(string.Empty, m_alarmConditionType.ConditionName);
             alarm.ConditionName.Value = m_alarmRootName;
-            Utils.LogTrace("Alarm ConditionName = {0}", alarm.ConditionName.Value);
+            m_logger.LogTrace("Alarm ConditionName = {ConditionName}", alarm.ConditionName.Value);
 
             alarm.BranchId.Value = new NodeId();
             alarm.Retain.Value = false;

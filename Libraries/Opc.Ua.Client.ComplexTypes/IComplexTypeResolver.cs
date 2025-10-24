@@ -46,7 +46,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Gets the factory used to create encodeable objects that the server understands.
         /// </summary>
-        IEncodeableFactory Factory { get; }
+        IEncodeableFactoryBuilder FactoryBuilder { get; }
 
         /// <summary>
         /// The loaded data type dictionaries

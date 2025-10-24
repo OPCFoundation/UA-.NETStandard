@@ -17,6 +17,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
 using System.Buffers;
@@ -43,16 +44,17 @@ namespace Opc.Ua
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
-        private Stack<string> m_namespaces;
+        private readonly Stack<string> m_namespaces = [];
         private bool m_commaRequired;
         private bool m_inVariantWithEncoding;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private readonly bool m_topLevelIsArray;
+        private readonly ILogger m_logger;
         private bool m_levelOneSkipped;
         private bool m_dontWriteClosing;
-        private bool m_leaveOpen;
+        private readonly bool m_leaveOpen;
         private bool m_forceNamespaceUri;
         private bool m_forceNamespaceUriForIndex1;
         private bool m_includeDefaultNumberValues;
@@ -136,10 +138,10 @@ namespace Opc.Ua
             Stream stream = null,
             bool leaveOpen = false,
             int streamSize = kStreamWriterBufferSize)
+             : this(encoding)
         {
-            Initialize(encoding);
-
             Context = context;
+            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_stream = stream;
             m_leaveOpen = leaveOpen;
             m_topLevelIsArray = topLevelIsArray;
@@ -166,10 +168,10 @@ namespace Opc.Ua
             JsonEncodingType encoding,
             StreamWriter writer,
             bool topLevelIsArray = false)
+            : this(encoding)
         {
-            Initialize(encoding);
-
             Context = context;
+            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_writer = writer;
             m_topLevelIsArray = topLevelIsArray;
 
@@ -183,18 +185,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets private members to default values.
+        /// Sets default values.
         /// </summary>
-        private void Initialize(JsonEncodingType encoding)
+        private JsonEncoder(JsonEncodingType encoding)
         {
-            m_stream = null;
-            m_writer = null;
-            m_namespaces = new Stack<string>();
-            m_commaRequired = false;
-            m_leaveOpen = false;
-            m_nestingLevel = 0;
-            m_levelOneSkipped = false;
-
             // defaults for JSON encoding
             EncodingToUse = encoding;
             if (encoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
@@ -590,8 +584,12 @@ namespace Opc.Ua
                 case JsonEncodingType.Reversible:
                     fieldName = "Value";
                     break;
-                default:
+                case JsonEncodingType.Verbose:
+                case JsonEncodingType.NonReversible:
                     return;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected Encoding type {EncodingToUse}");
             }
 
             WriteUInt32("SwitchField", switchField);
@@ -1386,6 +1384,9 @@ namespace Opc.Ua
                 case IdType.Opaque:
                     WriteByteString("Id", (byte[])value.Identifier);
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected Node IdType {value.IdType}");
             }
 
             if (namespaceUri != null)
@@ -1906,22 +1907,6 @@ namespace Opc.Ua
             }
 
             WriteNodeId("TypeId", localTypeId);
-
-            if (encodeable != null)
-            {
-                switch (value.Encoding)
-                {
-                    case ExtensionObjectEncoding.Binary:
-                        _ = encodeable.BinaryEncodingId;
-                        break;
-                    case ExtensionObjectEncoding.Xml:
-                        _ = encodeable.XmlEncodingId;
-                        break;
-                    default:
-                        _ = encodeable.TypeId;
-                        break;
-                }
-            }
 
             if (encodeable != null)
             {
@@ -2967,22 +2952,22 @@ namespace Opc.Ua
                         WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array);
                         return;
                     case BuiltInType.Enumeration:
-                        if (array is not Array enumArray)
+                        if (array is null or Array)
                         {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected non Array type encountered while encoding an array of enumeration.");
+                            WriteEnumeratedArray(
+                                fieldName,
+                                (Array)array,
+                                array?.GetType().GetElementType());
+                            return;
                         }
-                        WriteEnumeratedArray(
-                            fieldName,
-                            enumArray,
-                            enumArray.GetType().GetElementType());
-                        return;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected non Array type encountered while encoding an array of enumeration: {0}",
+                            array.GetType());
                     case BuiltInType.Variant:
-                    {
-                        if (array is Variant[] variants)
+                        if (array is null or Variant[])
                         {
-                            WriteVariantArray(fieldName, variants);
+                            WriteVariantArray(fieldName, (Variant[])array);
                             return;
                         }
 
@@ -3006,28 +2991,26 @@ namespace Opc.Ua
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an array of Variants: {0}",
                             array.GetType());
-                    }
-                    default:
-                    {
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         // try to write IEncodeable Array
-                        if (array is IEncodeable[] encodeableArray)
+                        if (array is null or IEncodeable[])
                         {
                             WriteEncodeableArray(
                                 fieldName,
-                                encodeableArray,
-                                array.GetType().GetElementType());
-                            return;
-                        }
-                        if (array == null)
-                        {
-                            WriteSimpleFieldNull(fieldName);
+                                (IEncodeable[])array,
+                                array?.GetType().GetElementType());
                             return;
                         }
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected BuiltInType encountered while encoding an array: {0}",
                             builtInType);
-                    }
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             // write matrix.
@@ -3341,6 +3324,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the contents of a Variant to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             bool inVariantWithEncoding = m_inVariantWithEncoding;
@@ -3436,6 +3420,16 @@ namespace Opc.Ua
                         case BuiltInType.DiagnosticInfo:
                             WriteDiagnosticInfo(null, (DiagnosticInfo)value);
                             return;
+                        case BuiltInType.Null:
+                        case BuiltInType.Variant:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            // Should this not throw?
+                            break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
                 // write array
@@ -3755,8 +3749,8 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning(
-                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                        m_logger.LogWarning(
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
                 }
@@ -3784,7 +3778,8 @@ namespace Opc.Ua
             (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(
                 true,
                 matrix.Dimensions,
-                Context.MaxArrayLength);
+                Context.MaxArrayLength,
+                m_logger);
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
@@ -3814,7 +3809,8 @@ namespace Opc.Ua
             (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(
                 true,
                 matrix.Dimensions,
-                Context.MaxArrayLength);
+                Context.MaxArrayLength,
+                m_logger);
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {

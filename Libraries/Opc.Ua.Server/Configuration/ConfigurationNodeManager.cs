@@ -33,7 +33,12 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
+using System.Diagnostics;
+#if !NET9_0_OR_GREATER
+using System.Runtime.InteropServices;
+#endif
 #if ECC_SUPPORT
 using System.Security.Cryptography;
 #endif
@@ -67,7 +72,18 @@ namespace Opc.Ua.Server
         public ConfigurationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : base(server, configuration)
+            : this(server, configuration, server.Telemetry.CreateLogger<ConfigurationNodeManager>())
+        {
+        }
+
+        /// <summary>
+        /// Initializes the configuration and diagnostics manager.
+        /// </summary>
+        public ConfigurationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger)
+            : base(server, configuration, logger)
         {
             string rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
                 .StorePath;
@@ -304,7 +320,8 @@ namespace Opc.Ua.Server
                     certGroup.TrustedStore,
                     certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess));
+                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                    Server.Telemetry);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
@@ -360,8 +377,8 @@ namespace Opc.Ua.Server
                 if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState))
                     is not NamespacesState serverNamespacesNode)
                 {
-                    Utils.LogError(
-                        "Cannot create NamespaceMetadataState for namespace '{0}'.",
+                    m_logger.LogError(
+                        "Cannot create NamespaceMetadataState for namespace '{NamespaceUri}'.",
                         namespaceUri);
                     return null;
                 }
@@ -432,16 +449,16 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
-           ISystemContext context,
-           MethodState method,
-           NodeId objectId,
-           NodeId certificateGroupId,
-           NodeId certificateTypeId,
-           byte[] certificate,
-           byte[][] issuerCertificates,
-           string privateKeyFormat,
-           byte[] privateKey,
-           CancellationToken cancellation)
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            byte[] certificate,
+            byte[][] issuerCertificates,
+            string privateKeyFormat,
+            byte[] privateKey,
+            CancellationToken ct)
         {
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
@@ -456,12 +473,14 @@ namespace Opc.Ua.Server
                 privateKey
             ];
             X509Certificate2 newCert = null;
+            X509Certificate2 certWithPrivateKey = null;
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
                 context,
                 objectId,
                 method,
-                inputArguments);
+                inputArguments,
+                m_logger);
             try
             {
                 if (certificate == null)
@@ -470,13 +489,11 @@ namespace Opc.Ua.Server
                 }
 
                 privateKeyFormat = privateKeyFormat?.ToUpper();
-                if (!(string.IsNullOrEmpty(privateKeyFormat) ||
-                    privateKeyFormat == "PEM" ||
-                    privateKeyFormat == "PFX"))
+                if (privateKeyFormat is not null and not "PEM" and not "PFX" and not "")
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        "The private key format is not supported.");
+                        $"The private key format {privateKeyFormat} is not supported.");
                 }
 
                 ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
@@ -486,7 +503,7 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    newCert = X509CertificateLoader.LoadCertificate(certificate);
+                    newCert = CertificateFactory.Create(certificate);
                 }
                 catch
                 {
@@ -528,9 +545,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (byte[] issuerRawCert in issuerCertificates)
                         {
-                            X509Certificate2 newIssuerCert = X509CertificateLoader.LoadCertificate(
-                                issuerRawCert);
-                            newIssuerCollection.Add(newIssuerCert);
+                            newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
                         }
                     }
                 }
@@ -538,7 +553,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
-                        "Certificate data is invalid.");
+                        "Issuer certificate data is invalid.");
                 }
 
                 // self signed
@@ -555,7 +570,7 @@ namespace Opc.Ua.Server
                     try
                     {
                         // verify cert with issuer chain
-                        var certValidator = new CertificateValidator();
+                        var certValidator = new CertificateValidator(Server.Telemetry);
                         var issuerStore = new CertificateTrustList();
                         var issuerCollection = new CertificateIdentifierCollection();
                         foreach (X509Certificate2 issuerCert in newIssuerCollection)
@@ -568,6 +583,11 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
+                        m_logger.LogError(
+                            Utils.TraceMasks.Security,
+                            ex,
+                            "Failed to verify integrity of the new certificate {Certificate} and the issuer list.",
+                            newCert.AsLogSafeString());
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "Failed to verify integrity of the new certificate and the issuer list.",
@@ -575,7 +595,11 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                var updateCertificate = new UpdateCertificateData();
+                var updateCertificate = new UpdateCertificateData
+                {
+                    IssuerCollection = newIssuerCollection,
+                    SessionId = context.SessionId
+                };
                 try
                 {
                     ICertificatePasswordProvider passwordProvider = m_configuration
@@ -585,170 +609,139 @@ namespace Opc.Ua.Server
                     {
                         case null:
                         case "":
-                        {
-                            X509Certificate2 exportableKey;
-                            //use the new generated private key if one exists and matches the provided public key
-                            if (certificateGroup.TemporaryApplicationCertificate != null &&
-                                X509Utils.VerifyKeyPair(
-                                    newCert,
-                                    certificateGroup.TemporaryApplicationCertificate))
+                            for (int attempt = 0; ; attempt++)
                             {
-                                exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                    certificateGroup.TemporaryApplicationCertificate,
-                                    false);
-                            }
-                            else
-                            {
-                                X509Certificate2 certWithPrivateKey = await existingCertIdentifier
-                                    .LoadPrivateKeyExAsync(
-                                        passwordProvider,
-                                        m_configuration.ApplicationUri,
-                                        cancellation)
-                                    .ConfigureAwait(false);
-                                exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                    certWithPrivateKey,
-                                    false);
-                            }
+                                X509Certificate2 exportableKey;
+                                // use the new generated private key if one exists and matches the provided public key
+                                if (certificateGroup.TemporaryApplicationCertificate != null &&
+                                    X509Utils.VerifyKeyPair(
+                                        newCert,
+                                        certificateGroup.TemporaryApplicationCertificate))
+                                {
+                                    exportableKey = X509Utils.CreateCopyWithPrivateKey(
+                                        certificateGroup.TemporaryApplicationCertificate,
+                                        false);
+                                }
+                                else
+                                {
+                                    certWithPrivateKey = await existingCertIdentifier
+                                        .LoadPrivateKeyExAsync(
+                                            passwordProvider,
+                                            m_configuration.ApplicationUri,
+                                            Server.Telemetry,
+                                            ct)
+                                        .ConfigureAwait(false);
+                                    if (certWithPrivateKey == null)
+                                    {
+                                        throw new ServiceResultException(
+                                            StatusCodes.BadSecurityChecksFailed,
+                                            "A private key was not found");
+                                    }
+                                    exportableKey = X509Utils.CreateCopyWithPrivateKey(
+                                        certWithPrivateKey,
+                                        false);
+                                }
 
-                            updateCertificate.CertificateWithPrivateKey =
-                                CertificateFactory.CreateCertificateWithPrivateKey(
-                                    newCert,
-                                    exportableKey);
+                                updateCertificate.CertificateWithPrivateKey =
+                                    CertificateFactory.CreateCertificateWithPrivateKey(
+                                        newCert,
+                                        exportableKey);
+                                try
+                                {
+                                    await UpdateCertificateInternalAsync(
+                                        certificateGroup,
+                                        existingCertIdentifier,
+                                        updateCertificate, ct).ConfigureAwait(false);
+                                    break;
+                                }
+                                catch (Exception ex) when (ShouldRetry(attempt, ex))
+                                {
+                                    m_logger.LogDebug(
+                                        Utils.TraceMasks.Security,
+                                        ex,
+                                        "Failed to update certificate {Certificate}. Retrying...",
+                                        newCert.AsLogSafeString());
+                                }
+                            }
                             break;
-                        }
                         case "PFX":
-                        {
-                            X509Certificate2 certWithPrivateKey = X509Utils
-                                .CreateCertificateFromPKCS12(
+                            for (int attempt = 0; ; attempt++)
+                            {
+                                certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
                                     privateKey,
                                     passwordProvider?.GetPassword(existingCertIdentifier),
-                                    true);
-                            updateCertificate.CertificateWithPrivateKey =
-                                CertificateFactory.CreateCertificateWithPrivateKey(
-                                    newCert,
-                                    certWithPrivateKey);
+#if !NET9_0_OR_GREATER
+                                    // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+                                    // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
+                                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
+#else // But it seems to work on .net 9 - and we prefer that over files
+                                    false);
+#endif
+                                updateCertificate.CertificateWithPrivateKey =
+                                    CertificateFactory.CreateCertificateWithPrivateKey(
+                                        newCert,
+                                        certWithPrivateKey);
+                                try
+                                {
+                                    await UpdateCertificateInternalAsync(
+                                        certificateGroup,
+                                        existingCertIdentifier,
+                                        updateCertificate, ct).ConfigureAwait(false);
+                                    break;
+                                }
+                                catch (Exception ex) when (ShouldRetry(attempt, ex))
+                                {
+                                    m_logger.LogDebug(
+                                        Utils.TraceMasks.Security,
+                                        ex,
+                                        "Failed to update certificate {Certificate} with PFX private key. Retrying...",
+                                        newCert.AsLogSafeString());
+                                }
+                            }
                             break;
-                        }
                         case "PEM":
-                            updateCertificate.CertificateWithPrivateKey =
+                            for (int attempt = 0; ; attempt++)
+                            {
+                                updateCertificate.CertificateWithPrivateKey =
                                 CertificateFactory.CreateCertificateWithPEMPrivateKey(
                                     newCert,
                                     privateKey,
                                     passwordProvider?.GetPassword(existingCertIdentifier));
+                                try
+                                {
+                                    await UpdateCertificateInternalAsync(
+                                        certificateGroup,
+                                        existingCertIdentifier,
+                                        updateCertificate, ct).ConfigureAwait(false);
+                                    break;
+                                }
+                                catch (Exception ex) when (ShouldRetry(attempt, ex))
+                                {
+                                    m_logger.LogDebug(
+                                        Utils.TraceMasks.Security,
+                                        ex,
+                                        "Failed to update certificate {Certificate} with PEM private key. Retrying...",
+                                        newCert.AsLogSafeString());
+                                }
+                            }
                             break;
                     }
-                    //dispose temporary new private key as it is no longer needed
-                    certificateGroup.TemporaryApplicationCertificate?.Dispose();
-                    certificateGroup.TemporaryApplicationCertificate = null;
-
-                    updateCertificate.IssuerCollection = newIssuerCollection;
-                    updateCertificate.SessionId = context.SessionId;
                 }
-                catch
+                catch (Exception ex) when (ex is not ServiceResultException)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
-                        "Failed to verify integrity of the new certificate and the private key.");
+                        "Failed to verify integrity of the new certificate and the private key.", ex);
+                }
+                finally
+                {
+                    // dispose temporary new private key as it is no longer needed
+                    certificateGroup.TemporaryApplicationCertificate?.Dispose();
+                    certificateGroup.TemporaryApplicationCertificate = null;
                 }
 
                 certificateGroup.UpdateCertificate = updateCertificate;
                 applyChangesRequired = true;
-
-                if (updateCertificate != null)
-                {
-                    try
-                    {
-                        using (ICertificateStore appStore = existingCertIdentifier.OpenStore())
-                        {
-                            if (appStore == null)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadConfigurationError,
-                                    "Failed to open application certificate store.");
-                            }
-
-                            Utils.LogCertificate(
-                                Utils.TraceMasks.Security,
-                                "Delete application certificate: ",
-                                existingCertIdentifier.Certificate);
-                            appStore.DeleteAsync(existingCertIdentifier.Thumbprint, cancellation)
-                                .Wait(cancellation);
-                            Utils.LogCertificate(
-                                Utils.TraceMasks.Security,
-                                "Add new application certificate: ",
-                                updateCertificate.CertificateWithPrivateKey);
-                            ICertificatePasswordProvider passwordProvider = m_configuration
-                                .SecurityConfiguration
-                                .CertificatePasswordProvider;
-                            appStore
-                                .AddAsync(
-                                    updateCertificate.CertificateWithPrivateKey,
-                                    passwordProvider?.GetPassword(existingCertIdentifier),
-                                    cancellation)
-                                .Wait(cancellation);
-                            // keep only track of cert without private key
-                            X509Certificate2 certOnly = X509CertificateLoader.LoadCertificate(
-                                updateCertificate.CertificateWithPrivateKey.RawData);
-                            updateCertificate.CertificateWithPrivateKey.Dispose();
-                            updateCertificate.CertificateWithPrivateKey = certOnly;
-                            //update certificate identifier with new certificate
-                            await existingCertIdentifier.FindAsync(
-                                m_configuration.ApplicationUri,
-                                cancellation)
-                                .ConfigureAwait(false);
-                        }
-
-                        ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
-                        try
-                        {
-                            if (issuerStore == null)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadConfigurationError,
-                                    "Failed to open issuer certificate store.");
-                            }
-
-                            foreach (X509Certificate2 issuer in updateCertificate.IssuerCollection)
-                            {
-                                try
-                                {
-                                    Utils.LogCertificate(
-                                        Utils.TraceMasks.Security,
-                                        "Add new issuer certificate: ",
-                                        issuer);
-                                    issuerStore.AddAsync(issuer, ct: cancellation)
-                                        .Wait(cancellation);
-                                }
-                                catch (ArgumentException)
-                                {
-                                    // ignore error if issuer cert already exists
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            issuerStore?.Close();
-                        }
-
-                        Server.ReportCertificateUpdatedAuditEvent(
-                            context,
-                            objectId,
-                            method,
-                            inputArguments,
-                            certificateGroupId,
-                            certificateTypeId);
-                    }
-                    catch (Exception ex)
-                    {
-                        Utils.LogError(
-                            Utils.TraceMasks.Security,
-                            ServiceResult.BuildExceptionTrace(ex));
-                        throw new ServiceResultException(
-                            StatusCodes.BadSecurityChecksFailed,
-                            "Failed to update certificate.",
-                            ex);
-                    }
-                }
             }
             catch (Exception e)
             {
@@ -760,9 +753,10 @@ namespace Opc.Ua.Server
                     inputArguments,
                     certificateGroupId,
                     certificateTypeId,
+                    m_logger,
                     e);
                 // Raise audit certificate event
-                Server.ReportAuditCertificateEvent(newCert, e);
+                Server.ReportAuditCertificateEvent(newCert, e, m_logger);
                 throw;
             }
 
@@ -771,6 +765,122 @@ namespace Opc.Ua.Server
                 ServiceResult = ServiceResult.Good,
                 ApplyChangesRequired = applyChangesRequired
             };
+
+            static bool ShouldRetry(int attempt, Exception ex)
+            {
+                if (ex is ServiceResultException sre && sre.StatusCode == StatusCodes.BadConfigurationError)
+                {
+                    return false;
+                }
+                const int maxAttempts = 3;
+                return attempt < maxAttempts;
+            }
+
+            // Handle the store update
+            async Task UpdateCertificateInternalAsync(
+                ServerCertificateGroup certificateGroup,
+                CertificateIdentifier existingCertIdentifier,
+                UpdateCertificateData updateCertificate,
+                CancellationToken ct)
+            {
+                try
+                {
+                    using (ICertificateStore appStore = existingCertIdentifier.OpenStore(Server.Telemetry))
+                    {
+                        if (appStore == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadConfigurationError,
+                                "Failed to open application certificate store.");
+                        }
+
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "Delete application certificate {Certificate}",
+                            existingCertIdentifier.Certificate.AsLogSafeString());
+                        await appStore.DeleteAsync(
+                            existingCertIdentifier.Thumbprint,
+                            ct)
+                            .ConfigureAwait(false);
+                        ICertificatePasswordProvider passwordProvider = m_configuration
+                            .SecurityConfiguration
+                            .CertificatePasswordProvider;
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "Add new application certificate {Certificate}",
+                            updateCertificate.CertificateWithPrivateKey.AsLogSafeString());
+                        Debug.Assert(updateCertificate.CertificateWithPrivateKey.HasPrivateKey);
+                        await appStore.AddAsync(
+                            updateCertificate.CertificateWithPrivateKey,
+                            passwordProvider?.GetPassword(existingCertIdentifier),
+                            ct)
+                            .ConfigureAwait(false);
+                        // keep only track of cert without private key
+                        X509Certificate2 certOnly = CertificateFactory.Create(
+                            updateCertificate.CertificateWithPrivateKey.RawData);
+                        updateCertificate.CertificateWithPrivateKey.Dispose();
+                        updateCertificate.CertificateWithPrivateKey = certOnly;
+                        // update certificate identifier with new certificate
+                        await existingCertIdentifier.FindAsync(
+                            m_configuration.ApplicationUri,
+                            Server.Telemetry,
+                            ct)
+                            .ConfigureAwait(false);
+                    }
+
+                    ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
+                    try
+                    {
+                        if (issuerStore == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadConfigurationError,
+                                "Failed to open issuer certificate store.");
+                        }
+
+                        foreach (X509Certificate2 issuer in updateCertificate.IssuerCollection)
+                        {
+                            try
+                            {
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "Add new issuer certificate {Certificate}",
+                                    issuer.AsLogSafeString());
+                                await issuerStore.AddAsync(issuer, ct: ct).ConfigureAwait(false);
+                            }
+                            catch (ArgumentException)
+                            {
+                                // ignore error if issuer cert already exists
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        issuerStore?.Close();
+                    }
+
+                    Server.ReportCertificateUpdatedAuditEvent(
+                        context,
+                        objectId,
+                        method,
+                        inputArguments,
+                        certificateGroupId,
+                        certificateTypeId,
+                        m_logger);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(
+                        Utils.TraceMasks.Security,
+                        ex,
+                        "Failed to update certificate {Certificate}.",
+                        newCert.AsLogSafeString());
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Failed to update certificate.",
+                        ex);
+                }
+            }
         }
 
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
@@ -807,10 +917,13 @@ namespace Opc.Ua.Server
             X509Certificate2 certWithPrivateKey;
             if (regeneratePrivateKey)
             {
+                IList<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
+
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
                     certificateGroup,
-                    subjectName);
+                    subjectName,
+                    domainNames);
             }
             else
             {
@@ -820,6 +933,7 @@ namespace Opc.Ua.Server
                 certWithPrivateKey = await existingCertIdentifier
                     .LoadPrivateKeyExAsync(passwordProvider,
                                            m_configuration.ApplicationUri,
+                                           Server.Telemetry,
                                            cancellationToken)
                     .ConfigureAwait(false);
 
@@ -829,10 +943,10 @@ namespace Opc.Ua.Server
                 }
             }
 
-            Utils.LogCertificate(
+            m_logger.LogInformation(
                 Utils.TraceMasks.Security,
-                "Create signing request: ",
-                certWithPrivateKey);
+                "Create signing request {Certificate}",
+                certWithPrivateKey.AsLogSafeString());
             byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
                 X509Utils.GetDomainsFromCertificate(certWithPrivateKey));
@@ -847,12 +961,13 @@ namespace Opc.Ua.Server
         private X509Certificate2 GenerateTemporaryApplicationCertificate(
             NodeId certificateTypeId,
             ServerCertificateGroup certificateGroup,
-            string subjectName)
+            string subjectName,
+            IList<string> domainNames)
         {
             X509Certificate2 certificate;
 
             ICertificateBuilder certificateBuilder = CertificateFactory
-                .CreateCertificate(m_configuration.ApplicationUri, null, subjectName, null)
+                .CreateCertificate(m_configuration.ApplicationUri, m_configuration.ApplicationName, subjectName, domainNames)
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddDays(14));
 
@@ -904,10 +1019,10 @@ namespace Opc.Ua.Server
                     if (updateCertificate != null)
                     {
                         disconnectSessions = true;
-                        Utils.LogCertificate(
+                        m_logger.LogInformation(
                             Utils.TraceMasks.Security,
-                            "Apply Changes for certificate: ",
-                            updateCertificate.CertificateWithPrivateKey);
+                            "Apply Changes for certificate {Certificate}",
+                            updateCertificate.CertificateWithPrivateKey.AsLogSafeString());
                     }
                 }
                 finally
@@ -918,28 +1033,53 @@ namespace Opc.Ua.Server
 
             if (disconnectSessions)
             {
+                // When a Server Certificate or TrustList changes active SecureChannels
+                // are not immediately affected. This ensures the caller of ApplyChanges
+                // can get a response to the Method call. Once the Method response is
+                // returned the Server shall force existing SecureChannels affected by
+                // the changes to renegotiate and use the new Server Certificate
+                // and/or TrustLists.
+
+                // TODO: This needs fixing, the 1 second might or might not work to give
+                // Time to the client to receive the response.  Also, this needs to cut
+                // all channels and reevaluate sessions, this needs to be implemented in
+                // Transport side presumably.
+
                 Task.Run(async () =>
                 {
-                    Utils.LogInfo(
+                    m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Apply Changes for application certificate update.");
+                        "----- Apply Changes of application certificate starts in 1 second...");
+
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
+
                     try
                     {
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "----- Apply Changes for application certificate update running...");
+
                         await m_configuration
                             .CertificateValidator.UpdateCertificateAsync(
                                 m_configuration.SecurityConfiguration,
                                 m_configuration.ApplicationUri)
                             .ConfigureAwait(false);
+
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "----- Apply Changes for application certificate update completed.");
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogCritical(
+                        m_logger.LogCritical(
                             ex,
-                            "Failed to sucessfully Apply Changes: Error updating application instance certificates. Server could be in faulted state.");
-                        throw;
+                            "----- Apply Changes for application certificate update failed: " +
+                            "Error updating application instance certificates. " +
+                            "Server could be in faulted state.");
+
+                        // Throws to nowhere since no one is listening ... // throw;
                     }
                 });
             }
@@ -962,7 +1102,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            ICertificateStore store = m_rejectedStore.OpenStore();
+            ICertificateStore store = m_rejectedStore.OpenStore(Server.Telemetry);
             try
             {
                 if (store != null)
@@ -1058,7 +1198,7 @@ namespace Opc.Ua.Server
                 if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState))
                     is not NamespacesState serverNamespacesNode)
                 {
-                    Utils.LogError("Cannot find ObjectIds.Server_Namespaces node.");
+                    m_logger.LogError("Cannot find ObjectIds.Server_Namespaces node.");
                     return null;
                 }
 
@@ -1107,9 +1247,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     ex,
-                    "Error searching NamespaceMetadata for namespaceUri {0}.",
+                    "Error searching NamespaceMetadata for namespaceUri {NamespaceUri}.",
                     namespaceUri);
                 return null;
             }
@@ -1142,22 +1282,22 @@ namespace Opc.Ua.Server
 
         private class UpdateCertificateData
         {
-            public NodeId SessionId;
-            public X509Certificate2 CertificateWithPrivateKey;
-            public X509Certificate2Collection IssuerCollection;
+            public NodeId SessionId { get; set; }
+            public X509Certificate2 CertificateWithPrivateKey { get; set; }
+            public X509Certificate2Collection IssuerCollection { get; set; }
         }
 
         private class ServerCertificateGroup
         {
-            public string BrowseName;
-            public NodeId NodeId;
-            public CertificateGroupState Node;
-            public NodeId[] CertificateTypes;
-            public CertificateIdentifierCollection ApplicationCertificates;
-            public CertificateStoreIdentifier IssuerStore;
-            public CertificateStoreIdentifier TrustedStore;
-            public UpdateCertificateData UpdateCertificate;
-            public X509Certificate2 TemporaryApplicationCertificate;
+            public string BrowseName { get; set; }
+            public NodeId NodeId { get; set; }
+            public CertificateGroupState Node { get; set; }
+            public NodeId[] CertificateTypes { get; set; }
+            public CertificateIdentifierCollection ApplicationCertificates { get; set; }
+            public CertificateStoreIdentifier IssuerStore { get; set; }
+            public CertificateStoreIdentifier TrustedStore { get; set; }
+            public UpdateCertificateData UpdateCertificate { get; set; }
+            public X509Certificate2 TemporaryApplicationCertificate { get; set; }
         }
 
         private ServerConfigurationState m_serverConfigurationNode;

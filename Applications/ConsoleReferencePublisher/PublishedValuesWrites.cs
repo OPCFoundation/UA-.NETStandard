@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 
@@ -56,6 +57,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         private readonly FieldMetaDataCollection m_simpleFields = [];
         private readonly FieldMetaDataCollection m_allTypesFields = [];
 
+        private readonly ILogger m_logger;
         private readonly PublishedDataSetDataTypeCollection m_publishedDataSets;
         private readonly IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
@@ -97,8 +99,9 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Constructor
         /// </summary>
         /// <param name="uaPubSubApplication"></param>
-        public PublishedValuesWrites(UaPubSubApplication uaPubSubApplication)
+        public PublishedValuesWrites(UaPubSubApplication uaPubSubApplication, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<PublishedValuesWrites>();
             m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                 .PublishedDataSets;
             m_dataStore = uaPubSubApplication.DataStore;
@@ -127,6 +130,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                         case kDataSetNameAllTypes:
                             m_allTypesFields.AddRange(publishedDataSet.DataSetMetaData.Fields);
                             break;
+                        default:
+                            m_logger.LogInformation(
+                                "PublishedValuesWrites.Start: {DataSet} unknown.",
+                                publishedDataSet.Name);
+                            break;
                     }
                 }
             }
@@ -137,11 +145,8 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
-                    "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field: {0}",
-                    e.StackTrace
-                );
+                m_logger.LogError(e,
+                    "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field");
             }
 
             m_updateValuesTimer = new Timer(UpdateValues, null, 1000, 1000);
@@ -308,6 +313,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                             case "DateTime":
                                 IncrementValue(variable, NamespaceIndexSimple);
                                 break;
+                            default:
+                                m_logger.LogDebug("{Variable} not processed.", variable.Name);
+                                break;
                         }
                     }
 
@@ -319,7 +327,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error doing simulation.");
+                m_logger.LogError(e, "Unexpected error doing simulation.");
             }
         }
 
@@ -332,6 +340,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <param name="namespaceIndex"></param>
         /// <param name="maxAllowedValue"></param>
         /// <param name="step"></param>
+        /// <exception cref="ServiceResultException"></exception>
         private void IncrementValue(
             FieldMetaData variable,
             ushort namespaceIndex,
@@ -351,7 +360,8 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             bool valueUpdated = false;
 
-            switch (TypeInfo.GetBuiltInType(variable.DataType))
+            BuiltInType builtInType = TypeInfo.GetBuiltInType(variable.DataType);
+            switch (builtInType)
             {
                 case BuiltInType.Boolean:
                     if (variable.ValueRank == ValueRanks.Scalar)
@@ -505,6 +515,10 @@ namespace Quickstarts.ConsoleReferencePublisher
                         valueUpdated = true;
                     }
                     break;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
             }
 
             if (valueUpdated)

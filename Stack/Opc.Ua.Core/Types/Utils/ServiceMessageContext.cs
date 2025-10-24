@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -20,39 +22,58 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        [Obsolete("Use ServiceMessageContext(ITelemetryContext) instead.")]
         public ServiceMessageContext()
+            : this(null)
         {
-            Initialize(false);
         }
 
-        private ServiceMessageContext(bool shared)
-            : this()
+        /// <summary>
+        /// Initializes the object with default values.
+        /// </summary>
+        public ServiceMessageContext(ITelemetryContext telemetry)
         {
-            Initialize(shared);
-        }
-
-        private void Initialize(bool shared)
-        {
+            Telemetry = telemetry;
             MaxStringLength = DefaultEncodingLimits.MaxStringLength;
             MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
             MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
             MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
             MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
-            m_namespaceUris = new NamespaceTable(shared);
-            m_serverUris = new StringTable(shared);
-            m_factory = EncodeableFactory.GlobalFactory;
+            m_namespaceUris = new NamespaceTable();
+            m_serverUris = new StringTable();
+            m_factory = EncodeableFactory.Create();
+        }
+
+        /// <summary>
+        /// Create a copy of the provided context
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public ServiceMessageContext(IServiceMessageContext context, ITelemetryContext telemetry)
+        {
+            Telemetry = context.Telemetry ?? telemetry;
+            MaxStringLength = context.MaxStringLength;
+            MaxByteStringLength = context.MaxByteStringLength;
+            MaxArrayLength = context.MaxArrayLength;
+            MaxMessageSize = context.MaxMessageSize;
+            MaxEncodingNestingLevels = context.MaxEncodingNestingLevels;
+            MaxDecoderRecoveries = context.MaxDecoderRecoveries;
+            m_namespaceUris = new NamespaceTable(context.NamespaceUris);
+            m_serverUris = new StringTable(context.ServerUris);
+            m_factory = context.Factory;
         }
 
         /// <summary>
         /// The default context for the process (used only during XML serialization).
         /// </summary>
-        public static ServiceMessageContext GlobalContext { get; }
-            = new ServiceMessageContext(true);
+        [Obsolete("Create a new root ServiceMessageContext or a copy of an existing one for a scope.")]
+        public static ServiceMessageContext GlobalContext { get; } = new(null);
 
         /// <summary>
         /// The default context for the thread (used only during XML serialization).
         /// </summary>
+        [Obsolete("Create a new root ServiceMessageContext or a copy of an existing one for a scope.")]
         public static ServiceMessageContext ThreadContext
         {
             get => GlobalContext;
@@ -60,6 +81,9 @@ namespace Opc.Ua
             {
             }
         }
+
+        /// <inheritdoc/>
+        public ITelemetryContext Telemetry { get; }
 
         /// <inheritdoc/>
         public int MaxStringLength { get; set; }
@@ -87,7 +111,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_namespaceUris = GlobalContext.NamespaceUris;
+                    m_namespaceUris = new NamespaceTable();
                     return;
                 }
                 m_namespaceUris = value;
@@ -102,7 +126,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_serverUris = GlobalContext.ServerUris;
+                    m_serverUris = new StringTable();
                     return;
                 }
 
@@ -118,7 +142,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_factory = GlobalContext.Factory;
+                    m_factory = EncodeableFactory.Create();
                     return;
                 }
 

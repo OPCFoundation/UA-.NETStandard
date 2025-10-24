@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Opc.Ua.Server
 {
@@ -46,14 +47,16 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public StdDevAggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
-            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration, telemetry)
         {
             SetPartialBit = true;
         }
@@ -65,27 +68,28 @@ namespace Opc.Ua.Server
         {
             uint? id = AggregateId.Identifier as uint?;
 
-            if (id != null)
+            if (id == null)
             {
-                switch (id.Value)
-                {
-                    // valueType == 1: StandardDeviation, valueType == 2: Variance
-
-                    // includeBounds == true: sample, includeBounds == false: population
-                    // (this is a strange way to distinguish between sample and population)
-
-                    case Objects.AggregateFunction_StandardDeviationPopulation:
-                        return ComputeStdDev(slice, false, 1);
-                    case Objects.AggregateFunction_StandardDeviationSample:
-                        return ComputeStdDev(slice, true, 1);
-                    case Objects.AggregateFunction_VariancePopulation:
-                        return ComputeStdDev(slice, false, 2);
-                    case Objects.AggregateFunction_VarianceSample:
-                        return ComputeStdDev(slice, true, 2);
-                }
+                return base.ComputeValue(slice);
             }
+            switch (id.Value)
+            {
+                // valueType == 1: StandardDeviation, valueType == 2: Variance
 
-            return base.ComputeValue(slice);
+                // includeBounds == true: sample, includeBounds == false: population
+                // (this is a strange way to distinguish between sample and population)
+
+                case Objects.AggregateFunction_StandardDeviationPopulation:
+                    return ComputeStdDev(slice, false, 1);
+                case Objects.AggregateFunction_StandardDeviationSample:
+                    return ComputeStdDev(slice, true, 1);
+                case Objects.AggregateFunction_VariancePopulation:
+                    return ComputeStdDev(slice, false, 2);
+                case Objects.AggregateFunction_VarianceSample:
+                    return ComputeStdDev(slice, true, 2);
+                default:
+                    return base.ComputeValue(slice);
+            }
         }
 
         /// <summary>
@@ -200,6 +204,9 @@ namespace Opc.Ua.Server
                 case 3:
                     result = regStdDev;
                     break;
+                default:
+                    Debug.Fail($"Unexpected value type {valueType}");
+                    break;
             }
 
             // set the timestamp and status.
@@ -309,6 +316,9 @@ namespace Opc.Ua.Server
                     break;
                 case 2:
                     result = variance;
+                    break;
+                default:
+                    Debug.Fail($"Unexpected value type {valueType}");
                     break;
             }
 

@@ -16,9 +16,9 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.X509StoreExtensions;
 
@@ -32,9 +32,10 @@ namespace Opc.Ua
         /// <summary>
         /// Create an instance of the certificate store.
         /// </summary>
-        public X509CertificateStore()
+        public X509CertificateStore(ITelemetryContext telemetry)
         {
             // defaults
+            m_logger = telemetry.CreateLogger<X509CertificateStore>();
             m_storeName = "My";
             m_storeLocation = StoreLocation.CurrentUser;
         }
@@ -71,8 +72,7 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(location))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Store Location cannot be empty.");
             }
 
@@ -80,8 +80,7 @@ namespace Opc.Ua
             int index = location.IndexOf('\\', StringComparison.Ordinal);
             if (index == -1)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Path does not specify a store name. Path={0}",
                     location);
             }
@@ -102,12 +101,8 @@ namespace Opc.Ua
             }
             if (!found)
             {
-                var message = new StringBuilder();
-                message.AppendLine("Store location specified not available.")
-                    .AppendLine("Store location={0}");
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    message.ToString(),
+                throw ServiceResultException.Unexpected(
+                    "Store location specified not available. Store location={0}",
                     storeLocation);
             }
 
@@ -140,7 +135,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -164,8 +159,7 @@ namespace Opc.Ua
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
-                            certificate.RawData);
+                        using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
                         store.Add(publicKey);
                     }
                     else
@@ -173,9 +167,9 @@ namespace Opc.Ua
                         store.Add(certificate);
                     }
 
-                    Utils.LogCertificate(
-                        "Added certificate to X509Store {0}.",
-                        certificate,
+                    m_logger.LogInformation(
+                        "Added certificate {Certificate} to X509Store {Name}.",
+                        certificate.AsLogSafeString(),
                         store.Name);
                 }
             }
@@ -233,7 +227,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             return Task.FromResult<X509Certificate2>(null);
@@ -317,7 +311,7 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadOnly);
 
-                foreach (byte[] rawCrl in store.EnumerateCrls())
+                foreach (byte[] rawCrl in store.EnumerateCrls(m_logger))
                 {
                     try
                     {
@@ -326,7 +320,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Failed to parse CRL in store {0}.", store.Name);
+                        m_logger.LogError(e, "Failed to parse CRL in store {StoreName}.", store.Name);
                     }
                 }
             }
@@ -408,7 +402,7 @@ namespace Opc.Ua
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);
 
-            store.AddCrl(crl.RawData);
+            store.AddCrl(crl.RawData, m_logger);
         }
 
         /// <inheritdoc/>
@@ -426,7 +420,7 @@ namespace Opc.Ua
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);
 
-            return Task.FromResult(store.DeleteCrl(crl.RawData));
+            return Task.FromResult(store.DeleteCrl(crl.RawData, m_logger));
         }
 
         /// <inheritdoc/>
@@ -438,6 +432,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
+        private readonly ILogger m_logger;
         private string m_storeName;
         private StoreLocation m_storeLocation;
     }

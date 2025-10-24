@@ -30,6 +30,7 @@
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
 
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -139,21 +140,22 @@ namespace Opc.Ua.Security.Certificates
         /// Import a PKCS#8 private key or RSA private key from PEM.
         /// The PKCS#8 private key may be encrypted using a password.
         /// </summary>
-        /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
+        /// <param name="pemDataBlob">The PEM datablob as byte span.</param>
         /// <param name="password">The password to use (optional).</param>
         /// <returns>The RSA private key.</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="CryptographicException"></exception>
-        public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
+        public static RSA ImportRsaPrivateKeyFromPEM(
+            ReadOnlySpan<byte> pemDataBlob,
+            ReadOnlySpan<char> password)
         {
             string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"];
             try
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
-                int count = 0;
-                foreach (string label in labels)
+                for (int labelIndex = 0; labelIndex < labels.Length; labelIndex++)
                 {
-                    count++;
+                    string label = labels[labelIndex];
                     string beginlabel = $"-----BEGIN {label}-----";
                     int beginIndex = pemText.IndexOf(beginlabel, StringComparison.Ordinal);
                     if (beginIndex < 0)
@@ -173,24 +175,27 @@ namespace Opc.Ua.Security.Certificates
                     {
                         var rsaPrivateKey = RSA.Create();
                         int bytesRead;
-                        switch (count)
+                        switch (labelIndex)
                         {
-                            case 1:
-                                if (string.IsNullOrEmpty(password))
+                            case 0:
+                                if (password.IsEmpty || password.IsWhiteSpace())
                                 {
                                     throw new ArgumentException(
                                         "Need password for encrypted private key.");
                                 }
                                 rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(
-                                    password.ToCharArray(),
+                                    password,
                                     pemDecoded,
                                     out bytesRead);
                                 break;
-                            case 2:
+                            case 1:
                                 rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead);
                                 break;
-                            case 3:
+                            case 2:
                                 rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead);
+                                break;
+                            default:
+                                Debug.Fail($"Unexpected label index {labelIndex}.");
                                 break;
                         }
                         return rsaPrivateKey;
@@ -217,7 +222,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>ECDsa instance containing the private key</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="CryptographicException"></exception>
-        public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(
+            byte[] pemDataBlob,
+            ReadOnlySpan<char> password)
         {
             // PEM labels for EC keys. Probably need adjustment
             string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "EC PRIVATE KEY"];
@@ -227,10 +234,9 @@ namespace Opc.Ua.Security.Certificates
                 // Convert PEM data to text for parsing
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
-                int labelIndex = 0;
-                foreach (string label in labels)
+                for (int labelIndex = 0; labelIndex < labels.Length; labelIndex++)
                 {
-                    labelIndex++;
+                    string label = labels[labelIndex];
                     string beginLabel = $"-----BEGIN {label}-----";
                     int beginIndex = pemText.IndexOf(beginLabel, StringComparison.Ordinal);
                     if (beginIndex < 0)
@@ -258,25 +264,28 @@ namespace Opc.Ua.Security.Certificates
                         var ecdsaKey = ECDsa.Create();
                         switch (labelIndex)
                         {
-                            case 1:
+                            case 0:
                                 // ENCRYPTED PRIVATE KEY
-                                if (string.IsNullOrEmpty(password))
+                                if (password.IsEmpty || password.IsWhiteSpace())
                                 {
                                     throw new ArgumentException(
                                         "A password is required for an encrypted private key.");
                                 }
                                 ecdsaKey.ImportEncryptedPkcs8PrivateKey(
-                                    password.ToCharArray(),
+                                    password,
                                     decodedBytes,
                                     out _);
                                 break;
-                            case 2:
+                            case 1:
                                 // PRIVATE KEY (Unencrypted PKCS#8)
                                 ecdsaKey.ImportPkcs8PrivateKey(decodedBytes, out _);
                                 break;
-                            case 3:
+                            case 2:
                                 // EC PRIVATE KEY
                                 ecdsaKey.ImportECPrivateKey(decodedBytes, out _);
+                                break;
+                            default:
+                                Debug.Fail($"Unexpected label index {labelIndex}.");
                                 break;
                         }
                         return ecdsaKey;

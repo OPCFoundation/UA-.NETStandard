@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -52,6 +53,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<SessionManager>();
 
             m_minSessionTimeout = configuration.ServerConfiguration.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
@@ -307,7 +309,7 @@ namespace Opc.Ua.Server
                 if (session.HasExpired)
                 {
                     // raise audit event for session closed because of timeout
-                    m_server.ReportAuditCloseSessionEvent(null, session, "Session/Timeout");
+                    m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
 
                     m_server.CloseSession(null, session.Id, false);
 
@@ -563,6 +565,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Raises an event related to a session.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual void RaiseSessionEvent(ISession session, SessionEventReason reason)
         {
             lock (m_eventLock)
@@ -583,6 +586,11 @@ namespace Opc.Ua.Server
                     case SessionEventReason.ChannelKeepAlive:
                         handler = m_SessionChannelKeepAlive;
                         break;
+                    case SessionEventReason.Impersonating:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected SessionEventReason {reason}");
                 }
 
                 if (handler != null)
@@ -593,7 +601,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.LogTrace(e, "Session event handler raised an exception.");
+                        m_logger.LogTrace(e, "Session event handler raised an exception.");
                     }
                 }
             }
@@ -606,7 +614,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Server - Session Monitor Thread Started.");
+                m_logger.LogInformation("Server - Session Monitor Thread Started.");
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
 
@@ -625,7 +633,7 @@ namespace Opc.Ua.Server
                             }
 
                             // raise audit event for session closed because of timeout
-                            m_server.ReportAuditCloseSessionEvent(null, session, "Session/Timeout");
+                            m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
 
                             await m_server.CloseSessionAsync(null, session.Id, false)
                                 .ConfigureAwait(false);
@@ -641,19 +649,20 @@ namespace Opc.Ua.Server
 
                     if (m_shutdownEvent.WaitOne(sleepCycle))
                     {
-                        Utils.LogTrace("Server - Session Monitor Thread Exited Normally.");
+                        m_logger.LogTrace("Server - Session Monitor Thread Exited Normally.");
                         break;
                     }
                 }
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Server - Session Monitor Thread Exited Unexpectedly");
+                m_logger.LogError(e, "Server - Session Monitor Thread Exited Unexpectedly");
             }
         }
 
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private readonly IServerInternal m_server;
+        private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;

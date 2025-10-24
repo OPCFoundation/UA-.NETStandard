@@ -32,10 +32,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
@@ -43,25 +46,54 @@ namespace Opc.Ua.Gds.Server
 {
     public class CertificateGroup : ICertificateGroup
     {
+        /// <inheritdoc/>
         public NodeId Id { get; set; }
+
+        /// <inheritdoc/>
         public NodeIdCollection CertificateTypes { get; set; }
+
+        /// <inheritdoc/>
         public CertificateGroupConfiguration Configuration { get; }
+
+        /// <inheritdoc/>
         public ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
+
+        /// <inheritdoc/>
         public TrustListState DefaultTrustList { get; set; }
+
+        /// <inheritdoc/>
         public bool UpdateRequired { get; set; }
+
+        /// <inheritdoc/>
         public CertificateStoreIdentifier AuthoritiesStore { get; }
+
+        /// <inheritdoc/>
         public CertificateStoreIdentifier IssuerCertificatesStore { get; }
 
+        protected string SubjectName { get; }
+
+        [Obsolete("Use CertificateGroup(TelemetryContext) instead")]
         public CertificateGroup()
+            : this(null)
         {
+        }
+
+        public CertificateGroup(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<CertificateGroup>();
             UpdateRequired = false;
         }
 
         protected CertificateGroup(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
+            ITelemetryContext telemetry,
             [Optional] string trustedIssuerCertificatesStorePath)
         {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<CertificateGroup>();
+
             AuthoritiesStore = new CertificateStoreIdentifier(authoritiesStorePath, false);
             Configuration = certificateGroupConfiguration;
             if (trustedIssuerCertificatesStorePath != null)
@@ -83,8 +115,8 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
-                        Utils.LogError(
-                            "Certificate type {0} specified for Certificate Group is not supported on this platform",
+                        m_logger.LogError(
+                            "Certificate type {CertificateType} specified for Certificate Group is not supported on this platform",
                             certificateType);
                         continue;
                     }
@@ -104,14 +136,14 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual async Task InitAsync()
+        public virtual async Task InitAsync(CancellationToken ct = default)
         {
-            Utils.LogInfo("InitializeCertificateGroup: {0}", SubjectName);
+            m_logger.LogInformation("InitializeCertificateGroup: {SubjectName}", SubjectName);
 
-            ICertificateStore store = AuthoritiesStore.OpenStore();
+            ICertificateStore store = AuthoritiesStore.OpenStore(m_telemetry);
             try
             {
-                X509Certificate2Collection certificates = await store.EnumerateAsync()
+                X509Certificate2Collection certificates = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
                 foreach (X509Certificate2 certificate in certificates)
                 {
@@ -157,20 +189,20 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificate == null)
                 {
-                    Utils.LogInfo(
+                    m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Create new CA Certificate: {0}, CertificateType {1}  KeySize: {2}, HashSize: {3}, LifeTime: {4} months",
+                        "Create new CA Certificate: {SubjectName}, CertificateType {CertificateType}  KeySize: {KeySize}, HashSize: {HashSize}, LifeTime: {LifeTime} months",
                         SubjectName,
                         certificateType,
                         Configuration.CACertificateKeySize,
                         Configuration.CACertificateHashSize,
                         Configuration.CACertificateLifetime);
-                    await CreateCACertificateAsync(SubjectName, certificateType).ConfigureAwait(
+                    await CreateCACertificateAsync(SubjectName, certificateType, ct).ConfigureAwait(
                         false);
-                    Utils.LogCertificate(
+                    m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Created CA certificate: ",
-                        Certificates[certificateType]);
+                        "Created CA certificate {Certificate}",
+                        Certificates[certificateType].AsLogSafeString());
                 }
             }
         }
@@ -183,6 +215,7 @@ namespace Opc.Ua.Gds.Server
             return new CertificateGroup(
                 authoritiesStorePath,
                 certificateGroupConfiguration,
+                m_telemetry,
                 trustedIssuerCertificatesStorePath);
         }
 
@@ -195,6 +228,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="domainNames">The domain names for the subject alt name extension.</param>
         /// <param name="privateKeyFormat">The private key format as PFX or PEM.</param>
         /// <param name="privateKeyPassword">A password for the private key.</param>
+        /// <param name="ct"></param>
         /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
@@ -203,7 +237,8 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword)
+            char[] privateKeyPassword,
+            CancellationToken ct = default)
         {
             if (application == null)
             {
@@ -222,9 +257,10 @@ namespace Opc.Ua.Gds.Server
 
             using X509Certificate2 signingKey = await LoadSigningKeyAsync(
                 Certificates[certificateType],
-                string.Empty)
+                null,
+                m_telemetry,
+                ct)
                 .ConfigureAwait(false);
-            X509Certificate2 certificate;
 
             ICertificateBuilderIssuer builder = CertificateFactory
                 .CreateCertificate(
@@ -236,17 +272,30 @@ namespace Opc.Ua.Gds.Server
                     domainNames)
                 .SetIssuer(signingKey);
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+            using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder.CreateForRSA();
 #else
-            certificate = builder.CreateForRSA();
+            using X509Certificate2 certificate = builder.CreateForRSA();
 #endif
 
             byte[] privateKey;
             if (privateKeyFormat == "PFX")
             {
-                privateKey = certificate.Export(X509ContentType.Pfx, privateKeyPassword);
+                if (privateKeyPassword == null || privateKeyPassword.Length == 0)
+                {
+                    privateKey = certificate.Export(X509ContentType.Pfx);
+                }
+                else
+                {
+                    using var passwordString = new SecureString();
+                    foreach (char c in privateKeyPassword)
+                    {
+                        passwordString.AppendChar(c);
+                    }
+                    passwordString.MakeReadOnly();
+                    privateKey = certificate.Export(X509ContentType.Pfx, passwordString);
+                }
             }
             else if (privateKeyFormat == "PEM")
             {
@@ -259,15 +308,16 @@ namespace Opc.Ua.Gds.Server
                     "Invalid private key format");
             }
 
-            X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
-            Utils.SilentDispose(certificate);
+            X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
 
             return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
         }
 
-        public virtual async Task<X509CRL> RevokeCertificateAsync(X509Certificate2 certificate)
+        public virtual async Task<X509CRL> RevokeCertificateAsync(
+            X509Certificate2 certificate,
+            CancellationToken ct = default)
         {
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null)
+            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, m_telemetry, ct)
                 .ConfigureAwait(false);
 
             // Also update TrustedList CRL so registerd Applications can get the new CRL
@@ -275,13 +325,13 @@ namespace Opc.Ua.Gds.Server
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(
                     Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier)
+                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
                     .ConfigureAwait(false);
 
                 //Also update TrustedIssuerCertificates Store
                 if (IssuerCertificatesStore != null)
                 {
-                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore)
+                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
                         .ConfigureAwait(false);
                 }
             }
@@ -292,7 +342,8 @@ namespace Opc.Ua.Gds.Server
 
         public virtual Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
-            byte[] certificateRequest)
+            byte[] certificateRequest,
+            CancellationToken ct = default)
         {
             try
             {
@@ -330,7 +381,8 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
-            byte[] certificateRequest)
+            byte[] certificateRequest,
+            CancellationToken ct = default)
         {
             try
             {
@@ -379,8 +431,10 @@ namespace Opc.Ua.Gds.Server
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using X509Certificate2 signingKey = await LoadSigningKeyAsync(
-                        Certificates[certificateType],
-                        string.Empty)
+                    Certificates[certificateType],
+                    null,
+                    m_telemetry,
+                    ct)
                     .ConfigureAwait(false);
                 var subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
 
@@ -424,7 +478,8 @@ namespace Opc.Ua.Gds.Server
 
         public virtual async Task<X509Certificate2> CreateCACertificateAsync(
             string subjectName,
-            NodeId certificateType)
+            NodeId certificateType,
+            CancellationToken ct = default)
         {
             // validate new subjectName matches the previous subject
             // TODO: An issuer may modify the subject of the CA certificate,
@@ -446,8 +501,6 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            X509Certificate2 certificate;
-
             ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
@@ -455,7 +508,7 @@ namespace Opc.Ua.Gds.Server
                 .SetCAConstraint();
 
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+            using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder
                     .SetHashAlgorithm(
@@ -463,21 +516,29 @@ namespace Opc.Ua.Gds.Server
                     .SetRSAKeySize(Configuration.CACertificateKeySize)
                     .CreateForRSA();
 #else
-            certificate = builder
+            using X509Certificate2 certificate = builder
                 .SetHashAlgorithm(
                     X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                 .SetRSAKeySize(Configuration.CACertificateKeySize)
                 .CreateForRSA();
 #endif
 
-            await certificate.AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false);
+            await certificate.AddToStoreAsync(
+                AuthoritiesStore,
+                password: null,
+                m_telemetry,
+                ct).ConfigureAwait(false);
 
             // save only public key
-            Certificates[certificateType] = X509CertificateLoader.LoadCertificate(
-                certificate.RawData);
+            Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
 
             // initialize revocation list
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null)
+            X509CRL crl = await RevokeCertificateAsync(
+                AuthoritiesStore,
+                certificate,
+                issuerKeyFilePassword: null,
+                m_telemetry,
+                ct)
                 .ConfigureAwait(false);
 
             //Update TrustedList Store
@@ -486,18 +547,16 @@ namespace Opc.Ua.Gds.Server
                 // TODO: make CA trust selectable
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(
                     Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier)
+                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
                     .ConfigureAwait(false);
 
                 // Update TrustedIssuerCertificates Store
                 if (IssuerCertificatesStore != null)
                 {
-                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore)
+                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
                         .ConfigureAwait(false);
                 }
             }
-
-            Utils.SilentDispose(certificate);
 
             return Certificates[certificateType];
         }
@@ -507,31 +566,34 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         public virtual Task<X509Certificate2> LoadSigningKeyAsync(
             X509Certificate2 signingCertificate,
-            string signingKeyPassword)
+            char[] signingKeyPassword,
+            ITelemetryContext telemetry = null,
+            CancellationToken ct = default)
         {
             var certIdentifier = new CertificateIdentifier(signingCertificate)
             {
                 StorePath = AuthoritiesStore.StorePath,
                 StoreType = AuthoritiesStore.StoreType
             };
-            return certIdentifier.LoadPrivateKeyAsync(signingKeyPassword);
+            return certIdentifier.LoadPrivateKeyAsync(signingKeyPassword, null, telemetry, ct);
         }
 
         /// <summary>
         /// Revoke the CA signed certificate.
         /// The issuer CA public key, the private key and the crl reside in the storepath.
-        /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
+        /// The CRL number is increased by one and existing CRL for the issuer are deleted
+        /// from the store.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         public static async Task<X509CRL> RevokeCertificateAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2 certificate,
-            string issuerKeyFilePassword = null)
+            char[] issuerKeyFilePassword = null,
+            ITelemetryContext telemetry = null,
+            CancellationToken ct = default)
         {
             X509CRL updatedCRL = null;
-
-            _ = certificate.IssuerName;
 
             // caller may want to create empty CRL using the CA cert itself
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
@@ -543,7 +605,6 @@ namespace Opc.Ua.Gds.Server
             string serialNumber;
             if (authority != null)
             {
-                _ = authority.KeyIdentifier;
                 serialNumber = authority.SerialNumber;
             }
             else
@@ -561,7 +622,7 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            ICertificateStore store = storeIdentifier.OpenStore();
+            ICertificateStore store = storeIdentifier.OpenStore(telemetry);
             try
             {
                 if (store == null)
@@ -585,7 +646,11 @@ namespace Opc.Ua.Gds.Server
                     StoreType = store.StoreType
                 };
                 X509Certificate2 certCAWithPrivateKey =
-                    await certCAIdentifier.LoadPrivateKeyAsync(issuerKeyFilePassword)
+                    await certCAIdentifier.LoadPrivateKeyAsync(
+                        issuerKeyFilePassword,
+                        applicationUri: null,
+                        telemetry,
+                        ct)
                         .ConfigureAwait(false)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
@@ -598,7 +663,7 @@ namespace Opc.Ua.Gds.Server
                         "Issuer certificate has no private key, cannot revoke certificate.");
                 }
 
-                X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(certCA, false)
+                X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(certCA, false, ct)
                     .ConfigureAwait(false);
 
                 var certificateCollection = new X509Certificate2Collection();
@@ -611,12 +676,12 @@ namespace Opc.Ua.Gds.Server
                     certCACrl,
                     certificateCollection);
 
-                await store.AddCRLAsync(updatedCRL).ConfigureAwait(false);
+                await store.AddCRLAsync(updatedCRL, ct).ConfigureAwait(false);
 
                 // delete outdated CRLs from store
                 foreach (X509CRL caCrl in certCACrl)
                 {
-                    await store.DeleteCRLAsync(caCrl).ConfigureAwait(false);
+                    await store.DeleteCRLAsync(caCrl, ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -662,13 +727,16 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the provided CertificateStore
         /// </summary>
-        /// <param name="trustedOrIssuerStoreIdentifier">The store which contains the authority ceritificate. (trusted or issuer)</param>
+        /// <param name="trustedOrIssuerStoreIdentifier">The store which contains the authority
+        /// ceritificate. (trusted or issuer)</param>
+        /// <param name="ct">Cancellation token to use to cancel the operation</param>
         /// <exception cref="ServiceResultException"></exception>
         protected async Task UpdateAuthorityCertInCertificateStoreAsync(
-            CertificateStoreIdentifier trustedOrIssuerStoreIdentifier)
+            CertificateStoreIdentifier trustedOrIssuerStoreIdentifier,
+            CancellationToken ct = default)
         {
-            ICertificateStore authorityStore = AuthoritiesStore.OpenStore();
-            ICertificateStore trustedOrIssuerStore = trustedOrIssuerStoreIdentifier.OpenStore();
+            ICertificateStore authorityStore = AuthoritiesStore.OpenStore(m_telemetry);
+            ICertificateStore trustedOrIssuerStore = trustedOrIssuerStoreIdentifier.OpenStore(m_telemetry);
             try
             {
                 if (authorityStore == null || trustedOrIssuerStore == null)
@@ -677,31 +745,31 @@ namespace Opc.Ua.Gds.Server
                         "Unable to update authority certificate in stores");
                 }
 
-                X509Certificate2Collection certificates = await authorityStore.EnumerateAsync()
+                X509Certificate2Collection certificates = await authorityStore.EnumerateAsync(ct)
                     .ConfigureAwait(false);
                 foreach (X509Certificate2 certificate in certificates)
                 {
                     if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                     {
                         X509Certificate2Collection certs = await trustedOrIssuerStore
-                            .FindByThumbprintAsync(certificate.Thumbprint)
+                            .FindByThumbprintAsync(certificate.Thumbprint, ct)
                             .ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(
+                            using X509Certificate2 x509 = CertificateFactory.Create(
                                 certificate.RawData);
-                            await trustedOrIssuerStore.AddAsync(x509).ConfigureAwait(false);
+                            await trustedOrIssuerStore.AddAsync(x509, ct: ct).ConfigureAwait(false);
                         }
 
                         // delete existing CRL in trusted list
                         foreach (
                             X509CRL crl in await trustedOrIssuerStore
-                                .EnumerateCRLsAsync(certificate, false)
+                                .EnumerateCRLsAsync(certificate, false, ct)
                                 .ConfigureAwait(false))
                         {
                             if (crl.VerifySignature(certificate, false))
                             {
-                                await trustedOrIssuerStore.DeleteCRLAsync(crl)
+                                await trustedOrIssuerStore.DeleteCRLAsync(crl, ct)
                                     .ConfigureAwait(false);
                             }
                         }
@@ -709,10 +777,10 @@ namespace Opc.Ua.Gds.Server
                         // copy latest CRL to trusted list
                         foreach (
                             X509CRL crl in await authorityStore
-                                .EnumerateCRLsAsync(certificate, true)
+                                .EnumerateCRLsAsync(certificate, true, ct)
                                 .ConfigureAwait(false))
                         {
-                            await trustedOrIssuerStore.AddCRLAsync(crl).ConfigureAwait(false);
+                            await trustedOrIssuerStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
                         }
                     }
                 }
@@ -766,6 +834,7 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        protected string SubjectName { get; }
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 }

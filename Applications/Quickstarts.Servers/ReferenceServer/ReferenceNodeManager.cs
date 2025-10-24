@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Threading;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Test;
@@ -53,13 +54,16 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration,
             bool useSamplingGroups = false)
-            : base(server, configuration, useSamplingGroups, Namespaces.ReferenceServer)
+            : base(
+                  server,
+                  configuration,
+                  useSamplingGroups,
+                  server.Telemetry.CreateLogger<ReferenceNodeManager>(),
+                  Namespaces.ReferenceServer)
         {
             SystemContext.NodeIdFactory = this;
 
             // use suitable defaults if no configuration exists.
-
-            m_dynamicNodes = [];
         }
 
         /// <summary>
@@ -70,6 +74,9 @@ namespace Quickstarts.ReferenceServer
             if (disposing)
             {
                 // TBD
+
+                Utils.SilentDispose(m_simulationTimer);
+                m_simulationTimer = null;
             }
             base.Dispose(disposing);
         }
@@ -106,8 +113,12 @@ namespace Quickstarts.ReferenceServer
                 case BuiltInType.Float:
                 case BuiltInType.Double:
                     return true;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return false;
+                default:
+                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
+                    return false;
             }
-            return false;
         }
 
         private static Range GetAnalogRange(BuiltInType builtInType)
@@ -134,7 +145,10 @@ namespace Quickstarts.ReferenceServer
                     return new Range(double.MaxValue, double.MinValue);
                 case BuiltInType.Byte:
                     return new Range(byte.MaxValue, byte.MinValue);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return new Range(sbyte.MaxValue, sbyte.MinValue);
                 default:
+                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
                     return new Range(sbyte.MaxValue, sbyte.MinValue);
             }
         }
@@ -3881,14 +3895,19 @@ namespace Quickstarts.ReferenceServer
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error creating the ReferenceNodeManager address space.");
+                    m_logger.LogError(e, "Error creating the ReferenceNodeManager address space.");
                 }
 
                 AddPredefinedNode(SystemContext, root);
 
-                // reset random generator and generate boundary values
-                ResetRandomGenerator(100, 1);
-                m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
+                if (m_simulationEnabled)
+                {
+                    // reset random generator and generate boundary values
+                    ResetRandomGenerator(100, 1);
+
+                    Utils.SilentDispose(m_simulationTimer);
+                    m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
+                }
             }
         }
 
@@ -3910,7 +3929,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error writing Interval variable.");
+                m_logger.LogError(e, "Error writing Interval variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
             }
         }
@@ -3937,7 +3956,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error writing Enabled variable.");
+                m_logger.LogError(e, "Error writing Enabled variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
             }
         }
@@ -4963,7 +4982,7 @@ namespace Quickstarts.ReferenceServer
         private void ResetRandomGenerator(int seed, int boundaryValueFrequency = 0)
         {
             m_randomSource = new RandomSource(seed);
-            m_generator = new DataGenerator(m_randomSource)
+            m_generator = new DataGenerator(m_randomSource, Server.Telemetry)
             {
                 BoundaryValueFrequency = boundaryValueFrequency
             };
@@ -4993,8 +5012,22 @@ namespace Quickstarts.ReferenceServer
 
         private void DoSimulation(object state)
         {
+            if (!m_simulationEnabled)
+            {
+                return;
+            }
+            int running = Interlocked.Increment(ref m_simulationsRunning);
             try
             {
+                if (running > 0)
+                {
+                    LogLevel logLevel = running > 1 ?
+                        running > 4 ? LogLevel.Warning : LogLevel.Information :
+                        LogLevel.Debug;
+                    m_logger.Log(logLevel,
+                        "Simulation timer fired while {Count} simulations are already queued to run.",
+                        running);
+                }
                 lock (Lock)
                 {
                     DateTime timeStamp = DateTime.UtcNow;
@@ -5008,7 +5041,11 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error doing simulation.");
+                m_logger.LogError(e, "Unexpected error doing simulation #{Count}.", running);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref m_simulationsRunning);
             }
         }
 
@@ -5083,7 +5120,8 @@ namespace Quickstarts.ReferenceServer
         private Timer m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
-        private readonly List<BaseDataVariableState> m_dynamicNodes;
+        private int m_simulationsRunning;
+        private readonly List<BaseDataVariableState> m_dynamicNodes = [];
 
         private static readonly bool[] s_booleanArray
             = [true, false, true, false, true, false, true, false, true];

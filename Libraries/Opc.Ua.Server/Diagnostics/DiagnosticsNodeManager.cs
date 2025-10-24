@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -47,11 +48,29 @@ namespace Opc.Ua.Server
         public DiagnosticsNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : base(server, configuration)
+            : this(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<DiagnosticsNodeManager>())
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager.
+        /// </summary>
+        public DiagnosticsNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger)
+            : base(server, configuration, logger)
         {
             AliasRoot = "Core";
 
-            string[] namespaceUris = [Namespaces.OpcUa, Namespaces.OpcUa + "Diagnostics"];
+            string[] namespaceUris =
+            [
+                Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa + "Diagnostics"
+            ];
             SetNamespaces(namespaceUris);
 
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
@@ -573,9 +592,9 @@ namespace Opc.Ua.Server
                 case VariableTypes.SubscriptionDiagnosticsArrayType:
                 case VariableTypes.SamplingIntervalDiagnosticsArrayType:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -1098,6 +1117,61 @@ namespace Opc.Ua.Server
 
                 m_historyCapabilities = historyServerCapabilitiesNode;
                 return m_historyCapabilities;
+            }
+        }
+
+        /// <summary>
+        /// Updates the Server object EventNotifier based on history capabilities.
+        /// </summary>
+        /// <remarks>
+        /// This method can be overridden to customize the Server EventNotifier based on
+        /// history capabilities settings.
+        /// </remarks>
+        public virtual void UpdateServerEventNotifier()
+        {
+            lock (Lock)
+            {
+                // Get or create the history capabilities
+                HistoryServerCapabilitiesState historyCapabilities = GetDefaultHistoryCapabilities();
+
+                // Find the Server object
+                ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
+                    ObjectIds.Server,
+                    typeof(ServerObjectState));
+
+                if (serverObject != null && historyCapabilities != null)
+                {
+                    // Update EventNotifier based on history capabilities
+                    byte eventNotifier = serverObject.EventNotifier;
+
+                    // Set HistoryRead bit if history events or data capabilities are enabled
+                    if (historyCapabilities.AccessHistoryEventsCapability?.Value == true ||
+                        historyCapabilities.AccessHistoryDataCapability?.Value == true)
+                    {
+                        eventNotifier |= EventNotifiers.HistoryRead;
+                    }
+                    else
+                    {
+                        eventNotifier = (byte)(eventNotifier & ~EventNotifiers.HistoryRead);
+                    }
+
+                    // Set HistoryWrite bit if history update capabilities are enabled
+                    if (historyCapabilities.InsertEventCapability?.Value == true ||
+                        historyCapabilities.ReplaceEventCapability?.Value == true ||
+                        historyCapabilities.UpdateEventCapability?.Value == true ||
+                        historyCapabilities.InsertDataCapability?.Value == true ||
+                        historyCapabilities.UpdateDataCapability?.Value == true ||
+                        historyCapabilities.ReplaceDataCapability?.Value == true)
+                    {
+                        eventNotifier |= EventNotifiers.HistoryWrite;
+                    }
+                    else
+                    {
+                        eventNotifier = (byte)(eventNotifier & ~EventNotifiers.HistoryWrite);
+                    }
+
+                    serverObject.EventNotifier = eventNotifier;
+                }
             }
         }
 
@@ -1738,7 +1812,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
@@ -2127,7 +2201,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 

@@ -38,10 +38,11 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableRequestHeaderClientSessionFactory : TraceableSessionFactory
     {
-        /// <summary>
-        /// Object that creates instances of an Opc.Ua.Client.Session object with Activity Source.
-        /// </summary>
-        public static new readonly TraceableRequestHeaderClientSessionFactory Instance = new();
+        public TraceableRequestHeaderClientSessionFactory(ITelemetryContext telemetry)
+            : base(telemetry)
+        {
+            ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
+        }
 
         /// <inheritdoc/>
         public override Session Create(

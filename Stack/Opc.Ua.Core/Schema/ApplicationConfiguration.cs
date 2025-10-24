@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security;
 
@@ -34,12 +35,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ApplicationConfiguration(ITelemetryContext telemetry)
+        {
+            Initialize(telemetry);
+
+            Initialize();
+        }
+
+        /// <summary>
         /// The constructor from a template.
         /// </summary>
         public ApplicationConfiguration(ApplicationConfiguration template)
         {
-            Initialize();
-
             ApplicationName = template.ApplicationName;
             ApplicationType = template.ApplicationType;
             ApplicationUri = template.ApplicationUri;
@@ -55,8 +64,9 @@ namespace Opc.Ua
             m_extensions = template.m_extensions;
             m_extensionObjects = template.m_extensionObjects;
             SourceFilePath = template.SourceFilePath;
-            m_messageContext = template.m_messageContext;
             m_properties = template.m_properties;
+            m_telemetry = template.m_telemetry;
+            m_logger = template.m_logger;
         }
 
         /// <summary>
@@ -69,8 +79,21 @@ namespace Opc.Ua
             m_transportConfigurations = [];
             DisableHiResClock = false;
             m_properties = [];
-            CertificateValidator = new CertificateValidator();
             m_extensionObjects = [];
+
+            CertificateValidator ??= new CertificateValidator(m_telemetry);
+            m_logger ??= m_telemetry.CreateLogger<ApplicationConfiguration>();
+        }
+
+        /// <summary>
+        /// Initialize telemetry context - after loading
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        internal void Initialize(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ApplicationConfiguration>();
+            CertificateValidator = new CertificateValidator(m_telemetry);
         }
 
         /// <summary>
@@ -80,6 +103,7 @@ namespace Opc.Ua
         [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
+            m_telemetry = AmbientMessageContext.Telemetry;
             Initialize();
         }
 
@@ -208,11 +232,12 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool DisableHiResClock { get; set; }
 
+        private ITelemetryContext m_telemetry;
+        private ILogger m_logger;
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
         private XmlElementCollection m_extensions;
         private List<object> m_extensionObjects;
-        private readonly IServiceMessageContext m_messageContext;
         private Dictionary<string, object> m_properties;
     }
 
@@ -334,7 +359,7 @@ namespace Opc.Ua
     /// Specifies parameters used for tracing.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public partial class TraceConfiguration
+    public class TraceConfiguration
     {
         /// <summary>
         /// The default constructor.
@@ -523,13 +548,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Obsolete version of CalculateSecurityLevel that does not take a logger.
+        /// </summary>
+        [Obsolete("Use CalculateSecurityLevel(MessageSecurityMode mode, string policyUri, ILogger logger) instead.")]
+        public static byte CalculateSecurityLevel(
+            MessageSecurityMode mode,
+            string policyUri)
+        {
+            return SecuredApplication.CalculateSecurityLevel(mode, policyUri);
+        }
+
+        /// <summary>
         /// Calculates the security level, given the security mode and policy
         /// Invalid and none is discouraged
         /// Just signing is always weaker than any use of encryption
         /// </summary>
-        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
+        public static byte CalculateSecurityLevel(
+            MessageSecurityMode mode,
+            string policyUri,
+            ILogger logger)
         {
-            return SecuredApplication.CalculateSecurityLevel(mode, policyUri);
+            return SecuredApplication.CalculateSecurityLevel(mode, policyUri, logger);
         }
 
         /// <summary>
@@ -2354,7 +2393,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Certificate = CertificateFactory.Create(rawData, true);
+            Certificate = CertificateFactory.Create(rawData);
         }
 
         /// <summary>
@@ -2516,7 +2555,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                m_certificate = CertificateFactory.Create(value, true);
+                m_certificate = CertificateFactory.Create(value);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 CertificateType = GetCertificateType(m_certificate);

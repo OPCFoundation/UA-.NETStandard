@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Server
@@ -123,7 +124,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            var configuration = new ApplicationConfiguration
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "Test",
                 ApplicationType = ApplicationType.Server,
@@ -299,7 +301,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         SecurityPolicyUri = securityConfiguration.SecurityPolicyUri,
                         SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                             securityConfiguration.SecurityMode,
-                            securityConfiguration.SecurityPolicyUri)
+                            securityConfiguration.SecurityPolicyUri,
+                            Utils.Null.Logger)
                     };
                     endpoint.UserIdentityTokens = GetUserTokenPolicies(configuration, endpoint);
                     m_endpoints.Add(endpoint);
@@ -340,7 +343,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var clientUri2 = new Uri(clientUrl2);
 
             Assert.AreEqual(clientUri1, clientUri2);
-            Assert.AreEqual(clientUri1.DnsSafeHost, clientUri2.DnsSafeHost);
+            Assert.AreEqual(clientUri1.IdnHost, clientUri2.IdnHost);
             Assert.AreEqual(clientUri1.IdnHost, clientUri2.IdnHost);
 
             Assert.AreEqual(

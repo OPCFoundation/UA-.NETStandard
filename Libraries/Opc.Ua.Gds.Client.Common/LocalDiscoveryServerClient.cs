@@ -36,9 +36,17 @@ namespace Opc.Ua.Gds.Client
 {
     public class LocalDiscoveryServerClient
     {
-        public LocalDiscoveryServerClient(ApplicationConfiguration configuration)
+        /// <summary>
+        /// Create local discovery client
+        /// </summary>
+        /// <param name="configuration">Application configuration to use</param>
+        /// <param name="diagnosticsMasks">The return diagnostics for all discovery requests</param>
+        public LocalDiscoveryServerClient(
+            ApplicationConfiguration configuration,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             ApplicationConfiguration = configuration;
+            DiagnosticsMasks = diagnosticsMasks;
             MessageContext = configuration.CreateMessageContext();
 
             // set some defaults for the preferred locales.
@@ -63,7 +71,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         public ApplicationConfiguration ApplicationConfiguration { get; }
-
+        public DiagnosticsMasks DiagnosticsMasks { get; }
         public IServiceMessageContext MessageContext { get; }
 
         public string[] PreferredLocales { get; set; }
@@ -531,7 +539,7 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("Not a valid URL.", nameof(endpointUrl));
             }
 
-            IServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
+            ServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
 
             var configuration = EndpointConfiguration.Create(ApplicationConfiguration);
 
@@ -545,7 +553,10 @@ namespace Opc.Ua.Gds.Client
                 configuration,
                 context);
 
-            return new DiscoveryClient(channel);
+            return new DiscoveryClient(channel, context.Telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks
+            };
         }
 
         private const string kDefaultUrl = "opc.tcp://localhost:4840";

@@ -40,14 +40,10 @@ namespace Opc.Ua.Client.Tests
     public class TestableSessionFactory : DefaultSessionFactory
     {
         /// <summary>
-        /// The default instance of the factory.
-        /// </summary>
-        public static new readonly TestableSessionFactory Instance = new();
-
-        /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected TestableSessionFactory()
+        public TestableSessionFactory(ITelemetryContext telemetry)
+            : base(telemetry)
         {
         }
 
@@ -98,6 +94,7 @@ namespace Opc.Ua.Client.Tests
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }
@@ -127,6 +124,7 @@ namespace Opc.Ua.Client.Tests
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }
@@ -177,6 +175,7 @@ namespace Opc.Ua.Client.Tests
                             connection,
                             endpoint.Description.SecurityMode,
                             endpoint.Description.SecurityPolicyUri,
+                            Telemetry,
                             ct)
                         .ConfigureAwait(false);
                     updateBeforeConnect = false;
@@ -223,7 +222,7 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new TestableSession(channel, configuration, endpoint);
+            return new TestableSession(channel, configuration, endpoint, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -240,6 +239,7 @@ namespace Opc.Ua.Client.Tests
                 configuration,
                 endpoint,
                 clientCertificate,
+                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

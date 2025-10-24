@@ -37,6 +37,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Tests.Encoding;
 using Opc.Ua.PubSub.Transport;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
@@ -70,6 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateMqttLocalPubSubConnectionWithUadp(
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             RestartMosquitto();
 
             //Arrange
@@ -123,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
@@ -168,7 +170,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -223,6 +225,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
             [Values(1, 2, 3, 4)] int keyFrameCount)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             RestartMosquitto();
 
             //Arrange
@@ -276,7 +279,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
@@ -322,7 +325,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -407,6 +410,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
             [Values(0, 10000)] double metaDataUpdateTime)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             RestartMosquitto();
 
             //Arrange
@@ -462,7 +466,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
@@ -521,7 +525,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -587,6 +591,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
             [Values(2, 3, 4)] int keyFrameCount)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             RestartMosquitto();
 
             //Arrange
@@ -641,7 +646,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
@@ -701,7 +706,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],

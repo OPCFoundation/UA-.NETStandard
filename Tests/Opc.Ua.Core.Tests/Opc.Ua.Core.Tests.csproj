@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Common\Logging.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Security\Certificates\Assets\Test_chain.pem">

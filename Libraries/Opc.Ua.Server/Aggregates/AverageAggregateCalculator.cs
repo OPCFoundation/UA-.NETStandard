@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Opc.Ua.Server
 {
@@ -46,14 +47,16 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public AverageAggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
-            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration, telemetry)
         {
             SetPartialBit = aggregateId != ObjectIds.AggregateFunction_Average;
         }
@@ -65,24 +68,25 @@ namespace Opc.Ua.Server
         {
             uint? id = AggregateId.Identifier as uint?;
 
-            if (id != null)
+            if (id == null)
             {
-                switch (id.Value)
-                {
-                    case Objects.AggregateFunction_Average:
-                        return ComputeAverage(slice);
-                    case Objects.AggregateFunction_TimeAverage:
-                        return ComputeTimeAverage(slice, false, 1);
-                    case Objects.AggregateFunction_Total:
-                        return ComputeTimeAverage(slice, false, 2);
-                    case Objects.AggregateFunction_TimeAverage2:
-                        return ComputeTimeAverage(slice, true, 1);
-                    case Objects.AggregateFunction_Total2:
-                        return ComputeTimeAverage(slice, true, 2);
-                }
+                return base.ComputeValue(slice);
             }
-
-            return base.ComputeValue(slice);
+            switch (id.Value)
+            {
+                case Objects.AggregateFunction_Average:
+                    return ComputeAverage(slice);
+                case Objects.AggregateFunction_TimeAverage:
+                    return ComputeTimeAverage(slice, false, 1);
+                case Objects.AggregateFunction_Total:
+                    return ComputeTimeAverage(slice, false, 2);
+                case Objects.AggregateFunction_TimeAverage2:
+                    return ComputeTimeAverage(slice, true, 1);
+                case Objects.AggregateFunction_Total2:
+                    return ComputeTimeAverage(slice, true, 2);
+                default:
+                    return base.ComputeValue(slice);
+            }
         }
 
         /// <summary>
@@ -204,6 +208,9 @@ namespace Opc.Ua.Server
                     break;
                 case 2:
                     result = total;
+                    break;
+                default:
+                    Debug.Fail($"Unexpected value type {valueType}");
                     break;
             }
 
