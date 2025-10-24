@@ -636,7 +636,8 @@ namespace Opc.Ua
                                 }
                             }
 
-                            if (!X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri))
+                            if (!string.IsNullOrEmpty(applicationUri) &&
+                                !X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri))
                             {
                                 continue;
                             }
