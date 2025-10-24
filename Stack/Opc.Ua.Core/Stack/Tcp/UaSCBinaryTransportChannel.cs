@@ -57,8 +57,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
+                m_disposed = true;
                 m_connecting.Wait();
                 try
                 {

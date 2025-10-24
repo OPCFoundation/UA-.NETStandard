@@ -120,27 +120,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connect the channel
         /// </summary>
-        public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
-        {
-            await Task.Factory.FromAsync(
-                Begin,
-                EndConnect,
-                null).ConfigureAwait(false);
-
-            IAsyncResult Begin(AsyncCallback? callback, object? callbackData)
-            {
-                ct.ThrowIfCancellationRequested();
-                return BeginConnect(url, timeout, callback, callbackData);
-            }
-        }
-
-        /// <summary>
-        /// Creates a connection with the server.
-        /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="InvalidOperationException"></exception>
-        private WriteOperation BeginConnect(Uri url, int timeout, AsyncCallback? callback, object? state)
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
         {
             if (url == null)
             {
@@ -152,11 +135,12 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
             }
 
+            WriteOperation operation;
             lock (DataLock)
             {
                 if (State != TcpChannelState.Closed)
                 {
-                    throw new InvalidOperationException("Channel is already connected.");
+                    throw ServiceResultException.Unexpected("Channel is already connected.");
                 }
 
                 m_url = url;
@@ -171,7 +155,7 @@ namespace Opc.Ua.Bindings
                 // do not attempt reconnect on failure.
                 m_waitBetweenReconnects = Timeout.Infinite;
 
-                WriteOperation operation = BeginOperation(timeout, callback, state);
+                operation = BeginOperation(timeout, null, null);
                 m_handshakeOperation = operation;
 
                 State = TcpChannelState.Connecting;
@@ -192,35 +176,20 @@ namespace Opc.Ua.Bindings
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
                     Socket.BeginConnect(m_via, m_connectCallback, operation);
                 }
-
-                return operation;
             }
-        }
-
-        /// <summary>
-        /// Finishes a connect operation.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        private void EndConnect(IAsyncResult result)
-        {
-            if (result is not WriteOperation operation)
-            {
-                throw new ArgumentNullException(nameof(result));
-            }
-
             try
             {
-                operation.End(int.MaxValue);
+                await operation.EndAsync(int.MaxValue, ct: ct).ConfigureAwait(false);
                 m_logger.LogInformation(
                     "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId}",
-                    Socket.Handle,
+                    Socket?.Handle,
                     ChannelId);
             }
             catch (Exception e)
             {
                 m_logger.LogError(e,
                     "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId}",
-                    Socket.Handle,
+                    Socket?.Handle,
                     ChannelId);
 
                 Shutdown(ServiceResult.Create(
