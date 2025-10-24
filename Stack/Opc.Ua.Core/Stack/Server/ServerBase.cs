@@ -300,21 +300,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Starts the server.
-        /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information
-        /// for a UA application</param>
-        /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
-        /// <returns>Returns a host for a UA service.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        [Obsolete("Use StartAsync")]
-        public ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
-        {
-            return StartAsync(configuration, default, baseAddresses).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// Starts the server (called from a dedicated host process).
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration
@@ -368,19 +353,6 @@ namespace Opc.Ua
                     ServiceHosts.Add(serviceHost);
                 }
             }
-        }
-
-        /// <summary>
-        /// Starts the server (called from a dedicated host process).
-        /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration
-        /// information for a UA application.
-        /// </param>
-        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        [Obsolete("Use StartAsync")]
-        public void Start(ApplicationConfiguration configuration)
-        {
-            StartAsync(configuration).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -601,23 +573,6 @@ namespace Opc.Ua
             }
 
             m_messageContext = null;
-        }
-
-        /// <summary>
-        /// Stops the server and releases all resources.
-        /// </summary>
-        [Obsolete("Use StopAsync")]
-        public virtual void Stop()
-        {
-            // do any pre-stop processing.
-            try
-            {
-                OnServerStopping();
-            }
-            catch (Exception e)
-            {
-                ServerError = new ServiceResult(e);
-            }
         }
 
         /// <summary>

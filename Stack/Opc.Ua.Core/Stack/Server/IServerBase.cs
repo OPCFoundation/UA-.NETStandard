@@ -58,9 +58,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information
         /// for a UA application</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
-        ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses);
+        ValueTask<ServiceHost> StartAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default,
+            params Uri[] baseAddresses);
 
         /// <summary>
         /// Starts the server (called from a dedicated host process).

@@ -4644,7 +4644,7 @@ namespace Opc.Ua.Server
             => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
 
         private readonly Lock m_registrationLock = new();
-        private SemaphoreSlim m_semaphoreSlim = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;
