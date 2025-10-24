@@ -308,6 +308,7 @@ namespace Opc.Ua
         /// <returns>Returns a host for a UA service.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use StartAsync")]
         public ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
         {
             return StartAsync(configuration, default, baseAddresses).AsTask().GetAwaiter().GetResult();
