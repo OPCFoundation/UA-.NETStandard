@@ -30,7 +30,10 @@ namespace Opc.Ua
             this ITransportChannel channel,
             IServiceRequest request)
         {
-            return channel.SendRequestAsync(request, default).GetAwaiter().GetResult();
+            return channel.SendRequestAsync(request, default)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>
@@ -44,7 +47,7 @@ namespace Opc.Ua
             object callbackData)
         {
             return new AsyncResult(
-                channel.SendRequestAsync(request, default),
+                channel.SendRequestAsync(request, default).AsTask(),
                 callback,
                 callbackData);
         }
@@ -215,7 +218,7 @@ namespace Opc.Ua
         [Obsolete("Use CloseAsync instead.")]
         public static void Close(this ITransportChannel channel)
         {
-            channel.CloseAsync().GetAwaiter().GetResult();
+            channel.CloseAsync().AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -228,7 +231,7 @@ namespace Opc.Ua
             object callbackData)
         {
             return new AsyncResult(
-                channel.CloseAsync(),
+                channel.CloseAsync().AsTask(),
                 callback,
                 callbackData);
         }

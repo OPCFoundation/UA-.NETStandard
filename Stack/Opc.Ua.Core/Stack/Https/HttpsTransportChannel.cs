@@ -157,14 +157,14 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public Task CloseAsync(CancellationToken ct)
+        public ValueTask CloseAsync(CancellationToken ct)
         {
             m_logger.LogInformation("{ChannelType} Close {Url}.", nameof(HttpsTransportChannel), m_url);
 
             Utils.SilentDispose(m_client);
             m_client = null;
 
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <inheritdoc/>
@@ -179,7 +179,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public async Task<IServiceResponse> SendRequestAsync(
+        public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct)
         {

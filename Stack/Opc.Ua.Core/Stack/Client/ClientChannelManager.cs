@@ -383,7 +383,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public Task<IServiceResponse> SendRequestAsync(
+            public ValueTask<IServiceResponse> SendRequestAsync(
                 IServiceRequest request,
                 CancellationToken ct = default)
             {
@@ -391,7 +391,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public Task CloseAsync(CancellationToken ct = default)
+            public ValueTask CloseAsync(CancellationToken ct = default)
             {
                 return m_channel.CloseAsync(ct);
             }

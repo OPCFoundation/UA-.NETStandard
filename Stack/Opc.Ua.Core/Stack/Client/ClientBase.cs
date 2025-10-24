@@ -129,7 +129,7 @@ namespace Opc.Ua
                     try
                     {
                         // TODO: Make async method instead of setter
-                        channel.CloseAsync(default).GetAwaiter().GetResult();
+                        channel.CloseAsync(default).AsTask().GetAwaiter().GetResult();
                         channel.Dispose();
                     }
                     catch

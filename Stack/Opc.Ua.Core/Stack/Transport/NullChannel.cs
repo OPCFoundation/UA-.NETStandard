@@ -61,7 +61,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task CloseAsync(CancellationToken ct)
+        public ValueTask CloseAsync(CancellationToken ct)
         {
             throw Unexpected(nameof(CloseAsync));
         }
@@ -93,7 +93,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<IServiceResponse> SendRequestAsync(IServiceRequest request,
+        public ValueTask<IServiceResponse> SendRequestAsync(IServiceRequest request,
             CancellationToken ct)
         {
             throw Unexpected(nameof(SendRequestAsync));
