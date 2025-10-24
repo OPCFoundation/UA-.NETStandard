@@ -4207,7 +4207,8 @@ namespace Opc.Ua.Client
                 }
                 else if (transportChannel != null)
                 {
-                    TransportChannel = transportChannel;
+                    // dont dispose existing channel, just attach the new one.
+                    base.AttachChannel(transportChannel);
                 }
                 else
                 {
@@ -5960,7 +5961,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Task<PublishResponse> task = PublishAsync(requestHeader, acknowledgementsToSend, default);
+                Task<PublishResponse> task = PublishAsync(requestHeader, acknowledgementsToSend, m_publishingCancellation.Token);
                 AsyncRequestStarted(task, requestHeader.RequestHandle, DataTypes.PublishRequest);
                 task.ConfigureAwait(false)
                     .GetAwaiter()
@@ -5979,6 +5980,12 @@ namespace Opc.Ua.Client
         /// </summary>
         public void StartPublishing(int timeout, bool fullQueue)
         {
+            if (m_publishingCancellation == null || m_publishingCancellation.IsCancellationRequested)
+            {
+                Utils.SilentDispose(m_publishingCancellation);
+                m_publishingCancellation = new CancellationTokenSource();
+            }
+
             int publishCount = GetDesiredPublishRequestCount(true);
 
             // refill pipeline. Send at least one publish request if subscriptions are active.
@@ -7044,6 +7051,30 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Detaches the transport channel from the client and cancels all publish and keepalive requests.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        public new virtual void DetachChannel()
+        {
+            if (Connected)
+            {
+                throw new InvalidOperationException(
+                    "Cannot detach channel while session is connected. Close the session first.");
+            }
+
+            if (Reconnecting)
+            {
+                throw new InvalidOperationException(
+                    "Cannot detach channel while session is reconnecting.");
+            }
+
+            m_publishingCancellation?.Cancel();
+            m_keepAliveCancellation?.Cancel();
+
+            base.DetachChannel();
+        }
+
+        /// <summary>
         /// Asynchronously load instance certificate
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -7494,6 +7525,7 @@ namespace Opc.Ua.Client
         private uint m_keepAliveCounter;
         private Task m_keepAliveWorker;
         private CancellationTokenSource m_keepAliveCancellation;
+        private CancellationTokenSource m_publishingCancellation;
         private SemaphoreSlim m_reconnectLock;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;

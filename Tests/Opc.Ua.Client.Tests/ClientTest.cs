@@ -528,6 +528,8 @@ namespace Opc.Ua.Client.Tests
 
             // keep channel opened but detach so no comm goes through
             ITransportChannel channel = session.TransportChannel;
+            await session.CloseAsync(false, CancellationToken.None)
+                .ConfigureAwait(false);
             session.DetachChannel();
 
             int waitTime =
@@ -774,16 +776,17 @@ namespace Opc.Ua.Client.Tests
             // test case: close the channel before reconnecting
             if (closeChannel)
             {
-                session1.DetachChannel();
+                await channel1.CloseAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
                 channel1.Dispose();
 
-                // cannot read using a detached channel
+                // cannot read using a closed channel
                 ServiceResultException exception = NUnit.Framework.Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus).ConfigureAwait(false));
                 Assert.AreEqual(
-                    (StatusCode)StatusCodes.BadSecureChannelClosed,
+                    (StatusCode)StatusCodes.BadNotConnected,
                     (StatusCode)exception.StatusCode);
             }
 
