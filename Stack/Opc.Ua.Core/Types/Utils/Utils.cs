@@ -594,7 +594,9 @@ namespace Opc.Ua
                 Debug.WriteLine("Error {0} disposing object: {1}", e, disposable.GetType().Name);
             }
 #else
-            catch { }
+            catch
+            {
+            }
 #endif
         }
 

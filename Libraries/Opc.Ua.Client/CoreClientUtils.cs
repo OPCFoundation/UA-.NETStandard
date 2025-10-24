@@ -83,9 +83,11 @@ namespace Opc.Ua.Client
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (var client = DiscoveryClient.Create(
+            using (DiscoveryClient client = await DiscoveryClient.CreateAsync(
                     new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
-                    endpointConfiguration, telemetry))
+                    endpointConfiguration,
+                    telemetry,
+                    ct: ct).ConfigureAwait(false))
             {
                 ApplicationDescriptionCollection servers =
                     await client.FindServersAsync(null, ct).ConfigureAwait(false);
@@ -159,10 +161,11 @@ namespace Opc.Ua.Client
                 ? discoverTimeout
                 : DefaultDiscoverTimeout;
 
-            using var client = DiscoveryClient.Create(
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                 application,
                 connection,
-                endpointConfiguration);
+                endpointConfiguration,
+                ct: ct).ConfigureAwait(false);
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
@@ -222,7 +225,11 @@ namespace Opc.Ua.Client
             var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
-            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                application,
+                uri,
+                endpointConfiguration,
+                ct: ct).ConfigureAwait(false);
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
