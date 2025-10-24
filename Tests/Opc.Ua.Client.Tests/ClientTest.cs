@@ -802,11 +802,13 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(value2);
             Assert.AreEqual(value1.State, value2.State);
 
-            // test case: close the first channel after the session is activated on the new channel
             if (!closeChannel)
             {
-                await channel1.CloseAsync(default).ConfigureAwait(false);
-                channel1.Dispose();
+                // Closing channel should throw because it was disposed during reconnect
+                NUnit.Framework.Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => channel1.CloseAsync(default).AsTask());
+                // Calling dispose twice will not throw.
+                NUnit.Framework.Assert.DoesNotThrow(() => channel1.Dispose());
             }
 
             // test by reading a value

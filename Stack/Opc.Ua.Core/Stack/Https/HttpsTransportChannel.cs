@@ -159,7 +159,15 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public ValueTask CloseAsync(CancellationToken ct)
         {
-            m_logger.LogInformation("{ChannelType} Close {Url}.", nameof(HttpsTransportChannel), m_url);
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(HttpsTransportChannel));
+            }
+
+            m_logger.LogInformation(
+                "{ChannelType} Closing http channel with {Url}.",
+                nameof(HttpsTransportChannel),
+                m_url);
 
             Utils.SilentDispose(m_client);
             m_client = null;
@@ -183,6 +191,15 @@ namespace Opc.Ua.Bindings
             IServiceRequest request,
             CancellationToken ct)
         {
+            if (m_disposed)
+            {
+                // right now this can happen if Dispose is called
+                // Before channel users (e.g. keep alive requests)
+                // are cancelled and stopped.
+                // TODO: Areas like this should be fixed eventually.
+                throw BadNotConnected();
+                // throw new ObjectDisposedException(nameof(HttpsTransportChannel));
+            }
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
             HttpClient client = m_client ?? throw BadNotConnected();
             try
@@ -271,8 +288,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
+                m_disposed = true;
                 Utils.SilentDispose(m_client);
                 m_client = null;
             }
@@ -285,6 +303,10 @@ namespace Opc.Ua.Bindings
         /// <param name="settings">The settings for the transport channel.</param>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(HttpsTransportChannel));
+            }
             m_url = new Uri(url.ToString());
             // remove the opc. prefix, the https client can not handle it
             if (m_url.Scheme == Utils.UriSchemeOpcHttps)
@@ -467,6 +489,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private HttpClient? m_client;
+        private bool m_disposed;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
 

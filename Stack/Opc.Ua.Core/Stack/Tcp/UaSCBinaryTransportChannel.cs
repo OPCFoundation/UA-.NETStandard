@@ -260,6 +260,7 @@ namespace Opc.Ua.Bindings
                 // are cancelled and stopped.
                 // TODO: Areas like this should be fixed eventually.
                 throw BadNotConnected();
+                // throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
             }
             UaSCUaBinaryClientChannel? channel;
             await m_connecting.WaitAsync(ct).ConfigureAwait(false);

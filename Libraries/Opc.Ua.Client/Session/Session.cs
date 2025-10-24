@@ -373,6 +373,8 @@ namespace Opc.Ua.Client
 
             if (disposing)
             {
+                m_publishCancellation.Cancel();
+
                 StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
 
                 Utils.SilentDispose(m_defaultSubscription);
@@ -400,6 +402,7 @@ namespace Opc.Ua.Client
             if (disposing)
             {
                 m_keepAliveTimer.Dispose();
+                m_publishCancellation.Dispose();
 
                 // suppress spurious events
                 m_KeepAlive = null;
@@ -3964,6 +3967,9 @@ namespace Opc.Ua.Client
 
             try
             {
+                // Cancel all active publishing
+                m_publishCancellation.Cancel();
+
                 // stop the keep alive timer.
                 await StopKeepAliveTimerAsync().ConfigureAwait(false);
 
@@ -3984,7 +3990,7 @@ namespace Opc.Ua.Client
                 }
 
                 // close the session with the server.
-                if (connected && !KeepAliveStopped)
+                if (connected)
                 {
                     try
                     {
@@ -3999,28 +4005,39 @@ namespace Opc.Ua.Client
                                 : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
                         };
                         CloseSessionResponse response = await base.CloseSessionAsync(
-                                requestHeader,
-                                DeleteSubscriptionsOnClose,
-                                ct)
-                            .ConfigureAwait(false);
-
-                        if (closeChannel)
-                        {
-                            await CloseChannelAsync(ct).ConfigureAwait(false);
-                        }
-
-                        // raised notification indicating the session is closed.
-                        SessionCreated(null, null);
+                            requestHeader,
+                            DeleteSubscriptionsOnClose,
+                            ct).ConfigureAwait(false);
                     }
                     // don't throw errors on disconnect, but return them
                     // so the caller can log the error.
                     catch (ServiceResultException sre)
                     {
+                        m_logger.LogDebug(sre, "Error closing session during Close.");
                         result = sre.StatusCode;
                     }
-                    catch (Exception)
+                    catch (Exception e1)
                     {
+                        m_logger.LogDebug(e1, "Error closing session during Close.");
                         result = StatusCodes.Bad;
+                    }
+                    finally
+                    {
+                        if (closeChannel)
+                        {
+                            try
+                            {
+                                await CloseChannelAsync(ct).ConfigureAwait(false);
+                            }
+                            catch (Exception e2)
+                            {
+                                m_logger.LogDebug(e2, "Error closing channel during Close");
+                            }
+                        }
+
+                        // raised notification indicating the session is closed.
+                        SessionCreated(null, null);
+
                     }
                 }
 
@@ -5886,9 +5903,9 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            if (Closing)
+            if (m_publishCancellation.IsCancellationRequested)
             {
-                m_logger.LogWarning("Publish skipped due to session closing");
+                m_logger.LogWarning("Publish cancelled due to session closed");
                 return false;
             }
 
@@ -5960,11 +5977,18 @@ namespace Opc.Ua.Client
 
             try
             {
-                Task<PublishResponse> task = PublishAsync(requestHeader, acknowledgementsToSend, default);
+                Task<PublishResponse> task = PublishAsync(
+                    requestHeader,
+                    acknowledgementsToSend,
+                    m_publishCancellation.Token);
                 AsyncRequestStarted(task, requestHeader.RequestHandle, DataTypes.PublishRequest);
                 task.ConfigureAwait(false)
                     .GetAwaiter()
-                    .OnCompleted(() => OnPublishComplete(task, SessionId, acknowledgementsToSend, requestHeader));
+                    .OnCompleted(() => OnPublishComplete(
+                        task,
+                        SessionId,
+                        acknowledgementsToSend,
+                        requestHeader));
                 return true;
             }
             catch (Exception e)
@@ -5982,10 +6006,14 @@ namespace Opc.Ua.Client
             int publishCount = GetDesiredPublishRequestCount(true);
 
             // refill pipeline. Send at least one publish request if subscriptions are active.
-            if (publishCount > 0 && BeginPublish(timeout))
+            if (publishCount > 0 &&
+                !m_publishCancellation.IsCancellationRequested &&
+                BeginPublish(timeout))
             {
                 int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
-                for (int ii = startCount; ii < publishCount; ii++)
+                for (int ii = startCount;
+                    ii < publishCount &&
+                    !m_publishCancellation.IsCancellationRequested; ii++)
                 {
                     if (!BeginPublish(timeout))
                     {
@@ -7497,6 +7525,7 @@ namespace Opc.Ua.Client
         private SemaphoreSlim m_reconnectLock;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
+        private CancellationTokenSource m_publishCancellation = new();
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private string m_userTokenSecurityPolicyUri;
         private Nonce m_eccServerEphemeralKey;
@@ -7670,7 +7699,7 @@ namespace Opc.Ua.Client
         public SubscriptionAcknowledgementCollection AcknowledgementsToSend { get; }
 
         /// <summary>
-        /// The deferred list of acknowledgements.
+        /// The deferred list of acknowledgements.m
         /// </summary>
         /// <remarks>
         /// The callee can transfer an outstanding <see cref="SubscriptionAcknowledgement"/>
