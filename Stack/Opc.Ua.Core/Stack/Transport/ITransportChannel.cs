@@ -135,7 +135,7 @@ namespace Opc.Ua
         /// <returns>The response returned by the server.</returns>
         /// <exception cref="ServiceResultException">Thrown if any
         /// communication error occurs.</exception>
-        Task<IServiceResponse> SendRequestAsync(
+        ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct = default);
 
@@ -145,7 +145,7 @@ namespace Opc.Ua
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">Thrown if any
         /// communication error occurs.</exception>
-        Task CloseAsync(CancellationToken ct = default);
+        ValueTask CloseAsync(CancellationToken ct = default);
     }
 
     /// <summary>

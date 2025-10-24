@@ -59,8 +59,17 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                UaSCUaBinaryClientChannel? channel = Interlocked.Exchange(ref m_channel, null);
-                Utils.SilentDispose(channel);
+                m_connecting.Wait();
+                try
+                {
+                    m_channel?.Dispose();
+                    m_channel = null;
+                }
+                finally
+                {
+                    m_connecting.Release();
+                    m_connecting.Dispose();
+                }
             }
         }
 
@@ -126,25 +135,22 @@ namespace Opc.Ua.Bindings
                 throw BadNotConnected();
             }
             UaSCUaBinaryClientChannel? previousChannel = null;
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 m_logger.LogInformation(
                     "TransportChannel RECONNECT: Reconnecting to {Url}.",
                     m_url);
 
-                UaSCUaBinaryClientChannel newChannel;
-                lock (m_lock)
-                {
-                    // the new channel must be connected first because WinSock
-                    // will reuse sockets and this can result in messages sent
-                    // over the old socket arriving as messages on the new socket.
-                    // if this happens the new channel is shutdown because of a
-                    // security violation. Therefore close the previous channel
-                    // in the finally block after the new channel is connected.
-                    previousChannel = m_channel;
-                    newChannel = CreateChannel(m_telemetry, connection);
-                    m_channel = newChannel;
-                }
+                // the new channel must be connected first because WinSock
+                // will reuse sockets and this can result in messages sent
+                // over the old socket arriving as messages on the new socket.
+                // if this happens the new channel is shutdown because of a
+                // security violation. Therefore close the previous channel
+                // in the finally block after the new channel is connected.
+                previousChannel = m_channel;
+                m_channel = null;
+                UaSCUaBinaryClientChannel newChannel = CreateChannel(m_telemetry, connection);
 
                 // Connect the new channel
                 await newChannel.ConnectAsync(
@@ -152,12 +158,15 @@ namespace Opc.Ua.Bindings
                     OperationTimeout,
                     ct).ConfigureAwait(false);
 
+                m_channel = newChannel;
                 m_logger.LogInformation(
                     "TransportChannel RECONNECT: Reconnected to {Url}.",
                     m_url);
             }
             finally
             {
+                m_connecting.Release(); // Give access again to the new channel
+
                 // close previous channel.
                 if (previousChannel != null)
                 {
@@ -183,66 +192,78 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public Task CloseAsync(CancellationToken ct)
+        public async ValueTask CloseAsync(CancellationToken ct)
         {
-            UaSCUaBinaryClientChannel? channel;
-            lock (m_lock)
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
-                channel = m_channel;
+                UaSCUaBinaryClientChannel? channel = m_channel;
+                // Indicate we are closed
                 m_channel = null;
-                m_url = null; // Indicates we are closed
-            }
-            if (channel != null)
-            {
-                return channel.CloseAsync(kChannelCloseDefault, ct);
-            }
-            return Task.CompletedTask;
-        }
+                m_url = null;
 
-        /// <inheritdoc/>
-        public Task<IServiceResponse> SendRequestAsync(
-            IServiceRequest request,
-            CancellationToken ct)
-        {
-            UaSCUaBinaryClientChannel? channel =
-                m_channel ?? ResetChannelOrThrowIfClosed();
-            return channel.SendRequestAsync(request, OperationTimeout, ct);
-        }
-
-        /// <summary>
-        /// Send path supports on demand connection. Check the channel
-        /// state under lock and then throw if already closed, else
-        /// create a new channel.
-        /// </summary>
-        /// <returns></returns>
-        /// <exception cref="ServiceResultException"></exception>
-        private UaSCUaBinaryClientChannel ResetChannelOrThrowIfClosed()
-        {
-            UaSCUaBinaryClientChannel? channel;
-            lock (m_lock)
-            {
-                // Check again under lock
-                channel = m_channel;
-                if (channel == null)
+                if (channel != null)
                 {
-#if ON_DEMAND_CONNECT
-                    if (m_url != null)
+                    try
                     {
-                        // Use on demand connect in SendRequest
-                        m_logger.LogInformation(
-                            "TransportChannel: Creating on demand channel to {Url}.",
-                            m_url);
-                        m_channel = channel = CreateChannel(m_telemetry);
+                        await channel.CloseAsync(kChannelCloseDefault, ct) // TODO: Configurable
+                            .ConfigureAwait(false);
                     }
-                    else
-#endif
+                    catch (Exception e)
                     {
-                        // Channel was closed
-                        throw BadNotConnected();
+                        m_logger.LogError(e, "Ignoring error during close of channel.");
                     }
                 }
             }
-            return channel;
+            finally
+            {
+                m_connecting.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IServiceResponse> SendRequestAsync(
+            IServiceRequest request,
+            CancellationToken ct)
+        {
+            UaSCUaBinaryClientChannel? channel = m_channel;
+            if (channel != null)
+            {
+                return channel.SendRequestAsync(request, OperationTimeout, ct);
+            }
+            return SendRequestInternalAsync(request, ct);
+        }
+
+        /// <summary>
+        /// Wait under on the connection lock until connect or close completes
+        /// and send or throw then.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="ServiceResultException"></exception>
+        private async ValueTask<IServiceResponse> SendRequestInternalAsync(
+            IServiceRequest request,
+            CancellationToken ct)
+        {
+            UaSCUaBinaryClientChannel? channel;
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                // Get under lock
+                channel = m_channel;
+                if (channel == null)
+                {
+                    // Channel was closed
+                    throw BadNotConnected();
+                }
+            }
+            finally
+            {
+                m_connecting.Release();
+            }
+            return await channel.SendRequestAsync(
+                request,
+                OperationTimeout,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -257,7 +278,8 @@ namespace Opc.Ua.Bindings
             CancellationToken ct)
         {
             UaSCUaBinaryClientChannel? channel;
-            lock (m_lock)
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
                 if (m_channel != null || m_url != null)
                 {
@@ -268,22 +290,25 @@ namespace Opc.Ua.Bindings
                 SaveSettings(endpointUrl, settings);
                 m_channel = CreateChannel(m_telemetry, connection);
                 channel = m_channel;
-            }
-            try
-            {
-                await channel.ConnectAsync(m_url!, OperationTimeout, ct).ConfigureAwait(false);
-            }
-            catch
-            {
-                lock (m_lock)
+
+                // We hold the lock while connecting to not let send requests through.
+                try
+                {
+                    await channel.ConnectAsync(m_url!, OperationTimeout, ct).ConfigureAwait(false);
+                }
+                catch
                 {
                     if (m_channel == channel)
                     {
                         m_channel = null; // Treat as not opened to allow OpenAsync again
                         m_url = null;
                     }
+                    throw;
                 }
-                throw;
+            }
+            finally
+            {
+                m_connecting.Release();
             }
         }
 
@@ -402,13 +427,14 @@ namespace Opc.Ua.Bindings
                 nameof(UaSCUaBinaryTransportChannel));
         }
 
-        private readonly Lock m_lock = new();
+        private readonly SemaphoreSlim m_connecting = new(1, 1);
         private readonly ILogger m_logger;
         private Uri? m_url;
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private BufferManager? m_bufferManager;
         private UaSCUaBinaryClientChannel? m_channel;
+        private bool m_disposed;
         private event ChannelTokenActivatedEventHandler? m_OnTokenActivated;
         private readonly IMessageSocketFactory m_messageSocketFactory;
         private readonly ITelemetryContext m_telemetry;

@@ -118,6 +118,23 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Connect the channel
+        /// </summary>
+        public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
+        {
+            await Task.Factory.FromAsync(
+                Begin,
+                EndConnect,
+                null).ConfigureAwait(false);
+
+            IAsyncResult Begin(AsyncCallback? callback, object? callbackData)
+            {
+                ct.ThrowIfCancellationRequested();
+                return BeginConnect(url, timeout, callback, callbackData);
+            }
+        }
+
+        /// <summary>
         /// Creates a connection with the server.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
@@ -221,23 +238,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Connect the channel
-        /// </summary>
-        public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
-        {
-            await Task.Factory.FromAsync(
-                Begin,
-                EndConnect,
-                null).ConfigureAwait(false);
-
-            IAsyncResult Begin(AsyncCallback? callback, object? callbackData)
-            {
-                ct.ThrowIfCancellationRequested();
-                return BeginConnect(url, timeout, callback, callbackData);
-            }
-        }
-
-        /// <summary>
         /// Closes a connection with the server.
         /// </summary>
         public async Task CloseAsync(int timeout, CancellationToken ct = default)
@@ -271,7 +271,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<IServiceResponse> SendRequestAsync(
+        public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             int timeout,
             CancellationToken ct)
