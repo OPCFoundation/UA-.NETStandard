@@ -463,7 +463,7 @@ namespace Opc.Ua
 
             if (bestExpired != null && bestNotYetValid != null)
             {
-                // Both expired and not-yet-valid exist valid certificates do not 
+                // Both expired and not-yet-valid exist valid certificates do not
                 // Prioritize CA-signed over self-signed
                 if (bestNotYetValidIsCASigned && !bestExpiredIsCASigned)
                 {
@@ -477,12 +477,7 @@ namespace Opc.Ua
                 return bestNotYetValidTime < bestExpiredTime ? bestNotYetValid : bestExpired;
             }
 
-            if (bestExpired != null)
-            {
-                return bestExpired;
-            }
-
-            return bestNotYetValid;
+            return bestExpired ?? bestNotYetValid;
         }
 
         /// <summary>
@@ -560,7 +555,7 @@ namespace Opc.Ua
                     {
                         if (!needPrivateKey || certificate.HasPrivateKey)
                         {
-                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                            (matchesOnCriteria ??= []).Add(certificate);
                         }
                     }
                 }
@@ -569,7 +564,7 @@ namespace Opc.Ua
                     return PickBestCertificate(matchesOnCriteria);
                 }
 
-                bool hasCommonName = subjectName.IndexOf("CN=", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
 
                 // If parsedSubjectName did not match the certificate distinguished name
                 // If "CN=" exists in the subject name than an exact match on CN is required
@@ -578,7 +573,7 @@ namespace Opc.Ua
                     string commonNameEntry = parsedSubjectName
                         .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
                     string commonName = commonNameEntry?.Length > 3
-                        ? commonNameEntry.Substring(3).Trim()
+                        ? commonNameEntry[3..].Trim()
                         : null;
 
                     if (!string.IsNullOrEmpty(commonName))
@@ -592,7 +587,7 @@ namespace Opc.Ua
                                     commonName,
                                     StringComparison.Ordinal))
                             {
-                                (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                                (matchesOnCriteria ??= []).Add(certificate);
                             }
                         }
                         if (matchesOnCriteria?.Count > 0)
@@ -613,7 +608,7 @@ namespace Opc.Ua
                         if (ValidateCertificateType(certificate, certificateType) &&
                             (!needPrivateKey || certificate.HasPrivateKey))
                         {
-                            (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                            (matchesOnCriteria ??= []).Add(certificate);
                         }
                     }
                     if (matchesOnCriteria?.Count > 0)
@@ -632,7 +627,7 @@ namespace Opc.Ua
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {
-                        (matchesOnCriteria ??= new X509Certificate2Collection()).Add(certificate);
+                        (matchesOnCriteria ??= []).Add(certificate);
                     }
                 }
                 if (matchesOnCriteria?.Count > 0)

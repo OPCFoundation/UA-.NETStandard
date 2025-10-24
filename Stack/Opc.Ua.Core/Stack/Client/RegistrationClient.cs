@@ -12,6 +12,8 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -36,14 +38,16 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// <param name="instanceCertificate">The instance certificate.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="returnDiagnostics">Return diagnostics to sent in the responses</param>
+        /// <param name="ct"></param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        public static RegistrationClient Create(
+        public static async Task<RegistrationClient> CreateAsync(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 instanceCertificate,
-            ITelemetryContext telemetry)
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
         {
             if (configuration == null)
             {
@@ -55,64 +59,50 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(description));
             }
 
-            ITransportChannel channel = RegistrationChannel.Create(
+            ServiceMessageContext context = configuration.CreateMessageContext();
+
+            ITransportChannel channel = await ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 instanceCertificate,
-                new ServiceMessageContext(telemetry),
-                telemetry);
+                null,
+                context,
+                null,
+                ct).ConfigureAwait(false);
 
-            return new RegistrationClient(channel, telemetry);
+            return new RegistrationClient(channel, context.Telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
         }
     }
 
     /// <summary>
-    /// A channel object used by clients to access a UA discovery service.
+    /// A channel object used by clients to access a UA registration service.
     /// </summary>
+    [Obsolete("Use RegistrationClient.CreateAsync instead to create a registrations client.")]
     public partial class RegistrationChannel
     {
         /// <summary>
-        /// Creates a new transport channel that supports the IRegistrationChannel service contract.
+        /// Creates a new transport channel that supports registration
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        /// <param name="description">The description for the endpoint.</param>
-        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync instead.")]
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext,
-            ITelemetryContext telemetry)
+            IServiceMessageContext messageContext)
         {
-            // create a UA binary channel.
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
-                messageContext);
-
-            // create a registration channel.
-            if (channel == null)
-            {
-                var endpointUrl = new Uri(description.EndpointUrl);
-                channel = new RegistrationChannel { Telemetry = telemetry };
-
-                var settings = new TransportChannelSettings
-                {
-                    Configuration = endpointConfiguration,
-                    Description = description,
-                    ClientCertificate = clientCertificate
-                };
-                channel.Initialize(endpointUrl, settings);
-            }
-
-            return channel;
+                null,
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
         }
     }
 }

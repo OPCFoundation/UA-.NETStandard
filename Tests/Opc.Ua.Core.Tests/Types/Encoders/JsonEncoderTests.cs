@@ -378,7 +378,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.NodeId,
-                new NodeId("ns=0;" + kNodeIdString),
+                new NodeId("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -575,7 +575,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.ExpandedNodeId,
-                new ExpandedNodeId("ns=0;" + kNodeIdString),
+                new ExpandedNodeId("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -1412,7 +1412,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encodeable = new DynamicEncodeable(
                 "FooXml",
                 "urn:dynamic_encoder_test",
-                "ns=2;test_dyn_typeid",
+                "ns=2;s=test_dyn_typeid",
                 "s=test_dyn_binaryencodingid",
                 "s=test_dyn_xmlencodingid",
                 "s=test_dyn_jsonencodingid",
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "s=test_dyn2_typeid",
                 "s=test_dyn2_binaryencodingid",
                 "s=test_dyn2_xmlencodingid",
-                "ns=1;test_dyn2_jsonencodingid",
+                "ns=1;s=test_dyn2_jsonencodingid",
                 new Dictionary<string, (int, string)> {
                     { "Foo", (1, "bar_1") },
                     { "Foo2", (2, "bar_2") } });

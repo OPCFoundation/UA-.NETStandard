@@ -51,9 +51,12 @@ namespace Opc.Ua
         /// unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
-            CloseChannel();
+            if (!Disposed)
+            {
+                CloseChannelAsync(default).GetAwaiter().GetResult();
 
-            Disposed = true;
+                Disposed = true;
+            }
         }
 
         /// <inheritdoc/>
@@ -125,7 +128,8 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        channel.Close();
+                        // TODO: Make async method instead of setter
+                        channel.CloseAsync(default).AsTask().GetAwaiter().GetResult();
                         channel.Dispose();
                     }
                     catch
@@ -227,22 +231,10 @@ namespace Opc.Ua
         /// <summary>
         /// Closes the channel.
         /// </summary>
+        [Obsolete("Use CloseChannelAsync instead.")]
         protected void CloseChannel()
         {
-            ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
-
-            if (channel != null)
-            {
-                try
-                {
-                    channel.Close();
-                    channel.Dispose();
-                }
-                catch
-                {
-                    // ignore errors.
-                }
-            }
+            CloseChannelAsync(default).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -302,6 +294,7 @@ namespace Opc.Ua
         /// <param name="useDefaults">if set to <c>true</c> use defaults.</param>
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
+            ThrowIfDisposed();
             lock (SyncRoot)
             {
                 request.RequestHeader ??= new RequestHeader();
@@ -564,6 +557,18 @@ namespace Opc.Ua
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Throw if the object has been disposed.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        protected void ThrowIfDisposed()
+        {
+            if (Disposed)
+            {
+                throw new ObjectDisposedException(nameof(ClientBase));
+            }
         }
 
         /// <summary>

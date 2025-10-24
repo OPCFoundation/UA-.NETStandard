@@ -10,8 +10,14 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
+using System.Linq;
 using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -27,7 +33,7 @@ namespace Opc.Ua.Bindings
         /// A System.Byte array that represents the data buffer to use with an asynchronous
         /// socket method.
         /// </returns>
-        byte[] Buffer { get; }
+        byte[]? Buffer { get; }
 
         /// <summary>
         /// Gets or sets an array of data buffers to use with an asynchronous socket method.
@@ -36,7 +42,7 @@ namespace Opc.Ua.Bindings
         /// An System.Collections.IList that represents an array of data buffers to use with
         /// an asynchronous socket method.
         /// </returns>
-        BufferCollection BufferList { get; set; }
+        BufferCollection? BufferList { get; set; }
 
         /// <summary>
         ///  Gets the number of bytes transferred in the socket operation.
@@ -64,7 +70,7 @@ namespace Opc.Ua.Bindings
         /// An object that represents the user or application object associated with this
         /// asynchronous socket operation.
         /// </returns>
-        object UserToken { get; set; }
+        object? UserToken { get; set; }
 
         /// <summary>
         /// The event used to complete an asynchronous operation.
@@ -139,20 +145,20 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets the local endpoint.
         /// </summary>
-        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// <exception cref="SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
         /// <exception cref="ObjectDisposedException">The Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
-        EndPoint LocalEndpoint { get; }
+        EndPoint? LocalEndpoint { get; }
 
         /// <summary>
         /// Gets the remote endpoint.
         /// </summary>
-        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// <exception cref="SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
         /// <exception cref="ObjectDisposedException">The Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
-        EndPoint RemoteEndpoint { get; }
+        EndPoint? RemoteEndpoint { get; }
 
         /// <summary>
         /// Returns the features implemented by the message socket.
@@ -162,10 +168,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        bool BeginConnect(
-            Uri endpointUrl,
-            EventHandler<IMessageSocketAsyncEventArgs> callback,
-            object state);
+        Task ConnectAsync(Uri endpointUrl, CancellationToken ct = default);
 
         /// <summary>
         /// Forcefully closes the socket.
@@ -199,8 +202,106 @@ namespace Opc.Ua.Bindings
     public interface IMessageSocketChannel
     {
         /// <summary>
-        /// Returns the channel's underlying message socket if connected.
+        /// Returns the channel's underlying message socket
+        /// if connected - otherwise null.
         /// </summary>
-        IMessageSocket Socket { get; }
+        IMessageSocket? Socket { get; }
+    }
+
+    /// <summary>
+    /// Extensions for message socket
+    /// </summary>
+    public static class MessageSocketExtensions
+    {
+        /// <summary>
+        /// Connects to an endpoint using older style callback pattern.
+        /// </summary>
+        public static bool BeginConnect(
+            this IMessageSocket socket,
+            Uri endpointUrl,
+            EventHandler<IMessageSocketAsyncEventArgs> callback,
+            object? state)
+        {
+            Task t = socket.ConnectAsync(endpointUrl);
+            t.GetAwaiter().OnCompleted(() => callback?.Invoke(
+                socket,
+                new TcpMessageSocketConnectAsyncEventArgs(t, state)));
+            return !t.IsFaulted;
+        }
+
+        /// <summary>
+        /// Handles async event callbacks only for the ConnectAsync method
+        /// </summary>
+        private sealed class TcpMessageSocketConnectAsyncEventArgs :
+            IMessageSocketAsyncEventArgs
+        {
+            /// <summary>
+            /// Create the async event args for a TCP message socket.
+            /// </summary>
+            public TcpMessageSocketConnectAsyncEventArgs(Task result, object? state)
+            {
+                m_socketError = GetSocketError(result);
+                UserToken = state;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+            }
+
+            /// <inheritdoc/>
+            public object? UserToken { get; set; }
+
+            /// <inheritdoc/>
+            /// <remarks>Not implemented here.</remarks>
+            public void SetBuffer(byte[] buffer, int offset, int count)
+            {
+                throw new NotImplementedException();
+            }
+
+            /// <inheritdoc/>
+            public bool IsSocketError => m_socketError != SocketError.Success;
+
+            /// <inheritdoc/>
+            public string SocketErrorString => m_socketError.ToString();
+
+            /// <inheritdoc/>
+            /// <remarks>Not implemented here.</remarks>
+            public event EventHandler<IMessageSocketAsyncEventArgs> Completed
+            {
+                add => throw new NotImplementedException();
+                remove => throw new NotImplementedException();
+            }
+
+            /// <inheritdoc/>
+            public int BytesTransferred => 0;
+
+            /// <inheritdoc/>
+            /// <remarks>Not implemented here.</remarks>
+            public byte[]? Buffer => null;
+
+            /// <inheritdoc/>
+            /// <remarks>Not implememnted here.</remarks>
+            public BufferCollection? BufferList
+            {
+                get => null;
+                set => throw new NotImplementedException();
+            }
+
+            private static SocketError GetSocketError(Task t)
+            {
+                if (t.IsFaulted)
+                {
+                    SocketException? se = t.Exception?
+                        .Flatten().InnerExceptions
+                        .OfType<SocketException>()
+                        .FirstOrDefault();
+                    return se?.SocketErrorCode ?? SocketError.SocketError;
+                }
+                return SocketError.Success;
+            }
+
+            private readonly SocketError m_socketError;
+        }
     }
 }
