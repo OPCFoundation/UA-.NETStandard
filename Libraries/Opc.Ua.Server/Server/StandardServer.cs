@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
 
             ValidateRequest(requestHeader);
 
-            await SemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 // parse the url provided by the client.
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
 
             return new FindServersResponse
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server
 
             ValidateRequest(requestHeader);
 
-            SemaphoreSlim.Wait();
+            m_semaphoreSlim.Wait();
             try
             {
                 // filter by profile.
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
 
             return CreateResponse(requestHeader, StatusCodes.Good);
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server
 
             ValidateRequest(requestHeader);
 
-            await SemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 // filter by profile.
@@ -280,7 +280,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
 
             return new GetEndpointsResponse
@@ -639,7 +639,7 @@ namespace Opc.Ua.Server
                     parameters = CreateSessionProcessAdditionalParameters(session, parameters);
                 }
 #endif
-                await SemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+                await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
                     // return the application instance certificate for the server.
@@ -679,7 +679,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    SemaphoreSlim.Release();
+                    m_semaphoreSlim.Release();
                 }
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -3096,7 +3096,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                SemaphoreSlim.Wait();
+                m_semaphoreSlim.Wait();
                 try
                 {
                     if (m_serverInternal == null)
@@ -3107,7 +3107,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    SemaphoreSlim.Release();
+                    m_semaphoreSlim.Release();
                 }
             }
         }
@@ -3391,13 +3391,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        [Obsolete("Use SemaphoreSlim property instead.")]
+        [Obsolete("Use your own synchronization mechanism.")]
         protected object Lock => null;
-
-        /// <summary>
-        /// The synchronization primitive.
-        /// </summary>
-        protected SemaphoreSlim SemaphoreSlim { get; } = new SemaphoreSlim(1, 1);
 
         /// <summary>
         /// The state object associated with the server.
@@ -3440,7 +3435,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void SetServerState(ServerState state)
         {
-            SemaphoreSlim.Wait();
+            m_semaphoreSlim.Wait();
             try
             {
                 if (ServiceResult.IsBad(ServerError))
@@ -3459,7 +3454,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3469,14 +3464,14 @@ namespace Opc.Ua.Server
         /// <param name="error">The error.</param>
         protected virtual void SetServerError(ServiceResult error)
         {
-            SemaphoreSlim.Wait();
+            m_semaphoreSlim.Wait();
             try
             {
                 ServerError = error;
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3663,7 +3658,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            SemaphoreSlim.Wait();
+            m_semaphoreSlim.Wait();
             try
             {
                 if (m_serverInternal == null)
@@ -3675,7 +3670,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3717,7 +3712,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected override async ValueTask OnUpdateConfigurationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
-            await SemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // update security configuration.
@@ -3751,7 +3746,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3761,7 +3756,7 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The configuration.</param>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            SemaphoreSlim.Wait();
+            m_semaphoreSlim.Wait();
             try
             {
                 base.OnServerStarting(configuration);
@@ -3774,7 +3769,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3884,7 +3879,7 @@ namespace Opc.Ua.Server
         {
             await base.StartApplicationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
-            await SemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 m_logger.LogInformation(
@@ -4080,7 +4075,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                SemaphoreSlim.Release();
+                m_semaphoreSlim.Release();
             }
 
             // set the server status as running.
@@ -4130,7 +4125,7 @@ namespace Opc.Ua.Server
                     await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 }
 
-                await SemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
                     if (m_serverInternal != null)
@@ -4144,7 +4139,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    SemaphoreSlim.Release();
+                    m_semaphoreSlim.Release();
                 }
             }
             catch (Exception e)
@@ -4649,6 +4644,7 @@ namespace Opc.Ua.Server
             => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
 
         private readonly Lock m_registrationLock = new();
+        private SemaphoreSlim m_semaphoreSlim = new SemaphoreSlim(1, 1);
         private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;
