@@ -623,7 +623,7 @@ namespace Opc.Ua
             {
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (applicationUri == X509Utils.GetApplicationUriFromCertificate(certificate) &&
+                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri) &&
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {

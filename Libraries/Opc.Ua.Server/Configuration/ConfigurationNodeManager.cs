@@ -529,8 +529,8 @@ namespace Opc.Ua.Server
                             cert.CertificateType == certificateTypeId)
                         ?? certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
                             cert.Certificate != null &&
-                            m_configuration.ApplicationUri ==
-                                X509Utils.GetApplicationUriFromCertificate(cert.Certificate) &&
+                            X509Utils.GetApplicationUrisFromCertificate(cert.Certificate)
+                                .Any(uri => uri.Equals(m_configuration.ApplicationUri, StringComparison.Ordinal)) &&
                             cert.CertificateType == certificateTypeId))
                     ?? throw new ServiceResultException(
                         StatusCodes.BadInvalidArgument,

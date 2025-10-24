@@ -1395,8 +1395,9 @@ namespace Opc.Ua
                     .GetInstanceCertificate(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
-                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(
-                    instanceCertificate);
+                // it is ok to pick the first here since it is only a fallback value
+                configuration.ApplicationUri = X509Utils.GetApplicationUrisFromCertificate(
+                    instanceCertificate).FirstOrDefault();
 
                 if (string.IsNullOrEmpty(configuration.ApplicationUri))
                 {

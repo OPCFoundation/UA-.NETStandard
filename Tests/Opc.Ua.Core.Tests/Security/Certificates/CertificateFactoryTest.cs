@@ -460,8 +460,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(cert);
-            TestContext.Out.WriteLine("ApplicationUri: ");
+            var applicationUri = X509Utils.GetApplicationUrisFromCertificate(cert).FirstOrDefault();
+            TestContext.Out.WriteLine("ApplicationUris: ");
             TestContext.Out.WriteLine(applicationUri);
             Assert.AreEqual(testApp.ApplicationUri, applicationUri);
         }
