@@ -718,7 +718,9 @@ namespace Opc.Ua
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         protected class ProcessRequestAsyncResult : AsyncResultBase, IEndpointIncomingRequest
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             /// <summary>
             /// Initializes a new instance of the <see cref="ProcessRequestAsyncResult"/> class.

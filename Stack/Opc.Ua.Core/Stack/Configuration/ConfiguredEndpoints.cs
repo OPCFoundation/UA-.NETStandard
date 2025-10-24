@@ -1141,13 +1141,21 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, telemetry, ct);
+            return UpdateFromServerAsync(
+                endpointUrl,
+                null,
+                securityMode,
+                securityPolicyUri,
+                telemetry,
+                ct);
         }
 
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public Task UpdateFromServerAsync(ITelemetryContext telemetry, CancellationToken ct = default)
+        public Task UpdateFromServerAsync(
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             return UpdateFromServerAsync(
                 EndpointUrl,
@@ -1175,11 +1183,19 @@ namespace Opc.Ua
             DiscoveryClient client;
             if (connection != null)
             {
-                client = DiscoveryClient.Create(connection, m_configuration, telemetry);
+                client = await DiscoveryClient.CreateAsync(
+                    connection,
+                    m_configuration,
+                    telemetry,
+                    ct: ct).ConfigureAwait(false);
             }
             else
             {
-                client = DiscoveryClient.Create(discoveryUrl, m_configuration, telemetry);
+                client = await DiscoveryClient.CreateAsync(
+                    discoveryUrl,
+                    m_configuration,
+                    telemetry,
+                    ct: ct).ConfigureAwait(false);
             }
 
             try

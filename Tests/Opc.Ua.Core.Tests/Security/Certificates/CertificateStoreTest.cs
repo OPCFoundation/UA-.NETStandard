@@ -666,24 +666,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validityMonths: 42,
                 startingFromDays: 1);
 
-
-            var testCertificatesCollection = new[]
-            {
+            X509Certificate2[] testCertificatesCollection =
+            [
                 certSubjectSubstring,
                 certSubjectWithCnDuplicate,
                 certSubjectWithoutCnDuplicate,
                 certApplicationUriDuplicate,
                 certLongestDuration,
                 certLongestDurationLatestNotAfterValid,
-                certLongestDurationLatestNotAfterInValid, // Never to be picked, just poisoned value
-            };
+                certLongestDurationLatestNotAfterInValid // Never to be picked, just poisoned value
+            ];
 
             X509Certificate2 CreateDuplicateCertificate(string subjectName,
                 string applicationUri,
                 int validityMonths = 2,
                 int startingFromDays = -2)
             {
-                var certificateFactory = CertificateFactory.CreateCertificate(subjectName)
+                ICertificateBuilder certificateFactory = CertificateFactory.CreateCertificate(subjectName)
                     .SetNotBefore(startCreation.AddDays(startingFromDays))
                     .SetNotAfter(startCreation.AddDays(startingFromDays).AddMonths(validityMonths))
                     .SetHashAlgorithm(HashAlgorithmName.SHA256);
@@ -731,7 +730,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 false);
             Assert.Null(resultThumbprintAndNonMatchingSubject);
 
-            // Test that exact match is done if CN is in subject name and 
+            // Test that exact match is done if CN is in subject name and
             // subject name is substring of other subject names
             X509Certificate2 resultSubjectSubstring = CertificateIdentifier.Find(
                 collection,
@@ -807,7 +806,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(startCreation.AddDays(-2))
                 .SetNotAfter(startCreation.AddDays(540)) // Valid for ~18 months
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
-                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests", new[] { "CN=Opc.Ua.Core.Tests" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests", ["CN=Opc.Ua.Core.Tests"]))
                 .SetIssuer(caCertificate)
                 .CreateForRSA();
 
@@ -855,10 +854,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validityMonths: 24,
                 startingFromDays: -365); // Same 24 month validity but started 1 year ago, ~12 months remaining
 
-            var validMultipleCollection = new X509Certificate2Collection();
-            validMultipleCollection.Add(validShortRemaining);
-            validMultipleCollection.Add(validLongRemaining);
-            validMultipleCollection.Add(validEqualDurationLessRemaining);
+            var validMultipleCollection = new X509Certificate2Collection
+            {
+                validShortRemaining,
+                validLongRemaining,
+                validEqualDurationLessRemaining
+            };
 
             X509Certificate2 resultValidMultiple = CertificateIdentifier.Find(
                 validMultipleCollection,
@@ -871,7 +872,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.AreEqual(validLongRemaining.Thumbprint, resultValidMultiple.Thumbprint,
                 "Should pick certificate with longest remaining validity (validLongRemaining has ~24 months, validEqualDurationLessRemaining has ~12 months)");
 
-            // Test expired certificate handling 
+            // Test expired certificate handling
             // --------------------------------------------------------------------------
 
             // Test 1: All certificates expired - should pick least expired (most recent NotAfter)
@@ -922,13 +923,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(startCreation.AddDays(-1900))
                 .SetNotAfter(startCreation.AddDays(-100)) // Expired 100 days ago
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
-                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredLong", 
-                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredLong",
+                    ["CN=Opc.Ua.Core.Tests"]))
                 .CreateForRSA();
 
-            var mixedCollection = new X509Certificate2Collection();
-            mixedCollection.Add(expiredCertLong);
-            mixedCollection.Add(validCertShort);
+            var mixedCollection = new X509Certificate2Collection
+            {
+                expiredCertLong,
+                validCertShort
+            };
 
             X509Certificate2 resultMixed = CertificateIdentifier.Find(
                 mixedCollection,
@@ -954,8 +957,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(startCreation.AddDays(-500))
                 .SetNotAfter(startCreation.AddDays(-320)) // Expired ~320 days ago (more expired than self-signed)
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
-                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredCA", 
-                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ExpiredCA",
+                    ["CN=Opc.Ua.Core.Tests"]))
                 .SetIssuer(caCertificate)
                 .CreateForRSA(); // More expired but CA-signed
 
@@ -988,9 +991,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validityMonths: 6,
                 startingFromDays: -2); // Currently valid
 
-            var futureCollection = new X509Certificate2Collection();
-            futureCollection.Add(notYetValid);
-            futureCollection.Add(currentlyValid);
+            var futureCollection = new X509Certificate2Collection
+            {
+                notYetValid,
+                currentlyValid
+            };
 
             X509Certificate2 resultFuture = CertificateIdentifier.Find(
                 futureCollection,
@@ -1010,22 +1015,24 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(sameExpiryStart)
                 .SetNotAfter(sameExpiry)
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
-                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.SameExpirySelf", 
-                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.SameExpirySelf",
+                    ["CN=Opc.Ua.Core.Tests"]))
                 .CreateForRSA();
-    
+
             X509Certificate2 expiredCASigned1 = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(sameExpiryStart)
                 .SetNotAfter(sameExpiry)
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
-                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.SameExpiryCA", 
-                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.SameExpiryCA",
+                    ["CN=Opc.Ua.Core.Tests"]))
                 .SetIssuer(caCertificate)
                 .CreateForRSA();
 
-            var sameExpiryCollection = new X509Certificate2Collection();
-            sameExpiryCollection.Add(expiredSelfSigned1);
-            sameExpiryCollection.Add(expiredCASigned1);
+            var sameExpiryCollection = new X509Certificate2Collection
+            {
+                expiredSelfSigned1,
+                expiredCASigned1
+            };
 
             X509Certificate2 resultSameExpiry = CertificateIdentifier.Find(
                 sameExpiryCollection,
@@ -1055,10 +1062,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validityMonths: 6,
                 startingFromDays: -200); // Expired ~20 days ago
 
-            var mixedExpiredFutureCollection = new X509Certificate2Collection();
-            mixedExpiredFutureCollection.Add(notYetValidSoon);
-            mixedExpiredFutureCollection.Add(notYetValidLater);
-            mixedExpiredFutureCollection.Add(expiredRecent);
+            var mixedExpiredFutureCollection = new X509Certificate2Collection
+            {
+                notYetValidSoon,
+                notYetValidLater,
+                expiredRecent
+            };
 
             X509Certificate2 resultMixedExpiredFuture = CertificateIdentifier.Find(
                 mixedExpiredFutureCollection,
@@ -1072,9 +1081,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "Should pick soonest to become valid when both expired and not-yet-valid exist (5 days < 20 days)");
 
             // Test 7: All not-yet-valid - should pick soonest to become valid
-            var allNotYetValidCollection = new X509Certificate2Collection();
-            allNotYetValidCollection.Add(notYetValidSoon);
-            allNotYetValidCollection.Add(notYetValidLater);
+            var allNotYetValidCollection = new X509Certificate2Collection
+            {
+                notYetValidSoon,
+                notYetValidLater
+            };
 
             X509Certificate2 resultAllNotYetValid = CertificateIdentifier.Find(
                 allNotYetValidCollection,
@@ -1092,14 +1103,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(startCreation.AddDays(20))
                 .SetNotAfter(startCreation.AddDays(20).AddMonths(12))
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
-                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.FutureCA", 
-                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.FutureCA",
+                    ["CN=Opc.Ua.Core.Tests"]))
                 .SetIssuer(caCertificate)
                 .CreateForRSA(); // Becomes valid in 20 days, but CA-signed
 
-            var notYetValidCACollection = new X509Certificate2Collection();
-            notYetValidCACollection.Add(notYetValidSoon); // Self-signed, becomes valid in 5 days
-            notYetValidCACollection.Add(notYetValidCASigned); // CA-signed, becomes valid in 20 days
+            var notYetValidCACollection = new X509Certificate2Collection
+            {
+                notYetValidSoon, // Self-signed, becomes valid in 5 days
+                notYetValidCASigned // CA-signed, becomes valid in 20 days
+            };
 
             X509Certificate2 resultNotYetValidCA = CertificateIdentifier.Find(
                 notYetValidCACollection,
@@ -1119,9 +1132,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validityMonths: 6,
                 startingFromDays: -190); // Expired ~10 days ago - least expired self-signed
 
-            var mixedCACollection = new X509Certificate2Collection();
-            mixedCACollection.Add(expiredSelfSignedRecent);
-            mixedCACollection.Add(notYetValidCASigned);
+            var mixedCACollection = new X509Certificate2Collection
+            {
+                expiredSelfSignedRecent,
+                notYetValidCASigned
+            };
 
             X509Certificate2 resultMixedCA = CertificateIdentifier.Find(
                 mixedCACollection,
@@ -1157,14 +1172,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(startCreation.AddDays(-2))
                 .SetNotAfter(startCreation.AddDays(180)) // Valid for ~6 months
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
-                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ValidCAShorter", 
-                    new[] { "CN=Opc.Ua.Core.Tests" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:localhost:UA:Opc.Ua.Core.Tests.ValidCAShorter",
+                    ["CN=Opc.Ua.Core.Tests"]))
                 .SetIssuer(caCertificate)
                 .CreateForRSA();
 
-            var validCAvsSelfCollection = new X509Certificate2Collection();
-            validCAvsSelfCollection.Add(validSelfSignedLonger);
-            validCAvsSelfCollection.Add(validCASignedShorter);
+            var validCAvsSelfCollection = new X509Certificate2Collection
+            {
+                validSelfSignedLonger,
+                validCASignedShorter
+            };
 
             X509Certificate2 resultValidCAvsSeIf = CertificateIdentifier.Find(
                 validCAvsSelfCollection,

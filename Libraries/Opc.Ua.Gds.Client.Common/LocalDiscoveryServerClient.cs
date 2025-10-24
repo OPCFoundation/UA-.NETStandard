@@ -89,7 +89,10 @@ namespace Opc.Ua.Gds.Client
             string endpointTransportProfileUri,
             CancellationToken ct = default)
         {
-            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+            DiscoveryClient client = await CreateClientAsync(
+                endpointUrl,
+                endpointTransportProfileUri,
+                ct).ConfigureAwait(false);
 
             FindServersResponse response = await client.FindServersAsync(
                 null,
@@ -142,7 +145,7 @@ namespace Opc.Ua.Gds.Client
             AsyncCallback callback,
             object callbackData)
         {
-            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+            DiscoveryClient client = CreateClientAsync(endpointUrl, endpointTransportProfileUri).GetAwaiter().GetResult();
 
             var data = new FindServersData(callback, callbackData, client.OperationTimeout)
             {
@@ -227,7 +230,7 @@ namespace Opc.Ua.Gds.Client
             string endpointTransportProfileUri,
             CancellationToken ct = default)
         {
-            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+            DiscoveryClient client = await CreateClientAsync(endpointUrl, endpointTransportProfileUri, ct).ConfigureAwait(false);
 
             GetEndpointsResponse response = await client.GetEndpointsAsync(
                 null,
@@ -267,7 +270,7 @@ namespace Opc.Ua.Gds.Client
             AsyncCallback callback,
             object callbackData)
         {
-            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+            DiscoveryClient client = CreateClientAsync(endpointUrl, endpointTransportProfileUri).GetAwaiter().GetResult();
 
             var data = new GetEndpointsData(callback, callbackData, client.OperationTimeout)
             {
@@ -364,7 +367,7 @@ namespace Opc.Ua.Gds.Client
             IList<string> serverCapabilityFilters,
             CancellationToken ct = default)
         {
-            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+            DiscoveryClient client = await CreateClientAsync(endpointUrl, endpointTransportProfileUri, ct).ConfigureAwait(false);
 
             FindServersOnNetworkResponse response = await client.FindServersOnNetworkAsync(
                 null,
@@ -440,7 +443,7 @@ namespace Opc.Ua.Gds.Client
             AsyncCallback callback,
             object callbackData)
         {
-            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+            DiscoveryClient client = CreateClientAsync(endpointUrl, endpointTransportProfileUri).GetAwaiter().GetResult();
 
             var data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout)
             {
@@ -525,9 +528,10 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        protected virtual DiscoveryClient CreateClient(
+        protected virtual Task<DiscoveryClient> CreateClientAsync(
             string endpointUrl,
-            string endpointTransportProfileUri)
+            string endpointTransportProfileUri,
+            CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {
@@ -539,8 +543,6 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("Not a valid URL.", nameof(endpointUrl));
             }
 
-            ServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
-
             var configuration = EndpointConfiguration.Create(ApplicationConfiguration);
 
             if (DefaultOperationTimeout != 0)
@@ -548,15 +550,12 @@ namespace Opc.Ua.Gds.Client
                 configuration.OperationTimeout = DefaultOperationTimeout;
             }
 
-            ITransportChannel channel = DiscoveryChannel.Create(
+            return DiscoveryClient.CreateAsync(
+                ApplicationConfiguration,
                 new Uri(endpointUrl),
                 configuration,
-                context);
-
-            return new DiscoveryClient(channel, context.Telemetry)
-            {
-                ReturnDiagnostics = DiagnosticsMasks
-            };
+                DiagnosticsMasks,
+                ct);
         }
 
         private const string kDefaultUrl = "opc.tcp://localhost:4840";

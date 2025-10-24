@@ -3208,12 +3208,12 @@ namespace Opc.Ua.Server
                                     InstanceCertificateTypesProvider.GetInstanceCertificate(
                                         endpoint.Description?.SecurityPolicyUri ??
                                         SecurityPolicies.None);
-                                client = RegistrationClient.Create(
+                                client = await RegistrationClient.CreateAsync(
                                     configuration,
                                     endpoint.Description,
                                     endpoint.Configuration,
                                     instanceCertificate,
-                                    MessageContext.Telemetry);
+                                    ct: ct).ConfigureAwait(false);
 
                                 client.OperationTimeout = 10000;
 
@@ -3790,7 +3790,7 @@ namespace Opc.Ua.Server
         /// </returns>
         protected override IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            TransportListenerBindings bindingFactory,
+            ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {

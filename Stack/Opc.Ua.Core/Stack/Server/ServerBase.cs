@@ -252,7 +252,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
-            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
@@ -335,7 +335,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the listener factory.
-            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
@@ -1513,7 +1513,7 @@ namespace Opc.Ua
         /// <returns>Returns list of hosts for a UA service.</returns>
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            TransportListenerBindings bindingFactory,
+            ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {

@@ -276,6 +276,10 @@ namespace Opc.Ua
             string defaultNamespaceUri,
             LocalizedText defaultLocalizedText)
         {
+            if (e is AggregateException ae && ae.InnerExceptions.Count == 1)
+            {
+                e = ae.InnerExceptions[0];
+            }
             if (e is ServiceResultException sre)
             {
                 Code = sre.StatusCode;
@@ -814,6 +818,11 @@ namespace Opc.Ua
             if (exception == null)
             {
                 return LocalizedText.Null;
+            }
+
+            if (exception is AggregateException ae && ae.InnerExceptions.Count == 1)
+            {
+                exception = ae.InnerExceptions[0];
             }
 
             if (exception.Message != null)
