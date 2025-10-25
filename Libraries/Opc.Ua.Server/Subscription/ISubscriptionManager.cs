@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -116,7 +118,6 @@ namespace Opc.Ua.Server
         NotificationMessage Publish(
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            AsyncPublishOperation operation,
             out uint subscriptionId,
             out UInt32Collection availableSequenceNumbers,
             out bool moreNotifications,
@@ -124,14 +125,12 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
 
         /// <summary>
-        /// Completes the publish.
+        /// Publishes a subscription.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="operation">The asynchronous operation.</param>
-        /// <returns>
-        /// True if successful. False if the request has been requeued.
-        /// </returns>
-        bool CompletePublish(OperationContext context, AsyncPublishOperation operation);
+        Task<PublishResponse> PublishAsync(
+            OperationContext context,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Modifies an existing subscription.
