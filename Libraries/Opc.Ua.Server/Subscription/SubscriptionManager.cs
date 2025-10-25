@@ -1028,6 +1028,7 @@ namespace Opc.Ua.Server
                     return new PublishResponse
                     {
                         SubscriptionId = statusSubscriptionId,
+                        MoreNotifications = false,
                         NotificationMessage = statusMessage,
                         Results = acknowledgeResults,
                         DiagnosticInfos = acknowledgeDiagnosticInfos
@@ -1054,6 +1055,7 @@ namespace Opc.Ua.Server
                         return new PublishResponse
                         {
                             SubscriptionId = statusSubscriptionId,
+                            MoreNotifications = false,
                             NotificationMessage = statusMessage,
                             Results = acknowledgeResults,
                             DiagnosticInfos = acknowledgeDiagnosticInfos

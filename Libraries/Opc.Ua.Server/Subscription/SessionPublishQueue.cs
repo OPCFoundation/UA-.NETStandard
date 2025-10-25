@@ -103,6 +103,12 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_queuedSubscriptions.Count == 0)
+                {
+                    return Task.FromException<ISubscription>(
+                        new ServiceResultException(StatusCodes.BadNoSubscription));
+                }
+
                 // find the waiting subscription with the highest priority.
                 QueuedSubscription subscriptionToPublish = GetSubscriptionToPublish();
 
@@ -601,7 +607,7 @@ namespace Opc.Ua.Server
                 m_cancellationTokenRegistration = cancellationToken.Register(
                     () => Tcs.TrySetCanceled());
                 // Cancell publish request if it times out
-                if (operationTimeout < DateTime.MaxValue)
+                if (operationTimeout < DateTime.MaxValue && operationTimeout > DateTime.UtcNow)
                 {
                     m_cancellationTokenSource = new CancellationTokenSource(operationTimeout.AddMilliseconds(500) - DateTime.UtcNow);
                     m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
@@ -611,9 +617,9 @@ namespace Opc.Ua.Server
 
             public void Dispose()
             {
-                m_cancellationTokenRegistration.Dispose();
-                m_cancellationTokenSource.Dispose();
-                m_cancellationTokenRegistration2.Dispose();
+                Utils.SilentDispose(m_cancellationTokenRegistration);
+                Utils.SilentDispose(m_cancellationTokenSource);
+                Utils.SilentDispose(m_cancellationTokenRegistration2);
             }
 
             public readonly string SecureChannelId;
