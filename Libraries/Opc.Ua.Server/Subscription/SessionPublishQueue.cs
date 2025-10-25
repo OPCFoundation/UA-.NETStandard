@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SessionPublishQueue>();
             m_session = session ?? throw new ArgumentNullException(nameof(session));
-            m_queuedRequests = new Queue<QueuedPublishRequest>();
+            m_queuedRequests = new LinkedList<QueuedPublishRequest>();
             m_readyToPublish = new Queue<ISubscription>();
             m_queuedSubscriptions = [];
             m_maxRequestCount = maxPublishRequests;
@@ -74,7 +74,8 @@ namespace Opc.Ua.Server
                 {
                     while (m_queuedRequests.Count > 0)
                     {
-                        QueuedPublishRequest request = m_queuedRequests.Dequeue();
+                        QueuedPublishRequest request = m_queuedRequests.First.Value;
+                        m_queuedRequests.RemoveFirst();
 
                         try
                         {
@@ -95,7 +96,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Waits for a subscription to be ready to publish.
         /// </summary>
-        public Task<ISubscription> PublishAsync(string secureChannelId, DateTime operationTimeout, CancellationToken cancellationToken)
+        public Task<ISubscription> PublishAsync(string secureChannelId,
+                                                DateTime operationTimeout,
+                                                bool requeue,
+                                                CancellationToken cancellationToken)
         {
             lock (m_lock)
             {
@@ -104,13 +108,6 @@ namespace Opc.Ua.Server
                 {
                     ISubscription subscription = m_readyToPublish.Dequeue();
                     return Task.FromResult(subscription);
-                }
-
-                // check for pending status message.
-                if (m_customStatusToReturn != null)
-                {
-                    return Task.FromException<ISubscription>(
-                        new ServiceResultException(m_customStatusToReturn.Value));
                 }
 
                 // check if queue is full.
@@ -122,7 +119,16 @@ namespace Opc.Ua.Server
 
                 // add to queue.
                 var request = new QueuedPublishRequest(secureChannelId, operationTimeout, cancellationToken);
-                m_queuedRequests.Enqueue(request);
+
+                if (requeue)
+                {
+                    m_queuedRequests.AddFirst(request);
+                }
+                else
+                {
+                    m_queuedRequests.AddLast(request);
+                }
+
                 return request.Tcs.Task;
             }
         }
@@ -140,7 +146,8 @@ namespace Opc.Ua.Server
                 // set any waiting publish requests to Status BadSessionClosed.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.Dequeue();
+                    QueuedPublishRequest request = m_queuedRequests.First.Value;
+                    m_queuedRequests.RemoveFirst();
                     request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSessionClosed));
                     request.Dispose();
                 }
@@ -226,7 +233,8 @@ namespace Opc.Ua.Server
                 {
                     while (m_queuedRequests.Count > 0)
                     {
-                        QueuedPublishRequest request = m_queuedRequests.Dequeue();
+                        QueuedPublishRequest request = m_queuedRequests.First.Value;
+                        m_queuedRequests.RemoveFirst();
                         request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadNoSubscription));
                         request.Dispose();
                     }
@@ -242,22 +250,19 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                while (m_queuedRequests.Count > 0)
+                if (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.Dequeue();
-
+                    QueuedPublishRequest request = m_queuedRequests.Last.Value;
                     if (request.Tcs.Task.IsCompleted)
                     {
                         request.Dispose();
-                        continue;
+                        return false;
                     }
 
                     request.Tcs.TrySetException(new ServiceResultException(statusCode));
                     request.Dispose();
                     return true;
                 }
-
-                m_customStatusToReturn = statusCode;
                 return false;
             }
         }
@@ -477,7 +482,8 @@ namespace Opc.Ua.Server
                 // find a request.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.Dequeue();
+                    QueuedPublishRequest request = m_queuedRequests.First.Value;
+                    m_queuedRequests.RemoveFirst();
 
                     if (request.Tcs.Task.IsCompleted)
                     {
@@ -628,11 +634,10 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
-        private readonly Queue<QueuedPublishRequest> m_queuedRequests;
+        private readonly LinkedList<QueuedPublishRequest> m_queuedRequests;
         private readonly Queue<ISubscription> m_readyToPublish;
         private List<QueuedSubscription> m_queuedSubscriptions;
         private readonly int m_maxRequestCount;
-        private StatusCode? m_customStatusToReturn;
         private bool m_subscriptionsWaiting;
     }
 }

@@ -991,7 +991,6 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             // get publish queue for session.
-            // get publish queue for session.
             if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue queue))
             {
                 if (m_subscriptions.IsEmpty)
@@ -1035,12 +1034,15 @@ namespace Opc.Ua.Server
                     };
                 }
 
-                while (!cancellationToken.IsCancellationRequested)
+                bool requeue = false;
+
+                do
                 {
                     // blocks until a subscription is available or timeout expires.
                     ISubscription subscription = await queue.PublishAsync(
                         context.ChannelContext.SecureChannelId,
                         context.OperationDeadline,
+                        requeue,
                         cancellationToken).ConfigureAwait(false);
 
                     // check for pending status message that may have arrived while waiting.
@@ -1082,7 +1084,7 @@ namespace Opc.Ua.Server
                             };
                         }
 
-                        queue.Requeue(subscription);
+                        requeue = true;
                         m_logger.LogTrace(
                             "Publish False Alarm - Request #{ClientHandle} Requeued.",
                             context.ClientHandle);
@@ -1091,7 +1093,7 @@ namespace Opc.Ua.Server
                     {
                         queue.PublishCompleted(subscription, moreNotifications);
                     }
-                }
+                } while (requeue && !cancellationToken.IsCancellationRequested);
 
                 throw new ServiceResultException(StatusCodes.BadTimeout);
             }
