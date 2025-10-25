@@ -103,11 +103,32 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // find the waiting subscription with the highest priority.
+                QueuedSubscription subscriptionToPublish = GetSubscriptionToPublish();
+
                 // check if a subscription is already waiting.
-                if (m_readyToPublish.Count > 0)
+                if (subscriptionToPublish != null)
                 {
-                    ISubscription subscription = m_readyToPublish.Dequeue();
-                    return Task.FromResult(subscription);
+                    // reset subscriptions waiting flag.
+                    m_subscriptionsWaiting = false;
+                    for (int jj = 0; jj < m_queuedSubscriptions.Count; jj++)
+                    {
+                        if (m_queuedSubscriptions[jj].ReadyToPublish)
+                        {
+                            m_subscriptionsWaiting = true;
+                            break;
+                        }
+                    }
+
+                    subscriptionToPublish.Publishing = true;
+                    return Task.FromResult(subscriptionToPublish.Subscription);
+                }
+
+                // check for pending status message.
+                if (m_customStatusToReturn != null)
+                {
+                    return Task.FromException<ISubscription>(
+                        new ServiceResultException(m_customStatusToReturn.Value));
                 }
 
                 // check if queue is full.
@@ -263,6 +284,8 @@ namespace Opc.Ua.Server
                     request.Dispose();
                     return true;
                 }
+
+                m_customStatusToReturn = statusCode;
                 return false;
             }
         }
@@ -518,6 +541,54 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Selects a subscription to publish based on priority and timestamp.
+        /// </summary>
+        private QueuedSubscription GetSubscriptionToPublish()
+        {
+            var availableSubscriptions = new List<QueuedSubscription>();
+
+            for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
+            {
+                QueuedSubscription subscription = m_queuedSubscriptions[ii];
+
+                if (subscription.ReadyToPublish && !subscription.Publishing)
+                {
+                    availableSubscriptions.Add(subscription);
+                }
+            }
+
+            // find the subscription that has been waiting the longest.
+            if (availableSubscriptions.Count > 0)
+            {
+                byte maxPriority = 0;
+                DateTime earliestTimestamp = DateTime.MaxValue;
+                QueuedSubscription subscriptionToPublish = null;
+
+                for (int ii = 0; ii < availableSubscriptions.Count; ii++)
+                {
+                    QueuedSubscription subscription = availableSubscriptions[ii];
+                    byte priority = subscription.Subscription.Priority;
+
+                    if (priority > maxPriority)
+                    {
+                        maxPriority = priority;
+                        earliestTimestamp = DateTime.MaxValue;
+                    }
+
+                    if (priority >= maxPriority && earliestTimestamp > subscription.Timestamp)
+                    {
+                        earliestTimestamp = subscription.Timestamp;
+                        subscriptionToPublish = subscription;
+                    }
+                }
+
+                return subscriptionToPublish;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// A request queued while waiting for a subscription to be ready to publish.
         /// </summary>
         private sealed class QueuedPublishRequest : IDisposable
@@ -638,6 +709,7 @@ namespace Opc.Ua.Server
         private readonly Queue<ISubscription> m_readyToPublish;
         private List<QueuedSubscription> m_queuedSubscriptions;
         private readonly int m_maxRequestCount;
+        private StatusCode? m_customStatusToReturn;
         private bool m_subscriptionsWaiting;
     }
 }
