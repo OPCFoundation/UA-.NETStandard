@@ -322,12 +322,15 @@ namespace Opc.Ua.Server
         /// </summary>
         public ISubscriptionStore SubscriptionStore { get; private set; }
 
+        /// <inheritdoc/>
+        public ITelemetryContext Telemetry => MessageContext.Telemetry;
+
         /// <summary>
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>
         [Obsolete("No longer thread safe. To read the value use CurrentState, to write use UpdateServerStatus.")]
-        public ServerStatusValue Status { get; private set; }
+        public ServerStatusValue Status => NonThreadSafeStatus;
 
         /// <summary>
         /// Gets or sets the current state of the server.
@@ -337,21 +340,17 @@ namespace Opc.Ua.Server
         {
             get
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                lock (Status.Lock)
+                lock (NonThreadSafeStatus.Lock)
                 {
-                    return Status.Value.State;
+                    return NonThreadSafeStatus.Value.State;
                 }
-#pragma warning restore CS0618 // Type or member is obsolete
             }
             set
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                lock (Status.Lock)
+                lock (NonThreadSafeStatus.Lock)
                 {
-                    Status.Value.State = value;
+                    NonThreadSafeStatus.Value.State = value;
                 }
-#pragma warning restore CS0618 // Type or member is obsolete
             }
         }
 
@@ -402,28 +401,26 @@ namespace Opc.Ua.Server
         {
             get
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                if (Status == null)
+                if (NonThreadSafeStatus == null)
                 {
                     return false;
                 }
 
-                lock (Status.Lock)
+                lock (NonThreadSafeStatus.Lock)
                 {
-                    if (Status.Value.State == ServerState.Running)
+                    if (NonThreadSafeStatus.Value.State == ServerState.Running)
                     {
                         return true;
                     }
 
-                    if (Status.Value.State == ServerState.Shutdown &&
-                        Status.Value.SecondsTillShutdown > 0)
+                    if (NonThreadSafeStatus.Value.State == ServerState.Shutdown &&
+                        NonThreadSafeStatus.Value.SecondsTillShutdown > 0)
                     {
                         return true;
                     }
 
                     return false;
                 }
-#pragma warning restore CS0618 // Type or member is obsolete
             }
         }
 
@@ -443,6 +440,11 @@ namespace Opc.Ua.Server
                 return DiagnosticsNodeManager.DiagnosticsEnabled;
             }
         }
+
+        /// <summary>
+        /// Status but non thread safe - internal so not part of public api
+        /// </summary>
+        internal ServerStatusValue NonThreadSafeStatus { get; private set; }
 
         /// <summary>
         /// Closes the specified session.
@@ -530,11 +532,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(action));
             }
 
-            lock (DiagnosticsLock)
+            lock (DiagnosticsLock) // TODO: Should this not take the status lock?
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                action.Invoke(Status);
-#pragma warning restore CS0618 // Type or member is obsolete
+                action.Invoke(NonThreadSafeStatus);
             }
         }
 
@@ -715,8 +715,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerStatus.MinimumSamplingInterval = 1000;
                 serverObject.ServerStatus.CurrentTime.MinimumSamplingInterval = 1000;
 
-#pragma warning disable CS0618 // Type or member is obsolete
-                Status = new ServerStatusValue(
+                NonThreadSafeStatus = new ServerStatusValue(
                     serverObject.ServerStatus,
                     serverStatus,
                     DiagnosticsLock)
@@ -724,7 +723,6 @@ namespace Opc.Ua.Server
                     Timestamp = DateTime.UtcNow,
                     OnBeforeRead = OnReadServerStatus
                 };
-#pragma warning restore CS0618 // Type or member is obsolete
 
                 // initialize diagnostics.
                 ServerDiagnostics = new ServerDiagnosticsSummaryDataType
@@ -757,6 +755,9 @@ namespace Opc.Ua.Server
                 configurationNodeManager?.CreateServerConfiguration(
                     DefaultSystemContext,
                     m_configuration);
+
+                // Initialize history capabilities and update Server EventNotifier accordingly
+                DiagnosticsNodeManager.UpdateServerEventNotifier();
 
                 Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
                 PropertyState<bool> auditing = serverObject.Auditing;
@@ -797,12 +798,8 @@ namespace Opc.Ua.Server
             lock (DiagnosticsLock)
             {
                 DateTime now = DateTime.UtcNow;
-#pragma warning disable CS0618 // Type or member is obsolete
-                Status.Timestamp = now;
-#pragma warning restore CS0618 // Type or member is obsolete
-#pragma warning disable CS0618 // Type or member is obsolete
-                Status.Value.CurrentTime = now;
-#pragma warning restore CS0618 // Type or member is obsolete
+                NonThreadSafeStatus.Timestamp = now;
+                NonThreadSafeStatus.Value.CurrentTime = now;
 
                 // update other timestamps in NodeState objects which are used to derive the source timestamp
                 if (variable is ServerStatusValue serverStatusValue &&

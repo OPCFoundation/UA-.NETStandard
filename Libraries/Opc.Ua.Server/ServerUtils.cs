@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -303,7 +304,8 @@ namespace Opc.Ua.Server
             uint code,
             OperationContext context,
             DiagnosticInfoCollection diagnosticInfos,
-            int index)
+            int index,
+            ILogger logger)
         {
             var error = new ServiceResult(code);
 
@@ -313,7 +315,8 @@ namespace Opc.Ua.Server
                     error,
                     context.DiagnosticsMask,
                     false,
-                    context.StringTable);
+                    context.StringTable,
+                    logger);
             }
 
             return error.Code;
@@ -326,7 +329,8 @@ namespace Opc.Ua.Server
             uint code,
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
-            OperationContext context)
+            OperationContext context,
+            ILogger logger)
         {
             var error = new ServiceResult(code);
             results.Add(error.Code);
@@ -334,7 +338,7 @@ namespace Opc.Ua.Server
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfos.Add(
-                    new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable));
+                    new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable, logger));
                 return true;
             }
 
@@ -349,7 +353,8 @@ namespace Opc.Ua.Server
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
             int index,
-            OperationContext context)
+            OperationContext context,
+            ILogger logger)
         {
             var error = new ServiceResult(code);
             results[index] = error.Code;
@@ -360,7 +365,8 @@ namespace Opc.Ua.Server
                     error,
                     context.DiagnosticsMask,
                     false,
-                    context.StringTable);
+                    context.StringTable,
+                    logger);
                 return true;
             }
 
@@ -388,7 +394,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public static DiagnosticInfoCollection CreateDiagnosticInfoCollection(
             OperationContext context,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors,
+            ILogger logger)
         {
             // all done if no diagnostics requested.
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) == 0)
@@ -407,7 +414,8 @@ namespace Opc.Ua.Server
                         error,
                         context.DiagnosticsMask,
                         false,
-                        context.StringTable));
+                        context.StringTable,
+                        logger));
                 }
                 else
                 {
@@ -424,7 +432,8 @@ namespace Opc.Ua.Server
         public static StatusCodeCollection CreateStatusCodeCollection(
             OperationContext context,
             IList<ServiceResult> errors,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos,
+            ILogger logger)
         {
             diagnosticInfos = null;
 
@@ -447,7 +456,7 @@ namespace Opc.Ua.Server
             // only generate diagnostics if errors exist.
             if (noErrors)
             {
-                diagnosticInfos = CreateDiagnosticInfoCollection(context, errors);
+                diagnosticInfos = CreateDiagnosticInfoCollection(context, errors, logger);
             }
 
             return results;
@@ -456,14 +465,28 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the diagnostic info and translates any strings.
         /// </summary>
-        /// <param name="server">The server.</param>
-        /// <param name="context">The context containing the string stable.</param>
-        /// <param name="error">The error to translate.</param>
-        /// <returns>The diagnostics with references to the strings in the context string table.</returns>
+        [Obsolete("Use CreateDiagnosticInfo with ILogger")]
         public static DiagnosticInfo CreateDiagnosticInfo(
             IServerInternal server,
             OperationContext context,
             ServiceResult error)
+        {
+            return CreateDiagnosticInfo(server, context, error, Utils.Fallback.Logger);
+        }
+
+        /// <summary>
+        /// Creates the diagnostic info and translates any strings.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="context">The context containing the string stable.</param>
+        /// <param name="error">The error to translate.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <returns>The diagnostics with references to the strings in the context string table.</returns>
+        public static DiagnosticInfo CreateDiagnosticInfo(
+            IServerInternal server,
+            OperationContext context,
+            ServiceResult error,
+            ILogger logger)
         {
             if (error == null)
             {
@@ -481,7 +504,8 @@ namespace Opc.Ua.Server
                 translatedError,
                 context.DiagnosticsMask,
                 false,
-                context.StringTable);
+                context.StringTable,
+                logger);
         }
     }
 }

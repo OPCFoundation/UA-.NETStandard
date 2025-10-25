@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
@@ -18,8 +18,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateSingleLanguageExactMatch()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             var defaultText = new LocalizedText("en-US", "Hello");
 
             //Act
@@ -32,8 +34,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateSingleLanguageWithInfoExactMatch()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -46,8 +50,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateSingleLanguageWithArguments()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 
             //Act
@@ -65,8 +71,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateMultiLanguageExactMatchMulRequested()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             var translations = new Dictionary<string, string> {
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" } };
@@ -84,8 +92,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateMultiLanguageMulRequested()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             var translations = new Dictionary<string, string>
             {
                 { "en-US", "Hello" },
@@ -109,8 +119,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateSingleLanguageMulRequested()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -125,8 +137,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateNoLocalesRequestedDefaultTextReturned()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -139,8 +153,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateSingleLanguageMulRequestedWithTranslation()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "fr-FR", "Bonjour");
@@ -160,8 +176,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateKeyMulRequestedWithTranslation()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "en-US", "Hello");
 
@@ -181,8 +199,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateKeyMulRequestedAllLanguagesWithTranslation()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "en-US", "Hello");
 
@@ -199,8 +219,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateKeyMulRequestedTranslationWithParameters()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
             resourceManager.Add("greeting", "de-DE", "Hallo {0}");
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 

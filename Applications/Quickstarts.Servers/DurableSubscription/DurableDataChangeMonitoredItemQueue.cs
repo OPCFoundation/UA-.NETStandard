@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -50,10 +51,12 @@ namespace Quickstarts.Servers
         public DurableDataChangeMonitoredItemQueue(
             bool createDurable,
             uint monitoredItemId,
-            IBatchPersistor batchPersistor)
+            IBatchPersistor batchPersistor,
+            ITelemetryContext telemetry)
         {
             IsDurable = createDurable;
             MonitoredItemId = monitoredItemId;
+            m_logger = telemetry.CreateLogger<DurableDataChangeMonitoredItemQueue>();
             m_batchPersistor = batchPersistor;
             m_enqueueBatch = new DataChangeBatch([], kBatchSize, monitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
@@ -155,7 +158,7 @@ namespace Quickstarts.Servers
                 // persist the batch
                 else
                 {
-                    Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", MonitoredItemId);
+                    m_logger.LogDebug("Storing batch for monitored item {MonitoredItemId}", MonitoredItemId);
 
                     var batchToStore = new DataChangeBatch(
                         m_enqueueBatch.Values,
@@ -248,15 +251,15 @@ namespace Quickstarts.Servers
 
             if (m_dequeueBatch.IsPersisted)
             {
-                Opc.Ua.Utils.LogDebug(
-                    "Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.",
+                m_logger.LogDebug(
+                    "Dequeue was requeusted but queue was not restored for monitoreditem {MonitoredItemId} try to restore for 10 ms.",
                     MonitoredItemId);
                 m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
 
                 if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
                 {
-                    Opc.Ua.Utils.LogDebug(
-                        "Dequeue failed for monitoreditem {0} as queue could not be restored in time.",
+                    m_logger.LogDebug(
+                        "Dequeue failed for monitoreditem {MonitoredItemId} as queue could not be restored in time.",
                         MonitoredItemId);
                     // Dequeue failed as queue could not be restored in time
                     return false;
@@ -338,6 +341,7 @@ namespace Quickstarts.Servers
         private DataChangeBatch m_dequeueBatch;
         private bool m_queueErrors;
         private readonly IBatchPersistor m_batchPersistor;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

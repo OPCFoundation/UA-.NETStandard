@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC;NET_STANDARD_OBSOLETE_SYNC;OPCUA_INCLUDE_ASYNC; OPCUA_EXCLUDE_FindServers_ASYNC; OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC; OPCUA_EXCLUDE_GetEndpoints_ASYNC; OPCUA_EXCLUDE_CreateSession_ASYNC; OPCUA_EXCLUDE_ActivateSession_ASYNC; OPCUA_EXCLUDE_CloseSession_ASYNC; OPCUA_EXCLUDE_Cancel_ASYNC; OPCUA_EXCLUDE_AddNodes_ASYNC; OPCUA_EXCLUDE_AddReferences_ASYNC; OPCUA_EXCLUDE_DeleteNodes_ASYNC; OPCUA_EXCLUDE_DeleteReferences_ASYNC; OPCUA_EXCLUDE_RegisterNodes_ASYNC; OPCUA_EXCLUDE_UnregisterNodes_ASYNC; OPCUA_EXCLUDE_QueryFirst_ASYNC; OPCUA_EXCLUDE_QueryNext_ASYNC; OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC; OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC; OPCUA_EXCLUDE_SetMonitoringMode_ASYNC; OPCUA_EXCLUDE_SetTriggering_ASYNC; OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC; OPCUA_EXCLUDE_CreateSubscription_ASYNC; OPCUA_EXCLUDE_ModifySubscription_ASYNC; OPCUA_EXCLUDE_SetPublishingMode_ASYNC; OPCUA_EXCLUDE_Publish_ASYNC; OPCUA_EXCLUDE_Republish_ASYNC; OPCUA_EXCLUDE_TransferSubscriptions_ASYNC; OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC; OPCUA_EXCLUDE_RegisterServer_ASYNC; OPCUA_EXCLUDE_RegisterServer2_ASYNC</DefineConstants>
+    <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC;NET_STANDARD_OBSOLETE_SYNC;NET_STANDARD_OBSOLETE_APM</DefineConstants>
+    <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC; OPCUA_EXCLUDE_FindServers_ASYNC; OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC; OPCUA_EXCLUDE_GetEndpoints_ASYNC; OPCUA_EXCLUDE_CreateSession_ASYNC; OPCUA_EXCLUDE_ActivateSession_ASYNC; OPCUA_EXCLUDE_CloseSession_ASYNC; OPCUA_EXCLUDE_Cancel_ASYNC; OPCUA_EXCLUDE_AddNodes_ASYNC; OPCUA_EXCLUDE_AddReferences_ASYNC; OPCUA_EXCLUDE_DeleteNodes_ASYNC; OPCUA_EXCLUDE_DeleteReferences_ASYNC; OPCUA_EXCLUDE_RegisterNodes_ASYNC; OPCUA_EXCLUDE_UnregisterNodes_ASYNC; OPCUA_EXCLUDE_QueryFirst_ASYNC; OPCUA_EXCLUDE_QueryNext_ASYNC; OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC; OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC; OPCUA_EXCLUDE_SetMonitoringMode_ASYNC; OPCUA_EXCLUDE_SetTriggering_ASYNC; OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC; OPCUA_EXCLUDE_CreateSubscription_ASYNC; OPCUA_EXCLUDE_ModifySubscription_ASYNC; OPCUA_EXCLUDE_SetPublishingMode_ASYNC; OPCUA_EXCLUDE_Publish_ASYNC; OPCUA_EXCLUDE_Republish_ASYNC; OPCUA_EXCLUDE_TransferSubscriptions_ASYNC; OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC; OPCUA_EXCLUDE_RegisterServer_ASYNC; OPCUA_EXCLUDE_RegisterServer2_ASYNC</DefineConstants>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
     <AssemblyName>$(AssemblyPrefix).Core</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Core</PackageId>
@@ -11,16 +12,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <!-- select ECC support -->
-  <Choose>
-    <When
-      Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"
-    ></When>
-    <Otherwise>
-      <PropertyGroup>
-        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
+  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
@@ -45,43 +39,14 @@
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
     <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
-  <Choose>
-    <!-- Note: Due to incompatibilities of Microsoft.Extensions Nuget packages between versions 3.x and 7.0,
-         use latest versions only on .NET 5/6/7/8, otherwise 3.1.x -->
-    <When Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'netstandard2.1'">
-      <ItemGroup>
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-      </ItemGroup>
-    </When>
-    <When Condition="'$(TargetFramework)' == 'net8.0'">
-      <ItemGroup>
-        <PackageReference
-          Include="Microsoft.Extensions.Logging.Abstractions"
-          VersionOverride="8.0.2"
-        />
-      </ItemGroup>
-    </When>
-    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
-      <ItemGroup>
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-      </ItemGroup>
-    </When>
-    <Otherwise>
-      <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" />
-      </ItemGroup>
-    </Otherwise>
-  </Choose>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
     <PackageReference Include="Microsoft.Bcl.HashCode" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net462'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
@@ -102,19 +67,10 @@
     <EmbeddedResource Include="$(ZipNodeSet2XML)" Link="$(NodeSet2XML).zip" />
   </ItemGroup>
   <!-- Zip the NodeSet2 file -->
-  <Target
-    Name="ZipNodeSet2"
-    BeforeTargets="PrepareForBuild"
-    Inputs="$(NodeSet2XML)"
-    Outputs="$(ZipNodeSet2XML)"
-  >
+  <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(NodeSet2XML)" Outputs="$(ZipNodeSet2XML)">
     <Message Text="Zip $(NodeSet2XML) in $(ZipNodeSet2XML)." Importance="high" />
     <Copy SourceFiles="$(NodeSet2XML)" DestinationFolder="$(ZipTmp)" />
-    <ZipDirectory
-      SourceDirectory="$(ZipTmp)"
-      DestinationFile="$(ZipNodeSet2XML)"
-      Overwrite="true"
-    />
+    <ZipDirectory SourceDirectory="$(ZipTmp)" DestinationFile="$(ZipNodeSet2XML)" Overwrite="true" />
     <RemoveDir Directories="$(ZipTmp)" />
     <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
   </Target>

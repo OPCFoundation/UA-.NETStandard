@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -53,10 +54,9 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <exception cref="ErrorExitException"></exception>
         public static async Task Main(string[] args)
         {
-            TextWriter output = Console.Out;
-            output.WriteLine("OPC UA Console Reference Client");
+            Console.WriteLine("OPC UA Console Reference Client");
 
-            output.WriteLine(
+            Console.WriteLine(
                 "OPC UA library: {0} @ {1} -- {2}",
                 Utils.GetAssemblyBuildNumber(),
                 Utils.GetAssemblyTimestamp().ToString("G", CultureInfo.InvariantCulture),
@@ -72,9 +72,9 @@ namespace Quickstarts.ConsoleReferenceClient
             bool showHelp = false;
             bool autoAccept = false;
             string username = null;
-            string userpassword = null;
+            byte[] userpassword = null;
             string userCertificateThumbprint = null;
-            string userCertificatePassword = null;
+            byte[] userCertificatePassword = null;
             bool logConsole = false;
             bool appLog = false;
             bool renewCertificate = false;
@@ -86,7 +86,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool verbose = false;
             bool subscribe = false;
             bool noSecurity = false;
-            string password = null;
+            byte[] pfxPassword = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
             string reverseConnectUrlString = null;
@@ -114,7 +114,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 {
                     "up|userpassword=",
                     "the password of the user identity for the connection",
-                    u => userpassword = u },
+                    u => userpassword = Encoding.UTF8.GetBytes(u) },
                 {
                     "uc|usercertificate=",
                     "the thumbprint of the user certificate for the user identity",
@@ -122,12 +122,16 @@ namespace Quickstarts.ConsoleReferenceClient
                 },
                 {
                     "ucp|usercertificatepassword=",
-                    "the password of the  user certificate for the user identity",
-                    u => userCertificatePassword = u
+                    "the password of the user certificate for the user identity",
+                    u => userCertificatePassword = Encoding.UTF8.GetBytes(u)
                 },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
-                { "p|password=", "optional password for private key", p => password = p },
+                {
+                    "p|password=",
+                    "optional password for private key",
+                    p => pfxPassword = Encoding.UTF8.GetBytes(p)
+                },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 {
                     "t|timeout=",
@@ -262,12 +266,12 @@ namespace Quickstarts.ConsoleReferenceClient
             };
 
             ReverseConnectManager reverseConnectManager = null;
-
+            using var telemetry = new ConsoleTelemetry();
+            ILogger logger = Utils.Null.Logger;
             try
             {
                 // parse command line and set options
                 string extraArg = ConsoleUtils.ProcessCommandLine(
-                    output,
                     args,
                     options,
                     ref showHelp,
@@ -285,13 +289,13 @@ namespace Quickstarts.ConsoleReferenceClient
                 // log console output to logger
                 if (logConsole && appLog)
                 {
-                    output = new LogWriter();
+                    logger = telemetry.CreateLogger("Main");
                 }
 
                 // Define the UA Client application
-                ApplicationInstance.MessageDlg = new ApplicationMessageDlg(output);
-                var passwordProvider = new CertificatePasswordProvider(password);
-                var application = new ApplicationInstance
+                ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+                var passwordProvider = new CertificatePasswordProvider(pfxPassword);
+                var application = new ApplicationInstance(telemetry)
                 {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Client,
@@ -315,11 +319,13 @@ namespace Quickstarts.ConsoleReferenceClient
                         StringComparison.Ordinal
                     );
                     config.TraceConfiguration.DeleteOnLoad = true;
+#pragma warning disable CS0618 // Type or member is obsolete
                     config.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
 
                 // setup the logging
-                ConsoleUtils.ConfigureLogging(
+                telemetry.ConfigureLogging(
                     config,
                     applicationName,
                     logConsole,
@@ -347,18 +353,70 @@ namespace Quickstarts.ConsoleReferenceClient
                 if (reverseConnectUrlString != null)
                 {
                     // start the reverse connection manager
-                    output.WriteLine(
-                        "Create reverse connection endpoint at {0}.",
+                    logger.LogInformation(
+                        "Create reverse connection endpoint at {Url}.",
                         reverseConnectUrlString);
-                    reverseConnectManager = new ReverseConnectManager();
+                    reverseConnectManager = new ReverseConnectManager(telemetry);
                     reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
                     reverseConnectManager.StartService(config);
                 }
 
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
-                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
                 CancellationToken ct = quitCTS.Token;
+                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                var userIdentity = new UserIdentity();
+
+                // set user identity of type username/pw
+                if (!string.IsNullOrEmpty(username))
+                {
+                    if (userpassword == null)
+                    {
+                        logger.LogInformation(
+                            "No password provided for user {Username}, using empty password.",
+                            username);
+                    }
+
+                    userIdentity = new UserIdentity(username, userpassword ?? ""u8);
+                    logger.LogInformation(
+                        "Connect with user identity for user {Username}",
+                        username);
+                }
+
+                // set user identity of type certificate
+                if (!string.IsNullOrEmpty(userCertificateThumbprint))
+                {
+                    CertificateIdentifier userCertificateIdentifier
+                            = await FindUserCertificateIdentifierAsync(
+                                userCertificateThumbprint,
+                                application.ApplicationConfiguration.SecurityConfiguration
+                                    .TrustedUserCertificates,
+                                telemetry,
+                                ct
+                            )
+                            .ConfigureAwait(true);
+
+                    if (userCertificateIdentifier != null)
+                    {
+                        userIdentity = UserIdentity.CreateAsync(
+                            userCertificateIdentifier,
+                            new CertificatePasswordProvider(userCertificatePassword),
+                            telemetry,
+                            ct
+                        ).GetAwaiter().GetResult();
+
+                        logger.LogInformation(
+                            "Connect with user certificate with Thumbprint {UserCertificateThumbprint}",
+                            userCertificateThumbprint);
+                    }
+                    else
+                    {
+                        logger.LogInformation(
+                            "Failed to load user certificate with Thumbprint {UserCertificateThumbprint}",
+                            userCertificateThumbprint);
+                    }
+                }
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -389,48 +447,14 @@ namespace Quickstarts.ConsoleReferenceClient
                     using var uaClient = new UAClient(
                         application.ApplicationConfiguration,
                         reverseConnectManager,
-                        output,
+                        telemetry,
                         ClientBase.ValidateResponse
                     )
                     {
                         AutoAccept = autoAccept,
-                        SessionLifeTime = 60_000
+                        SessionLifeTime = 60_000,
+                        UserIdentity = userIdentity
                     };
-                    // set user identity of type username/pw
-                    if (!string.IsNullOrEmpty(username))
-                    {
-                        uaClient.UserIdentity = new UserIdentity(
-                            username,
-                            userpassword ?? string.Empty);
-                    }
-
-                    // set user identity of type certificate
-                    if (!string.IsNullOrEmpty(userCertificateThumbprint))
-                    {
-                        CertificateIdentifier userCertificateIdentifier
-                            = await FindUserCertificateIdentifierAsync(
-                                userCertificateThumbprint,
-                                application.ApplicationConfiguration.SecurityConfiguration
-                                    .TrustedUserCertificates,
-                                ct: ct
-                            )
-                            .ConfigureAwait(true);
-
-                        if (userCertificateIdentifier != null)
-                        {
-                            uaClient.UserIdentity = new UserIdentity(
-                                userCertificateIdentifier,
-                                new CertificatePasswordProvider(
-                                    userCertificatePassword ?? string.Empty)
-                            );
-                        }
-                        else
-                        {
-                            output.WriteLine(
-                                $"Failed to load user certificate with Thumbprint {userCertificateThumbprint}"
-                            );
-                        }
-                    }
 
                     if (enableDurableSubscriptions)
                     {
@@ -442,7 +466,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         .ConfigureAwait(false);
                     if (connected)
                     {
-                        output.WriteLine("Connected! Ctrl-C to quit.");
+                        logger.LogInformation("Connected! Ctrl-C to quit.");
 
                         // enable subscription transfer
                         uaClient.ReconnectPeriod = 1000;
@@ -450,7 +474,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         uaClient.Session.MinPublishRequestCount = 3;
                         uaClient.Session.TransferSubscriptionsOnReconnect = true;
                         var samples = new ClientSamples(
-                            output,
+                            telemetry,
                             ClientBase.ValidateResponse,
                             quitEvent,
                             verbose);
@@ -472,7 +496,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             if (browseall)
                             {
-                                output.WriteLine("Browse the full address space.");
+                                logger.LogInformation("Browse the full address space.");
                                 referenceDescriptions = await samples
                                     .BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder, ct: ct)
                                     .ConfigureAwait(false);
@@ -491,7 +515,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             if (managedbrowseall)
                             {
-                                output.WriteLine("ManagedBrowse the full address space.");
+                                logger.LogInformation("ManagedBrowse the full address space.");
                                 referenceDescriptionsFromManagedBrowse = await samples
                                     .ManagedBrowseFullAddressSpaceAsync(
                                         uaClient,
@@ -601,8 +625,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                     .ConfigureAwait(false);
 
                                 // Wait for DataChange notifications from MonitoredItems
-                                output.WriteLine(
-                                    "Subscribed to {0} variables. Press Ctrl-C to exit.",
+                                logger.LogInformation(
+                                    "Subscribed to {Count} variables. Press Ctrl-C to exit.",
                                     maxVariables);
 
                                 // free unused memory
@@ -625,18 +649,17 @@ namespace Quickstarts.ConsoleReferenceClient
                                                 .Session.ReadValueAsync(
                                                     variableIterator.Current.NodeId, ct)
                                                 .ConfigureAwait(false);
-                                            output.WriteLine(
-                                                "Value of {0} is {1}",
+                                            logger.LogInformation(
+                                                "Value of {NodeId} is {Value}",
                                                 variableIterator.Current.NodeId,
                                                 value
                                             );
                                         }
                                         catch (Exception ex)
                                         {
-                                            output.WriteLine(
-                                                "Error reading value of {0}: {1}",
-                                                variableIterator.Current.NodeId,
-                                                ex.Message
+                                            logger.LogInformation(ex,
+                                                "Error reading value of {NodeId}",
+                                                variableIterator.Current.NodeId
                                             );
                                         }
                                     }
@@ -685,7 +708,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 enableDurableSubscriptions,
                                 ct).ConfigureAwait(false);
 
-                            output.WriteLine("Waiting...");
+                            logger.LogInformation("Waiting...");
 
                             // Wait for some DataChange notifications from MonitoredItems
                             int waitCounters = 0;
@@ -703,8 +726,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                     if (waitCounters == closeSessionTime &&
                                         uaClient.Session.SubscriptionCount == 1)
                                     {
-                                        output.WriteLine(
-                                            "Closing Session at " +
+                                        logger.LogInformation(
+                                            "Closing Session (CurrentTime: {Time})",
                                             DateTime.Now.ToLongTimeString());
                                         await uaClient.Session.CloseAsync(closeChannel: false, ct: ct)
                                             .ConfigureAwait(false);
@@ -712,7 +735,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                     if (waitCounters == restartSessionTime)
                                     {
-                                        output.WriteLine("Restarting Session at " +
+                                        logger.LogInformation("Restarting Session (CurrentTime: {Time})",
                                             DateTime.Now.ToLongTimeString());
                                         await uaClient
                                             .DurableSubscriptionTransferAsync(
@@ -735,28 +758,27 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                         }
 
-                        output.WriteLine("Client disconnected.");
+                        logger.LogInformation("Client disconnected.");
 
                         await uaClient.DisconnectAsync(leakChannels, ct).ConfigureAwait(false);
                     }
                     else
                     {
-                        output.WriteLine(
+                        logger.LogInformation(
                             "Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
                         quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
                     }
                 } while (!quit);
 
-                output.WriteLine("Client stopped.");
+                logger.LogInformation("Client stopped.");
             }
             catch (Exception ex)
             {
-                output.WriteLine(ex.Message);
+                logger.LogInformation("{Error}", ex.Message);
             }
             finally
             {
                 Utils.SilentDispose(reverseConnectManager);
-                output.Close();
             }
         }
 
@@ -771,21 +793,22 @@ namespace Quickstarts.ConsoleReferenceClient
         private static async Task<CertificateIdentifier> FindUserCertificateIdentifierAsync(
             string thumbprint,
             CertificateTrustList trustedUserCertificates,
-            CancellationToken ct = default
-        )
+            ITelemetryContext telemetry,
+            CancellationToken ct = default)
         {
             CertificateIdentifier userCertificateIdentifier = null;
 
+            X509Certificate2Collection userCertificatesWithMatchingThumbprint =
+                await trustedUserCertificates.GetCertificatesAsync(telemetry, ct).ConfigureAwait(false);
             // get user certificate with matching thumbprint
-            X509Certificate2Collection userCertifiactesWithMatchingThumbprint = (
-                await trustedUserCertificates.GetCertificatesAsync(ct).ConfigureAwait(false)
-            ).Find(X509FindType.FindByThumbprint, thumbprint, false);
+            userCertificatesWithMatchingThumbprint =
+                userCertificatesWithMatchingThumbprint.Find(X509FindType.FindByThumbprint, thumbprint, false);
 
             // create Certificate Identifier
-            if (userCertifiactesWithMatchingThumbprint.Count == 1)
+            if (userCertificatesWithMatchingThumbprint.Count == 1)
             {
                 userCertificateIdentifier = new CertificateIdentifier(
-                    userCertifiactesWithMatchingThumbprint[0])
+                    userCertificatesWithMatchingThumbprint[0])
                 {
                     StorePath = trustedUserCertificates.StorePath,
                     StoreType = trustedUserCertificates.StoreType
@@ -793,6 +816,55 @@ namespace Quickstarts.ConsoleReferenceClient
             }
 
             return userCertificateIdentifier;
+        }
+
+        /// <summary>
+        /// A dialog which asks for user input.
+        /// </summary>
+        public class ApplicationMessageDlg : IApplicationMessageDlg
+        {
+            private readonly TextWriter m_output;
+            private string m_message = string.Empty;
+            private bool m_ask;
+
+            public ApplicationMessageDlg(TextWriter output = null)
+            {
+                m_output = output ?? Console.Out;
+            }
+
+            public override void Message(string text, bool ask)
+            {
+                m_message = text;
+                m_ask = ask;
+            }
+
+            public override async Task<bool> ShowAsync()
+            {
+                if (m_ask)
+                {
+                    var message = new StringBuilder(m_message);
+                    message.Append(" (y/n, default y): ");
+                    m_output.Write(message.ToString());
+
+                    try
+                    {
+                        ConsoleKeyInfo result = Console.ReadKey();
+                        m_output.WriteLine();
+                        return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r')
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // intentionally fall through
+                    }
+                }
+                else
+                {
+                    m_output.WriteLine(m_message);
+                }
+
+                return await Task.FromResult(true).ConfigureAwait(false);
+            }
         }
     }
 }

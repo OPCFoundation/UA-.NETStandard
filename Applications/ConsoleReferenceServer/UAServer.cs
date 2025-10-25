@@ -29,11 +29,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
@@ -49,7 +49,7 @@ namespace Quickstarts
 
         public bool AutoAccept { get; set; }
 
-        public string Password { get; set; }
+        public char[] Password { get; set; }
 
         public ExitCode ExitCode { get; private set; }
 
@@ -58,10 +58,11 @@ namespace Quickstarts
         /// <summary>
         /// Ctor of the server.
         /// </summary>
-        /// <param name="writer">The text output.</param>
-        public UAServer(TextWriter writer)
+        /// <param name="telemetry">The telemetry context.</param>
+        public UAServer(ITelemetryContext telemetry)
         {
-            m_output = writer;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<UAServer<T>>();
         }
 
         /// <summary>
@@ -74,9 +75,9 @@ namespace Quickstarts
             {
                 ExitCode = ExitCode.ErrorNotStarted;
 
-                ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_output);
+                ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
                 var passwordProvider = new CertificatePasswordProvider(Password);
-                Application = new ApplicationInstance
+                Application = new ApplicationInstance(m_telemetry)
                 {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Server,
@@ -173,7 +174,7 @@ namespace Quickstarts
                 // print endpoint info
                 foreach (string endpoint in Application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct())
                 {
-                    m_output.WriteLine(endpoint);
+                    m_logger.LogInformation("{Endpoint}", endpoint);
                 }
 
                 // start the status thread
@@ -228,16 +229,16 @@ namespace Quickstarts
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept)
             {
-                m_output.WriteLine(
-                    "Accepted Certificate: [{0}] [{1}]",
+                m_logger.LogInformation(
+                    "Accepted Certificate: [{Subject}] [{Thumbprint}]",
                     e.Certificate.Subject,
                     e.Certificate.Thumbprint
                 );
                 e.Accept = true;
                 return;
             }
-            m_output.WriteLine(
-                "Rejected Certificate: {0} [{1}] [{2}]",
+            m_logger.LogInformation(
+                "Rejected Certificate: {Error} [{Subject}] [{Thumbprint}]",
                 e.Error,
                 e.Certificate.Subject,
                 e.Certificate.Thumbprint
@@ -250,41 +251,41 @@ namespace Quickstarts
         private void EventStatus(ISession session, SessionEventReason reason)
         {
             m_lastEventTime = DateTime.UtcNow;
-            PrintSessionStatus(session, reason.ToString());
+            LogSessionStatusFull(session, reason.ToString());
         }
 
         /// <summary>
         /// Output the status of a connected session.
         /// </summary>
-        private void PrintSessionStatus(ISession session, string reason, bool lastContact = false)
+        private void LogSessionStatusLastContact(ISession session, string reason)
         {
-            var item = new StringBuilder();
             lock (session.DiagnosticsLock)
             {
-                item.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "{0,9}:{1,20}:",
+                m_logger.LogInformation(
+                    "{Reason,9}:{Session,20}:Last Event:{LastContactTime:HH:mm:ss}",
                     reason,
-                    session.SessionDiagnostics.SessionName
+                    session.SessionDiagnostics.SessionName,
+                    session.SessionDiagnostics.ClientLastContactTime.ToLocalTime()
                 );
-                if (lastContact)
-                {
-                    item.AppendFormat(
-                        CultureInfo.InvariantCulture,
-                        "Last Event:{0:HH:mm:ss}",
-                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime()
-                    );
-                }
-                else
-                {
-                    if (session.Identity != null)
-                    {
-                        item.AppendFormat(CultureInfo.InvariantCulture, ":{0,20}", session.Identity.DisplayName);
-                    }
-                    item.AppendFormat(CultureInfo.InvariantCulture, ":{0}", session.Id);
-                }
             }
-            m_output.WriteLine(item.ToString());
+        }
+
+        /// <summary>
+        /// Output the status of a connected session.
+        /// </summary>
+        private void LogSessionStatusFull(ISession session, string reason)
+        {
+            lock (session.DiagnosticsLock)
+            {
+                m_logger.LogInformation(
+                    "{Reason,9}:{Session,20}:Last Event:{LastContactTime:HH:mm:ss}:{UserIdentity,20}:{SessionId}",
+                    reason,
+                    session.SessionDiagnostics.SessionName,
+                    session.SessionDiagnostics.ClientLastContactTime.ToLocalTime(),
+                    session.Identity?.DisplayName ?? "Anonymous",
+                    session.Id
+                );
+            }
         }
 
         /// <summary>
@@ -300,7 +301,7 @@ namespace Quickstarts
                     for (int ii = 0; ii < sessions.Count; ii++)
                     {
                         ISession session = sessions[ii];
-                        PrintSessionStatus(session, "-Status-", true);
+                        LogSessionStatusLastContact(session, "-Status-");
                     }
                     m_lastEventTime = DateTime.UtcNow;
                 }
@@ -308,7 +309,57 @@ namespace Quickstarts
             }
         }
 
-        private readonly TextWriter m_output;
+        /// <summary>
+        /// A dialog which asks for user input.
+        /// </summary>
+        public class ApplicationMessageDlg : IApplicationMessageDlg
+        {
+            private readonly TextWriter m_output;
+            private string m_message = string.Empty;
+            private bool m_ask;
+
+            public ApplicationMessageDlg(TextWriter output = null)
+            {
+                m_output = output ?? Console.Out;
+            }
+
+            public override void Message(string text, bool ask)
+            {
+                m_message = text;
+                m_ask = ask;
+            }
+
+            public override async Task<bool> ShowAsync()
+            {
+                if (m_ask)
+                {
+                    var message = new StringBuilder(m_message);
+                    message.Append(" (y/n, default y): ");
+                    m_output.Write(message.ToString());
+
+                    try
+                    {
+                        ConsoleKeyInfo result = Console.ReadKey();
+                        m_output.WriteLine();
+                        return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r')
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // intentionally fall through
+                    }
+                }
+                else
+                {
+                    m_output.WriteLine(m_message);
+                }
+
+                return await Task.FromResult(true).ConfigureAwait(false);
+            }
+        }
+
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private Task m_status;
         private DateTime m_lastEventTime;
     }

@@ -31,12 +31,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
@@ -91,6 +93,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
                 UadpNetworkMessageContentMask.PublisherId |
@@ -120,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -168,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -179,7 +183,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate PublisherId with PublisherId as parameter")]
@@ -227,6 +231,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
                 UadpNetworkMessageContentMask.PublisherId |
@@ -256,7 +262,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -304,7 +310,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -315,7 +321,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate GroupHeader with PublisherId as parameter")]
@@ -340,6 +346,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
                 object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
                 UadpNetworkMessageContentMask.GroupHeader |
@@ -369,7 +377,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -415,7 +423,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -426,7 +434,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate WriterGroupId with PublisherId as parameter")]
@@ -448,6 +456,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const ushort writerGroupId = 1;
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -478,7 +488,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -526,7 +536,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -537,7 +547,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate GroupVersion with PublisherId as parameter")]
@@ -559,6 +569,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const ushort writerGroupId = 1;
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -590,7 +602,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -641,7 +653,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -652,7 +664,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate NetworkMessageNumber with PublisherId as parameter")]
@@ -674,6 +686,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const ushort writerGroupId = 1;
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -705,7 +719,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -755,7 +769,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -766,7 +780,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate SequenceNumber with PublisherId as parameter")]
@@ -788,6 +802,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
             const ushort writerGroupId = 1;
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -819,7 +834,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -859,7 +874,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -870,7 +885,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate PayloadHeader with PublisherId as parameter")]
@@ -892,6 +907,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const ushort writerGroupId = 1;
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -922,7 +939,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -970,7 +987,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -981,7 +998,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate Timestamp with PublisherId as parameter")]
@@ -1003,6 +1020,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const ushort writerGroupId = 1;
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -1034,7 +1053,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1084,7 +1103,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -1095,7 +1114,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate PicoSeconds with PublisherId as parameter")]
@@ -1117,6 +1136,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const ushort writerGroupId = 1;
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -1148,7 +1169,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1199,7 +1220,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -1210,7 +1231,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate DataSetClassId with PublisherId as parameter")]
@@ -1232,6 +1253,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
                 UadpNetworkMessageContentMask.PublisherId;
@@ -1259,7 +1282,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1309,7 +1332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
@@ -1320,7 +1343,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders, telemetry);
         }
 
         [Test(Description = "Validate that Uadp metadata is encoded/decoded correctly")]
@@ -1342,6 +1365,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
                 UadpNetworkMessageContentMask.PublisherId;
@@ -1372,7 +1397,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1407,7 +1432,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage, telemetry);
             }
         }
 
@@ -1430,6 +1455,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
                 UadpNetworkMessageContentMask.PublisherId;
@@ -1461,7 +1488,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1560,6 +1587,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
                 UadpNetworkMessageContentMask.PublisherId;
@@ -1591,7 +1620,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1728,6 +1757,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             s_publishTimes.Clear();
 
             // Arrange
@@ -1779,7 +1810,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 mockConnection.Object,
                 writerGroupDataType,
                 writerGroupDataType.DataSetWriters[0],
-                metaDataUpdateTime);
+                metaDataUpdateTime,
+                telemetry);
             mqttMetaDataPublisher.Start();
 
             //wait so many seconds
@@ -1817,16 +1849,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Compare encoded/decoded network messages
         /// </summary>
         /// <param name="uadpNetworkMessage">the message to encode</param>
-        private static void CompareEncodeDecodeMetaData(UadpNetworkMessage uadpNetworkMessage)
+        private static void CompareEncodeDecodeMetaData(UadpNetworkMessage uadpNetworkMessage, ITelemetryContext telemetry)
         {
             Assert.IsTrue(
                 uadpNetworkMessage.IsMetaDataMessage,
                 "The received message is not a metadata message");
 
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(telemetry));
 
-            var uaNetworkMessageDecoded = new UadpNetworkMessage();
-            uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
+            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
+            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
+            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(telemetry), bytes, null);
 
             Assert.IsTrue(
                 uaNetworkMessageDecoded.IsMetaDataMessage,
@@ -1849,13 +1882,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static void CompareEncodeDecode(
             UadpNetworkMessage uadpNetworkMessage,
-            IList<DataSetReaderDataType> dataSetReaders)
+            IList<DataSetReaderDataType> dataSetReaders,
+            ITelemetryContext telemetry)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+            ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
 
-            var uaNetworkMessageDecoded = new UadpNetworkMessage();
+            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(telemetry));
+
+            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                ServiceMessageContext.GlobalContext,
+                new ServiceMessageContext(telemetry),
                 bytes,
                 dataSetReaders);
 

@@ -37,6 +37,7 @@ using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
@@ -86,7 +87,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public void VerifySelfSignedAppCerts(KeyHashPair keyHashPair)
         {
-            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize, telemetry);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
             using X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(
@@ -108,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 rsa.ExportParameters(false);
             }
-            X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
+            X509Certificate2 plainCert = CertificateFactory.Create(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyApplicationCert(app, plainCert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -122,11 +125,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(500)]
         public void VerifySignedAppCerts(KeyHashPair keyHashPair)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             X509Certificate2 issuerCertificate = GetIssuer(keyHashPair);
             Assert.NotNull(issuerCertificate);
             Assert.NotNull(issuerCertificate.RawData);
             Assert.True(issuerCertificate.HasPrivateKey);
-            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
+            var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize, telemetry);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
             using X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(
@@ -141,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
-            using X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
+            using X509Certificate2 plainCert = CertificateFactory.Create(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyApplicationCert(app, plainCert, issuerCertificate);
             X509Utils.VerifyRSAKeyPair(plainCert, cert, true);
@@ -166,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
-            X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
+            X509Certificate2 plainCert = CertificateFactory.Create(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyCACert(plainCert, subject, pathLengthConstraint);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -216,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.NotNull(rsa);
                 }
 
-                using (X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(
+                using (X509Certificate2 plainCert = CertificateFactory.Create(
                     issuerCertificate.RawData))
                 {
                     Assert.NotNull(plainCert);
@@ -274,6 +279,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Order(500)]
         public void ParseCertificateBlob()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             // check if complete chain should be sent.
             if (m_rootCACertificate != null && !m_rootCACertificate.IsEmpty)
             {
@@ -285,16 +292,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 byte[] singleBlob = AsnUtils.ParseX509Blob(certBlob).ToArray();
                 Assert.NotNull(singleBlob);
-                X509Certificate2 certX = X509CertificateLoader.LoadCertificate(singleBlob);
+                X509Certificate2 certX = CertificateFactory.Create(singleBlob);
                 Assert.NotNull(certX);
                 Assert.AreEqual(certArray[0].RawData, singleBlob);
                 Assert.AreEqual(singleBlob, certX.RawData);
                 Assert.AreEqual(certArray[0].RawData, certX.RawData);
 
-                X509Certificate2 cert = Utils.ParseCertificateBlob(certBlob);
+                X509Certificate2 cert = Utils.ParseCertificateBlob(certBlob, telemetry);
                 Assert.NotNull(cert);
                 Assert.AreEqual(cert.RawData, certArray[0].RawData);
-                X509Certificate2Collection certChain = Utils.ParseCertificateChainBlob(certBlob);
+                X509Certificate2Collection certChain = Utils.ParseCertificateChainBlob(certBlob, telemetry);
                 Assert.NotNull(certChain);
                 for (int i = 0; i < certArray.Length; i++)
                 {

@@ -44,14 +44,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public static new readonly TraceableSessionFactory Instance = new();
+        [Obsolete("Use new TraceableSessionFactory instead.")]
+        public static new readonly TraceableSessionFactory Instance = new(null);
+
+        /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use TraceableSessionFactory(ITelemetryContext) instead.")]
+        public TraceableSessionFactory()
+            : this(null)
+        {
+        }
 
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected TraceableSessionFactory()
+        public TraceableSessionFactory(ITelemetryContext telemetry)
+            : base(telemetry)
         {
-            // Set the default Id format to W3C (older .Net versions use ActivityIfFormat.HierarchicalId)
+            // Set the default Id format to W3C
+            // (older .Net versions use ActivityIfFormat.HierarchicalId)
             Activity.DefaultIdFormat = ActivityIdFormat.W3C;
             Activity.ForceDefaultIdFormat = true;
         }
@@ -67,19 +79,19 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             ISession session = await base.CreateAsync(
-                    configuration,
-                    endpoint,
-                    updateBeforeConnect,
-                    false,
-                    sessionName,
-                    sessionTimeout,
-                    identity,
-                    preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
-            return new TraceableSession(session);
+                configuration,
+                endpoint,
+                updateBeforeConnect,
+                false,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct)
+            .ConfigureAwait(false);
+            return new TraceableSession(session, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -94,7 +106,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             ISession session = await Session
                 .CreateAsync(
                     this,
@@ -107,10 +119,11 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
 
-            return new TraceableSession(session);
+            return new TraceableSession(session, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -126,7 +139,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             ISession session = await Session
                 .CreateAsync(
                     this,
@@ -139,10 +152,11 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
 
-            return new TraceableSession(session);
+            return new TraceableSession(session, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -154,7 +168,7 @@ namespace Opc.Ua.Client
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
         {
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             return new TraceableSession(
                 base.Create(
                     configuration,
@@ -162,7 +176,7 @@ namespace Opc.Ua.Client
                     endpoint,
                     clientCertificate,
                     availableEndpoints,
-                    discoveryProfileUris));
+                    discoveryProfileUris), Telemetry);
         }
 
         /// <inheritdoc/>
@@ -174,7 +188,7 @@ namespace Opc.Ua.Client
             bool checkDomain,
             CancellationToken ct = default)
         {
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             return await base.CreateChannelAsync(
                     configuration,
                     connection,
@@ -198,7 +212,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             ISession session = await base.CreateAsync(
                     configuration,
                     reverseConnectManager,
@@ -212,7 +226,7 @@ namespace Opc.Ua.Client
                     ct)
                 .ConfigureAwait(false);
 
-            return new TraceableSession(session);
+            return new TraceableSession(session, Telemetry);
         }
 
         /// <inheritdoc/>
@@ -221,9 +235,9 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             return new TraceableSession(
-                await Session.RecreateAsync(session, ct).ConfigureAwait(false));
+                await Session.RecreateAsync(session, ct).ConfigureAwait(false), Telemetry);
         }
 
         /// <inheritdoc/>
@@ -233,9 +247,9 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             return new TraceableSession(
-                await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false));
+                await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false), Telemetry);
         }
 
         /// <inheritdoc/>
@@ -245,9 +259,9 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            using Activity activity = Telemetry.GetActivitySource().StartActivity();
             return new TraceableSession(
-                await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false));
+                await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false), Telemetry);
         }
 
         private static Session ValidateISession(ISession sessionTemplate)

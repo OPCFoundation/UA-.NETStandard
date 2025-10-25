@@ -63,10 +63,10 @@ namespace Opc.Ua.Core.Tests
 #pragma warning restore IDE0079 // Remove unnecessary suppression
 #endif
 
-        public ApplicationTestDataGenerator(int randomStart)
+        public ApplicationTestDataGenerator(int randomStart, ITelemetryContext telemetry)
         {
             RandomSource = new RandomSource(randomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, telemetry);
         }
 
         public RandomSource RandomSource { get; }
@@ -116,6 +116,9 @@ namespace Opc.Ua.Core.Tests
                     appName += " Server";
                     _ = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected ApplicationType {appType}");
             }
             return new ApplicationTestData
             {

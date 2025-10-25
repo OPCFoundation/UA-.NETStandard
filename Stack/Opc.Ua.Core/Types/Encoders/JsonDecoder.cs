@@ -12,11 +12,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Opc.Ua
@@ -37,6 +39,7 @@ namespace Opc.Ua
         public bool UpdateNamespaceTable { get; set; }
 
         private JsonTextReader m_reader;
+        private readonly ILogger m_logger;
         private readonly Dictionary<string, object> m_root;
         private readonly Stack<object> m_stack;
         private ushort[] m_namespaceMappings;
@@ -62,9 +65,8 @@ namespace Opc.Ua
         /// <param name="context">The service message context to use.</param>
         public JsonDecoder(string json, IServiceMessageContext context)
         {
-            Initialize();
-
             Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             m_nestingLevel = 0;
             m_reader = new JsonTextReader(new StringReader(json));
             m_root = ReadObject();
@@ -80,22 +82,13 @@ namespace Opc.Ua
         /// <param name="context">The service message context to use.</param>
         public JsonDecoder(Type systemType, JsonTextReader reader, IServiceMessageContext context)
         {
-            Initialize();
-
             Context = context;
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             m_nestingLevel = 0;
             m_reader = reader;
             m_root = ReadObject();
             m_stack = new Stack<object>();
             m_stack.Push(m_root);
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_reader = null;
         }
 
         /// <summary>
@@ -882,6 +875,8 @@ namespace Opc.Ua
                 {
                     switch (idType)
                     {
+                        case IdType.Numeric:
+                            return new NodeId(ReadUInt32("Id"), namespaceIndex);
                         case IdType.Opaque:
                             return new NodeId(ReadByteString("Id"), namespaceIndex);
                         case IdType.String:
@@ -889,7 +884,8 @@ namespace Opc.Ua
                         case IdType.Guid:
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
                         default:
-                            return new NodeId(ReadUInt32("Id"), namespaceIndex);
+                            throw ServiceResultException.Unexpected(
+                                "Unexpected IdType value: {0}", idType);
                     }
                 }
                 return DefaultNodeId(idType, namespaceIndex);
@@ -994,6 +990,12 @@ namespace Opc.Ua
                 {
                     switch (idType)
                     {
+                        case IdType.Numeric:
+                            return new ExpandedNodeId(
+                                ReadUInt32("Id"),
+                                namespaceIndex,
+                                namespaceUri,
+                                serverIndex);
                         case IdType.Opaque:
                             return new ExpandedNodeId(
                                 ReadByteString("Id"),
@@ -1013,11 +1015,8 @@ namespace Opc.Ua
                                 namespaceUri,
                                 serverIndex);
                         default:
-                            return new ExpandedNodeId(
-                                ReadUInt32("Id"),
-                                namespaceIndex,
-                                namespaceUri,
-                                serverIndex);
+                            throw ServiceResultException.Unexpected(
+                                "Unexpected IdType value: {0}", idType);
                     }
                 }
 
@@ -1355,8 +1354,8 @@ namespace Opc.Ua
 
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
-                    Utils.LogWarning(
-                        "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                    m_logger.LogWarning(
+                        "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                         typeId);
                 }
                 else
@@ -2343,7 +2342,10 @@ namespace Opc.Ua
                         return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
@@ -2354,6 +2356,8 @@ namespace Opc.Ua
                             Utils.Format(
                                 "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                                 builtInType));
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
@@ -2627,8 +2631,10 @@ namespace Opc.Ua
                                 builtInType,
                                 [.. dimensions]);
                             break;
-                        default:
-                        {
+                        case BuiltInType.Null:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
                             if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                             {
                                 var newElements = Array.CreateInstance(systemType, elements.Count);
@@ -2644,12 +2650,13 @@ namespace Opc.Ua
                                 matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                                 break;
                             }
-
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
                                 "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                                 builtInType);
-                        }
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {builtInType}");
                     }
                 }
                 catch (ArgumentException e)
@@ -3018,6 +3025,7 @@ namespace Opc.Ua
         /// <summary>
         /// Read the body of a Variant as a BuiltInType
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private Variant ReadVariantBody(string fieldName, BuiltInType type)
         {
             switch (type)
@@ -3082,14 +3090,21 @@ namespace Opc.Ua
                         TypeInfo.Scalars.DiagnosticInfo);
                 case BuiltInType.DataValue:
                     return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue);
+                case BuiltInType.Null:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Enumeration:
+                    return Variant.Null;
+                default:
+                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {type}");
             }
-
-            return Variant.Null;
         }
 
         /// <summary>
         /// Read the Body of a Variant as an Array
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private Variant ReadVariantArrayBody(string fieldName, BuiltInType type)
         {
             switch (type)
@@ -3154,9 +3169,15 @@ namespace Opc.Ua
                         TypeInfo.Arrays.DiagnosticInfo);
                 case BuiltInType.DataValue:
                     return new Variant(ReadDataValueArray(fieldName), TypeInfo.Arrays.DataValue);
+                case BuiltInType.Null:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Enumeration:
+                    return Variant.Null;
+                default:
+                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {type}");
             }
-
-            return Variant.Null;
         }
 
         /// <summary>
@@ -3191,6 +3212,19 @@ namespace Opc.Ua
                             break;
                         case JsonToken.StartObject:
                             elements.Add(ReadObject());
+                            break;
+                        case JsonToken.None:
+                        case JsonToken.StartConstructor:
+                        case JsonToken.PropertyName:
+                        case JsonToken.Raw:
+                        case JsonToken.Undefined:
+                        case JsonToken.EndObject:
+                        case JsonToken.EndArray:
+                        case JsonToken.EndConstructor:
+                        case JsonToken.Bytes:
+                            break;
+                        default:
+                            Debug.Fail($"Unexpected token type in array: {m_reader.TokenType}");
                             break;
                     }
                 }
@@ -3245,6 +3279,18 @@ namespace Opc.Ua
                                     break;
                                 case JsonToken.StartObject:
                                     fields[name] = ReadObject();
+                                    break;
+                                case JsonToken.None:
+                                case JsonToken.StartConstructor:
+                                case JsonToken.PropertyName:
+                                case JsonToken.Raw:
+                                case JsonToken.Undefined:
+                                case JsonToken.EndObject:
+                                case JsonToken.EndArray:
+                                case JsonToken.EndConstructor:
+                                    break;
+                                default:
+                                    Debug.Fail($"Unexpected token type in array: {m_reader.TokenType}");
                                     break;
                             }
                         }
@@ -3341,10 +3387,13 @@ namespace Opc.Ua
         /// Get Default value for NodeId for diferent IdTypes
         /// </summary>
         /// <returns>new NodeId</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private static NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)
         {
             switch (idType)
             {
+                case IdType.Numeric:
+                    return new NodeId(0U, namespaceIndex);
                 case IdType.Opaque:
                     return new NodeId([], namespaceIndex);
                 case IdType.String:
@@ -3352,7 +3401,8 @@ namespace Opc.Ua
                 case IdType.Guid:
                     return new NodeId(Guid.Empty, namespaceIndex);
                 default:
-                    return new NodeId(0U, namespaceIndex);
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected IdType value: {0}", idType);
             }
         }
 

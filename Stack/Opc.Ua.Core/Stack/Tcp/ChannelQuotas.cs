@@ -20,9 +20,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
-        public ChannelQuotas()
+        public ChannelQuotas(ServiceMessageContext messageContext)
         {
-            MessageContext = ServiceMessageContext.GlobalContext;
+            MessageContext = messageContext;
             MaxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
             MaxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
             ChannelLifetime = TcpMessageLimits.DefaultChannelLifetime;
@@ -32,7 +32,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The context to use when encoding/decoding messages.
         /// </summary>
-        public IServiceMessageContext MessageContext { get; set; }
+        public IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Validator to use when handling certificates.

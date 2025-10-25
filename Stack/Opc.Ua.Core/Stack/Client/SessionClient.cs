@@ -20,6 +20,15 @@ namespace Opc.Ua
     public partial class SessionClient : ISessionClient
     {
         /// <summary>
+        /// Intializes the object with a channel and a message context.
+        /// </summary>
+        public SessionClient(ITransportChannel channel, ITelemetryContext telemetry)
+            : this(channel)
+        {
+            m_logger = telemetry.CreateLogger(this);
+        }
+
+        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources;

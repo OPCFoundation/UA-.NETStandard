@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -287,12 +288,17 @@ namespace Opc.Ua
         public static EncryptedData Encrypt(
             X509Certificate2 certificate,
             string securityPolicyUri,
-            byte[] plainText)
+            ReadOnlySpan<byte> plainText,
+            ILogger logger)
         {
-            var encryptedData = new EncryptedData { Algorithm = null, Data = plainText };
+            var encryptedData = new EncryptedData
+            {
+                Algorithm = null,
+                Data = plainText.IsEmpty ? null : plainText.ToArray()
+            };
 
             // check if nothing to do.
-            if (plainText == null)
+            if (plainText.IsEmpty)
             {
                 return encryptedData;
             }
@@ -313,21 +319,24 @@ namespace Opc.Ua
                     encryptedData.Data = RsaUtils.Encrypt(
                         plainText,
                         certificate,
-                        RsaUtils.Padding.OaepSHA1);
+                        RsaUtils.Padding.OaepSHA1,
+                        logger);
                     break;
                 case Basic128Rsa15:
                     encryptedData.Algorithm = SecurityAlgorithms.Rsa15;
                     encryptedData.Data = RsaUtils.Encrypt(
                         plainText,
                         certificate,
-                        RsaUtils.Padding.Pkcs1);
+                        RsaUtils.Padding.Pkcs1,
+                        logger);
                     break;
                 case Aes256_Sha256_RsaPss:
                     encryptedData.Algorithm = SecurityAlgorithms.RsaOaepSha256;
                     encryptedData.Data = RsaUtils.Encrypt(
                         plainText,
                         certificate,
-                        RsaUtils.Padding.OaepSHA256);
+                        RsaUtils.Padding.OaepSHA256,
+                        logger);
                     break;
                 case ECC_nistP256:
                 case ECC_nistP384:
@@ -353,7 +362,8 @@ namespace Opc.Ua
         public static byte[] Decrypt(
             X509Certificate2 certificate,
             string securityPolicyUri,
-            EncryptedData dataToDecrypt)
+            EncryptedData dataToDecrypt,
+            ILogger logger)
         {
             // check if nothing to do.
             if (dataToDecrypt == null)
@@ -378,7 +388,8 @@ namespace Opc.Ua
                         return RsaUtils.Decrypt(
                             new ArraySegment<byte>(dataToDecrypt.Data),
                             certificate,
-                            RsaUtils.Padding.OaepSHA1);
+                            RsaUtils.Padding.OaepSHA1,
+                            logger);
                     }
                     break;
                 case Basic128Rsa15:
@@ -387,7 +398,8 @@ namespace Opc.Ua
                         return RsaUtils.Decrypt(
                             new ArraySegment<byte>(dataToDecrypt.Data),
                             certificate,
-                            RsaUtils.Padding.Pkcs1);
+                            RsaUtils.Padding.Pkcs1,
+                            logger);
                     }
                     break;
                 case Aes256_Sha256_RsaPss:
@@ -396,7 +408,8 @@ namespace Opc.Ua
                         return RsaUtils.Decrypt(
                             new ArraySegment<byte>(dataToDecrypt.Data),
                             certificate,
-                            RsaUtils.Padding.OaepSHA256);
+                            RsaUtils.Padding.OaepSHA256,
+                            logger);
                     }
                     break;
                 case ECC_nistP256:

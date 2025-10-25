@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -680,12 +681,6 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Creates and updates the application configuration.
         /// </summary>
-        [Obsolete("Use CreateAsync instead")]
-        Task<ApplicationConfiguration> Create();
-
-        /// <summary>
-        /// Creates and updates the application configuration.
-        /// </summary>
-        Task<ApplicationConfiguration> CreateAsync();
+        Task<ApplicationConfiguration> CreateAsync(CancellationToken ct = default);
     }
 }

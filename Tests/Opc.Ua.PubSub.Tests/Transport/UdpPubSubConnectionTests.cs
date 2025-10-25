@@ -36,9 +36,11 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
@@ -83,7 +85,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_uaPublisherApplication;
         private UdpPubSubConnection m_udpPublisherConnection;
-
+        private ServiceMessageContext m_messageContext;
+        private ILogger m_logger;
         private ManualResetEvent m_shutdownEvent;
 
         /// <summary>
@@ -92,13 +95,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [OneTimeSetUp]
         public void MyTestInitialize()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            m_messageContext = new ServiceMessageContext(telemetry);
+            m_logger = telemetry.CreateLogger<UdpPubSubConnectionTests>();
+
             // Create a publisher application
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_publisherConfigurationFileName,
-                true,
-                true,
-                false);
-            m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile);
+                checkCurrentDirectory: true,
+                createAlways: false);
+            m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile, null);
             Assert.IsNotNull(m_uaPublisherApplication, "m_publisherApplication should not be null");
 
             // Get the publisher configuration

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -40,9 +41,13 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the buffer from the configuration.
         /// </summary>
-        public MemoryBufferState(ISystemContext context, MemoryBufferInstance configuration)
+        public MemoryBufferState(
+            ISystemContext context,
+            MemoryBufferInstance configuration)
             : base(null)
         {
+            m_logger = context.Telemetry.CreateLogger<MemoryBufferState>();
+
             Initialize(context);
 
             string dataType = "UInt32";
@@ -66,14 +71,7 @@ namespace MemoryBuffer
 
             SymbolicName = name;
 
-            BuiltInType elementType = BuiltInType.UInt32;
-
-            switch (dataType)
-            {
-                case "Double":
-                    elementType = BuiltInType.Double;
-                    break;
-            }
+            BuiltInType elementType = dataType != "Double" ? BuiltInType.UInt32 : BuiltInType.Double;
 
             CreateBuffer(elementType, count);
         }
@@ -126,14 +124,7 @@ namespace MemoryBuffer
                 elementName = "UInt32";
             }
 
-            BuiltInType elementType = BuiltInType.UInt32;
-
-            switch (elementName)
-            {
-                case "Double":
-                    elementType = BuiltInType.Double;
-                    break;
-            }
+            BuiltInType elementType = elementName != "Double" ? BuiltInType.UInt32 : BuiltInType.Double;
 
             CreateBuffer(elementType, noOfElements);
         }
@@ -143,13 +134,12 @@ namespace MemoryBuffer
         /// </summary>
         /// <param name="elementType">The type of element.</param>
         /// <param name="noOfElements">The number of elements.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void CreateBuffer(BuiltInType elementType, int noOfElements)
         {
             lock (m_dataLock)
             {
                 ElementType = elementType;
-                m_elementSize = 1;
-
                 switch (ElementType)
                 {
                     case BuiltInType.UInt32:
@@ -158,6 +148,11 @@ namespace MemoryBuffer
                     case BuiltInType.Double:
                         m_elementSize = 8;
                         break;
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        m_elementSize = 1;
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {ElementType}");
                 }
 
                 m_lastScanTime = DateTime.UtcNow;
@@ -250,6 +245,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Handles a write operation for an individual tag.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public ServiceResult WriteTagValue(
             ISystemContext context,
             NodeState node,
@@ -327,8 +323,10 @@ namespace MemoryBuffer
                         bytes = BitConverter.GetBytes(valueToWrite.Value);
                         break;
                     }
-                    default:
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                         return StatusCodes.BadNodeIdUnknown;
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {ElementType}");
                 }
 
                 for (int ii = 0; ii < bytes.Length; ii++)
@@ -353,6 +351,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Returns the value at the specified offset.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public Variant GetValueAtOffset(int offset)
         {
             lock (m_dataLock)
@@ -373,9 +372,11 @@ namespace MemoryBuffer
                         return new Variant(BitConverter.ToUInt32(m_buffer, offset));
                     case BuiltInType.Double:
                         return new Variant(BitConverter.ToDouble(m_buffer, offset));
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        return Variant.Null;
+                    default:
+                        throw ServiceResultException.Unexpected($"Bad element type {ElementType}");
                 }
-
-                return Variant.Null;
             }
         }
 
@@ -547,7 +548,7 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogWarning("{0} SAMPLING DELAY ({1}ms)", nameof(MemoryBufferState), delta1);
+                m_logger.LogWarning("{StateName} SAMPLING DELAY ({Delta}ms)", nameof(MemoryBufferState), delta1);
             }
         }
 
@@ -664,8 +665,8 @@ namespace MemoryBuffer
             {
                 if (m_itemCount > 0 && m_updateCount < m_itemCount)
                 {
-                    Utils.LogInfo(
-                        "{0:HH:mm:ss.fff} MEMORYBUFFER Reported  {1}/{2} items ***.",
+                    m_logger.LogInformation(
+                        "{Now:HH:mm:ss.fff} MEMORYBUFFER Reported  {UpdateCount}/{ItemCount} items ***.",
                         DateTime.Now,
                         m_updateCount,
                         m_itemCount);
@@ -680,13 +681,14 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogInfo(
-                    "{0} ****** PUBLISH DELAY ({1}ms) ******",
+                m_logger.LogInformation(
+                    "{StateName} ****** PUBLISH DELAY ({Delta}ms) ******",
                     nameof(MemoryBufferState),
                     delta1);
             }
         }
 
+        private readonly ILogger m_logger;
         private readonly Lock m_dataLock = new();
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
         private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;

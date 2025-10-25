@@ -51,7 +51,7 @@ namespace Opc.Ua.Gds.Client
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
                         var url = new Uri(discoveryUrl);
-                        return url.DnsSafeHost
+                        return url.IdnHost
                             .Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
                     }
                 }
@@ -112,7 +112,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        string name = new Uri(discoveryUrl).DnsSafeHost;
+                        string name = new Uri(discoveryUrl).IdnHost;
 
                         if (name == "localhost")
                         {

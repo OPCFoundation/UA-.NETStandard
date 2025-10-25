@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -26,6 +27,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task CertificateStoreTypeConfigTestAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fileInfo = new FileInfo(
                 Path.Combine(
                     TestContext.CurrentContext.TestDirectory,
@@ -33,13 +35,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     "Certificates",
                     "CertificateStoreTypeTestConfig.xml"));
             ApplicationConfiguration appConfig = await ApplicationConfiguration
-                .LoadAsync(fileInfo, ApplicationType.Client, null)
+                .LoadAsync(fileInfo, ApplicationType.Client, systemType: null, telemetry)
                 .ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration
                 .TrustedIssuerCertificates;
-            using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
+            using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore(telemetry);
             trustedIssuersStore.Close();
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(
@@ -47,7 +49,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
-            using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+            using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
             Assert.IsTrue(
                 instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
@@ -55,9 +57,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
     internal sealed class TestStoreType : ICertificateStoreType
     {
-        public ICertificateStore CreateStore()
+        public ICertificateStore CreateStore(ITelemetryContext telemetry)
         {
-            return new TestCertStore();
+            return new TestCertStore(telemetry);
         }
 
         public bool SupportsStorePath(string storePath)
@@ -68,10 +70,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
     internal sealed class TestCertStore : ICertificateStore
     {
-        public TestCertStore()
+        public TestCertStore(ITelemetryContext telemetry)
         {
             s_instancesCreated++;
-            m_innerStore = new X509CertificateStore();
+            m_innerStore = new X509CertificateStore(telemetry);
         }
 
         /// <inheritdoc/>
@@ -111,15 +113,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public bool NoPrivateKeys => m_innerStore.NoPrivateKeys;
 
         /// <inheritdoc/>
-        public Task Add(X509Certificate2 certificate, string password = null)
-        {
-            return m_innerStore.AddAsync(certificate, password);
-        }
-
-        /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
@@ -159,6 +155,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             return m_innerStore.AddCRLAsync(crl, ct);
         }
+
         /// <inheritdoc/>
         public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
@@ -198,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(

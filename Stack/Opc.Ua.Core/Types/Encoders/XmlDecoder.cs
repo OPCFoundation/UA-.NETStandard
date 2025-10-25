@@ -16,6 +16,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -29,8 +30,8 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(XmlReader reader, IServiceMessageContext context)
         {
-            Initialize();
             Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
             m_nestingLevel = 0;
             m_reader = reader;
         }
@@ -40,11 +41,11 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(XmlElement element, IServiceMessageContext context)
         {
-            Initialize();
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
             m_reader = XmlReader.Create(
                 new StringReader(element.OuterXml),
                 Utils.DefaultXmlReaderSettings());
-            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_nestingLevel = 0;
         }
 
@@ -53,10 +54,9 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(Type systemType, XmlReader reader, IServiceMessageContext context)
         {
-            Initialize();
-
-            m_reader = reader;
             Context = context;
+            m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
+            m_reader = reader;
             m_nestingLevel = 0;
 
             string ns = null;
@@ -64,7 +64,7 @@ namespace Opc.Ua
 
             if (systemType != null)
             {
-                XmlQualifiedName typeName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName typeName = TypeInfo.GetXmlName(systemType);
                 ns = typeName.Namespace;
                 name = typeName.Name;
             }
@@ -85,15 +85,6 @@ namespace Opc.Ua
 
             PushNamespace(ns);
             BeginField(name, false);
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_reader = null;
-            m_namespaces = new Stack<string>();
         }
 
         /// <summary>
@@ -423,6 +414,12 @@ namespace Opc.Ua
                             VariantCollection collection = ReadVariantArray(typeName);
                             return collection?.ToArray();
                         }
+                        default:
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Element '{1}:{0}' is not allowed in a Variant.",
+                                m_reader.LocalName,
+                                m_reader.NamespaceURI);
                     }
                 }
                 // process scalar types.
@@ -516,14 +513,14 @@ namespace Opc.Ua
                             return typeInfo.ValueRank == ValueRanks.OneDimension
                                 ? matrix.Elements
                                 : matrix;
+                        default:
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Element '{1}:{0}' is not allowed in a Variant.",
+                                m_reader.LocalName,
+                                m_reader.NamespaceURI);
                     }
                 }
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Element '{1}:{0}' is not allowed in a Variant.",
-                    m_reader.LocalName,
-                    m_reader.NamespaceURI);
             }
             finally
             {
@@ -668,7 +665,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(expectedType));
             }
 
-            XmlQualifiedName typeName = EncodeableFactory.GetXmlName(expectedType);
+            XmlQualifiedName typeName = TypeInfo.GetXmlName(expectedType);
             string ns = typeName.Namespace;
             string name = typeName.Name;
 
@@ -1311,10 +1308,7 @@ namespace Opc.Ua
                         }
                         catch (Exception ex) when (ex is not ServiceResultException)
                         {
-                            Utils.LogError(
-                                ex,
-                                "XmlDecoder: Error reading variant. {0}",
-                                ex.Message);
+                            m_logger.LogError(ex, "XmlDecoder: Error reading variant.");
                             value = new Variant((StatusCode)StatusCodes.BadDecodingError);
                         }
                         EndField("Value");
@@ -1379,8 +1373,8 @@ namespace Opc.Ua
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
-                Utils.LogWarning(
-                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                m_logger.LogWarning(
+                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                     typeId);
             }
 
@@ -1456,7 +1450,7 @@ namespace Opc.Ua
             {
                 if (BeginField(fieldName, true))
                 {
-                    XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(value, Context);
+                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(value, Context);
 
                     PushNamespace(xmlName.Namespace);
                     value.Decode(this);
@@ -2369,7 +2363,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true, out bool isNil))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(systemType);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
@@ -2417,7 +2411,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true, out bool isNil))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(enumType);
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(enumType);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
@@ -2880,7 +2874,10 @@ namespace Opc.Ua
                         VariantCollection collection = ReadVariantArray(fieldName);
                         return collection?.ToArray();
                     }
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
@@ -2889,6 +2886,8 @@ namespace Opc.Ua
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
                 }
             }
             finally
@@ -3183,8 +3182,9 @@ namespace Opc.Ua
             }
         }
 
+        private readonly ILogger m_logger;
         private XmlReader m_reader;
-        private Stack<string> m_namespaces;
+        private readonly Stack<string> m_namespaces = [];
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

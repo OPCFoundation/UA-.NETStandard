@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client
@@ -86,15 +87,30 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Obsolete constructor
+        /// </summary>
+        [Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]
+        public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
+            : this(null, reconnectAbort, maxReconnectPeriod)
+        {
+        }
+
+        /// <summary>
         /// Create a reconnect handler.
         /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
         /// <param name="maxReconnectPeriod">
         ///     The upper limit for the reconnect period after exponential backoff.
         ///     -1 (default) indicates that no exponential backoff should be used.
         /// </param>
-        public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
+        public SessionReconnectHandler(
+            ITelemetryContext telemetry,
+            bool reconnectAbort = false,
+            int maxReconnectPeriod = -1)
         {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<SessionReconnectHandler>();
             m_reconnectAbort = reconnectAbort;
             m_reconnectTimer = new Timer(
                 OnReconnectAsync,
@@ -336,14 +352,14 @@ namespace Opc.Ua.Client
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
-                    Utils.LogInfo(
-                        "Reconnect {0} aborted, KeepAlive recovered.",
+                    m_logger.LogInformation(
+                        "Reconnect {SessionId} aborted, KeepAlive recovered.",
                         Session?.SessionId);
                     Session = null;
                 }
                 else
                 {
-                    Utils.LogInfo("Reconnect {0}.", Session?.SessionId);
+                    m_logger.LogInformation("Reconnect {SessionId}.", Session?.SessionId);
                 }
 
                 // do the reconnect or recover state.
@@ -362,7 +378,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError("Unexpected error during reconnect: {0}", Redact.Create(exception));
+                m_logger.LogError("Unexpected error during reconnect: {message}", Redact.Create(exception));
             }
 
             // schedule the next reconnect.
@@ -377,16 +393,16 @@ namespace Opc.Ua.Client
                     else
                     {
                         int elapsed = HiResClock.TickCount - reconnectStart;
-                        Utils.LogInfo(
-                            "Reconnect period is {0} ms, {1} ms elapsed in reconnect.",
+                        m_logger.LogInformation(
+                            "Reconnect period is {ReconnectPeriod} ms, {Elapsed} ms elapsed in reconnect.",
                             m_reconnectPeriod,
                             elapsed);
                         int adjustedReconnectPeriod = CheckedReconnectPeriod(
                             m_reconnectPeriod - elapsed);
                         adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
                         m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
-                        Utils.LogInfo(
-                            "Next adjusted reconnect scheduled in {0} ms.",
+                        m_logger.LogInformation(
+                            "Next adjusted reconnect scheduled in {ReconnectPeriod} ms.",
                             adjustedReconnectPeriod);
                         m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
                         m_state = ReconnectState.Triggered;
@@ -431,7 +447,7 @@ namespace Opc.Ua.Client
                     // recreate the session if it has been closed.
                     if (exception is ServiceResultException sre)
                     {
-                        Utils.LogWarning("Reconnect failed. Reason={0}.", sre.Result);
+                        m_logger.LogWarning("Reconnect failed. Reason={Reason}.", sre.Result);
 
                         // check if the server endpoint could not be reached.
                         if (sre.StatusCode
@@ -449,8 +465,8 @@ namespace Opc.Ua.Client
                                 (HiResClock.TickCount - Session.LastKeepAliveTickCount);
                             if (timeout > 0)
                             {
-                                Utils.LogInfo(
-                                    "Retry to reactivate, est. session timeout in {0} ms.",
+                                m_logger.LogInformation(
+                                    "Retry to reactivate, est. session timeout in {Timeout} ms.",
                                     timeout);
                                 return false;
                             }
@@ -461,8 +477,8 @@ namespace Opc.Ua.Client
                             .BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
-                            Utils.LogInfo(
-                                "Reconnect failed due to security check. Request endpoint update from server. {0}",
+                            m_logger.LogInformation(
+                                "Reconnect failed due to security check. Request endpoint update from server. {Message}",
                                 sre.Message);
                         }
                         // recreate session immediately, use existing channel
@@ -481,7 +497,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        Utils.LogError(exception, "Reconnect failed.");
+                        m_logger.LogError(exception, "Reconnect failed.");
                     }
 
                     m_reconnectFailed = true;
@@ -514,7 +530,8 @@ namespace Opc.Ua.Client
                                     endpoint.EndpointUrl,
                                     connection,
                                     endpoint.Description.SecurityMode,
-                                    endpoint.Description.SecurityPolicyUri)
+                                    endpoint.Description.SecurityPolicyUri,
+                                    m_telemetry)
                                 .ConfigureAwait(false);
                             m_updateFromServer = false;
                             connection = null;
@@ -533,7 +550,8 @@ namespace Opc.Ua.Client
                             .UpdateFromServerAsync(
                                 endpoint.EndpointUrl,
                                 endpoint.Description.SecurityMode,
-                                endpoint.Description.SecurityPolicyUri)
+                                endpoint.Description.SecurityPolicyUri,
+                                m_telemetry)
                             .ConfigureAwait(false);
                         m_updateFromServer = false;
                     }
@@ -559,14 +577,14 @@ namespace Opc.Ua.Client
                     {
                         m_reconnectPeriod = m_baseReconnectPeriod;
                     }
-                    Utils.LogError(
-                        "Could not reconnect due to failed security check. Request endpoint update from server. {0}",
+                    m_logger.LogError(
+                        "Could not reconnect due to failed security check. Request endpoint update from server. {Message}",
                         Redact.Create(sre));
                 }
                 else
                 {
-                    Utils.LogError(
-                        "Could not reconnect the Session. Request endpoint update from server. {0}",
+                    m_logger.LogError(
+                        "Could not reconnect the Session. Request endpoint update from server. {Message}",
                         Redact.Create(sre));
                 }
                 m_updateFromServer = true;
@@ -574,7 +592,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError("Could not reconnect the Session. {0}", Redact.Create(exception));
+                m_logger.LogError("Could not reconnect the Session. {ErrorMessage}", Redact.Create(exception));
                 return false;
             }
         }
@@ -590,10 +608,12 @@ namespace Opc.Ua.Client
             m_updateFromServer = false;
         }
 
+        private readonly ITelemetryContext m_telemetry;
         private readonly Lock m_lock = new();
         private ReconnectState m_state;
         private readonly Random m_random;
         private bool m_reconnectFailed;
+        private readonly ILogger m_logger;
         private readonly bool m_reconnectAbort;
         private bool m_cancelReconnect;
         private bool m_updateFromServer;

@@ -45,6 +45,14 @@ namespace System
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>
+        /// Replace line endings
+        /// </summary>
+        public static string ReplaceLineEndings(this string target)
+        {
+            return target.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", Environment.NewLine);
+        }
+
+        /// <summary>
         /// Contains a character in a string using a specified comparison type.
         /// </summary>
         public static bool Contains(this string target, char value, StringComparison comparisonType)

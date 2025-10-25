@@ -150,7 +150,13 @@ namespace Opc.Ua
                 var keyValuePairs = new Dictionary<uint, string>();
                 foreach (FieldInfo field in fields)
                 {
-                    keyValuePairs.Add((uint)field.GetValue(typeof(DataTypes)), field.Name);
+                    if (field.FieldType == typeof(uint))
+                    {
+                        uint value = Convert.ToUInt32(
+                            field.GetValue(typeof(DataTypes)),
+                            System.Globalization.CultureInfo.InvariantCulture);
+                        keyValuePairs.Add(value, field.Name);
+                    }
                 }
 #if NET8_0_OR_GREATER
                 return keyValuePairs.ToFrozenDictionary();

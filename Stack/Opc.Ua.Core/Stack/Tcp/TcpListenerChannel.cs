@@ -14,6 +14,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -32,7 +33,8 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypeProvider,
-            EndpointDescriptionCollection endpoints)
+            EndpointDescriptionCollection endpoints,
+            ITelemetryContext telemetry)
             : base(
                 contextId,
                 bufferManager,
@@ -40,8 +42,10 @@ namespace Opc.Ua.Bindings
                 serverCertificateTypeProvider,
                 endpoints,
                 MessageSecurityMode.None,
-                SecurityPolicies.None)
+                SecurityPolicies.None,
+                telemetry)
         {
+            m_logger = telemetry.CreateLogger<TcpListenerChannel>();
             Listener = listener;
         }
 
@@ -132,10 +136,10 @@ namespace Opc.Ua.Bindings
                 ChannelId = channelId;
                 State = TcpChannelState.Connecting;
 
-                Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
+                Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
 
-                Utils.LogTrace(
-                    "{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}",
+                m_logger.LogTrace(
+                    "{Channel} SOCKET ATTACHED: {SocketHandle:X8}, ChannelId={ChannelId}",
                     ChannelName,
                     Socket.Handle,
                     ChannelId);
@@ -204,6 +208,11 @@ namespace Opc.Ua.Bindings
         protected void ForceChannelFault(uint statusCode, string format, params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(statusCode, format, args));
+
+            m_logger.LogError(
+                "ChannelId {Id}: ForceChannelFault due to {Message}.",
+                ChannelId,
+                Utils.Format(format, args));
         }
 
         /// <summary>
@@ -216,6 +225,12 @@ namespace Opc.Ua.Bindings
             params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(exception, defaultCode, format, args));
+
+            m_logger.LogError(
+                exception,
+                "ChannelId {Id}: ForceChannelFault due to {Message}.",
+                ChannelId,
+                Utils.Format(format, args));
         }
 
         /// <summary>
@@ -239,8 +254,8 @@ namespace Opc.Ua.Bindings
                     int? socketHandle = Socket?.Handle;
                     if (socketHandle is not null and not (-1))
                     {
-                        Utils.LogError(
-                            "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
+                        m_logger.LogError(
+                            "{Channel} ForceChannelFault Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
                             ChannelName,
                             socketHandle,
                             CurrentToken != null ? CurrentToken.ChannelId : 0,
@@ -304,8 +319,8 @@ namespace Opc.Ua.Bindings
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
 
-                Utils.LogInfo(
-                    "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
+                m_logger.LogInformation(
+                    "{Channel} Cleanup Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
                     ChannelName,
                     (Socket?.Handle) ?? 0,
                     CurrentToken != null ? CurrentToken.ChannelId : 0,
@@ -359,7 +374,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendErrorMessage(ServiceResult error)
         {
-            Utils.LogTrace("ChannelId {0}: SendErrorMessage={1}", ChannelId, error.StatusCode);
+            m_logger.LogTrace("ChannelId {ChannelId}: SendErrorMessage={Status}", ChannelId, error.StatusCode);
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
 
@@ -395,8 +410,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace(
-                "ChannelId {0}: Request {1}: SendServiceFault={2}",
+            m_logger.LogTrace(
+                "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
                 ChannelId,
                 requestId,
                 fault.StatusCode);
@@ -416,7 +431,8 @@ namespace Opc.Ua.Bindings
                     fault,
                     DiagnosticsMasks.NoInnerStatus,
                     true,
-                    stringTable);
+                    stringTable,
+                    m_logger);
 
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 
@@ -438,6 +454,13 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 buffers?.Release(BufferManager, "SendServiceFault");
+
+                m_logger.LogError(
+                    e,
+                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
+                    ChannelId,
+                    requestId,
+                    fault.StatusCode);
 
                 ForceChannelFault(
                     ServiceResult.Create(
@@ -474,8 +497,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace(
-                "ChannelId {0}: Request {1}: SendServiceFault={2}",
+            m_logger.LogTrace(
+                "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
                 ChannelId,
                 requestId,
                 fault.StatusCode);
@@ -495,7 +518,8 @@ namespace Opc.Ua.Bindings
                     fault,
                     DiagnosticsMasks.NoInnerStatus,
                     true,
-                    stringTable);
+                    stringTable,
+                    m_logger);
 
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 
@@ -517,6 +541,13 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 chunksToSend?.Release(BufferManager, "SendServiceFault");
+
+                m_logger.LogError(
+                    e,
+                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
+                    ChannelId,
+                    requestId,
+                    fault.StatusCode);
 
                 ForceChannelFault(
                     ServiceResult.Create(
@@ -577,8 +608,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent { get; private set; }
 
+        private readonly ILogger m_logger;
         private bool m_responseRequired;
-        private long m_lastTokenId;
+        private uint m_lastTokenId;
     }
 
     /// <summary>

@@ -14,6 +14,7 @@ using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -23,62 +24,26 @@ namespace Opc.Ua
     public partial class DiscoveryClient
     {
         /// <summary>
-        /// Creates a binding for to use for discovering servers.
+        /// Intializes the object with a channel and a message context.
         /// </summary>
-        public static DiscoveryClient Create(ApplicationConfiguration application, Uri discoveryUrl)
+        public DiscoveryClient(ITransportChannel channel, ITelemetryContext telemetry)
+            : this(channel)
         {
-            var configuration = EndpointConfiguration.Create();
-            ITransportChannel channel = DiscoveryChannel.Create(
-                application,
-                discoveryUrl,
-                configuration,
-                new ServiceMessageContext());
-            return new DiscoveryClient(channel);
-        }
-
-        /// <summary>
-        /// Creates a binding for to use for discovering servers.
-        /// </summary>
-        public static DiscoveryClient Create(
-            ApplicationConfiguration application,
-            Uri discoveryUrl,
-            EndpointConfiguration configuration)
-        {
-            configuration ??= EndpointConfiguration.Create();
-
-            ITransportChannel channel = DiscoveryChannel.Create(
-                application,
-                discoveryUrl,
-                configuration,
-                application.CreateMessageContext());
-            return new DiscoveryClient(channel);
-        }
-
-        /// <summary>
-        /// Creates a binding for to use for discovering servers.
-        /// </summary>
-        public static DiscoveryClient Create(
-            ApplicationConfiguration application,
-            ITransportWaitingConnection connection,
-            EndpointConfiguration configuration)
-        {
-            configuration ??= EndpointConfiguration.Create();
-
-            ITransportChannel channel = DiscoveryChannel.Create(
-                application,
-                connection,
-                configuration,
-                application.CreateMessageContext());
-            return new DiscoveryClient(channel);
+            m_logger = telemetry.CreateLogger<DiscoveryClient>();
         }
 
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
-        public static DiscoveryClient Create(Uri discoveryUrl)
+        [Obsolete("Use CreateAsync with telemetry parameter instead.")]
+        public static DiscoveryClient Create(
+            Uri discoveryUrl)
         {
-            return Create(discoveryUrl, null, null);
+            return CreateAsync(
+                discoveryUrl,
+                null,
+                (ITelemetryContext)null).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -86,26 +51,72 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="configuration">The configuration.</param>
-        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
+        [Obsolete("Use CreateAsync with telemetry parameter instead.")]
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration configuration)
         {
-            return Create(discoveryUrl, configuration, null);
+            return CreateAsync(
+                discoveryUrl,
+                configuration,
+                (ITelemetryContext)null).GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
+        [Obsolete("Use CreateAsync with telemetry parameter instead.")]
         public static DiscoveryClient Create(
             ITransportWaitingConnection connection,
             EndpointConfiguration configuration)
         {
-            configuration ??= EndpointConfiguration.Create();
-
-            ITransportChannel channel = DiscoveryChannel.Create(
-                null,
+            return CreateAsync(
                 connection,
                 configuration,
-                new ServiceMessageContext());
-            return new DiscoveryClient(channel);
+                null).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        [Obsolete("Use CreateAsync instead.")]
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            Uri discoveryUrl)
+        {
+            return CreateAsync(
+                application,
+                discoveryUrl).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        [Obsolete("Use CreateAsync instead.")]
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            Uri discoveryUrl,
+            EndpointConfiguration configuration)
+        {
+            return CreateAsync(
+                application,
+                discoveryUrl,
+                configuration).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        [Obsolete("Use CreateAsync instead.")]
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration)
+        {
+            return CreateAsync(
+                application,
+                connection,
+                configuration).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -113,39 +124,244 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
-        /// /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <param name="applicationConfiguration">The application configuration.</param>
+        [Obsolete("Use CreateAsync instead.")]
         public static DiscoveryClient Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             ApplicationConfiguration applicationConfiguration)
+        {
+            return CreateAsync(
+                discoveryUrl,
+                endpointConfiguration,
+                applicationConfiguration).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
+        public static async Task<DiscoveryClient> CreateAsync(
+            ApplicationConfiguration application,
+            Uri discoveryUrl,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+
+            var configuration = EndpointConfiguration.Create();
+            ServiceMessageContext messageContext = application.CreateMessageContext();
+            ITransportChannel channel = await CreateChannelAsync(
+                application,
+                discoveryUrl,
+                configuration,
+                messageContext,
+                null,
+                ct).ConfigureAwait(false);
+            return new DiscoveryClient(channel, messageContext.Telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
+        public static async Task<DiscoveryClient> CreateAsync(
+            ApplicationConfiguration application,
+            Uri discoveryUrl,
+            EndpointConfiguration configuration,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+
+            configuration ??= EndpointConfiguration.Create();
+
+            ServiceMessageContext messageContext = application.CreateMessageContext();
+            ITransportChannel channel = await CreateChannelAsync(
+                application,
+                discoveryUrl,
+                configuration,
+                messageContext,
+                null,
+                ct).ConfigureAwait(false);
+            return new DiscoveryClient(channel, messageContext.Telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
+        public static async Task<DiscoveryClient> CreateAsync(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+
+            configuration ??= EndpointConfiguration.Create();
+
+            ServiceMessageContext messageContext = application.CreateMessageContext();
+            ITransportChannel channel = await CreateChannelAsync(
+                application,
+                connection,
+                configuration,
+                messageContext,
+                null,
+                ct).ConfigureAwait(false);
+            return new DiscoveryClient(channel, messageContext.Telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
+        }
+
+        /// <summary>
+        /// Creates a binding to use for discovering servers.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="endpointConfiguration">The endpoint configuration.</param>
+        /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <param name="returnDiagnostics">Diagnostics to return for each request</param>
+        /// <param name="ct">A cancellation token to cancel the operation with</param>
+        /// <exception cref="ArgumentNullException"><paramref name="applicationConfiguration"/> is <c>null</c>.</exception>
+        public static async Task<DiscoveryClient> CreateAsync(
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            ApplicationConfiguration applicationConfiguration,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (applicationConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(applicationConfiguration));
+            }
+
+            endpointConfiguration ??= EndpointConfiguration.Create();
+
+            // check if application configuration contains instance certificate.
+            X509Certificate2 clientCertificate = null;
+
+            ServiceMessageContext messageContext = applicationConfiguration.CreateMessageContext();
+            try
+            {
+                // Will always use the first certificate
+                CertificateIdentifier applicationCertificate = applicationConfiguration
+                    .SecurityConfiguration?
+                    .ApplicationCertificate;
+                if (applicationCertificate != null)
+                {
+                    clientCertificate = await applicationCertificate.FindAsync(
+                        true,
+                        telemetry: messageContext.Telemetry,
+                        ct: ct).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // ignore errors
+            }
+
+            ITransportChannel channel = await CreateChannelAsync(
+                applicationConfiguration,
+                discoveryUrl,
+                endpointConfiguration,
+                messageContext,
+                clientCertificate,
+                ct).ConfigureAwait(false);
+            return new DiscoveryClient(channel, messageContext.Telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="returnDiagnostics">Diagnostics to return for each request</param>
+        /// <param name="ct">A cancellation token to cancel the operation with</param>
+        public static Task<DiscoveryClient> CreateAsync(
+            Uri discoveryUrl,
+            ITelemetryContext telemetry,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(discoveryUrl, null, telemetry, returnDiagnostics, ct);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        public static async Task<DiscoveryClient> CreateAsync(
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration,
+            ITelemetryContext telemetry,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            configuration ??= EndpointConfiguration.Create();
+
+            ITransportChannel channel = await CreateChannelAsync(
+                null,
+                connection,
+                configuration,
+                new ServiceMessageContext(telemetry),
+                null,
+                ct).ConfigureAwait(false);
+            return new DiscoveryClient(channel, telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
+        }
+
+        /// <summary>
+        /// Creates a binding to use for discovering servers.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="endpointConfiguration">The endpoint configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="returnDiagnostics">Diagnostics to return for each request</param>
+        /// <param name="ct">A cancellation token to cancel the operation with</param>
+        public static async Task<DiscoveryClient> CreateAsync(
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            ITelemetryContext telemetry,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
         {
             endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
             X509Certificate2 clientCertificate = null;
 
-            try
-            {
-                // Will always use the first certificate
-                clientCertificate = applicationConfiguration?
-                    .SecurityConfiguration?
-                    .ApplicationCertificate?
-                    .FindAsync(true)
-                    .GetAwaiter()
-                    .GetResult();
-            }
-            catch
-            {
-                //ignore errors
-            }
-
-            ITransportChannel channel = DiscoveryChannel.Create(
-                applicationConfiguration,
+            ITransportChannel channel = await CreateChannelAsync(
+                null,
                 discoveryUrl,
                 endpointConfiguration,
-                new ServiceMessageContext(),
-                clientCertificate);
-            return new DiscoveryClient(channel);
+                new ServiceMessageContext(telemetry),
+                clientCertificate,
+                ct).ConfigureAwait(false);
+            return new DiscoveryClient(channel, telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
         }
 
         /// <summary>
@@ -265,6 +481,107 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a new transport channel that supports the ISessionChannel service contract.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery url.</param>
+        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
+        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="clientCertificate">The client certificate to use.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with</param>
+        internal static ValueTask<ITransportChannel> CreateChannelAsync(
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            IServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null,
+            CancellationToken ct = default)
+        {
+            // create a default description.
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = discoveryUrl.OriginalString,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
+            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
+                null,
+                endpoint,
+                endpointConfiguration,
+                clientCertificate,
+                null,
+                messageContext,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a new transport channel that supports the ITransportWaitingConnection service contract.
+        /// </summary>
+        internal static ValueTask<ITransportChannel> CreateChannelAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            EndpointConfiguration endpointConfiguration,
+            IServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null,
+            CancellationToken ct = default)
+        {
+            // create a default description.
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = connection.EndpointUrl.OriginalString,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
+            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
+                configuration,
+                connection,
+                endpoint,
+                endpointConfiguration,
+                clientCertificate,
+                null,
+                messageContext,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a new transport channel that supports the IDiscoveryChannel service contract.
+        /// </summary>
+        internal static ValueTask<ITransportChannel> CreateChannelAsync(
+            ApplicationConfiguration configuration,
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            IServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null,
+            CancellationToken ct = default)
+        {
+            // create a default description.
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = discoveryUrl.OriginalString,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
+            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
+                configuration,
+                endpoint,
+                endpointConfiguration,
+                clientCertificate,
+                null,
+                messageContext,
+                null,
+                ct);
+        }
+
+        /// <summary>
         /// Patch returned endpoints urls with url used to reached the endpoint.
         /// </summary>
         private EndpointDescriptionCollection PatchEndpointUrls(
@@ -283,8 +600,8 @@ namespace Opc.Ua
                     Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
                     if (discoveryEndPointUri == null)
                     {
-                        Utils.LogWarning(
-                            "Discovery endpoint contains invalid Url: {0}",
+                        m_logger.LogWarning(
+                            "Discovery endpoint contains invalid Url: {EndpointUrl}",
                             discoveryEndPoint.EndpointUrl);
                         continue;
                     }
@@ -294,7 +611,7 @@ namespace Opc.Ua
                     {
                         var builder = new UriBuilder(discoveryEndPointUri)
                         {
-                            Host = endpointUrl.DnsSafeHost
+                            Host = endpointUrl.IdnHost
                         };
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
@@ -314,42 +631,30 @@ namespace Opc.Ua
     /// <summary>
     /// A channel object used by clients to access a UA discovery service.
     /// </summary>
+    [Obsolete("Use DiscoveryClient.CreateAsync instead to create a discovery client.")]
     public partial class DiscoveryChannel
     {
         /// <summary>
-        /// Creates a new transport channel that supports the ISessionChannel service contract.
+        /// Creates a new transport channel for discovery
         /// </summary>
-        /// <param name="discoveryUrl">The discovery url.</param>
-        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
-        /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <param name="clientCertificate">The client certificate to use.</param>
+        [Obsolete("Use DiscoveryClient.CreateAsync instead to create a discovery client.")]
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
-            // create a default description.
-            var endpoint = new EndpointDescription
-            {
-                EndpointUrl = discoveryUrl.OriginalString,
-                SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None
-            };
-            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
-            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-
-            return CreateUaBinaryChannel(
-                null,
-                endpoint,
+            return DiscoveryClient.CreateChannelAsync(
+                discoveryUrl,
                 endpointConfiguration,
-                clientCertificate,
-                messageContext);
+                messageContext,
+                clientCertificate).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
-        /// Creates a new transport channel that supports the ITransportWaitingConnection service contract.
+        /// Creates a new transport channel for discovery
         /// </summary>
+        [Obsolete("Use CreateAsync instead.")]
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
@@ -357,29 +662,18 @@ namespace Opc.Ua
             IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
-            // create a default description.
-            var endpoint = new EndpointDescription
-            {
-                EndpointUrl = connection.EndpointUrl.OriginalString,
-                SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None
-            };
-            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
-            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-
-            return CreateUaBinaryChannel(
+            return DiscoveryClient.CreateChannelAsync(
                 configuration,
                 connection,
-                endpoint,
                 endpointConfiguration,
-                clientCertificate,
-                null,
-                messageContext);
+                messageContext,
+                clientCertificate).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
-        /// Creates a new transport channel that supports the IDiscoveryChannel service contract.
+        /// Creates a new transport channel for discovery
         /// </summary>
+        [Obsolete("Use CreateAsync instead.")]
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             Uri discoveryUrl,
@@ -387,23 +681,12 @@ namespace Opc.Ua
             IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
-            // create a default description.
-            var endpoint = new EndpointDescription
-            {
-                EndpointUrl = discoveryUrl.OriginalString,
-                SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None
-            };
-            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
-            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-
-            return CreateUaBinaryChannel(
+            return DiscoveryClient.CreateChannelAsync(
                 configuration,
-                endpoint,
+                discoveryUrl,
                 endpointConfiguration,
-                clientCertificate,
-                null,
-                messageContext);
+                messageContext,
+                clientCertificate).AsTask().GetAwaiter().GetResult();
         }
     }
 }

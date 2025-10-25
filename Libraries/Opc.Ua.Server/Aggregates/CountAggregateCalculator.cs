@@ -46,14 +46,16 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public CountAggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
-            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration, telemetry)
         {
             SetPartialBit = true;
         }
@@ -65,24 +67,25 @@ namespace Opc.Ua.Server
         {
             uint? id = AggregateId.Identifier as uint?;
 
-            if (id != null)
+            if (id == null)
             {
-                switch (id.Value)
-                {
-                    case Objects.AggregateFunction_Count:
-                        return ComputeCount(slice);
-                    case Objects.AggregateFunction_AnnotationCount:
-                        return ComputeAnnotationCount(slice);
-                    case Objects.AggregateFunction_DurationInStateZero:
-                        return ComputeDurationInState(slice, false);
-                    case Objects.AggregateFunction_DurationInStateNonZero:
-                        return ComputeDurationInState(slice, true);
-                    case Objects.AggregateFunction_NumberOfTransitions:
-                        return ComputeNumberOfTransitions(slice);
-                }
+                return base.ComputeValue(slice);
             }
-
-            return base.ComputeValue(slice);
+            switch (id.Value)
+            {
+                case Objects.AggregateFunction_Count:
+                    return ComputeCount(slice);
+                case Objects.AggregateFunction_AnnotationCount:
+                    return ComputeAnnotationCount(slice);
+                case Objects.AggregateFunction_DurationInStateZero:
+                    return ComputeDurationInState(slice, false);
+                case Objects.AggregateFunction_DurationInStateNonZero:
+                    return ComputeDurationInState(slice, true);
+                case Objects.AggregateFunction_NumberOfTransitions:
+                    return ComputeNumberOfTransitions(slice);
+                default:
+                    return base.ComputeValue(slice);
+            }
         }
 
         /// <summary>

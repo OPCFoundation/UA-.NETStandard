@@ -70,7 +70,7 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                _ = BinaryEncoder.EncodeMessage(encodeable, s_messageContext);
+                _ = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
             }
         }
 
@@ -87,7 +87,7 @@ namespace Opc.Ua.Fuzzing
                 try
                 {
                     encodeable = FuzzBinaryDecoderCore(memoryStream, true);
-                    serialized = BinaryEncoder.EncodeMessage(encodeable, s_messageContext);
+                    serialized = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
                 }
                 catch
                 {
@@ -129,7 +129,7 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                _ = BinaryEncoder.EncodeMessage(encodeable, s_messageContext);
+                _ = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
             }
         }
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.Fuzzing
                 try
                 {
                     encodeable = FuzzBinaryDecoderCore(memoryStream, true);
-                    serialized = BinaryEncoder.EncodeMessage(encodeable, s_messageContext);
+                    serialized = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
                 }
                 catch
                 {
@@ -167,7 +167,7 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using var decoder = new BinaryDecoder(stream, s_messageContext);
+                using var decoder = new BinaryDecoder(stream, MessageContext);
                 return decoder.DecodeMessage(null);
             }
             catch (ServiceResultException sre)
@@ -180,10 +180,10 @@ namespace Opc.Ua.Fuzzing
                         {
                             return null;
                         }
-                        break;
+                        goto default;
+                    default:
+                        throw;
                 }
-
-                throw;
             }
         }
 
@@ -203,7 +203,7 @@ namespace Opc.Ua.Fuzzing
 
             using var memoryStream = new MemoryStream(serialized);
             IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true);
-            byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, s_messageContext);
+            byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, MessageContext);
 
             using var memoryStream2 = new MemoryStream(serialized2);
             IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true);

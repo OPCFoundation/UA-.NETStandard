@@ -38,6 +38,7 @@ using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -542,12 +543,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             using var stream = new MemoryStream();
             string text;
-            using (var encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
+            using (var encoder = new BinaryEncoder(stream, new ServiceMessageContext(Telemetry), true))
             {
                 text = WriteByteStringData(encoder);
             }
             stream.Position = 0;
-            using var decoder = new BinaryDecoder(stream, new ServiceMessageContext());
+            using var decoder = new BinaryDecoder(stream, new ServiceMessageContext(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -562,13 +563,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var encoder = new XmlEncoder(
                     new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd),
                     writer,
-                    new ServiceMessageContext()))
+                    new ServiceMessageContext(Telemetry)))
             {
                 string text = WriteByteStringData(encoder);
             }
             stream.Position = 0;
             using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-            using var decoder = new XmlDecoder(null, reader, new ServiceMessageContext());
+            using var decoder = new XmlDecoder(null, reader, new ServiceMessageContext(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -579,7 +580,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var stream = new MemoryStream();
             string text;
             using (var encoder = new JsonEncoder(
-                new ServiceMessageContext(),
+                new ServiceMessageContext(Telemetry),
                 true,
                 false,
                 stream,
@@ -590,7 +591,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             stream.Position = 0;
             var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-            using var decoder = new JsonDecoder(null, jsonTextReader, new ServiceMessageContext());
+            using var decoder = new JsonDecoder(null, jsonTextReader, new ServiceMessageContext(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -713,6 +714,69 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(
                 Utils.IsEqual(expected, result),
                 "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a null array
+        /// </summary>
+        [Theory]
+        [Category("Array")]
+        [Repeat(kArrayRepeats)]
+        public void EncodeNullArray(
+            [ValueSource(nameof(EncodingTypesAll))] EncodingTypeGroup encoderTypeGroup,
+            BuiltInType builtInType)
+        {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            SetRepeatedRandomSeed();
+            Assume.That(builtInType != BuiltInType.Null);
+            Array nullArray = null;
+
+            string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
+            Type type = TypeInfo.GetSystemType(builtInType, -1);
+            TestContext.Out.WriteLine(encodeInfo);
+
+            byte[] buffer;
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(
+                MemoryStreamType.MemoryStream))
+            {
+                using (
+                    IEncoder encoder = CreateEncoder(
+                        encoderType,
+                        Context,
+                        encoderStream,
+                        type,
+                        jsonEncodingType,
+                        false))
+                {
+                    encoder.WriteArray(
+                        builtInType.ToString(),
+                        nullArray,
+                        ValueRanks.OneDimension,
+                        builtInType);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
+            object result;
+            using (var decoderStream = new MemoryStream(buffer))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            {
+                result = decoder.ReadArray(
+                    builtInType.ToString(),
+                    ValueRanks.OneDimension,
+                    builtInType);
+            }
+
+            // Both are allowed, empty array or null
+            if (result is Array resultArray)
+            {
+                Assert.AreEqual(0, resultArray.Length, encodeInfo);
+            }
+            else
+            {
+                Assert.IsNull(result, encodeInfo);
+            }
         }
 
         /// <summary>
@@ -1159,6 +1223,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EnsureNodeIdNullIsNotModified()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
             const string text1 =
                 "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\"," +
                 "\"Key\":{\"Name\":\"o\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
@@ -1169,6 +1235,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "{\"Identifier\":\"i=14802\"}}]}}}}},\"TypeId\":" +
                 "{\"Identifier\":\"i=14803\"}}]";
 
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
             JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
 
             Assert.NotNull(NodeId.Null);

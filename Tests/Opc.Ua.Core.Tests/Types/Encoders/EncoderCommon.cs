@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -43,6 +44,7 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -78,17 +80,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected StringTable ServerUris { get; private set; }
         protected BufferManager BufferManager { get; private set; }
         protected RecyclableMemoryStreamManager RecyclableMemoryManager { get; private set; }
+        protected ITelemetryContext Telemetry { get; private set; }
 
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            Context = new ServiceMessageContext { MaxArrayLength = kMaxArrayLength };
+            Telemetry = NUnitTelemetryContext.Create();
+            Context = new ServiceMessageContext(Telemetry) { MaxArrayLength = kMaxArrayLength };
             NameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
             NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ServerUris = new StringTable();
-            BufferManager = new BufferManager(nameof(EncoderCommon), kTestBlockSize);
+            BufferManager = new BufferManager(nameof(EncoderCommon), kTestBlockSize, Telemetry);
             RecyclableMemoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = kTestBlockSize });
         }
@@ -103,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // ensure tests are reproducible, reset for every test
             RandomSource = new RandomSource(kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         [TearDown]
@@ -120,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         /// <summary>
@@ -129,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void SetRandomSeed(int randomSeed)
         {
             RandomSource = new RandomSource(randomSeed + kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource);
+            DataGenerator = new DataGenerator(RandomSource, Telemetry);
         }
 
         [DatapointSource]
@@ -872,9 +876,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return decoder.ReadDiagnosticInfo(fieldName);
                 case BuiltInType.Variant:
                     return decoder.ReadVariant(fieldName);
+                default:
+                    NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
+                    return null;
             }
-            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
-            return null;
         }
 
         /// <summary>
@@ -1335,15 +1340,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             private readonly bool m_resetCounter;
         }
 
-        protected class DynamicEncodeableFactory : EncodeableFactory
+        protected class DynamicEncodeableFactory : IEncodeableFactory
         {
-            private readonly Dictionary<ExpandedNodeId, DynamicEncodeable> m_dynamicEncodeables
-                = [];
-
             public DynamicEncodeableFactory(IEncodeableFactory factory)
-                : base(factory)
             {
+                m_inner = factory;
             }
+
+            public IEnumerable<ExpandedNodeId> KnownTypeIds => m_inner.KnownTypeIds;
+
+            public IEncodeableFactoryBuilder Builder => m_inner.Builder;
 
             public DynamicEncodeable GetDynamicEncodeableForEncoding(ExpandedNodeId typeId)
             {
@@ -1363,11 +1369,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_dynamicEncodeables[encodeable.JsonEncodingId] = encodeable;
                 m_dynamicEncodeables[encodeable.BinaryEncodingId] = encodeable;
                 m_dynamicEncodeables[encodeable.TypeId] = encodeable;
-                AddEncodeableType(encodeable.XmlEncodingId, typeof(DynamicEncodeable));
-                AddEncodeableType(encodeable.JsonEncodingId, typeof(DynamicEncodeable));
-                AddEncodeableType(encodeable.BinaryEncodingId, typeof(DynamicEncodeable));
-                AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.XmlEncodingId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.JsonEncodingId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.BinaryEncodingId, typeof(DynamicEncodeable));
+                m_inner.AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
             }
+
+            public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType systemType)
+            {
+                return m_inner.TryGetEncodeableType(typeId, out systemType);
+            }
+
+            private readonly IEncodeableFactory m_inner;
+            private readonly Dictionary<ExpandedNodeId, DynamicEncodeable> m_dynamicEncodeables = [];
         }
     }
 }

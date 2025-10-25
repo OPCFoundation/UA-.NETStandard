@@ -242,15 +242,14 @@ namespace Opc.Ua
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
-
 #endif
                 case SecurityPolicies.ECC_curve25519:
                     return CreateNonceForCurve25519(nonceData);
                 case SecurityPolicies.ECC_curve448:
                     return CreateNonceForCurve448(nonceData);
+                default:
+                    return nonce;
             }
-
-            return nonce;
         }
 
         /// <summary>

@@ -87,11 +87,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Allows a subclass to consume the telemetry context to create loggers or any other observability
+        /// instruments. This method is called by all Initialize overloads. However, it is possible that it
+        /// is not called if any of them does not call their base implementation.  Therefore it is advised
+        /// to always initialize a logger using the Utils.NullLogger.Instance to avoid Null reference exceptions.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        protected virtual void Initialize(ITelemetryContext telemetry)
+        {
+            // defined by subclass.
+        }
+
+        /// <summary>
         /// When overridden in a derived class, initializes the instance with the default values.
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
         protected virtual void Initialize(ISystemContext context)
         {
+            Initialize(context.Telemetry);
+
             // defined by subclass.
         }
 
@@ -132,6 +146,8 @@ namespace Opc.Ua
         /// <param name="source">The source node.</param>
         protected virtual void Initialize(ISystemContext context, NodeState source)
         {
+            Initialize(context.Telemetry);
+
             Handle = source.Handle;
             SymbolicName = source.SymbolicName;
             m_nodeId = source.m_nodeId;
@@ -428,6 +444,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
         /// <param name="table">A table of nodes.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void Export(ISystemContext context, NodeTable table)
         {
             Node node;
@@ -457,9 +474,12 @@ namespace Opc.Ua
                 case NodeClass.View:
                     node = new ViewNode();
                     break;
-                default:
+                case NodeClass.Unspecified:
                     node = new Node();
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected NodeClass value: {NodeClass}");
             }
 
             Export(context, node);
@@ -506,7 +526,7 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsXml(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -538,7 +558,7 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -581,7 +601,7 @@ namespace Opc.Ua
         /// <param name="istrm">The stream to read.</param>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -1221,7 +1241,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void LoadFromXml(ISystemContext context, XmlReader reader)
         {
-            var messageContext = new ServiceMessageContext
+            var messageContext = new ServiceMessageContext(context.Telemetry)
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
@@ -1800,7 +1820,8 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory();
 
             // create the appropriate node.
 
@@ -1869,34 +1890,43 @@ namespace Opc.Ua
                         nodeClass,
                         symbolicName,
                         browseName);
+                case NodeClass.Unspecified:
+                case NodeClass.ObjectType:
+                case NodeClass.VariableType:
+                case NodeClass.ReferenceType:
+                case NodeClass.DataType:
+                case NodeClass.View:
+                    // get the node factory.
+                    NodeStateFactory factory = context.NodeStateFactory
+                        ?? new NodeStateFactory();
+
+                    // create the appropriate node.
+                    NodeState child =
+                        factory.CreateInstance(context, null, nodeClass, browseName, null, null)
+                        ?? throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Could not load node '{0}', with NodeClass {1}",
+                            browseName,
+                            nodeClass);
+
+                    // update symbolic name.
+                    child.SymbolicName = symbolicName;
+                    child.BrowseName = browseName;
+
+                    // update attributes.
+                    child.Update(context, decoder, attributesToLoad);
+
+                    // update any references.
+                    child.UpdateReferences(context, decoder);
+
+                    // update any children.
+                    child.UpdateChildren(context, decoder);
+
+                    return child;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected NodeClass {nodeClass}");
             }
-
-            // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
-
-            // create the appropriate node.
-            NodeState child =
-                factory.CreateInstance(context, null, nodeClass, browseName, null, null)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Could not load node '{0}', with NodeClass {1}",
-                    browseName,
-                    nodeClass);
-
-            // update symbolic name.
-            child.SymbolicName = symbolicName;
-            child.BrowseName = browseName;
-
-            // update attributes.
-            child.Update(context, decoder, attributesToLoad);
-
-            // update any references.
-            child.UpdateReferences(context, decoder);
-
-            // update any children.
-            child.UpdateChildren(context, decoder);
-
-            return child;
         }
 
         /// <summary>
@@ -1929,36 +1959,45 @@ namespace Opc.Ua
                         childName,
                         nodeClass,
                         browseName);
+                case NodeClass.Unspecified:
+                case NodeClass.ObjectType:
+                case NodeClass.VariableType:
+                case NodeClass.ReferenceType:
+                case NodeClass.DataType:
+                case NodeClass.View:
+                    // get the node factory.
+                    NodeStateFactory factory = context.NodeStateFactory
+                        ?? new NodeStateFactory();
+
+                    // create the appropriate node.
+                    NodeState child =
+                        factory.CreateInstance(context, null, nodeClass, browseName, null, null)
+                        ?? throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Could not load node '{0}', with NodeClass {1}",
+                            browseName,
+                            nodeClass);
+
+                    // update symbolic name.
+                    child.SymbolicName = childName.Name;
+
+                    // update attributes.
+                    child.Update(context, decoder);
+
+                    // update any references.
+                    child.UpdateReferences(context, decoder);
+
+                    // update any children.
+                    child.UpdateChildren(context, decoder);
+
+                    // skip to the end of the child.
+                    decoder.Skip(childName);
+
+                    return child;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected NodeClass {nodeClass}");
             }
-
-            // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
-
-            // create the appropriate node.
-            NodeState child =
-                factory.CreateInstance(context, null, nodeClass, browseName, null, null)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Could not load node '{0}', with NodeClass {1}",
-                    browseName,
-                    nodeClass);
-
-            // update symbolic name.
-            child.SymbolicName = childName.Name;
-
-            // update attributes.
-            child.Update(context, decoder);
-
-            // update any references.
-            child.UpdateReferences(context, decoder);
-
-            // update any children.
-            child.UpdateChildren(context, decoder);
-
-            // skip to the end of the child.
-            decoder.Skip(childName);
-
-            return child;
         }
 
         /// <summary>
@@ -2014,7 +2053,8 @@ namespace Opc.Ua
             decoder.PopNamespace();
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
+            NodeStateFactory factory = context.NodeStateFactory
+                ?? new NodeStateFactory();
 
             // create the appropriate node.
 
@@ -3321,7 +3361,9 @@ namespace Opc.Ua
             // check for bad parameter.
             if (value == null)
             {
-                return StatusCodes.BadStructureMissing;
+                return ServiceResult.Create(
+                    StatusCodes.BadStructureMissing,
+                    "DataValue missing");
             }
 
             object valueToRead = value.Value;
@@ -3346,7 +3388,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    result = new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                    result = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read value attribute from node.");
                 }
             }
             // read any non-value attribute.
@@ -3358,7 +3403,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    result = new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                    result = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read non value attribute from node.");
                 }
             }
 
@@ -3643,7 +3691,9 @@ namespace Opc.Ua
             // check for bad parameter.
             if (value == null)
             {
-                return StatusCodes.BadStructureMissing;
+                return ServiceResult.Create(
+                    StatusCodes.BadStructureMissing,
+                    "DataValue missing");
             }
 
             object valueToWrite = value.Value;
@@ -3653,7 +3703,9 @@ namespace Opc.Ua
                 // writes to server timestamp never supported.
                 if (value.ServerTimestamp != DateTime.MinValue)
                 {
-                    return StatusCodes.BadWriteNotSupported;
+                    return ServiceResult.Create(
+                        StatusCodes.BadWriteNotSupported,
+                        "Cannot write to server timestamp");
                 }
 
                 // call implementation.
@@ -3668,7 +3720,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to write value attribute.");
                 }
             }
 
@@ -3677,13 +3732,17 @@ namespace Opc.Ua
                 value.ServerTimestamp != DateTime.MinValue ||
                 value.SourceTimestamp != DateTime.MinValue)
             {
-                return StatusCodes.BadWriteNotSupported;
+                return ServiceResult.Create(
+                    StatusCodes.BadWriteNotSupported,
+                    "Cannot write timestamps or status codes to non value attributes.");
             }
 
             // cannot use index range for non-value attributes.
             if (indexRange != NumericRange.Empty)
             {
-                return StatusCodes.BadIndexRangeInvalid;
+                return ServiceResult.Create(
+                    StatusCodes.BadIndexRangeInvalid,
+                    "Index range can only be specified for value attribute");
             }
 
             // call implementation.
@@ -3693,7 +3752,9 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                return new ServiceResult(e, StatusCodes.BadUnexpectedError);
+                return ServiceResult.Create(e,
+                    StatusCodes.BadUnexpectedError,
+                    "Failed to write non value attribute");
             }
         }
 
@@ -3977,9 +4038,9 @@ namespace Opc.Ua
                     }
 
                     return result;
+                default:
+                    return StatusCodes.BadAttributeIdInvalid;
             }
-
-            return StatusCodes.BadAttributeIdInvalid;
         }
 
         /// <summary>

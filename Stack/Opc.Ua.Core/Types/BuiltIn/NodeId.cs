@@ -407,6 +407,9 @@ namespace Opc.Ua
                         }
 
                         break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
                 }
             }
 
@@ -422,6 +425,7 @@ namespace Opc.Ua
         /// <param name="context">The current context.</param>
         /// <param name="useNamespaceUri">The NamespaceUri is used instead of the NamespaceIndex.</param>
         /// <returns>The formatted identifier.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public string Format(IServiceMessageContext context, bool useNamespaceUri = false)
         {
             if (m_identifier == null)
@@ -472,10 +476,13 @@ namespace Opc.Ua
                     buffer.Append("b=")
                         .Append(Convert.ToBase64String((byte[])m_identifier));
                     break;
-                default:
+                case IdType.String:
                     buffer.Append("s=")
                         .Append(m_identifier.ToString());
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {IdType}.");
             }
 
             return buffer.ToString();
@@ -529,11 +536,11 @@ namespace Opc.Ua
         /// node1 = new NodeId(id1);
         ///
         /// //now to compare the node to the ids using a simple comparison and Equals:
-        /// Utils.LogInfo("Comparing NodeId to uint");
-        /// Utils.LogInfo("\tComparing 100 to 100 = [equals] {0}", node1.Equals(id1));
-        /// Utils.LogInfo("\tComparing 100 to 100 = [ ==   ] {0}", node1 == id1);
-        /// Utils.LogInfo("\tComparing 100 to 101 = [equals] {0}", node1.Equals(id2));
-        /// Utils.LogInfo("\tComparing 100 to 101 = [ ==   ] {0}", node1 == id2);
+        /// Console.WriteLine("Comparing NodeId to uint");
+        /// Console.WriteLine("\tComparing 100 to 100 = [equals] {0}", node1.Equals(id1));
+        /// Console.WriteLine("\tComparing 100 to 100 = [ ==   ] {0}", node1 == id1);
+        /// Console.WriteLine("\tComparing 100 to 101 = [equals] {0}", node1.Equals(id2));
+        /// Console.WriteLine("\tComparing 100 to 101 = [ ==   ] {0}", node1 == id2);
         ///
         /// </code>
         /// <code lang="Visual Basic">
@@ -547,11 +554,11 @@ namespace Opc.Ua
         /// node1 = new NodeId(id1)
         ///
         /// 'now to compare the node to the ids using a simple comparison and Equals:
-        /// Utils.LogInfo("Comparing NodeId to uint")
-        /// Utils.LogInfo("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1))
-        /// Utils.LogInfo("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1)
-        /// Utils.LogInfo("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2))
-        /// Utils.LogInfo("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2)
+        /// Console.WriteLine("Comparing NodeId to uint")
+        /// Console.WriteLine("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1))
+        /// Console.WriteLine("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1)
+        /// Console.WriteLine("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2))
+        /// Console.WriteLine("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2)
         ///
         /// </code>
         /// <para>
@@ -585,11 +592,11 @@ namespace Opc.Ua
         /// NodeId node1 = new NodeId(id1);
         ///
         /// //now to compare the node to the guids
-        /// Utils.LogInfo("\n\nComparing NodeId to GUID");
-        /// Utils.LogInfo("\tComparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Utils.LogInfo("\tComparing {0} to {0} = [ ==   ] {2}", id1, id1, node1 == id1);
-        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
+        /// Console.WriteLine("\n\nComparing NodeId to GUID");
+        /// Console.WriteLine("\tComparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Console.WriteLine("\tComparing {0} to {0} = [ ==   ] {2}", id1, id1, node1 == id1);
+        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Console.WriteLine("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
         ///
         /// </code>
         /// <code lang="Visual Basic">
@@ -600,11 +607,11 @@ namespace Opc.Ua
         /// Dim node1 As NodeId = new NodeId(id1)
         ///
         /// 'now to compare the node to the guids
-        /// Utils.LogInfo("Comparing NodeId to GUID")
-        /// Utils.LogInfo("  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Utils.LogInfo("  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1);
-        /// Utils.LogInfo("  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Utils.LogInfo("  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2);
+        /// Console.WriteLine("Comparing NodeId to GUID")
+        /// Console.WriteLine("  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Console.WriteLine("  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1);
+        /// Console.WriteLine("  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Console.WriteLine("  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2);
         ///
         /// </code>
         /// <para>
@@ -643,11 +650,11 @@ namespace Opc.Ua
         /// string id2String = System.Text.ASCIIEncoding.ASCII.GetString(id2);
         ///
         /// //now to compare the node to the guids
-        /// Utils.LogInfo("\n\nComparing NodeId to Byte[]");
-        /// Utils.LogInfo("\tComparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1));
-        /// Utils.LogInfo("\tComparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 == id1);
-        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2));
-        /// Utils.LogInfo("\tComparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 == id2);
+        /// Console.WriteLine("\n\nComparing NodeId to Byte[]");
+        /// Console.WriteLine("\tComparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1));
+        /// Console.WriteLine("\tComparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 == id1);
+        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2));
+        /// Console.WriteLine("\tComparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 == id2);
         ///
         /// </code>
         /// <code lang="Visual Basic">
@@ -662,11 +669,11 @@ namespace Opc.Ua
         /// Dim id2String As String = System.Text.ASCIIEncoding.ASCII.GetString(id2)
         ///
         /// 'now to compare the node to the guids
-        /// Utils.LogInfo("Comparing NodeId to Byte()")
-        /// Utils.LogInfo("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1))
-        /// Utils.LogInfo("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1)
-        /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2))
-        /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2)
+        /// Console.WriteLine("Comparing NodeId to Byte()")
+        /// Console.WriteLine("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1))
+        /// Console.WriteLine("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1)
+        /// Console.WriteLine("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2))
+        /// Console.WriteLine("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2)
         ///
         /// </code>
         /// <para>
@@ -700,11 +707,11 @@ namespace Opc.Ua
         /// NodeId node1 = new NodeId(id1);
         ///
         /// //now to compare the node to the guids
-        /// Utils.LogInfo("\n\nComparing NodeId to String");
-        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id1, node1 == id1);
-        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
+        /// Console.WriteLine("\n\nComparing NodeId to String");
+        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Console.WriteLine("\tComparing {0} to {1} = [ ==   ] {2}", id1, id1, node1 == id1);
+        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Console.WriteLine("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
         ///
         ///
         /// </code>
@@ -716,11 +723,11 @@ namespace Opc.Ua
         /// Dim node1 As NodeId = New NodeId(id1)
         ///
         /// 'now to compare the node to the guids
-        /// Utils.LogInfo("Comparing NodeId to String");
-        /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1, id1, node1 = id1);
-        /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2);
+        /// Console.WriteLine("Comparing NodeId to String");
+        /// Console.WriteLine("Comparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Console.WriteLine("Comparing {0} to {1} = [  =   ] {2}", id1, id1, node1 = id1);
+        /// Console.WriteLine("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Console.WriteLine("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2);
         ///
         /// </code>
         /// </example>
@@ -801,6 +808,7 @@ namespace Opc.Ua
                 }
 
                 ushort namespaceIndex = 0;
+                bool namespaceUriSpecified = namespaceSet; // Track if nsu= was used (from ExpandedNodeId)
 
                 // parse the namespace index if present.
                 if (text.StartsWith("ns=", StringComparison.Ordinal))
@@ -815,7 +823,7 @@ namespace Opc.Ua
                     }
 
                     namespaceIndex = Convert.ToUInt16(text[3..index], CultureInfo.InvariantCulture);
-                    namespaceSet = true;
+                    // Don't set namespaceSet = true here, only ns= was parsed, not nsu=
 
                     text = text[(index + 1)..];
                 }
@@ -854,14 +862,15 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    // treat as a string identifier if a namespace was specified.
-                    if (namespaceSet)
+                    // Allow implicit string identifier only if namespace URI was specified (from ExpandedNodeId)
+                    // Do not allow it if only namespace index (ns=) was specified
+                    if (namespaceUriSpecified)
                     {
                         return new NodeId(text, namespaceIndex);
                     }
 
                     argumentException = new ArgumentException(
-                        "Invalid string NodeId without namespace index ('ns=').");
+                        Utils.Format("Invalid NodeId identifier. Missing valid identifier prefix ('i=', 's=', 'g=', 'b='): '{0}'", text));
                 }
             }
             catch (Exception e)
@@ -936,6 +945,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the NodeId as a string and appends it to the buffer.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static void Format(
             IFormatProvider formatProvider,
             StringBuilder buffer,
@@ -963,6 +973,9 @@ namespace Opc.Ua
                 case IdType.Opaque:
                     buffer.Append("b=");
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {identifierType}.");
             }
 
             // add identifier.
@@ -1026,6 +1039,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the identifier.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal void SetIdentifier(IdType idType, object value)
         {
             ValidateImmutableNodeIdIsNotModified();
@@ -1035,7 +1049,9 @@ namespace Opc.Ua
             {
                 IdType.Opaque => Utils.Clone(value),
                 IdType.Guid => (Guid)value,
-                _ => value
+                IdType.Numeric or IdType.String => value,
+                _ => throw ServiceResultException.Unexpected(
+                    $"Unexpected IdType value {idType}.")
             };
         }
 
@@ -1056,6 +1072,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Enables this object type to be compared to other types of object.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         public int CompareTo(object obj)
         {
             // check for null.
@@ -1215,6 +1232,11 @@ namespace Opc.Ua
                         }
 
                         break;
+                    case IdType.Guid:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
                 }
 
                 return -1;
@@ -1252,6 +1274,11 @@ namespace Opc.Ua
                         }
 
                         break;
+                    case IdType.Guid:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
                 }
 
                 return +1;
@@ -1511,6 +1538,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns the Id in its native format, i.e. UInt, GUID, String etc.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         public object Identifier
         {
             get
@@ -1523,6 +1551,12 @@ namespace Opc.Ua
                             return (uint)0;
                         case IdType.Guid:
                             return Guid.Empty;
+                        case IdType.String:
+                        case IdType.Opaque:
+                            break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected IdType value {IdType}.");
                     }
                 }
 
@@ -1536,6 +1570,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Whether the NodeId represents a Null NodeId.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         public bool IsNullNodeId
         {
             get
@@ -1579,6 +1614,9 @@ namespace Opc.Ua
                             }
 
                             break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected IdType value {IdType}.");
                     }
                 }
 
@@ -1688,6 +1726,7 @@ namespace Opc.Ua
         /// <summary>
         /// Helper to determine if the identifier of specified type is greater/less.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private int CompareTo(IdType idType, object id)
         {
             Debug.Assert(IdType == idType);
@@ -1760,15 +1799,16 @@ namespace Opc.Ua
 
                     return id1.Length < id2.Length ? -1 : +1;
                 }
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {IdType}.");
             }
-
-            // invalid id type - should never get here.
-            return +1;
         }
 
         /// <summary>
         /// Formats a node id as a string.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static void FormatIdentifier(
             IFormatProvider formatProvider,
             StringBuilder buffer,
@@ -1807,6 +1847,9 @@ namespace Opc.Ua
                             Convert.ToBase64String((byte[])identifier));
                     }
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected IdType value {identifierType}.");
             }
         }
 

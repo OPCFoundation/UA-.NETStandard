@@ -11,6 +11,7 @@
 */
 
 using System;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -20,6 +21,16 @@ namespace Opc.Ua
     /// </summary>
     public class ReverseConnectHost
     {
+        /// <summary>
+        /// Create reverse connect host
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use</param>
+        public ReverseConnectHost(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ReverseConnectHost>();
+        }
+
         /// <summary>
         /// Creates a new reverse listener host for a client.
         /// </summary>
@@ -35,7 +46,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(url));
             }
 
-            ITransportListener listener = TransportBindings.Listeners.GetListener(url.Scheme);
+            ITransportListener listener = TransportBindings.Listeners.Create(
+                url.Scheme,
+                m_telemetry);
 
             m_listener =
                 listener
@@ -72,7 +85,7 @@ namespace Opc.Ua
                     MaxChannelCount = 0
                 };
 
-                Utils.LogInfo("Open reverse connect listener for {0}.", Url);
+                m_logger.LogInformation("Open reverse connect listener for {Url}.", Url);
 
                 m_listener.Open(Url, settings, null);
 
@@ -81,7 +94,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Could not open listener for {0}.", Url);
+                m_logger.LogError(e, "Could not open listener for {Url}.", Url);
                 throw;
             }
         }
@@ -99,5 +112,7 @@ namespace Opc.Ua
         private ITransportListener m_listener;
         private ConnectionWaitingHandlerAsync m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs> m_onConnectionStatusChanged;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 }

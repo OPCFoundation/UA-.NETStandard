@@ -43,13 +43,30 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public static readonly DefaultSessionFactory Instance = new();
+        [Obsolete("Use new DefaultSessionFactory instead.")]
+        public static readonly DefaultSessionFactory Instance = new(null);
+
+        /// <inheritdoc/>
+        public ITelemetryContext Telemetry { get; init; }
+
+        /// <inheritdoc/>
+        public DiagnosticsMasks ReturnDiagnostics { get; set; }
+
+        /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
+        public DefaultSessionFactory()
+            : this(null)
+        {
+        }
 
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected DefaultSessionFactory()
+        public DefaultSessionFactory(ITelemetryContext telemetry)
         {
+            Telemetry = telemetry;
         }
 
         /// <inheritdoc/>
@@ -99,6 +116,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }
@@ -128,6 +146,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
+                    ReturnDiagnostics,
                     ct)
                 .ConfigureAwait(false);
         }
@@ -148,16 +167,16 @@ namespace Opc.Ua.Client
             if (reverseConnectManager == null)
             {
                 return await CreateAsync(
-                        configuration,
-                        endpoint,
-                        updateBeforeConnect,
-                        checkDomain,
-                        sessionName,
-                        sessionTimeout,
-                        userIdentity,
-                        preferredLocales,
-                        ct)
-                    .ConfigureAwait(false);
+                    configuration,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    ct)
+                .ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection;
@@ -178,6 +197,7 @@ namespace Opc.Ua.Client
                             connection,
                             endpoint.Description.SecurityMode,
                             endpoint.Description.SecurityPolicyUri,
+                            Telemetry,
                             ct)
                         .ConfigureAwait(false);
                     updateBeforeConnect = false;
@@ -248,6 +268,7 @@ namespace Opc.Ua.Client
                     "The ISession provided is not of a supported type.");
             }
 
+            template.ReturnDiagnostics = ReturnDiagnostics;
             return await Session.RecreateAsync(template, ct).ConfigureAwait(false);
         }
 
@@ -264,6 +285,7 @@ namespace Opc.Ua.Client
                     "The ISession provided is not of a supported type");
             }
 
+            template.ReturnDiagnostics = ReturnDiagnostics;
             return await Session.RecreateAsync(template, connection, ct).ConfigureAwait(false);
         }
 
@@ -279,6 +301,7 @@ namespace Opc.Ua.Client
                     nameof(sessionTemplate),
                     "The ISession provided is not of a supported type");
             }
+            template.ReturnDiagnostics = ReturnDiagnostics;
             return await Session.RecreateAsync(template, transportChannel, ct)
                 .ConfigureAwait(false);
         }
@@ -289,7 +312,10 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new Session(channel, configuration, endpoint);
+            return new Session(channel, configuration, endpoint)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
         }
 
         /// <inheritdoc/>
@@ -307,7 +333,10 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris);
+                discoveryProfileUris)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
         }
     }
 }

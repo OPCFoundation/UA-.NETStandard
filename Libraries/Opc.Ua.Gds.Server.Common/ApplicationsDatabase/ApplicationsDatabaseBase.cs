@@ -65,7 +65,7 @@ namespace Opc.Ua.Gds.Server.Database
                 .ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
             {
                 throw new ArgumentException(
-                    application.ApplicationType.ToString() + " is not a valid ApplicationType.",
+                    application.ApplicationType + " is not a valid ApplicationType.",
                     nameof(application));
             }
 
@@ -146,9 +146,14 @@ namespace Opc.Ua.Gds.Server.Database
                             (string)application.ApplicationId.Identifier,
                             NamespaceIndex);
                         break;
-                    default:
+                    case IdType.Numeric:
+                    case IdType.Opaque:
                         throw new ArgumentException(
                             "The ApplicationId has invalid type {0}",
+                            nameof(application));
+                    default:
+                        throw new ArgumentException(
+                            "The ApplicationId has unexpected type {0}",
                             nameof(application));
                 }
             }

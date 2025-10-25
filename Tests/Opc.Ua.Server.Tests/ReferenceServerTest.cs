@@ -32,8 +32,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Test;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -54,7 +56,7 @@ namespace Opc.Ua.Server.Tests
         private const double kMaxAge = 10000;
         private const uint kTimeoutHint = 10000;
         private const uint kQueueSize = 5;
-
+        private ITelemetryContext m_telemetry;
         private ServerFixture<ReferenceServer> m_fixture;
         private ReferenceServer m_server;
         private RequestHeader m_requestHeader;
@@ -70,6 +72,7 @@ namespace Opc.Ua.Server.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
+            m_telemetry = NUnitTelemetryContext.Create();
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>
             {
@@ -78,7 +81,7 @@ namespace Opc.Ua.Server.Tests
                 DurableSubscriptionsEnabled = false,
                 UseSamplingGroupsInReferenceNodeManager = false
             };
-            m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -97,13 +100,12 @@ namespace Opc.Ua.Server.Tests
         [SetUp]
         public void SetUp()
         {
-            m_fixture.SetTraceOutput(TestContext.Out);
             m_requestHeader = m_server.CreateAndActivateSession(
                 TestContext.CurrentContext.Test.Name);
             m_requestHeader.Timestamp = DateTime.UtcNow;
             m_requestHeader.TimeoutHint = kTimeoutHint;
             m_random = new RandomSource(999);
-            m_generator = new DataGenerator(m_random);
+            m_generator = new DataGenerator(m_random, m_telemetry);
         }
 
         /// <summary>
@@ -172,6 +174,9 @@ namespace Opc.Ua.Server.Tests
         [Order(100)]
         public void GetOperationLimits()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             var readIdCollection = new ReadValueIdCollection
             {
                 new ReadValueId
@@ -258,7 +263,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 results,
-                response.StringTable);
+                response.StringTable,
+                logger);
 
             Assert.NotNull(results);
             Assert.AreEqual(readIdCollection.Count, results.Count);
@@ -287,6 +293,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void Read()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Read
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -307,7 +316,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 dataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
         }
 
         /// <summary>
@@ -316,7 +326,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ReadAllNodes()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             if (m_operationLimits == null)
             {
                 GetOperationLimits();
@@ -351,7 +363,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     dataValues,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
 
                 foreach (DataValue dataValue in dataValues)
                 {
@@ -367,6 +380,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void Write()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Write
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -388,7 +404,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 dataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
         }
 
         /// <summary>
@@ -417,7 +434,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void BrowseFullAddressSpace()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             if (m_operationLimits == null)
             {
                 GetOperationLimits();
@@ -436,7 +455,9 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void TranslateBrowsePath()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             if (m_operationLimits == null)
             {
                 GetOperationLimits();
@@ -460,7 +481,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void Subscription()
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             CommonTestWorkers.SubscriptionTest(serverTestServices, m_requestHeader);
         }
 
@@ -473,7 +496,9 @@ namespace Opc.Ua.Server.Tests
         [Theory]
         public void TransferSubscriptionSessionClosed(bool sendInitialData, bool useSecurity)
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             // save old security context, test fixture can only work with one session
             SecureChannelContext securityContext = SecureChannelContext.Current;
             try
@@ -541,7 +566,9 @@ namespace Opc.Ua.Server.Tests
         [Theory]
         public void TransferSubscription(bool sendInitialData, bool useSecurity)
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             // save old security context, test fixture can only work with one session
             SecureChannelContext securityContext = SecureChannelContext.Current;
             try
@@ -605,7 +632,9 @@ namespace Opc.Ua.Server.Tests
         [TestCase(false, 0U)]
         public void ResendData(bool updateValues, uint queueSize)
         {
-            var serverTestServices = new ServerTestServices(m_server);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, telemetry);
             // save old security context, test fixture can only work with one session
             SecureChannelContext securityContext = SecureChannelContext.Current;
             try
@@ -660,7 +689,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
 
@@ -684,7 +714,8 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticInfos,
                         acknowledgements,
-                        response.StringTable);
+                        response.StringTable,
+                        serverTestServices.Logger);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(0, notificationMessage.NotificationData.Count);
                 }
@@ -707,7 +738,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     nodesToCall,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
 
                 // Still nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -726,7 +758,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
@@ -769,7 +802,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                 ExtensionObject items = notificationMessage.NotificationData.FirstOrDefault();
@@ -800,7 +834,8 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticInfos,
                         acknowledgements,
-                        response.StringTable);
+                        response.StringTable,
+                        serverTestServices.Logger);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                     items = notificationMessage.NotificationData.FirstOrDefault();
@@ -832,7 +867,8 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     acknowledgements,
-                    response.StringTable);
+                    response.StringTable,
+                    serverTestServices.Logger);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
@@ -851,6 +887,9 @@ namespace Opc.Ua.Server.Tests
             StatusCode expectedStatus,
             UInt32Collection subscriptionIds)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Find the ResendData method
             var nodesToCall = new CallMethodRequestCollection();
             foreach (uint subscriptionId in subscriptionIds)
@@ -877,7 +916,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 nodesToCall,
-                response.StringTable);
+                response.StringTable,
+                logger);
 
             return nodesToCall;
         }
@@ -888,6 +928,9 @@ namespace Opc.Ua.Server.Tests
         /// <param name="testSet">The nodeIds to modify.</param>
         private void UpdateValues(NodeId[] testSet)
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
             // Read values
             RequestHeader requestHeader = m_requestHeader;
             var nodesToRead = new ReadValueIdCollection();
@@ -908,7 +951,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 readDataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
             Assert.AreEqual(testSet.Length, readDataValues.Count);
 
             var modifiedValues = new DataValueCollection();
@@ -945,7 +989,92 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 writeDataValues,
-                response.StringTable);
+                response.StringTable,
+                logger);
+        }
+
+        /// <summary>
+        /// Test that Server object EventNotifier has HistoryRead bit set when history capabilities are enabled.
+        /// </summary>
+        [Test]
+        public void ServerEventNotifierHistoryReadBit()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Read Server object EventNotifier attribute
+            var readIdCollection = new ReadValueIdCollection
+            {
+                new ReadValueId
+                {
+                    AttributeId = Attributes.EventNotifier,
+                    NodeId = ObjectIds.Server
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            ResponseHeader response = m_server.Read(
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                readIdCollection,
+                out DataValueCollection serverEventNotifierValues,
+                out DiagnosticInfoCollection _);
+
+            ServerFixtureUtils.ValidateResponse(response, serverEventNotifierValues, readIdCollection);
+            Assert.AreEqual(1, serverEventNotifierValues.Count);
+            Assert.NotNull(serverEventNotifierValues[0].Value);
+
+            byte eventNotifier = (byte)serverEventNotifierValues[0].Value;
+
+            // Read history capabilities
+            var historyCapabilitiesReadIds = new ReadValueIdCollection
+            {
+                new ReadValueId
+                {
+                    AttributeId = Attributes.Value,
+                    NodeId = VariableIds.HistoryServerCapabilities_AccessHistoryEventsCapability
+                },
+                new ReadValueId
+                {
+                    AttributeId = Attributes.Value,
+                    NodeId = VariableIds.HistoryServerCapabilities_AccessHistoryDataCapability
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            response = m_server.Read(
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                historyCapabilitiesReadIds,
+                out DataValueCollection historyCapabilitiesValues,
+                out DiagnosticInfoCollection _);
+
+            ServerFixtureUtils.ValidateResponse(response, historyCapabilitiesValues, historyCapabilitiesReadIds);
+            Assert.AreEqual(2, historyCapabilitiesValues.Count);
+
+            bool accessHistoryEventsCapability =
+                historyCapabilitiesValues[0].Value != null &&
+                (bool)historyCapabilitiesValues[0].Value;
+            bool accessHistoryDataCapability =
+                historyCapabilitiesValues[1].Value != null &&
+                (bool)historyCapabilitiesValues[1].Value;
+
+            logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
+            logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
+            logger.LogInformation("AccessHistoryDataCapability: {AccessHistoryDataCapability}", accessHistoryDataCapability);
+
+            // If either history capability is enabled, the HistoryRead bit should be set
+            if (accessHistoryEventsCapability || accessHistoryDataCapability)
+            {
+                Assert.IsTrue((eventNotifier & EventNotifiers.HistoryRead) != 0,
+                    "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
+            }
+
+            // Verify SubscribeToEvents bit is set (Server object should always support events)
+            Assert.IsTrue((eventNotifier & EventNotifiers.SubscribeToEvents) != 0,
+                "Server EventNotifier should have SubscribeToEvents bit set");
         }
     }
 }

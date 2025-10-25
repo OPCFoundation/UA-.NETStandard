@@ -29,10 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
@@ -48,6 +46,7 @@ namespace Opc.Ua.Server
         public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.Telemetry.CreateLogger<SessionPublishQueue>();
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_queuedRequests = new Queue<QueuedPublishRequest>();
             m_readyToPublish = new Queue<ISubscription>();
@@ -330,7 +329,8 @@ namespace Opc.Ua.Server
                                         .CreateDiagnosticInfo(
                                             m_server,
                                             context,
-                                            result);
+                                            result,
+                                            m_logger);
                                     acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                                     diagnosticsExist = true;
                                 }
@@ -351,7 +351,8 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                result);
+                                result,
+                                m_logger);
                             acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                             diagnosticsExist = true;
                         }
@@ -467,7 +468,7 @@ namespace Opc.Ua.Server
                 m_queuedSubscriptions = liveSubscriptions;
 
                 // schedule cleanup on a background thread.
-                SubscriptionManager.CleanupSubscriptions(m_server, subscriptionsToDelete);
+                SubscriptionManager.CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
             }
         }
 
@@ -492,13 +493,13 @@ namespace Opc.Ua.Server
                     // check secure channel.
                     if (!m_session.IsSecureChannelValid(request.SecureChannelId))
                     {
-                        Utils.LogWarning("Publish abandoned because the secure channel changed.");
+                        m_logger.LogWarning("Publish abandoned because the secure channel changed.");
                         request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
                         request.Dispose();
                         continue;
                     }
 
-                    Utils.LogTrace(
+                    m_logger.LogTrace(
                         "PUBLISH: #{0} Assigned To Subscription({1}).",
                         request.SecureChannelId,
                         subscription.Subscription.Id);
@@ -518,7 +519,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A request queued while waiting for a subscription to be ready to publish.
         /// </summary>
-        private class QueuedPublishRequest : IDisposable
+        private sealed class QueuedPublishRequest : IDisposable
         {
             public QueuedPublishRequest(string secureChannelId, DateTime operationTimeout, CancellationToken cancellationToken)
             {
@@ -554,12 +555,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stores a subscription that belongs to this Session Publish Queue.
         /// </summary>
-        private class QueuedSubscription
+        private sealed class QueuedSubscription
         {
-            public ISubscription Subscription;
-            public DateTime Timestamp;
-            public bool ReadyToPublish;
-            public bool Publishing;
+            public QueuedSubscription(ISubscription subscription)
+            {
+                Subscription = subscription;
+                ReadyToPublish = false;
+                Timestamp = DateTime.UtcNow;
+            }
+
+            public ISubscription Subscription { get; }
+            public DateTime Timestamp { get; set; }
+            public bool ReadyToPublish { get; set; }
+            public bool Publishing { get; set; }
         }
 
         /// <summary>
@@ -567,68 +575,62 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context, params object[] args)
         {
-            // TODO: implement as EventSource
-            if (!Utils.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Trace))
+            // Pseudocode:
+            // 1. Fast exit if trace not enabled.
+            // 2. Format context with args (InvariantCulture).
+            // 3. Under lock gather:
+            //    - sessionId
+            //    - subscriptionCount
+            //    - requestCount
+            //    - readyToPublishCount
+            //    - expiredCount
+            // 4. Emit single structured LogTrace with constant template.
+            if (!m_logger.IsEnabled(LogLevel.Trace))
             {
                 return;
             }
 
-            var buffer = new StringBuilder();
+            object sessionId = null;
+            int subscriptionCount;
+            int requestCount;
+            int readyToPublishCount = 0;
+            int expiredCount = 0;
 
             lock (m_lock)
             {
-                buffer.Append("PublishQueue ")
-                    .AppendFormat(CultureInfo.InvariantCulture, context, args);
+                sessionId = m_session?.Id;
+                subscriptionCount = m_queuedSubscriptions.Count;
+                requestCount = m_queuedRequests.Count;
 
-                if (m_session != null)
+                for (int i = 0; i < m_queuedSubscriptions.Count; i++)
                 {
-                    buffer.AppendFormat(
-                        CultureInfo.InvariantCulture,
-                        ", SessionId={0}",
-                        m_session.Id);
-                }
-
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    ", SubscriptionCount={0}, RequestCount={1}",
-                    m_queuedSubscriptions.Count,
-                    m_queuedRequests.Count);
-
-                int readyToPublish = 0;
-
-                for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
-                {
-                    if (m_queuedSubscriptions[ii].ReadyToPublish)
+                    if (m_queuedSubscriptions[i].ReadyToPublish)
                     {
-                        readyToPublish++;
+                        readyToPublishCount++;
                     }
                 }
-
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    ", ReadyToPublishCount={0}",
-                    readyToPublish);
-
-                int expiredRequests = 0;
 
                 foreach (QueuedPublishRequest request in m_queuedRequests)
                 {
                     if (request.OperationTimeout < DateTime.UtcNow)
                     {
-                        expiredRequests++;
+                        expiredCount++;
                     }
                 }
-
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    ", ExpiredCount={0}",
-                    expiredRequests);
             }
 
-            Utils.LogTrace(buffer.ToString());
+            m_logger.LogTrace(
+                "PublishQueue {Context}, SessionId={SessionId}, SubscriptionCount={SubscriptionCount}, RequestCount={RequestCount}, ReadyToPublishCount={ReadyToPublishCount}, ExpiredCount={ExpiredCount}",
+                Utils.Format(context, args),
+                sessionId,
+                subscriptionCount,
+                requestCount,
+                readyToPublishCount,
+                expiredCount);
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
         private readonly Queue<QueuedPublishRequest> m_queuedRequests;

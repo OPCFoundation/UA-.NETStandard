@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Transport
@@ -56,16 +57,16 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoverySubscriber"/>
         /// </summary>
-        public UdpDiscoverySubscriber(UdpPubSubConnection udpConnection)
-            : base(udpConnection)
+        public UdpDiscoverySubscriber(UdpPubSubConnection udpConnection, ITelemetryContext telemetry)
+            : base(udpConnection, telemetry, telemetry.CreateLogger<UdpDiscoverySubscriber>())
         {
             m_metadataWriterIdsToSend = [];
-
             m_intervalRunner = new IntervalRunner(
                 udpConnection.PubSubConnectionConfiguration.Name,
                 kInitialRequestInterval,
                 CanPublish,
-                RequestDiscoveryMessages);
+                RequestDiscoveryMessages,
+                telemetry);
         }
 
         /// <summary>
@@ -126,7 +127,8 @@ namespace Opc.Ua.PubSub.Transport
                 .ToArray();
 
             var discoveryRequestDataSetWriterConfiguration = new UadpNetworkMessage(
-                UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration)
+                UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration,
+                m_logger)
             {
                 DataSetWriterIds = dataSetWriterIds,
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
@@ -139,12 +141,12 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.Trace("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration message");
+                    m_logger.LogInformation("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration message");
                     udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(
+                    m_logger.LogError(
                         ex,
                         "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration");
                 }
@@ -178,7 +180,8 @@ namespace Opc.Ua.PubSub.Transport
         public void SendDiscoveryRequestPublisherEndpoints()
         {
             var discoveryRequestPublisherEndpoints = new UadpNetworkMessage(
-                UADPNetworkMessageDiscoveryType.PublisherEndpoint)
+                UADPNetworkMessageDiscoveryType.PublisherEndpoint,
+                m_logger)
             {
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
             };
@@ -190,15 +193,15 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.Trace(
-                        "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints message for PublisherId: {0}",
+                    m_logger.LogInformation(
+                        "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints message for PublisherId: {PublisherId}",
                         discoveryRequestPublisherEndpoints.PublisherId);
 
                     udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(
+                    m_logger.LogError(
                         ex,
                         "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints");
                 }
@@ -227,7 +230,8 @@ namespace Opc.Ua.PubSub.Transport
 
             // create the DataSetMetaData DiscoveryRequest message
             var discoveryRequestMetaDataMessage = new UadpNetworkMessage(
-                UADPNetworkMessageDiscoveryType.DataSetMetaData)
+                UADPNetworkMessageDiscoveryType.DataSetMetaData,
+                m_logger)
             {
                 DataSetWriterIds = dataSetWriterIds,
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
@@ -240,15 +244,15 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.Trace(
-                        "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData Before sending message for DataSetWriterIds:{0}",
+                    m_logger.LogInformation(
+                        "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData Before sending message for DataSetWriterIds:{DataSetWriterIds}",
                         string.Join(", ", dataSetWriterIds));
 
                     udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData");
+                    m_logger.LogError(ex, "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData");
                 }
             }
 

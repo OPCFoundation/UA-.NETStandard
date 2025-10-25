@@ -65,7 +65,7 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using var encoder = new JsonEncoder(s_messageContext, true);
+                using var encoder = new JsonEncoder(MessageContext, true);
                 encoder.EncodeMessage(encodeable);
                 encoder.Close();
             }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using var encoder = new XmlEncoder(s_messageContext);
+                using var encoder = new XmlEncoder(MessageContext);
                 encoder.EncodeMessage(encodeable);
                 encoder.Close();
             }
@@ -123,12 +123,11 @@ namespace Opc.Ua.Fuzzing
                         reader.MoveToContent();
                         string typeName = reader.LocalName;
                         string namespaceUri = reader.NamespaceURI;
-                        systemType = s_messageContext
-                            .Factory.EncodeableTypes.Where(entry =>
-                                entry.Value
-                                    .Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/)
-                            .Select(entry => entry.Value)
-                            .FirstOrDefault();
+                        systemType = MessageContext
+                            .Factory.KnownTypeIds
+                                .Select(MessageContext.Factory.GetSystemType)
+                                .FirstOrDefault(entry => entry.Name == typeName
+                                    /* && entry.Key.NamespaceUri == namespaceUri*/);
                     }
                     catch (XmlException ex)
                     {
@@ -153,7 +152,7 @@ namespace Opc.Ua.Fuzzing
                     }
 
                     // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
-                    using var decoder = new XmlDecoder(reader, s_messageContext);
+                    using var decoder = new XmlDecoder(reader, MessageContext);
                     return decoder.DecodeMessage(systemType);
                 }
                 finally
@@ -171,15 +170,14 @@ namespace Opc.Ua.Fuzzing
                         {
                             return null;
                         }
-                        break;
+                        goto default;
+                    default:
+                        Console.WriteLine(
+                            "Unexpected ServiceResultException: {0} {1}",
+                            (StatusCode)sre.StatusCode,
+                            sre.Message);
+                        throw;
                 }
-
-                Console.WriteLine(
-                    "Unexpected ServiceResultException: {0} {1}",
-                    (StatusCode)sre.StatusCode,
-                    sre.Message);
-
-                throw;
             }
         }
     }

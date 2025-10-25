@@ -30,6 +30,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -98,7 +99,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Utils.LogInfo(
+            m_logger.LogInformation(
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
@@ -254,6 +255,7 @@ namespace Opc.Ua.Client.Tests
             params INodeManager[] additionalManagers)
             : base(server, configuration, dynamicNamespaceUri, additionalManagers)
         {
+            m_logger = server.Telemetry.CreateLogger<MasterNodeManagerWithLimits>();
         }
 
         public uint MaxContinuationPointsPerBrowseForUnitTest { get; set; }
@@ -391,7 +393,7 @@ namespace Opc.Ua.Client.Tests
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
                         diagnosticsExist = true;
                     }
 
@@ -404,5 +406,7 @@ namespace Opc.Ua.Client.Tests
 
             return (results, diagnosticInfos);
         }
+
+        private readonly ILogger m_logger;
     }
 }

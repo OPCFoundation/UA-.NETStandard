@@ -27,30 +27,62 @@ namespace Opc.Ua.Bindings
                     typeof(HttpsTransportChannelFactory),
                     typeof(OpcHttpsTransportChannelFactory)
                 ]);
-            Listeners = new TransportListenerBindings([typeof(TcpTransportListenerFactory)]);
+            Listeners = new TransportListenerBindings(
+                [
+                    typeof(TcpTransportListenerFactory)
+                ]);
         }
 
         /// <summary>
         /// The bindings for transport channels (client).
         /// </summary>
-        public static TransportChannelBindings Channels { get; }
+        public static ITransportChannelBindings Channels { get; }
 
         /// <summary>
         /// The bindings for transport listeners (server).
         /// </summary>
-        public static TransportListenerBindings Listeners { get; }
+        public static ITransportListenerBindings Listeners { get; }
+    }
+
+    /// <summary>
+    /// Transport channel binding registry
+    /// </summary>
+    public interface ITransportChannelBindings
+    {
+        /// <summary>
+        /// Create a channel for the specified uri scheme.
+        /// </summary>
+        /// <param name="uriScheme"></param>
+        /// <param name="telemetry"></param>
+        /// <returns></returns>
+        ITransportChannel Create(string uriScheme, ITelemetryContext telemetry);
+    }
+
+    /// <summary>
+    /// Transport listener binding registry.
+    /// </summary>
+    public interface ITransportListenerBindings : ITransportBindings<ITransportListenerFactory>
+    {
+        /// <summary>
+        /// Create listener for the specified uri scheme.
+        /// </summary>
+        /// <param name="uriScheme"></param>
+        /// <param name="telemetry"></param>
+        /// <returns></returns>
+        ITransportListener Create(string uriScheme, ITelemetryContext telemetry);
     }
 
     /// <summary>
     /// The bindings for the transport channels.
     /// </summary>
-    public class TransportChannelBindings : TransportBindingsBase<ITransportChannelFactory>
+    internal class TransportChannelBindings : TransportBindingsBase<ITransportChannelFactory>,
+        ITransportChannelBindings
     {
         /// <summary>
         /// Initialize the transport listener.
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
-        public TransportChannelBindings(Type[] defaultBindings)
+        public TransportChannelBindings(params Type[] defaultBindings)
             : base(defaultBindings)
         {
         }
@@ -59,23 +91,25 @@ namespace Opc.Ua.Bindings
         /// Get a transport channel for the specified uri scheme.
         /// </summary>
         /// <param name="uriScheme">The uri scheme of the transport.</param>
-        public ITransportChannel GetChannel(string uriScheme)
+        /// <param name="telemetry">Telemetry context to use</param>
+        public ITransportChannel Create(string uriScheme, ITelemetryContext telemetry)
         {
-            ITransportChannelFactory binding = GetBinding(uriScheme);
-            return binding?.Create();
+            ITransportChannelFactory binding = GetBinding(uriScheme, telemetry);
+            return binding?.Create(telemetry);
         }
     }
 
     /// <summary>
     /// The bindings for the transport listeners.
     /// </summary>
-    public class TransportListenerBindings : TransportBindingsBase<ITransportListenerFactory>
+    internal class TransportListenerBindings : TransportBindingsBase<ITransportListenerFactory>,
+        ITransportListenerBindings
     {
         /// <summary>
         /// Initialize the transport listener.
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
-        public TransportListenerBindings(Type[] defaultBindings)
+        public TransportListenerBindings(params Type[] defaultBindings)
             : base(defaultBindings)
         {
         }
@@ -84,10 +118,11 @@ namespace Opc.Ua.Bindings
         /// Get a transport listener for the specified uri scheme.
         /// </summary>
         /// <param name="uriScheme">The uri scheme of the transport.</param>
-        public ITransportListener GetListener(string uriScheme)
+        /// <param name="telemetry">Telemetry context to use</param>
+        public ITransportListener Create(string uriScheme, ITelemetryContext telemetry)
         {
-            ITransportListenerFactory binding = GetBinding(uriScheme);
-            return binding?.Create();
+            ITransportListenerFactory binding = GetBinding(uriScheme, telemetry);
+            return binding?.Create(telemetry);
         }
     }
 }

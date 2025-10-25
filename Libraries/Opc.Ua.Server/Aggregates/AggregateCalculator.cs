@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -38,29 +39,9 @@ namespace Opc.Ua.Server
     public class AggregateCalculator : IAggregateCalculator
     {
         /// <summary>
-        /// Creates a default aggregator.
+        /// Create calculator
         /// </summary>
-        protected AggregateCalculator(NodeId aggregateId)
-        {
-            var configuration = new AggregateConfiguration
-            {
-                TreatUncertainAsBad = false,
-                PercentDataBad = 100,
-                PercentDataGood = 100,
-                UseSlopedExtrapolation = false
-            };
-            Initialize(aggregateId, DateTime.UtcNow, DateTime.MaxValue, 1000, false, configuration);
-        }
-
-        /// <summary>
-        /// Initializes the calculation stream.
-        /// </summary>
-        /// <param name="aggregateId">The aggregate function to apply.</param>
-        /// <param name="startTime">The start time.</param>
-        /// <param name="endTime">The end time.</param>
-        /// <param name="processingInterval">The processing interval.</param>
-        /// <param name="stepped">Whether to use stepped interpolation.</param>
-        /// <param name="configuration">The aggregate configuration.</param>
+        [Obsolete("Use constructor with ITelemetryContext")]
         public AggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
@@ -68,8 +49,8 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
+            : this(aggregateId, startTime, endTime, processingInterval, stepped, configuration, null)
         {
-            Initialize(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
         }
 
         /// <summary>
@@ -81,15 +62,17 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
-        /// <exception cref="ArgumentException"></exception>
-        protected void Initialize(
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        public AggregateCalculator(
             NodeId aggregateId,
             DateTime startTime,
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<AggregateCalculator>();
             AggregateId = aggregateId;
             StartTime = startTime;
             EndTime = endTime;
@@ -116,7 +99,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The aggregate function applied by the calculator.
         /// </summary>
-        public NodeId AggregateId { get; private set; }
+        public NodeId AggregateId { get; }
 
         /// <summary>
         /// Queues a raw value for processing.
@@ -211,7 +194,7 @@ namespace Opc.Ua.Server
                 CurrentSlice.OutOfDataRange = true;
             }
 
-            Utils.LogTrace("Computing Aggregate {0:HH:mm:ss.fff}", CurrentSlice.StartTime);
+            m_logger.LogTrace("Computing Aggregate {StartTime:HH:mm:ss.fff}", CurrentSlice.StartTime);
 
             // compute the value.
             DataValue value = ComputeValue(CurrentSlice);
@@ -322,27 +305,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The start time for the request.
         /// </summary>
-        protected DateTime StartTime { get; private set; }
+        protected DateTime StartTime { get; }
 
         /// <summary>
         /// The end time for the request.
         /// </summary>
-        protected DateTime EndTime { get; private set; }
+        protected DateTime EndTime { get; }
 
         /// <summary>
         /// The processing interval for the request.
         /// </summary>
-        protected double ProcessingInterval { get; private set; }
+        protected double ProcessingInterval { get; }
 
         /// <summary>
         /// True if the data series requires stepped interpolation.
         /// </summary>
-        protected bool Stepped { get; private set; }
+        protected bool Stepped { get; }
 
         /// <summary>
         /// The configuration to use when processing.
         /// </summary>
-        protected AggregateConfiguration Configuration { get; private set; }
+        protected AggregateConfiguration Configuration { get; }
 
         /// <summary>
         /// Whether to use the server timestamp for all processing.
@@ -352,7 +335,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// True if data is being processed in reverse order.
         /// </summary>
-        protected bool TimeFlowsBackward { get; private set; }
+        protected bool TimeFlowsBackward { get; }
 
         /// <summary>
         /// Whether to use the server timestamp for all processing.
@@ -1545,7 +1528,8 @@ namespace Opc.Ua.Server
             return statusCode;
         }
 
-        private LinkedList<DataValue> m_values;
+        private readonly ILogger m_logger;
+        private readonly LinkedList<DataValue> m_values;
         private DateTime m_startOfData;
         private DateTime m_endOfData;
     }

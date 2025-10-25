@@ -63,6 +63,12 @@ namespace Opc.Ua
         int OperationTimeout { get; set; }
 
         /// <summary>
+        /// Set a default timeout hint that is sent to the server in the request header.
+        /// If not configured the OperationTimeout is used as a fallback TimeoutHint.
+        /// </summary>
+        int DefaultTimeoutHint { get; set; }
+
+        /// <summary>
         /// Whether the object has been disposed.
         /// </summary>
         /// <value><c>true</c> if disposed; otherwise, <c>false</c>.</value>

@@ -148,6 +148,11 @@ namespace Opc.Ua.Server
         ISubscriptionStore SubscriptionStore { get; }
 
         /// <summary>
+        /// The server's telemetry context
+        /// </summary>
+        ITelemetryContext Telemetry { get; }
+
+        /// <summary>
         /// Whether the server is currently running.
         /// </summary>
         /// <value>

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -90,8 +89,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
-            bool securityNone,
-            TextWriter writer)
+            bool securityNone)
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
@@ -104,11 +102,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 AllNodeManagers = true,
                 OperationLimits = true
             };
-
-            if (writer != null)
-            {
-                ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
-            }
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
@@ -124,7 +117,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     IssuedTokenType = Profiles.JwtUserToken
                 });
 
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+            ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
@@ -241,10 +234,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 dictionaryNode.NodeId,
                 session.NamespaceUris);
 
-            var nodeCacheResolver = new NodeCacheResolver(session);
+            var nodeCacheResolver = new NodeCacheResolver(session, Telemetry);
 
             // load the dictionary.
-            return nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString());
+            return nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString(), ct);
         }
 
         /// <summary>

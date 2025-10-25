@@ -118,7 +118,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             }
             try
             {
-                InitializeLog();
+                var telemetry = new ConsoleTelemetry();
+                // telemetry.AddFileOutput("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferenceSubscriber.log.txt");
+                // Utils.SetTraceMask(Utils.TraceMasks.Error);
+                // Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
 
                 PubSubConfigurationDataType pubSubConfiguration = null;
                 if (useUdpUadp)
@@ -159,7 +162,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 }
 
                 // Create the UA Publisher application
-                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
+                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
                 {
                     // Subscribte to RawDataReceived event
                     uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
@@ -1053,20 +1056,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         s_timeOfConfiguration)
                 }
             };
-        }
-
-        /// <summary>
-        /// Initialize logging
-        /// </summary>
-        private static void InitializeLog()
-        {
-            // Initialize logger
-            Utils.SetTraceLog(
-                "%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferenceSubscriber.log.txt",
-                true
-            );
-            Utils.SetTraceMask(Utils.TraceMasks.Error);
-            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
         }
     }
 }

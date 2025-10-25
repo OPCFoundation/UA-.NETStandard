@@ -27,7 +27,8 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new certificate store.
         /// </summary>
+        /// <param name="telemetry">Current telemtry context</param>
         /// <returns>A reference to the new certificate store object</returns>
-        ICertificateStore CreateStore();
+        ICertificateStore CreateStore(ITelemetryContext telemetry);
     }
 }

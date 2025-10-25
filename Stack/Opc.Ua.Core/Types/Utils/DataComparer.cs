@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Xml;
 
 namespace Opc.Ua.Test
@@ -1015,33 +1014,11 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
-        /// The factory to use when decoding extension objects.
-        /// </summary>
-        public static IEncodeableFactory EncodeableFactory
-        {
-            get
-            {
-                if (s_factory == null)
-                {
-                    s_factory = new EncodeableFactory();
-                    s_factory.AddEncodeableTypes(typeof(DataComparer).GetTypeInfo().Assembly);
-                }
-
-                return s_factory;
-            }
-        }
-
-        /// <summary>
-        /// It stores encodeable types of the executing assembly.
-        /// </summary>
-        private static EncodeableFactory s_factory = new();
-
-        /// <summary>
         /// Extracts the extension object body.
         /// </summary>
         /// <param name="value">Extension object.</param>
         /// <returns>IEncodeable object</returns>
-        public static object GetExtensionObjectBody(ExtensionObject value)
+        private object GetExtensionObjectBody(ExtensionObject value)
         {
             object body = value.Body;
 
@@ -1050,22 +1027,17 @@ namespace Opc.Ua.Test
                 return encodeable;
             }
 
-            Type expectedType = EncodeableFactory.GetSystemType(value.TypeId);
+            Type expectedType = m_context.Factory.GetSystemType(value.TypeId);
 
             if (expectedType == null)
             {
                 return body;
             }
 
-            IServiceMessageContext context = new ServiceMessageContext
-            {
-                Factory = EncodeableFactory
-            };
-
             if (body is XmlElement xml)
             {
-                XmlQualifiedName xmlName = Ua.EncodeableFactory.GetXmlName(expectedType);
-                using (var decoder = new XmlDecoder(xml, context))
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(expectedType);
+                using (var decoder = new XmlDecoder(xml, m_context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);
                     body = decoder.ReadEncodeable(xmlName.Name, expectedType);
@@ -1077,7 +1049,7 @@ namespace Opc.Ua.Test
 
             if (body is byte[] bytes)
             {
-                using (var decoder = new BinaryDecoder(bytes, context))
+                using (var decoder = new BinaryDecoder(bytes, m_context))
                 {
                     body = decoder.ReadEncodeable(null, expectedType);
                 }
@@ -1231,8 +1203,7 @@ namespace Opc.Ua.Test
         {
             if (ThrowOnError)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "'{0}' is not equal to '{1}'.",
                     value1,
                     value2);
