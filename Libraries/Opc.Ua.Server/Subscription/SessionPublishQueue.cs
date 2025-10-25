@@ -174,12 +174,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                var queuedSubscription = new QueuedSubscription
-                {
-                    ReadyToPublish = false,
-                    Timestamp = DateTime.UtcNow,
-                    Subscription = subscription
-                };
+                var queuedSubscription = new QueuedSubscription(subscription);
 
                 m_queuedSubscriptions.Add(queuedSubscription);
 
@@ -500,7 +495,7 @@ namespace Opc.Ua.Server
                     }
 
                     m_logger.LogTrace(
-                        "PUBLISH: #{0} Assigned To Subscription({1}).",
+                        "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}).",
                         request.SecureChannelId,
                         subscription.Subscription.Id);
 

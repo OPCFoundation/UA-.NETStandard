@@ -2178,8 +2178,8 @@ namespace Opc.Ua.Server
                 }
                 */
 
-                LogTrace(
-                    "PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}",
+                m_logger.LogTrace(
+                    "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}",
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
@@ -2190,10 +2190,8 @@ namespace Opc.Ua.Server
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
-                return response;
-
                 /*
-                if (notificationMessage != null)
+                if (response.NotificationMessage != null)
                 {
                     m_logger.LogTrace(m_eventId,
                         "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
@@ -2204,11 +2202,7 @@ namespace Opc.Ua.Server
                 }
                 */
 
-                m_logger.LogTrace(
-                        "PUBLISH: #{0} Completed Synchronously",
-                        input.RequestHeader.RequestHandle);
-                    request.OperationCompleted(operation.Response, null);
-                }
+                return response;
             }
             catch (ServiceResultException e)
             {
