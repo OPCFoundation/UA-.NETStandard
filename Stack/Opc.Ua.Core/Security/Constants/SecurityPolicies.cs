@@ -155,6 +155,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the info object associated with the SecurityPolicyUri.
+        /// </summary>
+        public static SecurityPolicyInfo GetInfo(string securityPolicyUri)
+        {
+            if (s_securityPolicyUriToInfo.Value.TryGetValue(securityPolicyUri, out SecurityPolicyInfo info) &&
+                IsPlatformSupportedName(info.Name))
+            {
+                return info;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Returns the uri associated with the display name. This includes http and all
         /// other supported platform security policies.
         /// </summary>
@@ -291,7 +305,7 @@ namespace Opc.Ua
             ReadOnlySpan<byte> plainText,
             ILogger logger)
         {
-            EncryptedData encryptedData = new EncryptedData
+            var encryptedData = new EncryptedData
             {
                 Algorithm = null,
                 Data = plainText.IsEmpty ? null : plainText.ToArray()
@@ -664,6 +678,32 @@ namespace Opc.Ua
                 return keyValuePairs.ToFrozenDictionary();
 #else
                 return new ReadOnlyDictionary<string, string>(keyValuePairs);
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary for uri to info objects.
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyUriToInfo =
+            new(() =>
+            {
+                FieldInfo[] fields = typeof(SecurityPolicyInfo).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<string, SecurityPolicyInfo>();
+                foreach (FieldInfo field in fields)
+                {
+                    if (field.GetValue(typeof(SecurityPolicyInfo)) is not SecurityPolicyInfo info)
+                    {
+                        continue;
+                    }
+
+                    keyValuePairs.Add(info.Uri, info);
+                }
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<string, SecurityPolicyInfo>(keyValuePairs);
 #endif
             });
     }

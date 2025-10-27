@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings
 {
@@ -20,6 +19,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public sealed class ChannelToken : IDisposable
     {
+        private bool m_disposed;
+
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
@@ -34,17 +35,6 @@ namespace Opc.Ua.Bindings
         {
             if (!m_disposed)
             {
-                if (disposing)
-                {
-                    Utils.SilentDispose(ClientHmac);
-                    Utils.SilentDispose(ServerHmac);
-                    Utils.SilentDispose(ClientEncryptor);
-                    Utils.SilentDispose(ServerEncryptor);
-                }
-                ClientHmac = null;
-                ServerHmac = null;
-                ClientEncryptor = null;
-                ServerEncryptor = null;
                 m_disposed = true;
             }
         }
@@ -107,6 +97,11 @@ namespace Opc.Ua.Bindings
             (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
 
         /// <summary>
+        /// The SecurityPolicy used to encrypt and sign the messages.
+        /// </summary>
+        public SecurityPolicyInfo SecurityPolicy { get; set; }
+
+        /// <summary>
         /// The nonce provided by the client.
         /// </summary>
         public byte[] ClientNonce { get; set; }
@@ -117,55 +112,48 @@ namespace Opc.Ua.Bindings
         public byte[] ServerNonce { get; set; }
 
         /// <summary>
+        /// The nonce provided by the server.
+        /// </summary>
+        public byte[] SecureChannelSecret { get; set; }
+
+        /// <summary>
+        /// The certificate provided by the server.
+        /// </summary>
+        public byte[] ServerCertificate { get; set; }
+
+        /// <summary>
+        /// The certificate provided by the client.
+        /// </summary>
+        public byte[] ClientCertificate { get; set; }
+
+        /// <summary>
         /// The key used to sign messages sent by the client.
         /// </summary>
-        public byte[] ClientSigningKey { get; set; }
+        internal byte[] ClientSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the client.
         /// </summary>
-        public byte[] ClientEncryptingKey { get; set; }
+        internal byte[] ClientEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the client when encrypting a message.
         /// </summary>
-        public byte[] ClientInitializationVector { get; set; }
+        internal byte[] ClientInitializationVector { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the server.
         /// </summary>
-        public byte[] ServerSigningKey { get; set; }
+        internal byte[] ServerSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the server.
         /// </summary>
-        public byte[] ServerEncryptingKey { get; set; }
+        internal byte[] ServerEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
-        public byte[] ServerInitializationVector { get; set; }
-
-        /// <summary>
-        /// The SymmetricAlgorithm object used by the client to encrypt messages.
-        /// </summary>
-        public SymmetricAlgorithm ClientEncryptor { get; set; }
-
-        /// <summary>
-        /// The SymmetricAlgorithm object used by the server to encrypt messages.
-        /// </summary>
-        public SymmetricAlgorithm ServerEncryptor { get; set; }
-
-        /// <summary>
-        /// The HMAC object used by the client to sign messages.
-        /// </summary>
-        public HMAC ClientHmac { get; set; }
-
-        /// <summary>
-        /// The HMAC object used by the server to sign messages.
-        /// </summary>
-        public HMAC ServerHmac { get; set; }
-
-        private bool m_disposed;
+        internal byte[] ServerInitializationVector { get; set; }
     }
 }
