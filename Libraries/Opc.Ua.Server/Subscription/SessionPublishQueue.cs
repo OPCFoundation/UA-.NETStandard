@@ -600,7 +600,7 @@ namespace Opc.Ua.Server
                 m_cancellationTokenRegistration = cancellationToken.Register(
                     () => Tcs.TrySetCanceled());
                 // Cancel publish request if it times out
-                TimeSpan timeOut = operationTimeout.AddMilliseconds(500) - DateTime.UtcNow;
+                TimeSpan timeOut = operationTimeout < DateTime.MaxValue ? operationTimeout.AddMilliseconds(500) - DateTime.UtcNow : TimeSpan.Zero;
                 if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
                     m_cancellationTokenSource = new CancellationTokenSource(timeOut);
