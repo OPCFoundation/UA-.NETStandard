@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// <summary>
     /// An exception thrown when a UA defined error occurs.
     /// </summary>
-    [DataContract]
     [Serializable]
     public class ServiceResultException : Exception
     {

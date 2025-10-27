@@ -39,9 +39,99 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// A subscription.
+    /// Stores the options/state for a subscription which can be serialized.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    public record class SubscriptionOptions
+    {
+        /// <summary>
+        /// Display name for the subscription.
+        /// </summary>
+        [DataMember(Order = 1)]
+        public string DisplayName { get; init; } = "Subscription";
+
+        /// <summary>
+        /// The requested publishing interval in milliseconds.
+        /// </summary>
+        [DataMember(Order = 2)]
+        public int PublishingInterval { get; init; }
+
+        /// <summary>
+        /// The requested keep alive count.
+        /// </summary>
+        [DataMember(Order = 3)]
+        public uint KeepAliveCount { get; init; }
+
+        /// <summary>
+        /// The requested lifetime count.
+        /// </summary>
+        [DataMember(Order = 4)]
+        public uint LifetimeCount { get; init; }
+
+        /// <summary>
+        /// The maximum notifications per publish request.
+        /// </summary>
+        [DataMember(Order = 5)]
+        public uint MaxNotificationsPerPublish { get; init; }
+
+        /// <summary>
+        /// Whether publishing is enabled when creating the subscription.
+        /// </summary>
+        [DataMember(Order = 6)]
+        public bool PublishingEnabled { get; init; }
+
+        /// <summary>
+        /// The priority assigned to the subscription.
+        /// </summary>
+        [DataMember(Order = 7)]
+        public byte Priority { get; init; }
+
+        /// <summary>
+        /// Which timestamps to return with notifications.
+        /// </summary>
+        [DataMember(Order = 8)]
+        public TimestampsToReturn TimestampsToReturn { get; init; } = TimestampsToReturn.Both;
+
+        /// <summary>
+        /// Maximum number of publish messages cached locally.
+        /// </summary>
+        [DataMember(Order = 9)]
+        public int MaxMessageCount { get; init; } = 10;
+
+        /// <summary>
+        /// Minimum lifetime interval in milliseconds used to derive lifetime count.
+        /// </summary>
+        [DataMember(Order = 12)]
+        public uint MinLifetimeInterval { get; init; }
+
+        /// <summary>
+        /// Disable the monitored item cache for higher throughput.
+        /// </summary>
+        [DataMember(Order = 13)]
+        public bool DisableMonitoredItemCache { get; init; }
+
+        /// <summary>
+        /// Process incoming publish responses strictly sequentially.
+        /// </summary>
+        [DataMember(Order = 14)]
+        public bool SequentialPublishing { get; init; }
+
+        /// <summary>
+        /// Republish available sequence numbers after a transfer to avoid data loss.
+        /// </summary>
+        [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
+        public bool RepublishAfterTransfer { get; init; }
+
+        /// <summary>
+        /// The transferable subscription id assigned by the server.
+        /// </summary>
+        [DataMember(Name = "TransferId", Order = 16)]
+        public uint TransferId { get; init; }
+    }
+
+    /// <summary>
+    /// A subscription.
+    /// </summary>
     public class Subscription : IDisposable, ICloneable
     {
         private const int kMinKeepAliveTimerInterval = 1000;
@@ -64,7 +154,7 @@ namespace Opc.Ua.Client
         public Subscription(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
-
+            State = new SubscriptionOptions();
             Initialize();
         }
 
@@ -81,22 +171,16 @@ namespace Opc.Ua.Client
                 m_telemetry = template.Telemetry;
             }
 
+            State = template?.State ?? new SubscriptionOptions();
             Initialize();
 
             if (template != null)
             {
-                DisplayName = template.DisplayName;
-                PublishingInterval = template.PublishingInterval;
-                KeepAliveCount = template.KeepAliveCount;
-                LifetimeCount = template.LifetimeCount;
-                MinLifetimeInterval = template.MinLifetimeInterval;
-                MaxNotificationsPerPublish = template.MaxNotificationsPerPublish;
-                PublishingEnabled = template.PublishingEnabled;
-                Priority = template.Priority;
-                TimestampsToReturn = template.TimestampsToReturn;
+                // Forwarded properties are already copied via State. Copy fields not in State.
                 m_maxMessageCount = template.m_maxMessageCount;
                 m_sequentialPublishing = template.m_sequentialPublishing;
-                RepublishAfterTransfer = template.RepublishAfterTransfer;
+                m_lastSequenceNumberProcessed = template.m_lastSequenceNumberProcessed;
+                RepublishAfterTransfer = template.RepublishAfterTransfer; // ensure field usage
                 DefaultItem = (MonitoredItem)template.DefaultItem.Clone();
                 Handle = template.Handle;
                 DisableMonitoredItemCache = template.DisableMonitoredItemCache;
@@ -193,6 +277,7 @@ namespace Opc.Ua.Client
         {
             m_cache = new Lock();
             m_telemetry = AmbientMessageContext.Telemetry;
+            State ??= new SubscriptionOptions();
             Initialize();
         }
 
@@ -202,18 +287,11 @@ namespace Opc.Ua.Client
         private void Initialize()
         {
             TransferId = Id = 0;
-            DisplayName = "Subscription";
-            PublishingInterval = 0;
-            KeepAliveCount = 0;
             m_keepAliveInterval = 0;
-            LifetimeCount = 0;
-            MaxNotificationsPerPublish = 0;
-            PublishingEnabled = false;
-            TimestampsToReturn = TimestampsToReturn.Both;
-            m_maxMessageCount = 10;
-            RepublishAfterTransfer = false;
+            m_maxMessageCount = State.MaxMessageCount;
+            RepublishAfterTransfer = State.RepublishAfterTransfer;
             m_outstandingMessageWorkers = 0;
-            m_sequentialPublishing = false;
+            m_sequentialPublishing = State.SequentialPublishing;
             m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
             m_monitoredItems = [];
@@ -224,15 +302,6 @@ namespace Opc.Ua.Client
 
             // Creates a default logger even if telemetry is null
             m_logger ??= Telemetry.CreateLogger<Subscription>();
-
-            DefaultItem = new MonitoredItem
-            {
-                DisplayName = "MonitoredItem",
-                SamplingInterval = -1,
-                MonitoringMode = MonitoringMode.Reporting,
-                QueueSize = 0,
-                DiscardOldest = true
-            };
         }
 
         /// <summary>
@@ -278,6 +347,11 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Subscription state/options
+        /// </summary>
+        public SubscriptionOptions State { get; private set; }
+
+        /// <summary>
         /// Raised to indicate that the state of the subscription has changed.
         /// </summary>
         public event SubscriptionStateChangedEventHandler StateChanged
@@ -298,57 +372,80 @@ namespace Opc.Ua.Client
         /// <summary>
         /// A display name for the subscription.
         /// </summary>
-        [DataMember(Order = 1)]
-        public string DisplayName { get; set; }
+        public string DisplayName
+        {
+            get => State.DisplayName;
+            set => State = State with { DisplayName = value };
+        }
 
         /// <summary>
         /// The publishing interval.
         /// </summary>
-        [DataMember(Order = 2)]
-        public int PublishingInterval { get; set; }
+        public int PublishingInterval
+        {
+            get => State.PublishingInterval;
+            set => State = State with { PublishingInterval = value };
+        }
 
         /// <summary>
         /// The keep alive count.
         /// </summary>
-        [DataMember(Order = 3)]
-        public uint KeepAliveCount { get; set; }
+        public uint KeepAliveCount
+        {
+            get => State.KeepAliveCount;
+            set => State = State with { KeepAliveCount = value };
+        }
 
         /// <summary>
         /// The life time of the subscription in counts of
         /// publish interval.
         /// LifetimeCount shall be at least 3*KeepAliveCount.
         /// </summary>
-        [DataMember(Order = 4)]
-        public uint LifetimeCount { get; set; }
+        public uint LifetimeCount
+        {
+            get => State.LifetimeCount;
+            set => State = State with { LifetimeCount = value };
+        }
 
         /// <summary>
         /// The maximum number of notifications per publish request.
         /// </summary>
-        [DataMember(Order = 5)]
-        public uint MaxNotificationsPerPublish { get; set; }
+        public uint MaxNotificationsPerPublish
+        {
+            get => State.MaxNotificationsPerPublish;
+            set => State = State with { MaxNotificationsPerPublish = value };
+        }
 
         /// <summary>
         /// Whether publishing is enabled.
         /// </summary>
-        [DataMember(Order = 6)]
-        public bool PublishingEnabled { get; set; }
+        public bool PublishingEnabled
+        {
+            get => State.PublishingEnabled;
+            set => State = State with { PublishingEnabled = value };
+        }
 
         /// <summary>
-        /// The priority assigned to subscription.
+        /// The priority assigned to the subscription.
         /// </summary>
-        [DataMember(Order = 7)]
-        public byte Priority { get; set; }
+        public byte Priority
+        {
+            get => State.Priority;
+            set => State = State with { Priority = value };
+        }
 
         /// <summary>
         /// The timestamps to return with the notification messages.
         /// </summary>
-        [DataMember(Order = 8)]
-        public TimestampsToReturn TimestampsToReturn { get; set; }
+        public TimestampsToReturn TimestampsToReturn
+        {
+            get => State.TimestampsToReturn;
+            set => State = State with { TimestampsToReturn = value };
+        }
 
         /// <summary>
         /// The maximum number of messages to keep in the internal cache.
         /// </summary>
-        [DataMember(Order = 9)]
         public int MaxMessageCount
         {
             get => m_maxMessageCount;
@@ -358,21 +455,29 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     m_maxMessageCount = value;
+                    State = State with { MaxMessageCount = value };
                 }
             }
         }
 
-        /// <summary>
-        /// The default monitored item.
-        /// </summary>
-        [DataMember(Order = 10)]
-        public MonitoredItem DefaultItem { get; set; }
+        /// <summary>The default monitored item template.</summary>
+        public MonitoredItem DefaultItem { get; set; } = new MonitoredItem
+        {
+            DisplayName = "MonitoredItem",
+            SamplingInterval = -1,
+            MonitoringMode = MonitoringMode.Reporting,
+            QueueSize = 0,
+            DiscardOldest = true
+        };
 
         /// <summary>
         /// The minimum lifetime for subscriptions in milliseconds.
         /// </summary>
-        [DataMember(Order = 12)]
-        public uint MinLifetimeInterval { get; set; }
+        public uint MinLifetimeInterval
+        {
+            get => State.MinLifetimeInterval;
+            set => State = State with { MinLifetimeInterval = value };
+        }
 
         /// <summary>
         /// Gets or sets a value indicating whether the notifications are cached within the monitored items.
@@ -384,9 +489,13 @@ namespace Opc.Ua.Client
         /// Applications must process the Session.Notication event if this is set to true.
         /// This flag improves performance by eliminating the processing involved in updating the cache.
         /// </remarks>
-        [DataMember(Order = 13)]
-        public bool DisableMonitoredItemCache { get; set; }
+        public bool DisableMonitoredItemCache
+        {
+            get => State.DisableMonitoredItemCache;
+            set => State = State with { DisableMonitoredItemCache = value };
+        }
 
+        /// <summary>Process incoming publish responses strictly sequentially.</summary>
         /// <summary>
         /// Gets or sets the behavior of waiting for sequential order in handling incoming messages.
         /// </summary>
@@ -397,7 +506,6 @@ namespace Opc.Ua.Client
         /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in
         /// a "single-threaded" manner and callbacks will not be invoked in parallel.
         /// </remarks>
-        [DataMember(Order = 14)]
         public bool SequentialPublishing
         {
             get => m_sequentialPublishing;
@@ -407,6 +515,7 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     m_sequentialPublishing = value;
+                    State = State with { SequentialPublishing = value };
                 }
             }
         }
@@ -420,14 +529,20 @@ namespace Opc.Ua.Client
         /// and available publish requests (sequence numbers) that were never acknowledged should be
         /// recovered with a republish. The setting is used after a subscription transfer.
         /// </remarks>
-        [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
-        public bool RepublishAfterTransfer { get; set; }
+        public bool RepublishAfterTransfer
+        {
+            get => State.RepublishAfterTransfer;
+            set => State = State with { RepublishAfterTransfer = value };
+        }
 
         /// <summary>
         /// The unique identifier assigned by the server which can be used to transfer a session.
         /// </summary>
-        [DataMember(Name = "TransferId", Order = 16)]
-        public uint TransferId { get; set; }
+        public uint TransferId
+        {
+            get => State.TransferId;
+            set => State = State with { TransferId = value };
+        }
 
         /// <summary>
         /// Gets or sets the fast data change callback.
@@ -2921,6 +3036,9 @@ namespace Opc.Ua.Client
         private bool m_sequentialPublishing;
         private uint m_lastSequenceNumberProcessed;
         private bool m_resyncLastSequenceNumberProcessed;
+        private LinkedList<IncomingMessage> m_incomingMessages;
+        private ITelemetryContext m_telemetry;
+        private ILogger m_logger;
 
         /// <summary>
         /// A message received from the server cached until is processed or discarded.
@@ -2935,10 +3053,6 @@ namespace Opc.Ua.Client
             public bool Republished;
             public StatusCode RepublishStatus;
         }
-
-        private LinkedList<IncomingMessage> m_incomingMessages;
-        private ITelemetryContext m_telemetry;
-        private ILogger m_logger;
     }
 
     /// <summary>

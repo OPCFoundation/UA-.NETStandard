@@ -27,13 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 using System.Xml;
 
 namespace Opc.Ua.Client
 {
+    [JsonSerializable(typeof(SessionConfiguration))]
+    internal partial class SessionConfigurationContext : JsonSerializerContext;
+
     /// <summary>
     /// A session configuration stores all the information
     /// needed to reconnect a session with a new secure channel.
@@ -44,8 +50,16 @@ namespace Opc.Ua.Client
     [KnownType(typeof(X509IdentityToken))]
     [KnownType(typeof(IssuedIdentityToken))]
     [KnownType(typeof(UserIdentity))]
-    public class SessionConfiguration
+    public record class SessionConfiguration
     {
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        public SessionConfiguration()
+        {
+
+        }
+
         /// <summary>
         /// Creates a session configuration
         /// </summary>
@@ -69,19 +83,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Creates the session configuration from a stream.
-        /// </summary>
-        public static SessionConfiguration Create(Stream stream, ITelemetryContext telemetry)
-        {
-            // secure settings
-            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            using var reader = XmlReader.Create(stream, settings);
-            var serializer = new DataContractSerializer(typeof(SessionConfiguration));
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-            return (SessionConfiguration)serializer.ReadObject(reader);
-        }
-
-        /// <summary>
         /// When the session configuration was created.
         /// </summary>
         [DataMember(IsRequired = true, Order = 10)]
@@ -91,31 +92,31 @@ namespace Opc.Ua.Client
         /// The session name used by the client.
         /// </summary>
         [DataMember(IsRequired = true, Order = 20)]
-        public string SessionName { get; set; }
+        public string? SessionName { get; set; }
 
         /// <summary>
         /// The session id assigned by the server.
         /// </summary>
         [DataMember(IsRequired = true, Order = 30)]
-        public NodeId SessionId { get; set; }
+        public NodeId SessionId { get; set; } = NodeId.Null;
 
         /// <summary>
         /// The authentication token used by the server to identify the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 40)]
-        public NodeId AuthenticationToken { get; set; }
+        public NodeId AuthenticationToken { get; set; } = NodeId.Null;
 
         /// <summary>
         /// The identity used to create the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 50)]
-        public IUserIdentity Identity { get; set; }
+        public IUserIdentity? Identity { get; set; }
 
         /// <summary>
         /// The configured endpoint for the secure channel.
         /// </summary>
         [DataMember(IsRequired = true, Order = 60)]
-        public ConfiguredEndpoint ConfiguredEndpoint { get; set; }
+        public ConfiguredEndpoint? ConfiguredEndpoint { get; set; }
 
         /// <summary>
         /// If the client is configured to check the certificate domain.
@@ -127,18 +128,31 @@ namespace Opc.Ua.Client
         /// The last server nonce received.
         /// </summary>
         [DataMember(IsRequired = true, Order = 80)]
-        public Nonce ServerNonce { get; set; }
+        public Nonce? ServerNonce { get; set; }
 
         /// <summary>
         /// The user identity token policy which was used to create the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 90)]
-        public string UserIdentityTokenPolicy { get; set; }
+        public string? UserIdentityTokenPolicy { get; set; }
 
         /// <summary>
         /// The last server ecc ephemeral key received.
         /// </summary>
         [DataMember(IsRequired = false, Order = 100)]
-        public Nonce ServerEccEphemeralKey { get; set; }
+        public Nonce? ServerEccEphemeralKey { get; set; }
+
+        /// <summary>
+        /// Creates the session configuration from a stream.
+        /// </summary>
+        public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
+        {
+            // secure settings
+            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+            using var reader = XmlReader.Create(stream, settings);
+            var serializer = new DataContractSerializer(typeof(SessionConfiguration));
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            return (SessionConfiguration?)serializer.ReadObject(reader);
+        }
     }
 }

@@ -39,13 +39,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a empty object.
         /// </summary>
-        internal MonitoredItemStatus()
+        internal MonitoredItemStatus(MonitoredItem monitoredItem)
         {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
+            m_monitoredItem = monitoredItem;
             Id = 0;
             NodeId = null;
             AttributeId = Attributes.Value;
@@ -63,7 +59,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The identifier assigned by the server.
         /// </summary>
-        public uint Id { get; set; }
+        public uint Id
+        {
+            get => m_monitoredItem.ServerId;
+            set => m_monitoredItem.ServerId = value;
+        }
 
         /// <summary>
         /// Whether the item has been created on the server.
@@ -287,5 +287,7 @@ namespace Opc.Ua.Client
         {
             Error = error;
         }
+
+        private readonly MonitoredItem m_monitoredItem;
     }
 }
