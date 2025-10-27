@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
@@ -865,6 +864,8 @@ namespace Opc.Ua
         /// Returns the public key for the specified certificate and outputs the security policy uris.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="NotImplementedException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static ECDsa GetPublicKey(
             X509Certificate2 certificate,
             out string[] securityPolicyUris)
@@ -872,14 +873,14 @@ namespace Opc.Ua
 #if ECC_SUPPORT
             securityPolicyUris = null;
 
-            var keyAlgorithm = certificate.GetKeyAlgorithm();
+            string keyAlgorithm = certificate.GetKeyAlgorithm();
 
             if (certificate == null || keyAlgorithm != Oids.ECPublicKey)
             {
                 return null;
             }
 
-            const X509KeyUsageFlags SufficientFlags =
+            const X509KeyUsageFlags kSufficientFlags =
                 X509KeyUsageFlags.KeyAgreement |
                 X509KeyUsageFlags.DigitalSignature |
                 X509KeyUsageFlags.NonRepudiation |
@@ -890,9 +891,9 @@ namespace Opc.Ua
             {
                 if (extension.Oid.Value == "2.5.29.15")
                 {
-                    X509KeyUsageExtension kuExt = (X509KeyUsageExtension)extension;
+                    var kuExt = (X509KeyUsageExtension)extension;
 
-                    if ((kuExt.KeyUsages & SufficientFlags) == 0)
+                    if ((kuExt.KeyUsages & kSufficientFlags) == 0)
                     {
                         return null;
                     }
@@ -903,7 +904,7 @@ namespace Opc.Ua
             string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
             byte[] keyValue = encodedPublicKey.EncodedKeyValue.RawData;
 
-            ECParameters ecParameters = default(ECParameters);
+            var ecParameters = default(ECParameters);
 
             if (keyValue[0] != 0x04)
             {
@@ -925,37 +926,23 @@ namespace Opc.Ua
             switch (keyParameters)
             {
                 case NistP256KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP256;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP256 };
+                    securityPolicyUris = [SecurityPolicies.ECC_nistP256];
                     break;
-                }
-
                 case NistP384KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP384;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256 };
+                    securityPolicyUris = [SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256];
                     break;
-                }
-
                 case BrainpoolP256r1KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP256r1 };
+                    securityPolicyUris = [SecurityPolicies.ECC_brainpoolP256r1];
                     break;
-                }
-
                 case BrainpoolP384r1KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1 };
+                    securityPolicyUris = [SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1];
                     break;
-                }
-
                 default:
-                {
                     throw new NotImplementedException(keyParameters);
-                }
             }
 
             return ECDsa.Create(ecParameters);
