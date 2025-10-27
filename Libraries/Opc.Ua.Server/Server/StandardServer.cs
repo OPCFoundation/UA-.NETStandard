@@ -3648,6 +3648,11 @@ namespace Opc.Ua.Server
                     m_serverInternal.SetAggregateManager(
                         CreateAggregateManager(m_serverInternal, configuration));
 
+                    // create the manager responsible for modelling rules.
+                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
+                    m_serverInternal.SetModellingRulesManager(
+                        CreateModellingRulesManager(m_serverInternal, configuration));
+
                     // start the session manager.
                     m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
                     ISessionManager sessionManager = CreateSessionManager(
@@ -4134,6 +4139,37 @@ namespace Opc.Ua.Server
                 ObjectIds.AggregateFunction_VarianceSample,
                 BrowseNames.AggregateFunction_VarianceSample,
                 Aggregators.CreateStandardCalculator);
+
+            return manager;
+        }
+
+        /// <summary>
+        /// Creates the modelling rules manager used by the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <returns>The manager.</returns>
+        protected virtual ModellingRulesManager CreateModellingRulesManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            var manager = new ModellingRulesManager(server);
+
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_Mandatory,
+                BrowseNames.ModellingRule_Mandatory);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_Optional,
+                BrowseNames.ModellingRule_Optional);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_ExposesItsArray,
+                BrowseNames.ModellingRule_ExposesItsArray);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_OptionalPlaceholder,
+                BrowseNames.ModellingRule_OptionalPlaceholder);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_MandatoryPlaceholder,
+                BrowseNames.ModellingRule_MandatoryPlaceholder);
 
             return manager;
         }
