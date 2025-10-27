@@ -170,15 +170,6 @@ namespace Opc.Ua.Client.Tests
         {
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        protected new void Initialize(StreamingContext context)
-        {
-            base.Initialize(context);
-        }
-
         /// <inheritdoc/>
         public override Subscription CloneSubscription(bool copyEventHandlers)
         {
@@ -216,23 +207,6 @@ namespace Opc.Ua.Client.Tests
             bool copyEventHandlers,
             bool copyClientHandle)
             : base(template, copyEventHandlers, copyClientHandle)
-        {
-        }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        protected new void Initialize(StreamingContext context)
-        {
-            base.Initialize(context);
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets the private members to default values.
-        /// </summary>
-        private static void Initialize()
         {
         }
 

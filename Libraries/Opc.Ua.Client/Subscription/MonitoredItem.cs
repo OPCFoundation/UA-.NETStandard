@@ -84,49 +84,54 @@ namespace Opc.Ua.Client
             Status = new MonitoredItemStatus(this);
             if (template == null)
             {
-                ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
-                State = new MonitoredItemOptions();
+                throw new ArgumentNullException(nameof(template));
+            }
+            m_logger = template.m_logger;
+
+            State = template.State;
+            ClientHandle = 0;
+            AttributesModified = true;
+            m_logger ??= Utils.Null.Logger;
+
+            string displayName = template.DisplayName;
+            if (displayName != null)
+            {
+                int index = displayName.LastIndexOf(' ');
+                if (index != -1)
+                {
+                    try
+                    { displayName = displayName[..index]; }
+                    catch { }
+                }
+            }
+
+            Handle = template.Handle;
+            DisplayName = Utils.Format("{0} {1}", displayName, ClientHandle);
+            // copy state (except client handle logic handled below)
+            State = template.State with { DisplayName = DisplayName };
+            if (copyEventHandlers)
+            {
+                m_Notification = template.m_Notification;
+            }
+            if (copyClientHandle)
+            {
+                ClientHandle = template.ClientHandle;
             }
             else
             {
-                m_logger = template.m_logger;
-
-                State = template.State;
-                ClientHandle = 0;
-                AttributesModified = true;
-                m_logger ??= Utils.Null.Logger;
-
-                string displayName = template.DisplayName;
-                if (displayName != null)
-                {
-                    int index = displayName.LastIndexOf(' ');
-                    if (index != -1)
-                    {
-                        try
-                        { displayName = displayName[..index]; }
-                        catch { }
-                    }
-                }
-
-                Handle = template.Handle;
-                DisplayName = Utils.Format("{0} {1}", displayName, ClientHandle);
-                // copy state (except client handle logic handled below)
-                State = template.State with { DisplayName = DisplayName };
-                if (copyEventHandlers)
-                {
-                    m_Notification = template.m_Notification;
-                }
-                if (copyClientHandle)
-                {
-                    ClientHandle = template.ClientHandle;
-                }
-                else
-                {
-                    ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
-                }
-                // ensure state consistency with node class transitions
-                NodeClass = State.NodeClass;
+                ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
             }
+            // ensure state consistency with node class transitions
+            NodeClass = State.NodeClass;
+        }
+
+        /// <summary>
+        /// Public parameterless ctor for serialization/deserialization scenarios.
+        /// </summary>
+        [Obsolete("Use constructor with ITelemetryContext argument")]
+        public MonitoredItem()
+            : this((ITelemetryContext)null!, null)
+        {
         }
 
         /// <summary>
@@ -173,45 +178,42 @@ namespace Opc.Ua.Client
         /// </summary>
         public NodeClass NodeClass
         {
-            get => State?.NodeClass ?? _nodeClass;
+            get => State.NodeClass;
             set
             {
                 if (NodeClass != value)
                 {
-                    var newState = State ?? new MonitoredItemOptions();
                     if (((int)value & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
                     {
-                        if (newState.Filter is not EventFilter)
+                        if (State.Filter is not EventFilter)
                         {
                             UseDefaultEventFilter();
-                            newState = newState with { Filter = m_filter };
+                            State = State with { Filter = m_filter };
                         }
-                        if (newState.QueueSize <= 1)
+                        if (State.QueueSize <= 1)
                         {
-                            newState = newState with { QueueSize = (uint)int.MaxValue };
+                            State = State with { QueueSize = (uint)int.MaxValue };
                         }
-                        newState = newState with { AttributeId = Attributes.EventNotifier };
+                        State = State with { AttributeId = Attributes.EventNotifier };
                     }
                     else
                     {
-                        if (newState.Filter is EventFilter)
+                        if (State.Filter is EventFilter)
                         {
-                            newState = newState with { Filter = null };
+                            State = State with { Filter = null };
                         }
-                        if (newState.QueueSize == int.MaxValue)
+                        if (State.QueueSize == int.MaxValue)
                         {
-                            newState = newState with { QueueSize = 1 };
+                            State = State with { QueueSize = 1 };
                         }
-                        newState = newState with { AttributeId = Attributes.Value };
+                        State = State with { AttributeId = Attributes.Value };
                     }
-                    _nodeClass = value;
-                    State = newState with { NodeClass = value };
+                    State = State with { NodeClass = value };
                     m_dataCache = null;
                     m_eventCache = null;
                 }
             }
         }
-        private NodeClass _nodeClass = NodeClass.Variable;
 
         /// <summary>
         /// The attribute id
@@ -990,7 +992,7 @@ namespace Opc.Ua.Client
         {
             if (m_dataCache == null && m_eventCache == null)
             {
-                if (((int)_nodeClass & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
+                if (((int)State.NodeClass & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
                 {
                     m_eventCache = new MonitoredItemEventCache(100);
                 }
@@ -1018,7 +1020,7 @@ namespace Opc.Ua.Client
                 case NodeClass.VariableType:
                     if (!typeof(DataChangeFilter).IsInstanceOfType(filter))
                     {
-                        _nodeClass = NodeClass.Variable;
+                        State = State with { NodeClass = NodeClass.Variable };
                     }
 
                     break;
@@ -1026,7 +1028,7 @@ namespace Opc.Ua.Client
                 case NodeClass.View:
                     if (!typeof(EventFilter).IsInstanceOfType(filter))
                     {
-                        _nodeClass = NodeClass.Object;
+                        State = State with { NodeClass = NodeClass.Object };
                     }
 
                     break;
@@ -1070,7 +1072,7 @@ namespace Opc.Ua.Client
         private static uint s_globalClientHandle;
         private Subscription? m_subscription;
         private ILogger m_logger = Utils.Null.Logger;
-        private Lock m_cache = new();
+        private readonly Lock m_cache = new();
         private MonitoredItemDataCache? m_dataCache;
         private MonitoredItemEventCache? m_eventCache;
         private IEncodeable? m_lastNotification;
@@ -1311,102 +1313,5 @@ namespace Opc.Ua.Client
         }
 
         private readonly Queue<EventFieldList> m_events;
-    }
-
-    [JsonSerializable(typeof(MonitoredItemOptions))]
-    internal partial class MonitoredItemOptionsContext : JsonSerializerContext;
-
-    /// <summary>
-    /// Serializable options/state for a client monitored item.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    [KnownType(typeof(DataChangeFilter))]
-    [KnownType(typeof(EventFilter))]
-    [KnownType(typeof(AggregateFilter))]
-    public record class MonitoredItemOptions
-    {
-        /// <summary>
-        /// Display name for the monitored item.
-        /// </summary>
-        [DataMember(Order = 1)]
-        public string DisplayName { get; init; } = "MonitoredItem";
-
-        /// <summary>
-        /// The start node id for the browse path.
-        /// </summary>
-        [DataMember(Order = 2)]
-        public NodeId StartNodeId { get; init; } = NodeId.Null;
-
-        /// <summary>
-        /// The relative path from the start node to the node to monitor.
-        /// </summary>
-        [DataMember(Order = 3)]
-        public string? RelativePath { get; init; }
-
-        /// <summary>
-        /// The node class of the node being monitored.
-        /// </summary>
-        [DataMember(Order = 4)]
-        public NodeClass NodeClass { get; init; } = NodeClass.Variable;
-
-        /// <summary>
-        /// The attribute id to monitor.
-        /// </summary>
-        [DataMember(Order = 5)]
-        public uint AttributeId { get; init; } = Attributes.Value;
-
-        /// <summary>
-        /// The index range for array values (optional).
-        /// </summary>
-        [DataMember(Order = 6)]
-        public string? IndexRange { get; init; }
-
-        /// <summary>T
-        /// he data encoding to use for notifications.
-        /// </summary>
-        [DataMember(Order = 7)]
-        public QualifiedName Encoding { get; init; } = QualifiedName.Null;
-
-        /// <summary>
-        /// The monitoring mode requested.
-        /// </summary>
-        [DataMember(Order = 8)]
-        public MonitoringMode MonitoringMode { get; init; } = MonitoringMode.Reporting;
-
-        /// <summary>
-        /// The sampling interval in milliseconds (-1 = server default).
-        /// </summary>
-        [DataMember(Order = 9)]
-        public int SamplingInterval { get; init; } = -1;
-
-        /// <summary>
-        /// The monitoring filter (data change/event/aggregate).
-        /// </summary>
-        [DataMember(Order = 10)]
-        public MonitoringFilter? Filter { get; init; }
-
-        /// <summary>
-        /// The length of the queue used to buffer values.
-        /// </summary>
-        [DataMember(Order = 11)]
-        public uint QueueSize { get; init; } = 0;
-
-        /// <summary>
-        /// Whether to discard the oldest entry when the queue is full.
-        /// </summary>
-        [DataMember(Order = 12)]
-        public bool DiscardOldest { get; init; } = true;
-
-        /// <summary>
-        /// Server
-        /// </summary>
-        [DataMember(Order = 13)]
-        public uint ServerId { get; init; }
-
-        /// <summary>
-        /// The identifier assigned by the client.
-        /// </summary>
-        [DataMember(Order = 14)]
-        public uint ClientId { get; init; }
     }
 }

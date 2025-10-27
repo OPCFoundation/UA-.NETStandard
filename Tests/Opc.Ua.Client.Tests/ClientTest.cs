@@ -808,7 +808,7 @@ namespace Opc.Ua.Client.Tests
                 NUnit.Framework.Assert.ThrowsAsync<ObjectDisposedException>(
                     () => channel1.CloseAsync(default).AsTask());
                 // Calling dispose twice will not throw.
-                NUnit.Framework.Assert.DoesNotThrow(() => channel1.Dispose());
+                NUnit.Framework.Assert.DoesNotThrow(channel1.Dispose);
             }
 
             // test by reading a value

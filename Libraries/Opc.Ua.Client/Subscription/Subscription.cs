@@ -39,97 +39,6 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Stores the options/state for a subscription which can be serialized.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public record class SubscriptionOptions
-    {
-        /// <summary>
-        /// Display name for the subscription.
-        /// </summary>
-        [DataMember(Order = 1)]
-        public string DisplayName { get; init; } = "Subscription";
-
-        /// <summary>
-        /// The requested publishing interval in milliseconds.
-        /// </summary>
-        [DataMember(Order = 2)]
-        public int PublishingInterval { get; init; }
-
-        /// <summary>
-        /// The requested keep alive count.
-        /// </summary>
-        [DataMember(Order = 3)]
-        public uint KeepAliveCount { get; init; }
-
-        /// <summary>
-        /// The requested lifetime count.
-        /// </summary>
-        [DataMember(Order = 4)]
-        public uint LifetimeCount { get; init; }
-
-        /// <summary>
-        /// The maximum notifications per publish request.
-        /// </summary>
-        [DataMember(Order = 5)]
-        public uint MaxNotificationsPerPublish { get; init; }
-
-        /// <summary>
-        /// Whether publishing is enabled when creating the subscription.
-        /// </summary>
-        [DataMember(Order = 6)]
-        public bool PublishingEnabled { get; init; }
-
-        /// <summary>
-        /// The priority assigned to the subscription.
-        /// </summary>
-        [DataMember(Order = 7)]
-        public byte Priority { get; init; }
-
-        /// <summary>
-        /// Which timestamps to return with notifications.
-        /// </summary>
-        [DataMember(Order = 8)]
-        public TimestampsToReturn TimestampsToReturn { get; init; } = TimestampsToReturn.Both;
-
-        /// <summary>
-        /// Maximum number of publish messages cached locally.
-        /// </summary>
-        [DataMember(Order = 9)]
-        public int MaxMessageCount { get; init; } = 10;
-
-        /// <summary>
-        /// Minimum lifetime interval in milliseconds used to derive lifetime count.
-        /// </summary>
-        [DataMember(Order = 12)]
-        public uint MinLifetimeInterval { get; init; }
-
-        /// <summary>
-        /// Disable the monitored item cache for higher throughput.
-        /// </summary>
-        [DataMember(Order = 13)]
-        public bool DisableMonitoredItemCache { get; init; }
-
-        /// <summary>
-        /// Process incoming publish responses strictly sequentially.
-        /// </summary>
-        [DataMember(Order = 14)]
-        public bool SequentialPublishing { get; init; }
-
-        /// <summary>
-        /// Republish available sequence numbers after a transfer to avoid data loss.
-        /// </summary>
-        [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
-        public bool RepublishAfterTransfer { get; init; }
-
-        /// <summary>
-        /// The transferable subscription id assigned by the server.
-        /// </summary>
-        [DataMember(Name = "TransferId", Order = 16)]
-        public uint TransferId { get; init; }
-    }
-
-    /// <summary>
     /// A subscription.
     /// </summary>
     public class Subscription : IDisposable, ICloneable
@@ -144,18 +53,19 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use Subscription(TelemetryContext) instead")]
         public Subscription()
-            : this(null)
+            : this(null, null)
         {
         }
 
         /// <summary>
         /// Creates a empty object.
         /// </summary>
-        public Subscription(ITelemetryContext telemetry)
+        public Subscription(ITelemetryContext telemetry, SubscriptionOptions options = null)
         {
-            Telemetry = telemetry;
-            State = new SubscriptionOptions();
-            Initialize();
+            Telemetry = telemetry = AmbientMessageContext.Telemetry;
+            m_logger = Telemetry.CreateLogger<Subscription>();
+            State = options ?? new SubscriptionOptions();
+            DefaultItem = new MonitoredItem(Telemetry);
         }
 
         /// <summary>
@@ -165,48 +75,37 @@ namespace Opc.Ua.Client
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         public Subscription(Subscription template, bool copyEventHandlers = false)
         {
-            if (template != null)
+            if (template == null)
             {
-                m_logger = template.m_logger;
-                m_telemetry = template.Telemetry;
+                throw new ArgumentNullException(nameof(template));
             }
 
-            State = template?.State ?? new SubscriptionOptions();
-            Initialize();
+            State = template.State;
+            DefaultItem = new MonitoredItem(template.Telemetry, template.DefaultItem.State);
+            Handle = template.Handle;
+            m_lastSequenceNumberProcessed = template.m_lastSequenceNumberProcessed;
+            m_logger = template.m_logger;
 
-            if (template != null)
+            if (copyEventHandlers)
             {
-                // Forwarded properties are already copied via State. Copy fields not in State.
-                m_maxMessageCount = template.m_maxMessageCount;
-                m_sequentialPublishing = template.m_sequentialPublishing;
-                m_lastSequenceNumberProcessed = template.m_lastSequenceNumberProcessed;
-                RepublishAfterTransfer = template.RepublishAfterTransfer; // ensure field usage
-                DefaultItem = (MonitoredItem)template.DefaultItem.Clone();
-                Handle = template.Handle;
-                DisableMonitoredItemCache = template.DisableMonitoredItemCache;
-                TransferId = template.TransferId;
+                m_StateChanged = template.m_StateChanged;
+                m_PublishStatusChanged = template.m_PublishStatusChanged;
+                FastDataChangeCallback = template.FastDataChangeCallback;
+                FastEventCallback = template.FastEventCallback;
+                FastKeepAliveCallback = template.FastKeepAliveCallback;
+            }
 
-                if (copyEventHandlers)
-                {
-                    m_StateChanged = template.m_StateChanged;
-                    m_PublishStatusChanged = template.m_PublishStatusChanged;
-                    FastDataChangeCallback = template.FastDataChangeCallback;
-                    FastEventCallback = template.FastEventCallback;
-                    FastKeepAliveCallback = template.FastKeepAliveCallback;
-                }
-
-                // copy the list of monitored items.
-                var clonedMonitoredItems = new List<MonitoredItem>();
-                foreach (MonitoredItem monitoredItem in template.MonitoredItems)
-                {
-                    MonitoredItem clone = monitoredItem.CloneMonitoredItem(copyEventHandlers, true);
-                    clone.DisplayName = monitoredItem.DisplayName;
-                    clonedMonitoredItems.Add(clone);
-                }
-                if (clonedMonitoredItems.Count > 0)
-                {
-                    AddItems(clonedMonitoredItems);
-                }
+            // copy the list of monitored items.
+            var clonedMonitoredItems = new List<MonitoredItem>();
+            foreach (MonitoredItem monitoredItem in template.MonitoredItems)
+            {
+                MonitoredItem clone = monitoredItem.CloneMonitoredItem(copyEventHandlers, true);
+                clone.DisplayName = monitoredItem.DisplayName;
+                clonedMonitoredItems.Add(clone);
+            }
+            if (clonedMonitoredItems.Count > 0)
+            {
+                AddItems(clonedMonitoredItems);
             }
         }
 
@@ -267,41 +166,6 @@ namespace Opc.Ua.Client
             {
                 Utils.SilentDispose(workerCts);
             }
-        }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        protected void Initialize(StreamingContext context)
-        {
-            m_cache = new Lock();
-            m_telemetry = AmbientMessageContext.Telemetry;
-            State ??= new SubscriptionOptions();
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets the private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            TransferId = Id = 0;
-            m_keepAliveInterval = 0;
-            m_maxMessageCount = State.MaxMessageCount;
-            RepublishAfterTransfer = State.RepublishAfterTransfer;
-            m_outstandingMessageWorkers = 0;
-            m_sequentialPublishing = State.SequentialPublishing;
-            m_lastSequenceNumberProcessed = 0;
-            m_messageCache = new LinkedList<NotificationMessage>();
-            m_monitoredItems = [];
-            m_deletedItems = [];
-            m_messageWorkerEvent = new AsyncAutoResetEvent();
-            m_messageWorkerCts = null;
-            m_resyncLastSequenceNumberProcessed = false;
-
-            // Creates a default logger even if telemetry is null
-            m_logger ??= Telemetry.CreateLogger<Subscription>();
         }
 
         /// <summary>
@@ -448,27 +312,27 @@ namespace Opc.Ua.Client
         /// </summary>
         public int MaxMessageCount
         {
-            get => m_maxMessageCount;
+            get => State.MaxMessageCount;
             set
             {
                 // lock needed to synchronize with message list processing
                 lock (m_cache)
                 {
-                    m_maxMessageCount = value;
                     State = State with { MaxMessageCount = value };
                 }
             }
         }
 
         /// <summary>The default monitored item template.</summary>
-        public MonitoredItem DefaultItem { get; set; } = new MonitoredItem
-        {
-            DisplayName = "MonitoredItem",
-            SamplingInterval = -1,
-            MonitoringMode = MonitoringMode.Reporting,
-            QueueSize = 0,
-            DiscardOldest = true
-        };
+        public MonitoredItem DefaultItem { get; set; } = new MonitoredItem(null,
+            new MonitoredItemOptions
+            {
+                DisplayName = "MonitoredItem",
+                SamplingInterval = -1,
+                MonitoringMode = MonitoringMode.Reporting,
+                QueueSize = 0,
+                DiscardOldest = true
+            });
 
         /// <summary>
         /// The minimum lifetime for subscriptions in milliseconds.
@@ -508,13 +372,12 @@ namespace Opc.Ua.Client
         /// </remarks>
         public bool SequentialPublishing
         {
-            get => m_sequentialPublishing;
+            get => State.SequentialPublishing;
             set
             {
                 // synchronize with message list processing
                 lock (m_cache)
                 {
-                    m_sequentialPublishing = value;
                     State = State with { SequentialPublishing = value };
                 }
             }
@@ -2359,12 +2222,12 @@ namespace Opc.Ua.Client
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null &&
                             !ii.Value.Processed &&
-                            (!m_sequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
+                            (!State.SequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
                             (messagesToProcess ??= []).Add(ii.Value.Message);
 
                             // remove the oldest items.
-                            while (m_messageCache.Count > m_maxMessageCount)
+                            while (m_messageCache.Count > MaxMessageCount)
                             {
                                 m_messageCache.RemoveFirst();
                             }
@@ -3012,7 +2875,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        private List<MonitoredItem> m_deletedItems;
+        private List<MonitoredItem> m_deletedItems = [];
         private event SubscriptionStateChangedEventHandler m_StateChanged;
 
         private SubscriptionChangeMask m_changeMask;
@@ -3024,16 +2887,14 @@ namespace Opc.Ua.Client
         private event PublishStateChangedEventHandler m_PublishStatusChanged;
 
         private bool m_disposed;
-        private Lock m_cache = new();
-        private LinkedList<NotificationMessage> m_messageCache;
+        private readonly Lock m_cache = new();
+        private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private IList<uint> m_availableSequenceNumbers;
-        private int m_maxMessageCount;
-        private Dictionary<uint, MonitoredItem> m_monitoredItems;
-        private AsyncAutoResetEvent m_messageWorkerEvent;
+        private Dictionary<uint, MonitoredItem> m_monitoredItems = [];
+        private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();
         private CancellationTokenSource m_messageWorkerCts;
         private Task m_messageWorkerTask;
         private int m_outstandingMessageWorkers;
-        private bool m_sequentialPublishing;
         private uint m_lastSequenceNumberProcessed;
         private bool m_resyncLastSequenceNumberProcessed;
         private LinkedList<IncomingMessage> m_incomingMessages;
