@@ -1203,8 +1203,7 @@ namespace Opc.Ua.Test
         {
             if (ThrowOnError)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "'{0}' is not equal to '{1}'.",
                     value1,
                     value2);

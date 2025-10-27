@@ -1012,10 +1012,8 @@ namespace Opc.Ua.Server
                 // decrypt the token.
                 if (m_serverCertificate == null)
                 {
-                    m_serverCertificate = CertificateFactory.Create(
-                        EndpointDescription.ServerCertificate,
-                        true,
-                        m_server.Telemetry);
+                    m_serverCertificate = X509CertificateLoader.LoadCertificate(
+                        EndpointDescription.ServerCertificate);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
@@ -1143,6 +1141,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the diagnostic counters associated with the request.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void UpdateDiagnosticCounters(
             RequestType requestType,
             bool error,
@@ -1255,6 +1254,17 @@ namespace Opc.Ua.Server
                     case RequestType.UnregisterNodes:
                         counter = SessionDiagnostics.UnregisterNodesCount;
                         break;
+                    case RequestType.Unknown:
+                    case RequestType.FindServers:
+                    case RequestType.GetEndpoints:
+                    case RequestType.CreateSession:
+                    case RequestType.ActivateSession:
+                    case RequestType.CloseSession:
+                    case RequestType.Cancel:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected RequestType {requestType}");
                 }
 
                 if (counter != null)

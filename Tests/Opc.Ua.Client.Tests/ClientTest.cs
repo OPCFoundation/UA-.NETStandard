@@ -143,7 +143,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
@@ -165,7 +168,7 @@ namespace Opc.Ua.Client.Tests
 
                 if (endpoint.ServerCertificate != null)
                 {
-                    using X509Certificate2 cert = X509CertificateLoader.LoadCertificate(
+                    using X509Certificate2 cert = CertificateFactory.Create(
                         endpoint.ServerCertificate);
                     TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                 }
@@ -192,7 +195,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             ApplicationDescriptionCollection servers = await client.FindServersAsync(null)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
@@ -221,7 +227,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             try
             {
                 FindServersOnNetworkResponse response = await client
@@ -260,7 +269,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null).ConfigureAwait(false);
             Assert.NotNull(endpoints);
@@ -270,7 +282,7 @@ namespace Opc.Ua.Client.Tests
 
             var sessionClient = new SessionClient(channel, telemetry)
             {
-                ReturnDiagnostics = DiagnosticsMasks.All
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
             };
 
             var request = new ReadRequest { RequestHeader = null };
@@ -325,7 +337,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration, telemetry);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
             var profileUris = new StringCollection();
             for (int i = 0; i < 10000; i++)
             {
@@ -787,11 +802,13 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(value2);
             Assert.AreEqual(value1.State, value2.State);
 
-            // test case: close the first channel after the session is activated on the new channel
             if (!closeChannel)
             {
-                channel1.Close();
-                channel1.Dispose();
+                // Closing channel should throw because it was disposed during reconnect
+                NUnit.Framework.Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => channel1.CloseAsync(default).AsTask());
+                // Calling dispose twice will not throw.
+                NUnit.Framework.Assert.DoesNotThrow(() => channel1.Dispose());
             }
 
             // test by reading a value
@@ -822,24 +839,12 @@ namespace Opc.Ua.Client.Tests
                 await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus).ConfigureAwait(false));
 
-            // TODO: Both channel should return BadNotConnected
             if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
             {
-                if (endpoint.EndpointUrl.ToString()
-                    .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
-                {
-                    Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadNotConnected,
-                        (StatusCode)sre.StatusCode,
-                        sre.Message);
-                }
-                else
-                {
-                    Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadUnknownResponse,
-                        (StatusCode)sre.StatusCode,
-                        sre.Message);
-                }
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadNotConnected,
+                    (StatusCode)sre.StatusCode,
+                    sre.Message);
             }
         }
 
@@ -1963,8 +1968,6 @@ namespace Opc.Ua.Client.Tests
             )]
                 string securityPolicy)
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
             var eccCurveHashPairs = new ECCurveHashPairCollection
             {
                 { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
@@ -1996,7 +1999,7 @@ namespace Opc.Ua.Client.Tests
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();
 
-                    var userIdentity = new UserIdentity(cert, telemetry);
+                    var userIdentity = new UserIdentity(cert);
 
                     // the first channel determines the endpoint
                     ConfiguredEndpoint endpoint = await ClientFixture

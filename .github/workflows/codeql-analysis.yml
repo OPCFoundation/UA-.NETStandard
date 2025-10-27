@@ -8,10 +8,10 @@ on:
     # The branches below must be a subset of the branches above
     branches: [ master, main ]
     paths:
-    - '**.cs'    
+    - '**.cs'
   schedule:
     - cron: '30 6 * * 6'
-  workflow_dispatch:  
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -43,7 +43,7 @@ jobs:
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
-        
+
     - name: Set up .NET
       uses: actions/setup-dotnet@v5
       with:
@@ -58,7 +58,7 @@ jobs:
       run: |
         nuget restore "UA Core Library.sln"
         nuget restore "UA Reference.sln"
-        
+
     - name: Build Solution
       run: |
         msbuild.exe "UA Core Library.sln" /p:configuration="Release" /p:UseSharedCompilation=false

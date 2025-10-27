@@ -45,7 +45,11 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            Dispose(true);
+            if (!m_disposed)
+            {
+                Dispose(true);
+                m_disposed = true;
+            }
             GC.SuppressFinalize(this);
         }
 
@@ -244,7 +248,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
-            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
@@ -311,7 +315,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the listener factory.
-            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
@@ -348,6 +352,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the list of base addresses.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
             BaseAddresses = [];
@@ -405,6 +410,9 @@ namespace Opc.Ua
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            $"Unsupported scheme for base address: {address.Url}");
                 }
 
                 BaseAddresses.Add(address);
@@ -1426,7 +1434,7 @@ namespace Opc.Ua
         /// <returns>Returns list of hosts for a UA service.</returns>
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            TransportListenerBindings bindingFactory,
+            ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
@@ -1665,5 +1673,6 @@ namespace Opc.Ua
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server
         /// </summary>
         private int m_userTokenPolicyId;
+        private bool m_disposed;
     }
 }

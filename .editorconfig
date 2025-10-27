@@ -78,7 +78,7 @@ csharp_space_between_method_declaration_name_and_open_parenthesis             = 
 csharp_space_between_parentheses                                              = false
 csharp_space_between_square_brackets                                          = false
 
-#Formatting - organize using options
+# Formatting - organize using options
 
 dotnet_sort_system_directives_first                                           = true
 dotnet_separate_import_directive_groups                                       = false
@@ -86,7 +86,7 @@ csharp_style_prefer_method_group_conversion                                   = 
 csharp_style_prefer_top_level_statements                                      = true:silent
 csharp_using_directive_placement                                              = outside_namespace:suggestion
 
-#Formatting - spacing options
+# Formatting - spacing options
 
 csharp_space_after_cast                                                       = false
 csharp_space_after_colon_in_inheritance_clause                                = true
@@ -103,17 +103,17 @@ csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimenta
 csharp_style_allow_blank_line_after_token_in_conditional_expression_experimental = true:silent
 csharp_style_allow_blank_line_after_token_in_arrow_expression_clause_experimental = true:silent
 
-#Formatting - wrapping options
+# Formatting - wrapping options
 csharp_preserve_single_line_blocks                                            = true
 csharp_preserve_single_line_statements                                        = false
 dotnet_style_allow_trailing_commas                                            = false:suggestion
 
-#Pattern - matching preferences
+# Pattern - matching preferences
 csharp_style_pattern_local_over_anonymous_function                            = true:suggestion
 csharp_style_pattern_matching_over_is_with_cast_check                         = true:suggestion
 csharp_style_pattern_matching_over_as_with_null_check                         = true:suggestion
 
-#Style - expression bodied member options
+# Style - expression bodied member options
 csharp_style_expression_bodied_operators                                      = false:suggestion
 csharp_style_expression_bodied_indexers                                       = true:suggestion
 csharp_style_expression_bodied_accessors                                      = true:suggestion
@@ -123,7 +123,7 @@ csharp_style_expression_bodied_properties                                     = 
 csharp_style_expression_bodied_lambdas                                        = true:suggestion
 csharp_style_expression_bodied_local_functions                                = when_on_single_line:suggestion
 
-#Style - expression level options
+# Style - expression level options
 csharp_prefer_braces                                                          = true:suggestion
 csharp_style_deconstructed_variable_declaration                               = true:suggestion
 csharp_prefer_simple_default_expression                                       = true:suggestion
@@ -133,7 +133,7 @@ csharp_style_prefer_tuple_swap                                                = 
 csharp_prefer_static_local_function = true:warning
 csharp_prefer_static_anonymous_function = true:suggestion
 
-#Style - implicit and explicit types
+# Style - implicit and explicit types
 csharp_style_var_for_built_in_types                                           = false:suggestion
 csharp_style_var_when_type_is_apparent                                        = true:suggestion
 csharp_style_var_elsewhere                                                    = false:suggestion
@@ -152,7 +152,7 @@ csharp_style_prefer_readonly_struct                                           = 
 csharp_style_prefer_readonly_struct_member                                    = true:suggestion
 
 # Style - pattern matching
-csharp_style_prefer_switch_expression                                         = false:suggestion
+csharp_style_prefer_switch_expression                                         = false:silent
 csharp_style_prefer_pattern_matching                                          = true:silent
 csharp_style_prefer_not_pattern                                               = true:suggestion
 csharp_style_prefer_extended_property_pattern                                 = true:suggestion
@@ -164,15 +164,14 @@ dotnet_style_namespace_match_folder                                           = 
 dotnet_code_quality_unused_parameters                                         = all:silent
 
 # Style - language keyword and framework type options
-#prefer the language keyword for local variables, method parameters, and class members,
-#instead of the type name, for types that have a keyword to represent them
+# prefer the language keyword for local variables, method parameters, and class members,
+# instead of the type name, for types that have a keyword to represent them
 dotnet_style_predefined_type_for_locals_parameters_members                    = true:suggestion
 dotnet_style_predefined_type_for_member_access                                = true:suggestion
-
 dotnet_style_allow_multiple_blank_lines_experimental                          = false:suggestion
 dotnet_style_allow_statement_immediately_after_block_experimental             = true:suggestion
 
-# Style - qualification options
+# Style - Qualification options
 dotnet_style_qualification_for_event                                          = false:suggestion
 dotnet_style_qualification_for_field                                          = false:suggestion
 dotnet_style_qualification_for_method                                         = false:suggestion
@@ -211,6 +210,9 @@ csharp_style_unused_value_expression_statement_preference                     = 
 # 'using' directive preferences
 csharp_using_directive_placement                                              = outside_namespace:suggestion
 csharp_style_namespace_declarations                                           = block_scoped:suggestion
+
+# We have a polyfill for this
+csharp_prefer_system_threading_lock                                           = true:suggestion
 
 # Naming rules
 
@@ -339,7 +341,9 @@ dotnet_analyzer_diagnostic.category-reliability.severity                      = 
 dotnet_analyzer_diagnostic.category-performance.severity                      = warning
 dotnet_analyzer_diagnostic.category-security.severity                         = warning
 
-# Suggest only non breaking warnings
+#
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/categories
+#
 
 # CA1805: Do not initialize unnecessarily.
 dotnet_diagnostic.CA1805.severity                                             = suggestion
@@ -356,23 +360,11 @@ dotnet_diagnostic.CA3077.severity                                             = 
 # CA2007: Do not directly await a Task
 dotnet_diagnostic.CA2007.severity                                             = warning
 
-# IDE0049: Simplify Names
-dotnet_diagnostic.IDE0049.severity                                            = suggestion
-
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
 
 # CA1711: Identifiers should not have incorrect suffix
 dotnet_diagnostic.CA1711.severity                                             = none
-
-# IDE1005: Simplify delegate invocation
-dotnet_diagnostic.IDE1005.severity                                            = warning
-
-# IDE0046: Convert to conditional expression
-dotnet_diagnostic.IDE0046.severity                                            = silent
-
-# IDE0130: Namespace does not match folder structure
-dotnet_diagnostic.IDE0130.severity                                            = none
 
 # CA1305: Specify IFormatProvider
 dotnet_diagnostic.CA1305.severity                                             = warning
@@ -386,6 +378,16 @@ dotnet_diagnostic.CA1721.severity                                             = 
 # CA2014: Do not use stackalloc in loops
 dotnet_diagnostic.CA2014.severity                                             = error
 
+# CA1510: Use throw helpers - enable when we have a polyfill via C# 14
+dotnet_diagnostic.CA1510.severity                                             = none
+dotnet_diagnostic.CA1511.severity                                             = none
+dotnet_diagnostic.CA1512.severity                                             = none
+dotnet_diagnostic.CA1513.severity                                             = none
+
+#
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/language-rules
+#
+
 # IDE0058: Expression value is never used
 dotnet_diagnostic.IDE0058.severity                                            = silent
 
@@ -395,19 +397,22 @@ csharp_style_prefer_primary_constructors                                      = 
 dotnet_diagnostic.IDE0045.severity                                            = none
 # IDE0065: Using directives must be placed inside a namespace declaration
 dotnet_diagnostic.IDE0065.severity                                            = none
-csharp_prefer_system_threading_lock                                           = true:suggestion
+# IDE0072: Add missing cases to switch statement
+dotnet_diagnostic.IDE0072.severity                                            = silent
+# IDE0072: Add missing cases to switch expression
+dotnet_diagnostic.IDE0010.severity                                            = silent
+# IDE0049: Simplify Names
+dotnet_diagnostic.IDE0049.severity                                            = suggestion
+# IDE1005: Simplify delegate invocation
+dotnet_diagnostic.IDE1005.severity                                            = warning
+# IDE0046: Convert to conditional expression
+dotnet_diagnostic.IDE0046.severity                                            = silent
+# IDE0130: Namespace does not match folder structure
+dotnet_diagnostic.IDE0130.severity                                            = none
 
-# IDE0072: Add missing cases
-dotnet_diagnostic.IDE0072.severity                                            = none
-dotnet_diagnostic.IDE0010.severity                                            = none
-
-# CA1510: Use throw helpers - enable when we have a polyfill
-dotnet_diagnostic.CA1510.severity                                             = none
-dotnet_diagnostic.CA1511.severity                                             = none
-dotnet_diagnostic.CA1512.severity                                             = none
-dotnet_diagnostic.CA1513.severity                                             = none
-
-# Roslynator settings
+#
+# Roslynator settings (https://josefpihrt.github.io/docs/roslynator/analyzers)
+#
 dotnet_analyzer_diagnostic.category-roslynator.severity = suggestion
 roslynator_refactorings.enabled = true
 roslynator_compiler_diagnostic_fixes.enabled = true
@@ -430,149 +435,530 @@ roslynator_doc_comment_summary_style                                          = 
 #roslynator_enum_flag_value_style                                              = decimal_number
 #roslynator_null_check_style                                                   = pattern_matching
 
+# Roslynator diagnostics (ordered by id)
+
+# RCS0001 Add blank line after embedded statement
+#dotnet_diagnostic.RCS0001.severity                                           = suggestion
+# RCS0002 Add blank line after #region
+#dotnet_diagnostic.RCS0002.severity                                           = suggestion
+# RCS0003 Add blank line after using directive list
 dotnet_diagnostic.RCS0003.severity                                            = suggestion
+# RCS0005 Add blank line before #endregion
+#dotnet_diagnostic.RCS0005.severity                                           = suggestion
+# RCS0006 Add blank line before using directive list
 dotnet_diagnostic.RCS0006.severity                                            = suggestion
+# RCS0007 Add blank line between accessors
+#dotnet_diagnostic.RCS0007.severity                                           = suggestion
+# RCS0008 Add blank line between closing brace and next statement
+#dotnet_diagnostic.RCS0008.severity                                           = suggestion
+# RCS0009 Add blank line between declaration and documentation comment
 dotnet_diagnostic.RCS0009.severity                                            = suggestion
+# RCS0010 Add blank line between declarations
 dotnet_diagnostic.RCS0010.severity                                            = suggestion
+# RCS0011 Add/remove blank line between single-line accessors
 dotnet_diagnostic.RCS0011.severity                                            = suggestion
+# RCS0012 Add blank line between single-line declarations
+#dotnet_diagnostic.RCS0012.severity                                           = suggestion
+# RCS0013 Add blank line between single-line declarations of different kind
+#dotnet_diagnostic.RCS0013.severity                                           = suggestion
+# RCS0015 Add/remove blank line between using directives
 dotnet_diagnostic.RCS0015.severity                                            = suggestion
+# RCS0016 Put attribute list on its own line
+#dotnet_diagnostic.RCS0016.severity                                           = suggestion
+# RCS0020 Format accessor's braces on a single line or multiple lines
+#dotnet_diagnostic.RCS0020.severity                                           = suggestion
+# RCS0021 Format block's braces on a single line or multiple lines
 dotnet_diagnostic.RCS0021.severity                                            = suggestion
+# RCS0023 Format type declaration's braces
 dotnet_diagnostic.RCS0023.severity                                            = suggestion
+# RCS0024 Add new line after switch label
+#dotnet_diagnostic.RCS0024.severity                                           = suggestion
+# RCS0025 Put full accessor on its own line
 dotnet_diagnostic.RCS0025.severity                                            = suggestion
+# RCS0027 Place new line after/before binary operator
 dotnet_diagnostic.RCS0027.severity                                            = suggestion
+# RCS0028 Place new line after/before '?:' operator
+#dotnet_diagnostic.RCS0028.severity                                           = suggestion
+# RCS0029 Put constructor initializer on its own line
 dotnet_diagnostic.RCS0029.severity                                            = suggestion
+# RCS0030 Put embedded statement on its own line
+#dotnet_diagnostic.RCS0030.severity                                           = suggestion
+# RCS0031 Put enum member on its own line
 dotnet_diagnostic.RCS0031.severity                                            = suggestion
+# RCS0032 Place new line after/before arrow token
+#dotnet_diagnostic.RCS0032.severity                                           = suggestion
+# RCS0033 Put statement on its own line
 dotnet_diagnostic.RCS0033.severity                                            = suggestion
+# RCS0034 Put type parameter constraint on its own line
 dotnet_diagnostic.RCS0034.severity                                            = suggestion
+# RCS0036 Remove blank line between single-line declarations of same kind
+#dotnet_diagnostic.RCS0036.severity                                           = suggestion
+# RCS0039 Remove new line before base list
+#dotnet_diagnostic.RCS0039.severity                                           = suggestion
+# RCS0041 Remove new line between 'if' keyword and 'else' keyword
 dotnet_diagnostic.RCS0041.severity                                            = suggestion
+# RCS0042 Put auto-accessors on a single line
 dotnet_diagnostic.RCS0042.severity                                            = suggestion
+# RCS0044 Use carriage return + linefeed as new line
+#dotnet_diagnostic.RCS0044.severity                                           = suggestion
+# RCS0045 Use linefeed as new line
+#dotnet_diagnostic.RCS0045.severity                                           = suggestion
+# RCS0046 Use spaces instead of tab
 dotnet_diagnostic.RCS0046.severity                                            = suggestion
+# RCS0048 Put initializer on a single line
+#dotnet_diagnostic.RCS0048.severity                                           = suggestion
+# RCS0049 Add blank line after top comment
 dotnet_diagnostic.RCS0049.severity                                            = suggestion
+# RCS0050 Add blank line before top declaration
 dotnet_diagnostic.RCS0050.severity                                            = suggestion
+# RCS0051 Add/remove new line before 'while' in 'do' statement
 dotnet_diagnostic.RCS0051.severity                                            = suggestion
-#dotnet_diagnostic.RCS0054.severity                                            = suggestion # Call chain formatting
+# RCS0052 Place new line after/before equals token
+#dotnet_diagnostic.RCS0052.severity                                           = suggestion
+# RCS0053 Fix formatting of a list
+#dotnet_diagnostic.RCS0053.severity                                           = suggestion
+# RCS0054 Fix formatting of a call chain
+#dotnet_diagnostic.RCS0054.severity                                           = suggestion
+# RCS0055 Fix formatting of a binary expression chain
 dotnet_diagnostic.RCS0055.severity                                            = suggestion
+# RCS0056 A line is too long
 dotnet_diagnostic.RCS0056.severity                                            = warning
+# RCS0057 Normalize whitespace at the beginning of a file
+#dotnet_diagnostic.RCS0057.severity                                           = suggestion
+# RCS0058 Normalize whitespace at the end of a file
+#dotnet_diagnostic.RCS0058.severity                                           = suggestion
+# RCS0059 Place new line after/before null-conditional operator
 dotnet_diagnostic.RCS0059.severity                                            = suggestion
+# RCS0060 Add/remove line after file scoped namespace declaration
+#dotnet_diagnostic.RCS0060.severity                                           = suggestion
+# RCS0061 Add/remove blank line between switch sections
 dotnet_diagnostic.RCS0061.severity                                            = suggestion
+# RCS0062 Put expression body on its own line
+#dotnet_diagnostic.RCS0062.severity                                           = suggestion
+# RCS0063 Remove unnecessary blank line
 dotnet_diagnostic.RCS0063.severity                                            = suggestion
+# RCS1001 Add braces (when expression spans over multiple lines)
+#dotnet_diagnostic.RCS1001.severity                                           = suggestion
+# RCS1002 Remove braces
 dotnet_diagnostic.RCS1002.severity                                            = none
+# RCS1003 Add braces to if-else (when expression spans over multiple lines)
+#dotnet_diagnostic.RCS1003.severity                                           = suggestion
+# RCS1004 Remove braces from if-else
 dotnet_diagnostic.RCS1004.severity                                            = none
+# RCS1005 Simplify nested using statement
 dotnet_diagnostic.RCS1005.severity                                            = suggestion
+# RCS1006 Merge 'else' with nested 'if'
 dotnet_diagnostic.RCS1006.severity                                            = suggestion
+# RCS1007 Add braces
 dotnet_diagnostic.RCS1007.severity                                            = warning
+# RCS1013 Use predefined type
 dotnet_diagnostic.RCS1013.severity                                            = suggestion
+# RCS1014 Use explicitly/implicitly typed array
+#dotnet_diagnostic.RCS1014.severity                                           = suggestion
+# RCS1015 Use nameof operator
 dotnet_diagnostic.RCS1015.severity                                            = suggestion
+# RCS1016 Use block body or expression body
+#dotnet_diagnostic.RCS1016.severity                                           = suggestion
+# RCS1018 Add/remove accessibility modifiers
+#dotnet_diagnostic.RCS1018.severity                                           = suggestion
+# RCS1019 Order modifiers
 dotnet_diagnostic.RCS1019.severity                                            = none
+# RCS1020 Simplify NullableT to T?
 dotnet_diagnostic.RCS1020.severity                                            = suggestion
+# RCS1021 Convert lambda expression body to expression body
+#dotnet_diagnostic.RCS1021.severity                                           = suggestion
+# RCS1031 Remove unnecessary braces in switch section
 dotnet_diagnostic.RCS1031.severity                                            = suggestion
+# RCS1032 Remove redundant parentheses
 dotnet_diagnostic.RCS1032.severity                                            = suggestion
+# RCS1033 Remove redundant boolean literal
 dotnet_diagnostic.RCS1033.severity                                            = suggestion
+# RCS1034 Remove redundant 'sealed' modifier
 dotnet_diagnostic.RCS1034.severity                                            = suggestion
+# RCS1037 Remove trailing white-space
 dotnet_diagnostic.RCS1037.severity                                            = suggestion
+# RCS1039 Remove argument list from attribute
 dotnet_diagnostic.RCS1039.severity                                            = suggestion
+# RCS1042 Remove enum default underlying type
 dotnet_diagnostic.RCS1042.severity                                            = suggestion
+# RCS1043 Remove 'partial' modifier from type with a single part
 dotnet_diagnostic.RCS1043.severity                                            = suggestion
+# RCS1044 Remove original exception from throw statement
 dotnet_diagnostic.RCS1044.severity                                            = suggestion
-#dotnet_diagnostic.RCS1046.severity                                            = warning # Async suffix - does not honor obsolete
+# RCS1046 Asynchronous method name should end with 'Async'
+#dotnet_diagnostic.RCS1046.severity                                            = warning
+# RCS1047 Non-asynchronous method name should not end with 'Async'
 dotnet_diagnostic.RCS1047.severity                                            = warning
+# RCS1048 Use lambda expression instead of anonymous method
+#dotnet_diagnostic.RCS1048.severity                                           = suggestion
+# RCS1049 Simplify boolean comparison
 dotnet_diagnostic.RCS1049.severity                                            = suggestion
+# RCS1050 Include/omit parentheses when creating new object
 dotnet_diagnostic.RCS1050.severity                                            = suggestion
+# RCS1051 Add/remove parentheses from condition in conditional operator
 dotnet_diagnostic.RCS1051.severity                                            = suggestion
+# RCS1052 Declare each attribute separately
 dotnet_diagnostic.RCS1052.severity                                            = suggestion
+# RCS1055 Unnecessary semicolon at the end of declaration
 dotnet_diagnostic.RCS1055.severity                                            = suggestion
+# RCS1056 Avoid usage of using alias directive
+#dotnet_diagnostic.RCS1056.severity                                           = suggestion
+# RCS1058 Use compound assignment
 dotnet_diagnostic.RCS1058.severity                                            = suggestion
+# RCS1059 Avoid locking on publicly accessible instance
+#dotnet_diagnostic.RCS1059.severity                                           = warning
+# RCS1060 Declare each type in separate file
+#dotnet_diagnostic.RCS1060.severity                                           = suggestion
+# RCS1061 Merge 'if' with nested 'if'
 dotnet_diagnostic.RCS1061.severity                                            = suggestion
+# RCS1068 Simplify logical negation
 dotnet_diagnostic.RCS1068.severity                                            = suggestion
+# RCS1069 Remove unnecessary case label
 dotnet_diagnostic.RCS1069.severity                                            = suggestion
+# RCS1070 Remove redundant default switch section
 dotnet_diagnostic.RCS1070.severity                                            = suggestion
+# RCS1071 Remove redundant base constructor call
 dotnet_diagnostic.RCS1071.severity                                            = suggestion
+# RCS1073 Convert 'if' to 'return' statement
+#dotnet_diagnostic.RCS1073.severity                                           = suggestion
+# RCS1074 Remove redundant constructor
 dotnet_diagnostic.RCS1074.severity                                            = suggestion
+# RCS1075 Avoid empty catch clause that catches System.Exception
+#dotnet_diagnostic.RCS1075.severity                                           = warning
+# RCS1077 Optimize LINQ method call
 dotnet_diagnostic.RCS1077.severity                                            = warning
+# RCS1078 Use "" or 'string.Empty'
 dotnet_diagnostic.RCS1078.severity                                            = suggestion
+# RCS1079 Throwing of new NotImplementedException
+#dotnet_diagnostic.RCS1079.severity                                           = suggestion
+# RCS1080 Use 'Count/Length' property instead of 'Any' method
 dotnet_diagnostic.RCS1080.severity                                            = suggestion
+# RCS1081 Split variable declaration
 dotnet_diagnostic.RCS1081.severity                                            = suggestion
+# RCS1084 Use coalesce expression instead of conditional expression
 dotnet_diagnostic.RCS1084.severity                                            = suggestion
+# RCS1085 Use auto-implemented property
 dotnet_diagnostic.RCS1085.severity                                            = suggestion
+# RCS1089 Use --/++ operator instead of assignment
 dotnet_diagnostic.RCS1089.severity                                            = suggestion
+# RCS1090 Add/remove 'ConfigureAwait(false)' call
 dotnet_diagnostic.RCS1090.severity                                            = suggestion
+# RCS1091 (title not provided)
 dotnet_diagnostic.RCS1091.severity                                            = suggestion
+# RCS1093 File contains no code
+#dotnet_diagnostic.RCS1093.severity                                           = suggestion
+# RCS1094 Declare using directive on top level
 dotnet_diagnostic.RCS1094.severity                                            = suggestion
+# RCS1096 Use 'HasFlag' method or bitwise operator
+#dotnet_diagnostic.RCS1096.severity                                           = suggestion
+# RCS1097 Remove redundant 'ToString' call
 dotnet_diagnostic.RCS1097.severity                                            = suggestion
+# RCS1098 Constant values should be placed on right side of comparisons
 dotnet_diagnostic.RCS1098.severity                                            = suggestion
+# RCS1099 Default label should be the last label in a switch section
 dotnet_diagnostic.RCS1099.severity                                            = suggestion
+# RCS1102 Make class static
+#dotnet_diagnostic.RCS1102.severity                                           = warning
+# RCS1103 Convert 'if' to assignment
+#dotnet_diagnostic.RCS1103.severity                                           = suggestion
+# RCS1104 Simplify conditional expression
+#dotnet_diagnostic.RCS1104.severity                                           = suggestion
+# RCS1105 Unnecessary interpolation
+#dotnet_diagnostic.RCS1105.severity                                           = suggestion
+# RCS1107 Remove redundant 'ToCharArray' call
+#dotnet_diagnostic.RCS1107.severity                                           = suggestion
+# RCS1108 Add 'static' modifier to all partial class declarations
+#dotnet_diagnostic.RCS1108.severity                                           = suggestion
+# RCS1110 Declare type inside namespace
+#dotnet_diagnostic.RCS1110.severity                                           = suggestion
+# RCS1111 Add braces to switch section with multiple statements
+#dotnet_diagnostic.RCS1111.severity                                           = suggestion
+# RCS1112 Combine 'Enumerable.Where' method chain
 dotnet_diagnostic.RCS1112.severity                                            = suggestion
+# RCS1113 Use 'string.IsNullOrEmpty' method
+#dotnet_diagnostic.RCS1113.severity                                           = suggestion
+# RCS1114 Remove redundant delegate creation
+#dotnet_diagnostic.RCS1114.severity                                           = suggestion
+# RCS1118 Mark local variable as const
+#dotnet_diagnostic.RCS1118.severity                                           = suggestion
+# RCS1123 Add parentheses when necessary
+#dotnet_diagnostic.RCS1123.severity                                           = suggestion
+# RCS1124 Inline local variable
 dotnet_diagnostic.RCS1124.severity                                            = suggestion
+# RCS1126 Add braces to if-else
 dotnet_diagnostic.RCS1126.severity                                            = suggestion
+# RCS1128 Use coalesce expression
+#dotnet_diagnostic.RCS1128.severity                                           = suggestion
+# RCS1129 Remove redundant field initialization
 dotnet_diagnostic.RCS1129.severity                                            = suggestion
+# RCS1130 Bitwise operation on enum without Flags attribute
+#dotnet_diagnostic.RCS1130.severity                                           = suggestion
+# RCS1132 Remove redundant overriding member
 dotnet_diagnostic.RCS1132.severity                                            = suggestion
+# RCS1133 Remove redundant Dispose/Close call
 dotnet_diagnostic.RCS1133.severity                                            = suggestion
+# RCS1134 Remove redundant statement
 dotnet_diagnostic.RCS1134.severity                                            = suggestion
+# RCS1135 Declare enum member with zero value (when enum has FlagsAttribute)
+#dotnet_diagnostic.RCS1135.severity                                           = suggestion
+# RCS1136 Merge switch sections with equivalent content
 dotnet_diagnostic.RCS1136.severity                                            = suggestion
+# RCS1138 Add summary to documentation comment
+#dotnet_diagnostic.RCS1138.severity                                           = warning
+# RCS1139 Add summary element to documentation comment
 dotnet_diagnostic.RCS1139.severity                                            = suggestion
+# RCS1140 Add exception to documentation comment
 dotnet_diagnostic.RCS1140.severity                                            = suggestion
+# RCS1141 Add 'param' element to documentation comment
 dotnet_diagnostic.RCS1141.severity                                            = silent
+# RCS1142 Add 'typeparam' element to documentation comment
 dotnet_diagnostic.RCS1142.severity                                            = suggestion
+# RCS1143 Simplify coalesce expression
 dotnet_diagnostic.RCS1143.severity                                            = suggestion
+# RCS1145 Remove redundant 'as' operator
 dotnet_diagnostic.RCS1145.severity                                            = suggestion
+# RCS1146 Use conditional access
 dotnet_diagnostic.RCS1146.severity                                            = none
+# RCS1151 Remove redundant cast
 dotnet_diagnostic.RCS1151.severity                                            = suggestion
+# RCS1154 Sort enum members
 dotnet_diagnostic.RCS1154.severity                                            = suggestion
+# RCS1155 Use StringComparison when comparing strings
+#dotnet_diagnostic.RCS1155.severity                                           = warning
+# RCS1156 Use string.Length instead of comparison with empty string
 dotnet_diagnostic.RCS1156.severity                                            = warning
+# RCS1157 Composite enum value contains undefined flag
+#dotnet_diagnostic.RCS1157.severity                                           = suggestion
+# RCS1158 Static member in generic type should use a type parameter
+#dotnet_diagnostic.RCS1158.severity                                           = suggestion
+# RCS1159 Use EventHandlerT
+#dotnet_diagnostic.RCS1159.severity                                           = suggestion
+# RCS1160 Abstract type should not have public constructors
 dotnet_diagnostic.RCS1160.severity                                            = warning
+# RCS1161 Enum should declare explicit values
 dotnet_diagnostic.RCS1161.severity                                            = none
-dotnet_diagnostic.RCS1166.severity                                            = warning
-dotnet_diagnostic.RCS1169.severity                                            = suggestion
-dotnet_diagnostic.RCS1170.severity                                            = suggestion
-dotnet_diagnostic.RCS1174.severity                                            = warning
-dotnet_diagnostic.RCS1181.severity                                            = suggestion
-dotnet_diagnostic.RCS1182.severity                                            = suggestion
-dotnet_diagnostic.RCS1187.severity                                            = suggestion
-dotnet_diagnostic.RCS1188.severity                                            = suggestion
-dotnet_diagnostic.RCS1190.severity                                            = suggestion
-#dotnet_diagnostic.RCS1198.severity                                            = suggestion # Avoid boxing
-dotnet_diagnostic.RCS1201.severity                                            = suggestion
-dotnet_diagnostic.RCS1202.severity                                            = warning
-dotnet_diagnostic.RCS1207.severity                                            = suggestion
-dotnet_diagnostic.RCS1211.severity                                            = suggestion
-dotnet_diagnostic.RCS1214.severity                                            = suggestion
-dotnet_diagnostic.RCS1225.severity                                            = suggestion
-dotnet_diagnostic.RCS1227.severity                                            = warning
-dotnet_diagnostic.RCS1228.severity                                            = none
-dotnet_diagnostic.RCS1229.severity                                            = warning
-dotnet_diagnostic.RCS1237.severity                                            = none
-dotnet_diagnostic.RCS1238.severity                                            = none
-dotnet_diagnostic.RCS1240.severity                                            = suggestion
-dotnet_diagnostic.RCS1241.severity                                            = none
-dotnet_diagnostic.RCS1244.severity                                            = suggestion
-dotnet_diagnostic.RCS1246.severity                                            = suggestion
-dotnet_diagnostic.RCS1249.severity                                            = suggestion
-dotnet_diagnostic.RCS1252.severity                                            = suggestion
-dotnet_diagnostic.RCS1257.severity                                            = suggestion
-dotnet_diagnostic.RCS1258.severity                                            = suggestion
-dotnet_diagnostic.RCS1259.severity                                            = suggestion
-dotnet_diagnostic.RCS1260.severity                                            = suggestion
-dotnet_diagnostic.RCS1262.severity                                            = suggestion
-dotnet_diagnostic.RCS1266.severity                                            = suggestion
-
-# RCS1208: Reduce 'if' nesting
-#dotnet_diagnostic.RCS1208.severity                                            = suggestion
-# RCS1261: Resource can be disposed asynchronously
-dotnet_diagnostic.RCS1261.severity                                            = none
-# RCS1168: Parameter name differs from base name
-dotnet_diagnostic.RCS1168.severity                                            = none
-
-# RCS1163: Unused parameter
+# RCS1163 Unused parameter
 dotnet_diagnostic.RCS1163.severity                                            = none
-dotnet_diagnostic.IDE0060.severity                                            = none
+# RCS1166 Value type object is never equal to null
+dotnet_diagnostic.RCS1166.severity                                            = warning
+# RCS1168 Parameter name differs from base name
+dotnet_diagnostic.RCS1168.severity                                            = none
+# RCS1169 Make field read-only
+dotnet_diagnostic.RCS1169.severity                                            = suggestion
+# RCS1170 Use read-only auto-implemented property
+dotnet_diagnostic.RCS1170.severity                                            = suggestion
+# RCS1171 Simplify lazy initialization
+#dotnet_diagnostic.RCS1171.severity                                           = suggestion
+# RCS1172 Use 'is' operator instead of 'as' operator
+#dotnet_diagnostic.RCS1172.severity                                           = warning
+# RCS1173 Use coalesce expression instead of 'if'
+#dotnet_diagnostic.RCS1173.severity                                           = suggestion
+# RCS1174 Remove redundant async/await
+dotnet_diagnostic.RCS1174.severity                                            = warning
+# RCS1175 Unused 'this' parameter
+#dotnet_diagnostic.RCS1175.severity                                           = suggestion
+# RCS1179 Unnecessary assignment
+#dotnet_diagnostic.RCS1179.severity                                           = suggestion
+# RCS1180 Inline lazy initialization
+#dotnet_diagnostic.RCS1180.severity                                           = suggestion
+# RCS1181 Convert comment to documentation comment
+dotnet_diagnostic.RCS1181.severity                                            = suggestion
+# RCS1182 Remove redundant base interface
+dotnet_diagnostic.RCS1182.severity                                            = suggestion
+# RCS1186 Use Regex instance instead of static method
+#dotnet_diagnostic.RCS1186.severity                                           = suggestion
+# RCS1187 Use constant instead of field
+dotnet_diagnostic.RCS1187.severity                                            = suggestion
+# RCS1188 Remove redundant auto-property initialization
+dotnet_diagnostic.RCS1188.severity                                            = suggestion
+# RCS1189 Add or remove region name
+#dotnet_diagnostic.RCS1189.severity                                           = suggestion
+# RCS1190 Join string expressions
+dotnet_diagnostic.RCS1190.severity                                            = suggestion
+# RCS1191 Declare enum value as combination of names
+#dotnet_diagnostic.RCS1191.severity                                           = suggestion
+# RCS1192 Unnecessary usage of verbatim string literal
+#dotnet_diagnostic.RCS1192.severity                                           = suggestion
+# RCS1193 Overriding member should not change 'params' modifier
+#dotnet_diagnostic.RCS1193.severity                                           = warning
+# RCS1194 Implement exception constructors
+#dotnet_diagnostic.RCS1194.severity                                           = warning
+# RCS1195 Use ^ operator
+#dotnet_diagnostic.RCS1195.severity                                           = suggestion
+# RCS1196 Call extension method as instance method
+#dotnet_diagnostic.RCS1196.severity                                           = suggestion
+# RCS1197 Optimize StringBuilder.Append/AppendLine call
+#dotnet_diagnostic.RCS1197.severity                                           = suggestion
+# RCS1198 Avoid unnecessary boxing of value type
+#dotnet_diagnostic.RCS1198.severity                                           = suggestion
+# RCS1199 Unnecessary null check
+#dotnet_diagnostic.RCS1199.severity                                           = suggestion
+# RCS1200 Call 'Enumerable.ThenBy' instead of 'Enumerable.OrderBy'
+#dotnet_diagnostic.RCS1200.severity                                           = suggestion
+# RCS1201 Use method chaining
+dotnet_diagnostic.RCS1201.severity                                            = suggestion
+# RCS1202 Avoid NullReferenceException
+dotnet_diagnostic.RCS1202.severity                                            = warning
+# RCS1203 Use AttributeUsageAttribute
+#dotnet_diagnostic.RCS1203.severity                                           = warning
+# RCS1204 Use EventArgs.Empty
+#dotnet_diagnostic.RCS1204.severity                                           = suggestion
+# RCS1205 Order named arguments according to the order of parameters
+#dotnet_diagnostic.RCS1205.severity                                           = suggestion
+# RCS1206 Use conditional access instead of conditional expression
+#dotnet_diagnostic.RCS1206.severity                                           = suggestion
+# RCS1207 Use anonymous function or method group
+dotnet_diagnostic.RCS1207.severity                                            = suggestion
+# RCS1208 Reduce 'if' nesting
+#dotnet_diagnostic.RCS1208.severity                                           = suggestion
+# RCS1209 Order type parameter constraints
+#dotnet_diagnostic.RCS1209.severity                                           = suggestion
+# RCS1210 Return completed task instead of returning null
+#dotnet_diagnostic.RCS1210.severity                                           = warning
+# RCS1211 Remove unnecessary 'else'
+dotnet_diagnostic.RCS1211.severity                                            = suggestion
+# RCS1212 Remove redundant assignment
+#dotnet_diagnostic.RCS1212.severity                                           = suggestion
+# RCS1213 Remove unused member declaration
+#dotnet_diagnostic.RCS1213.severity                                           = suggestion
+# RCS1214 Unnecessary interpolated string
+dotnet_diagnostic.RCS1214.severity                                            = suggestion
+# RCS1215 Expression is always equal to true/false
+#dotnet_diagnostic.RCS1215.severity                                           = warning
+# RCS1216 Unnecessary unsafe context
+#dotnet_diagnostic.RCS1216.severity                                           = suggestion
+# RCS1217 Convert interpolated string to concatenation
+#dotnet_diagnostic.RCS1217.severity                                           = suggestion
+# RCS1218 Simplify code branching
+#dotnet_diagnostic.RCS1218.severity                                           = suggestion
+# RCS1220 Use pattern matching instead of combination of 'is' operator and cast operator
+#dotnet_diagnostic.RCS1220.severity                                           = suggestion
+# RCS1221 Use pattern matching instead of combination of 'as' operator and null check
+#dotnet_diagnostic.RCS1221.severity                                           = suggestion
+# RCS1222 Merge preprocessor directives
+#dotnet_diagnostic.RCS1222.severity                                           = suggestion
+# RCS1223 Mark publicly visible type with DebuggerDisplay attribute
+#dotnet_diagnostic.RCS1223.severity                                           = suggestion
+# RCS1224 Make method an extension method
+#dotnet_diagnostic.RCS1224.severity                                           = suggestion
+# RCS1225 Make class sealed
+dotnet_diagnostic.RCS1225.severity                                            = suggestion
+# RCS1226 Add paragraph to documentation comment
+#dotnet_diagnostic.RCS1226.severity                                           = suggestion
+# RCS1227 Validate arguments correctly
+dotnet_diagnostic.RCS1227.severity                                            = warning
+# RCS1228 Unused element in a documentation comment
+dotnet_diagnostic.RCS1228.severity                                            = none
+# RCS1229 Use async/await when necessary
+dotnet_diagnostic.RCS1229.severity                                            = warning
+# RCS1230 Unnecessary explicit use of enumerator
+#dotnet_diagnostic.RCS1230.severity                                           = suggestion
+# RCS1231 Make parameter ref read-only
+#dotnet_diagnostic.RCS1231.severity                                           = suggestion
+# RCS1232 Order elements in documentation comment
+#dotnet_diagnostic.RCS1232.severity                                           = suggestion
+# RCS1233 Use short-circuiting operator
+#dotnet_diagnostic.RCS1233.severity                                           = suggestion
+# RCS1234 Duplicate enum value
+#dotnet_diagnostic.RCS1234.severity                                           = suggestion
+# RCS1235 Optimize method call
+#dotnet_diagnostic.RCS1235.severity                                           = suggestion
+# RCS1236 Use exception filter
+#dotnet_diagnostic.RCS1236.severity                                           = suggestion
+# RCS1237 (title not provided)
+dotnet_diagnostic.RCS1237.severity                                            = none
+# RCS1238 Avoid nested ?: operators
+dotnet_diagnostic.RCS1238.severity                                            = none
+# RCS1239 Use 'for' statement instead of 'while' statement
+#dotnet_diagnostic.RCS1239.severity                                           = suggestion
+# RCS1240 Operator is unnecessary
+dotnet_diagnostic.RCS1240.severity                                            = suggestion
+# RCS1241 Implement non-generic counterpart
+dotnet_diagnostic.RCS1241.severity                                            = none
+# RCS1242 Do not pass non-read-only struct by read-only reference
+#dotnet_diagnostic.RCS1242.severity                                           = warning
+# RCS1243 Duplicate word in a comment
+#dotnet_diagnostic.RCS1243.severity                                           = suggestion
+# RCS1244 Simplify 'default' expression
+dotnet_diagnostic.RCS1244.severity                                            = suggestion
+# RCS1245 Fix documentation comment tag
+#dotnet_diagnostic.RCS1245.severity                                           = suggestion
+# RCS1246 Use element access
+dotnet_diagnostic.RCS1246.severity                                            = suggestion
+# RCS1247 Fix documentation comment tag
+#dotnet_diagnostic.RCS1247.severity                                           = suggestion
+# RCS1248 Normalize null check
+#dotnet_diagnostic.RCS1248.severity                                           = suggestion
+# RCS1249 Unnecessary null-forgiving operator
+dotnet_diagnostic.RCS1249.severity                                            = suggestion
+# RCS1250 Use implicit/explicit object creation
+#dotnet_diagnostic.RCS1250.severity                                           = suggestion
+# RCS1251 Remove unnecessary braces from record declaration
+#dotnet_diagnostic.RCS1251.severity                                           = suggestion
+# RCS1252 Normalize usage of infinite loop
+dotnet_diagnostic.RCS1252.severity                                            = suggestion
+# RCS1253 Format documentation comment summary
+#dotnet_diagnostic.RCS1253.severity                                           = suggestion
+# RCS1254 Normalize format of enum flag value
+#dotnet_diagnostic.RCS1254.severity                                           = suggestion
+# RCS1255 Simplify argument null check
+#dotnet_diagnostic.RCS1255.severity                                           = suggestion
+# RCS1256 Invalid argument null check
+#dotnet_diagnostic.RCS1256.severity                                           = suggestion
+# RCS1257 Use enum field explicitly
+dotnet_diagnostic.RCS1257.severity                                            = suggestion
+# RCS1258 Unnecessary enum flag
+dotnet_diagnostic.RCS1258.severity                                            = suggestion
+# RCS1259 Remove empty syntax
+dotnet_diagnostic.RCS1259.severity                                            = suggestion
+# RCS1260 Add/remove trailing comma
+dotnet_diagnostic.RCS1260.severity                                            = suggestion
+# RCS1261 Resource can be disposed asynchronously
+dotnet_diagnostic.RCS1261.severity                                            = none
+# RCS1262 Unnecessary raw string literal
+dotnet_diagnostic.RCS1262.severity                                            = suggestion
+# RCS1263 Invalid reference in a documentation comment
+#dotnet_diagnostic.RCS1263.severity                                           = warning
+# RCS1264 Use 'var' or explicit type
+#dotnet_diagnostic.RCS1264.severity                                           = suggestion
+# RCS1265 Remove redundant catch block
+#dotnet_diagnostic.RCS1265.severity                                           = suggestion
+# RCS1266 Use raw string literal
+dotnet_diagnostic.RCS1266.severity                                            = suggestion
+# RCS1267 Use string interpolation instead of 'string.Concat'
+#dotnet_diagnostic.RCS1267.severity                                           = suggestion
+# RCS1268 Simplify numeric comparison
+#dotnet_diagnostic.RCS1268.severity                                           = suggestion
+# RCS9001 Use pattern matching
+#dotnet_diagnostic.RCS9001.severity                                           = suggestion
+# RCS9002 Use property SyntaxNode.SpanStart
+#dotnet_diagnostic.RCS9002.severity                                           = suggestion
+# RCS9003 Unnecessary conditional access
+#dotnet_diagnostic.RCS9003.severity                                           = suggestion
+# RCS9004 Call 'Any' instead of accessing 'Count'
+#dotnet_diagnostic.RCS9004.severity                                           = suggestion
+# RCS9005 Unnecessary null check
+#dotnet_diagnostic.RCS9005.severity                                           = suggestion
+# RCS9006 Use element access
+#dotnet_diagnostic.RCS9006.severity                                           = suggestion
+# RCS9007 Use return value
+#dotnet_diagnostic.RCS9007.severity                                           = warning
+# RCS9008 Call 'Last' instead of using []
+#dotnet_diagnostic.RCS9008.severity                                           = suggestion
+# RCS9009 Unknown language name
+#dotnet_diagnostic.RCS9009.severity                                           = warning
+# RCS9010 Specify ExportCodeRefactoringProviderAttribute.Name
+#dotnet_diagnostic.RCS9010.severity                                           = silent
+# RCS9011 Specify ExportCodeFixProviderAttribute.Name
+#dotnet_diagnostic.RCS9011.severity                                           = silent
 
-# UA_NETStandard_1: Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+#
+# UA_NETStandard_1: Type is for evaluation purposes only and is subject to change or removal
+# in future updates. Suppress this diagnostic to proceed.
+#
 dotnet_diagnostic.UA_NETStandard_1.severity = none
 
 # exclude generated code
-
-# UA_NETStandard_1: Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-dotnet_diagnostic.UA_NETStandard_1.severity = none
 
 [**/Generated/*.cs]
 generated_code = true
@@ -591,4 +977,3 @@ generated_code = true
 dotnet_diagnostic.severity = none
 dotnet_analyzer.severity = none
 #dotnet_analyzer_diagnostic.category-roslynator.severity = none
-

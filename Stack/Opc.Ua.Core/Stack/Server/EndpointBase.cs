@@ -152,19 +152,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Activity Source Name.
-        /// </summary>
-        public static readonly string ActivitySourceName = "Opc.Ua.Server-ActivitySource";
-
-        /// <summary>
-        /// Activity Source static instance.
-        /// </summary>
-        public static ActivitySource ActivitySource => s_activitySource.Value;
-
-        private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
-            new ActivitySource(ActivitySourceName, "1.0.0"));
-
-        /// <summary>
         /// Tries to extract the trace details from the AdditionalParametersType.
         /// </summary>
         public static bool TryExtractActivityContextFromParameters(
@@ -495,22 +482,29 @@ namespace Opc.Ua
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
-                // Log information instead of warning for expected disconnection scenarios
-                if (sre.StatusCode == StatusCodes.BadNoSubscription ||
-                    sre.StatusCode == StatusCodes.BadSessionClosed ||
-                    sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                    sre.StatusCode == StatusCodes.BadCertificateInvalid ||
-                    sre.StatusCode == StatusCodes.BadServerHalted)
+                switch (sre.StatusCode)
                 {
-                    logger.LogInformation("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
-                }
-                else
-                {
-                    logger.LogWarning("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
-                }
-                if (sre.StatusCode == StatusCodes.BadUnexpectedError)
-                {
-                    logger.LogWarning(Utils.TraceMasks.StackTrace, sre, "{Exception}", sre.ToString());
+                    case StatusCodes.BadNoSubscription:
+                    case StatusCodes.BadSessionClosed:
+                    case StatusCodes.BadSecurityChecksFailed:
+                    case StatusCodes.BadCertificateInvalid:
+                    case StatusCodes.BadServerHalted:
+                        // Log information instead of warning for expected disconnection scenarios
+                        logger.LogInformation(
+                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                            result.StatusCode);
+                        break;
+                    case StatusCodes.BadUnexpectedError:
+                        logger.LogWarning(
+                            Utils.TraceMasks.StackTrace,
+                            sre,
+                            "SERVER - Service Fault Occurred due to unexpected state");
+                        break;
+                    default:
+                        logger.LogWarning(
+                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                            result.StatusCode);
+                        break;
                 }
             }
             else
@@ -724,7 +718,9 @@ namespace Opc.Ua
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         protected class ProcessRequestAsyncResult : AsyncResultBase, IEndpointIncomingRequest
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             /// <summary>
             /// Initializes a new instance of the <see cref="ProcessRequestAsyncResult"/> class.
@@ -972,7 +968,9 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = SecureChannelContext;
 
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -981,7 +979,7 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            using Activity activity = ActivitySource.StartActivity(
+                            using Activity activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);
@@ -1023,7 +1021,9 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = SecureChannelContext;
 
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -1032,7 +1032,7 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            using Activity activity = ActivitySource.StartActivity(
+                            using Activity activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);
@@ -1137,7 +1137,9 @@ namespace Opc.Ua
                     SecureChannelContext.Current = SecureChannelContext;
 
                     Activity activity = null;
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -1146,7 +1148,7 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            activity = ActivitySource.StartActivity(
+                            activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);

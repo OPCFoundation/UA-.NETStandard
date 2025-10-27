@@ -530,7 +530,9 @@ namespace Opc.Ua.Bindings
             // check for valid token.
             ChannelToken currentToken =
                 CurrentToken ??
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel{0}: Token missing to read symmetric messagee.", Id);
 
             // find the token.
             if (currentToken.TokenId != tokenId &&

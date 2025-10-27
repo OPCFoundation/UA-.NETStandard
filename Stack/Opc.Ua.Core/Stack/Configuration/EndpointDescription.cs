@@ -60,14 +60,8 @@ namespace Opc.Ua
                 }
 
                 TransportProfileUri = Profiles.NormalizeUri(TransportProfileUri);
-
-                switch (TransportProfileUri)
-                {
-                    case Profiles.HttpsBinaryTransport:
-                        return BinaryEncodingSupport.Required;
-                }
-
-                return BinaryEncodingSupport.None;
+                return TransportProfileUri == Profiles.HttpsBinaryTransport ?
+                    BinaryEncodingSupport.Required : BinaryEncodingSupport.None;
             }
         }
 

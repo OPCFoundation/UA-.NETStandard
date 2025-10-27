@@ -68,8 +68,8 @@ namespace Opc.Ua.Server
 
             string[] namespaceUris =
             [
-                Opc.Ua.Namespaces.OpcUa,
-                Opc.Ua.Namespaces.OpcUa + "Diagnostics"
+                Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa + "Diagnostics"
             ];
             SetNamespaces(namespaceUris);
 
@@ -592,9 +592,9 @@ namespace Opc.Ua.Server
                 case VariableTypes.SubscriptionDiagnosticsArrayType:
                 case VariableTypes.SamplingIntervalDiagnosticsArrayType:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -1117,6 +1117,61 @@ namespace Opc.Ua.Server
 
                 m_historyCapabilities = historyServerCapabilitiesNode;
                 return m_historyCapabilities;
+            }
+        }
+
+        /// <summary>
+        /// Updates the Server object EventNotifier based on history capabilities.
+        /// </summary>
+        /// <remarks>
+        /// This method can be overridden to customize the Server EventNotifier based on
+        /// history capabilities settings.
+        /// </remarks>
+        public virtual void UpdateServerEventNotifier()
+        {
+            lock (Lock)
+            {
+                // Get or create the history capabilities
+                HistoryServerCapabilitiesState historyCapabilities = GetDefaultHistoryCapabilities();
+
+                // Find the Server object
+                var serverObject = (ServerObjectState)FindPredefinedNode(
+                    ObjectIds.Server,
+                    typeof(ServerObjectState));
+
+                if (serverObject != null && historyCapabilities != null)
+                {
+                    // Update EventNotifier based on history capabilities
+                    byte eventNotifier = serverObject.EventNotifier;
+
+                    // Set HistoryRead bit if history events or data capabilities are enabled
+                    if (historyCapabilities.AccessHistoryEventsCapability?.Value == true ||
+                        historyCapabilities.AccessHistoryDataCapability?.Value == true)
+                    {
+                        eventNotifier |= EventNotifiers.HistoryRead;
+                    }
+                    else
+                    {
+                        eventNotifier = (byte)(eventNotifier & ~EventNotifiers.HistoryRead);
+                    }
+
+                    // Set HistoryWrite bit if history update capabilities are enabled
+                    if (historyCapabilities.InsertEventCapability?.Value == true ||
+                        historyCapabilities.ReplaceEventCapability?.Value == true ||
+                        historyCapabilities.UpdateEventCapability?.Value == true ||
+                        historyCapabilities.InsertDataCapability?.Value == true ||
+                        historyCapabilities.UpdateDataCapability?.Value == true ||
+                        historyCapabilities.ReplaceDataCapability?.Value == true)
+                    {
+                        eventNotifier |= EventNotifiers.HistoryWrite;
+                    }
+                    else
+                    {
+                        eventNotifier = (byte)(eventNotifier & ~EventNotifiers.HistoryWrite);
+                    }
+
+                    serverObject.EventNotifier = eventNotifier;
+                }
             }
         }
 

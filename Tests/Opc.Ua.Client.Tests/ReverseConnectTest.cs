@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer>(Telemetry)
+            ServerFixture = new ServerFixture<ReferenceServer>
             {
                 AutoAccept = true,
                 SecurityNone = true,
@@ -162,10 +162,11 @@ namespace Opc.Ua.Client.Tests
             {
                 var endpointConfiguration = EndpointConfiguration.Create();
                 endpointConfiguration.OperationTimeout = MaxTimeout;
-                using var client = DiscoveryClient.Create(
+                using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                     config,
                     connection,
-                    endpointConfiguration);
+                    endpointConfiguration,
+                    ct: cancellationTokenSource.Token).ConfigureAwait(false);
                 Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);

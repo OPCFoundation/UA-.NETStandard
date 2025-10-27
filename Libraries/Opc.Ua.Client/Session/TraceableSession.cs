@@ -57,7 +57,10 @@ namespace Opc.Ua.Client
         {
             Session = session;
             m_telemetry = telemetry;
-            SessionFactory = new TraceableSessionFactory(telemetry);
+            SessionFactory = new TraceableSessionFactory(telemetry)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
         }
 
         /// <inheritdoc/>
@@ -175,6 +178,13 @@ namespace Opc.Ua.Client
         {
             get => Session.DeleteSubscriptionsOnClose;
             set => Session.DeleteSubscriptionsOnClose = value;
+        }
+
+        /// <inheritdoc/>
+        public int PublishRequestCancelDelayOnCloseSession
+        {
+            get => Session.PublishRequestCancelDelayOnCloseSession;
+            set => Session.PublishRequestCancelDelayOnCloseSession = value;
         }
 
         /// <inheritdoc/>
@@ -650,7 +660,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IAsyncResult BeginPublish(int timeout)
+        public bool BeginPublish(int timeout)
         {
             return Session.BeginPublish(timeout);
         }

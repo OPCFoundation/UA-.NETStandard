@@ -36,11 +36,12 @@
 // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Abstractions/src/LoggerExtensions.cs
 //
 
-// Disable: 'Use the LoggerMessage delegates'
-
 #nullable enable
 
+using System;
+using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
@@ -163,11 +164,105 @@ namespace Opc.Ua
         /// <returns></returns>
         public static string AsLogSafeString(this X509Certificate2 certificate)
         {
-            if (certificate != null)
+            if (certificate == null)
             {
-                return Format("[{0}], [{1}]", Redact.Create(certificate.Subject), certificate.Thumbprint);
+                return "(none)";
             }
-            return "(none)";
+            var buffer = new StringBuilder();
+            buffer
+                .Append('[')
+                .Append(Redact.Create(certificate.Subject))
+                .Append("], [")
+                .Append(Redact.Create(certificate.Thumbprint))
+                .Append(']');
+
+            if (certificate.Handle == IntPtr.Zero)
+            {
+                buffer.Append(" !!DISPOSED!!");
+            }
+            else if (certificate.HasPrivateKey)
+            {
+                buffer.Append(" (with Private Key)");
+            }
+            return buffer.ToString();
+        }
+
+        /// <summary>
+        /// Append the exception and all nested exception with no indent
+        /// </summary>
+        public static StringBuilder AppendException(
+            this StringBuilder buffer,
+            Exception exception)
+        {
+            return AppendException(buffer, exception, string.Empty);
+        }
+
+        /// <summary>
+        /// Append the exception and all nested exception with indent
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="exception"/> or <paramref name="indent"/> is <c>null</c>.
+        /// </exception>
+        public static StringBuilder AppendException(
+            this StringBuilder buffer,
+            Exception exception,
+            string indent)
+        {
+            if (exception == null)
+            {
+                throw new ArgumentNullException(nameof(exception));
+            }
+            if (indent == null)
+            {
+                throw new ArgumentNullException(nameof(indent));
+            }
+            for (int i = 0; i < 100; i++)
+            {
+                if (i > 0)
+                {
+                    buffer
+                        .AppendLine()
+                        .Append(indent)
+                        .Append(">>>> (Inner #")
+                        .Append(i)
+                        .AppendLine(") >>>>");
+                }
+
+                buffer
+                    .Append(indent)
+                    .Append('[')
+                    .Append(exception.GetType().Name)
+                    .Append(']')
+                    .Append(' ')
+                    .Append(exception.Message ?? "(No message)");
+
+                if (!string.IsNullOrEmpty(exception.StackTrace))
+                {
+                    AddStackTrace(buffer, exception.StackTrace, indent);
+                }
+
+                if (exception.InnerException == null)
+                {
+                    break;
+                }
+                exception = exception.InnerException;
+            }
+            return buffer;
+
+            static void AddStackTrace(StringBuilder buffer, string stackTrace, string indent)
+            {
+                string[] trace = stackTrace.Split(Environment.NewLine.ToCharArray());
+                for (int ii = 0; ii < trace.Length; ii++)
+                {
+                    if (!string.IsNullOrEmpty(trace[ii]))
+                    {
+                        buffer
+                            .AppendLine()
+                            .Append(indent)
+                            .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
+                    }
+                }
+            }
         }
     }
 }

@@ -424,7 +424,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 byte[] rawData = applicationCertificate.Certificate.RawData;
-                await store.AddAsync(X509CertificateLoader.LoadCertificate(rawData))
+                await store.AddAsync(CertificateFactory.Create(rawData))
                     .ConfigureAwait(false);
             }
 
@@ -558,7 +558,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StorePath,
                     password: null,
                     telemetry).ConfigureAwait(false);
-                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
+                publicKey = CertificateFactory.Create(testCert.RawData);
             }
 
             using (publicKey)
@@ -677,7 +677,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StorePath,
                     password: null,
                     telemetry).ConfigureAwait(false);
-                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
+                publicKey = CertificateFactory.Create(testCert.RawData);
             }
 
             using (publicKey)
@@ -743,6 +743,82 @@ namespace Opc.Ua.Configuration.Tests
 
             //Assert
             Assert.IsTrue(storedCertificates.Contains(cert));
+        }
+
+        /// <summary>
+        /// This tests that instantiating three application instances the second with a SubjectName
+        /// being a substring of the first one's CN, but without containing the "CN=", failes due to the legacy fuzzy search
+        /// matching the first certificate, which is invalid for the second application instance (different ApplicationUri
+        /// The test shows 3 cases of creating application instances:
+        ///     1 succeeds since there is no certificate identification collision (store is empty).
+        ///     2 fails because in the process of finding the Application certificate the
+        ///         1'st - AppCertificate (Wrong one) is selected due to the Fuzzy search,
+        ///         and further on the validation fails (different ApplicationUri, etc).
+        ///     3 succeeds because in the process of finding the Application certificate the correct application certificate
+        ///         with correct subjectName "CN=UA, O=...." and ApplicationUri is searched for, no fuzzy search performed,
+        ///         none is found and a new one gets created, selected, further validations succeed.
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        public async Task TestAddTwoAppCertificatesToTrustedStoreAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            string subjectName = SubjectName;
+            //Arrange Application Instance
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/trusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            NUnit.Framework.Assert.DoesNotThrowAsync(
+                async () => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
+
+            subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
+            var applicationInstance2 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration2 = await applicationInstance2
+                .Build(ApplicationUri + "2", ProductUri + "2")
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/trusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            // Since the SubjectName is a substring of the first one's CN,
+            // the matching algorithm will find the first certificate because a fuzzy match is done on the SubjectName when SubjectName does not contain CN=.
+            // However, since the ApplicationUri is different, the certificate will be considered invalid
+            ServiceResultException exception = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance2.CheckApplicationInstanceCertificatesAsync(true)
+                        .ConfigureAwait(false));
+            Assert.AreEqual(StatusCodes.BadConfigurationError, exception.StatusCode);
+
+            subjectName = "CN=UA";// UA is a substring of the previous certificate SubjectName CN
+            var applicationInstance3 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration3 = await applicationInstance3
+                .Build(ApplicationUri + "3", ProductUri + "3")
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/trusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            // Since the SubjectName contains CN=UA, the matching algorithm will not do a fuzzy match and will not find the first certificate.
+            NUnit.Framework.Assert.DoesNotThrowAsync(
+                async () => await applicationInstance3.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -840,6 +916,14 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.HostName:
                     domainNames = ["myhost", "1.2.3.4"];
                     break;
+                case InvalidCertType.NoIssues:
+                case InvalidCertType.NoIssuer:
+                case InvalidCertType.IssuerExpired:
+                case InvalidCertType.IssuerNotYetValid:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected InvalidCertType {certType}");
             }
 
             return CertificateFactory
@@ -879,6 +963,12 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.HostName:
                     domainNames = ["myhost", "1.2.3.4"];
                     break;
+                case InvalidCertType.NoIssues:
+                case InvalidCertType.NoIssuer:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected InvalidCertType {certType}");
             }
 
             const string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
@@ -896,7 +986,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
-            return [appCert, X509CertificateLoader.LoadCertificate(rootCA.RawData)];
+            return [appCert, CertificateFactory.Create(rootCA.RawData)];
         }
 
         private string m_pkiRoot;

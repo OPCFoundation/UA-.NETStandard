@@ -81,6 +81,8 @@ namespace Opc.Ua.Configuration
                         ? ApplicationType.ClientAndServer
                         : ApplicationType.Client;
                     break;
+                case ApplicationType.DiscoveryServer:
+                    throw new ArgumentException("Discovery server type is not allowed as client.");
                 default:
                     throw new ArgumentException("Invalid application type for client.");
             }
@@ -375,6 +377,8 @@ namespace Opc.Ua.Configuration
                 case ApplicationType.Server:
                 case ApplicationType.ClientAndServer:
                     break;
+                case ApplicationType.DiscoveryServer:
+                    throw new ArgumentException("Discovery server type is not allowed as server.");
                 default:
                     throw new ArgumentException("Invalid application type for server.");
             }
@@ -1257,8 +1261,8 @@ namespace Opc.Ua.Configuration
                 CertificateStoreType.Directory,
                 StringComparison.OrdinalIgnoreCase))
             {
-                string leafPath = string.Empty;
                 // see https://reference.opcfoundation.org/v104/GDS/docs/F.1/
+                string leafPath;
                 switch (trustListType)
                 {
                     case TrustlistType.Application:
@@ -1284,6 +1288,9 @@ namespace Opc.Ua.Configuration
                         break;
                     case TrustlistType.Rejected:
                         leafPath = "rejected";
+                        break;
+                    default:
+                        leafPath = string.Empty;
                         break;
                 }
                 // Caller may have already provided the leaf path, then no need to add.
@@ -1334,6 +1341,8 @@ namespace Opc.Ua.Configuration
                         return pkiRoot + "UA_Issuer_User";
                     case TrustlistType.Rejected:
                         return pkiRoot + "UA_Rejected";
+                    default:
+                        throw new NotSupportedException("Unsupported store type.");
                 }
             }
             else
@@ -1341,7 +1350,6 @@ namespace Opc.Ua.Configuration
                 // return custom root store
                 return pkiRoot;
             }
-            throw new NotSupportedException("Unsupported store type.");
         }
 
         /// <summary>

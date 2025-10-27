@@ -700,7 +700,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Repeat(100)]
         public void NodeIdComparison(IdType idType)
         {
-            NodeId nodeId = DataGenerator.GetRandomNodeId();
+            NodeId nodeId;
             switch (idType)
             {
                 case IdType.Numeric:
@@ -716,6 +716,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                     break;
                 case IdType.Opaque:
                     nodeId = new NodeId(Ua.Nonce.CreateRandomNonceData(32));
+                    break;
+                default:
+                    nodeId = DataGenerator.GetRandomNodeId();
                     break;
             }
             var nodeIdClone = (NodeId)nodeId.Clone();
@@ -738,7 +741,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NUnit.Framework.Assert
                 .Throws<ArgumentException>(() => dictionary.Add(nodeIdClone, "TestClone"));
 
-            NodeId nodeId2 = DataGenerator.GetRandomNodeId();
+            NodeId nodeId2;
             switch (idType)
             {
                 case IdType.Numeric:
@@ -755,6 +758,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 case IdType.Opaque:
                     nodeId2 = new NodeId(Ua.Nonce.CreateRandomNonceData(32));
                     break;
+                default:
+                    nodeId2 = DataGenerator.GetRandomNodeId();
+                    break;
             }
             dictionary.Add(nodeId2, "TestClone");
             Assert.AreEqual(2, dictionary.Distinct().ToList().Count);
@@ -765,7 +771,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [TestCase(100)]
         public void NullIdNodeIdComparison(IdType idType)
         {
-            NodeId nodeId = NodeId.Null;
+            NodeId nodeId;
             switch (idType)
             {
                 case IdType.Numeric:
@@ -782,6 +788,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                     break;
                 case (IdType)100:
                     nodeId = new NodeId((byte[])null);
+                    break;
+                default:
+                    nodeId = NodeId.Null;
                     break;
             }
 
@@ -838,6 +847,34 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var byteArrayNodeId = new ExpandedNodeId((byte[])null);
             var expandedNodeId = new ExpandedNodeId((NodeId)null);
             NUnit.Framework.Assert.DoesNotThrow(() => byteArrayNodeId.Equals(expandedNodeId));
+        }
+
+        [Test]
+        public void NodeIdParseInvalidWithNamespace()
+        {
+            // Test cases that should throw an exception because they lack proper identifier prefix
+            // These were incorrectly accepted as string identifiers in the bug
+            string[] invalidNodeIds =
+            [
+                "ns=1;some_text_without_prefix",
+                "ns=4; some_number_or_text_here",
+                "ns=2;12345",
+                "ns=3;not_valid",
+                "ns=0;x=invalid_prefix",
+                "ns=5;",
+                "ns=1;just_text"
+            ];
+
+            foreach (string invalidNodeId in invalidNodeIds)
+            {
+                NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse(invalidNodeId),
+                    $"Expected ArgumentException for invalid NodeId: {invalidNodeId}");
+                NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                {
+                    NodeId _ = invalidNodeId;
+                },
+                    $"Expected ArgumentException for invalid NodeId (implicit): {invalidNodeId}");
+            }
         }
 
         [Test]
