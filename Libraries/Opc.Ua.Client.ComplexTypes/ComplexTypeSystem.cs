@@ -60,6 +60,11 @@ namespace Opc.Ua.Client.ComplexTypes
         internal const int MaxLoopCount = 100;
 
         /// <summary>
+        /// The default builder used by the default constructors to avoid handle leaks.
+        /// </summary>
+        public static IComplexTypeFactory DefaultBuilder { get; } = new ComplexTypeBuilderFactory();
+
+        /// <summary>
         /// The data type systems that were loaded
         /// </summary>
         public NodeIdDictionary<DataDictionary> DataTypeSystem
@@ -77,7 +82,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type system with a session to load the custom types.
         /// </summary>
         public ComplexTypeSystem(ISession session, ITelemetryContext telemetry)
-            : this(session, new ComplexTypeBuilderFactory(), telemetry)
+            : this(session, DefaultBuilder, telemetry)
         {
         }
 
@@ -96,7 +101,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ComplexTypeSystem(
             IComplexTypeResolver complexTypeResolver,
             ITelemetryContext telemetry)
-            : this(complexTypeResolver, new ComplexTypeBuilderFactory(), telemetry)
+            : this(complexTypeResolver, DefaultBuilder, telemetry)
         {
         }
 
