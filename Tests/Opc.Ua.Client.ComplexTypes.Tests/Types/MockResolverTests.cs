@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     [Category("ComplexTypes")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]  // Required because ComplexTypeSystem now uses a shared static DefaultBuilder
     public class MockResolverTests : ComplexTypesCommon
     {
         public IServiceMessageContext EncoderContext;
