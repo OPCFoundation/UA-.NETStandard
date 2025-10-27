@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Server
                     {
                         queue.PublishCompleted(subscription, moreNotifications);
                     }
-                } while (requeue && !cancellationToken.IsCancellationRequested);
+                } while (requeue);
 
                 throw new ServiceResultException(StatusCodes.BadTimeout);
             }

@@ -130,13 +130,6 @@ namespace Opc.Ua.Server
                     return Task.FromResult(subscriptionToPublish.Subscription);
                 }
 
-                // check for pending status message.
-                if (m_customStatusToReturn != null)
-                {
-                    return Task.FromException<ISubscription>(
-                        new ServiceResultException(m_customStatusToReturn.Value));
-                }
-
                 // check if queue is full.
                 if (m_queuedRequests.Count >= m_maxRequestCount)
                 {
@@ -277,13 +270,14 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_queuedRequests.Count > 0)
+                while (m_queuedRequests.Count > 0)
                 {
                     QueuedPublishRequest request = m_queuedRequests.Last.Value;
+                    m_queuedRequests.RemoveLast();
                     if (request.Tcs.Task.IsCompleted)
                     {
                         request.Dispose();
-                        return false;
+                        continue;
                     }
 
                     request.Tcs.TrySetException(new ServiceResultException(statusCode));
@@ -291,7 +285,6 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                m_customStatusToReturn = statusCode;
                 return false;
             }
         }
@@ -606,10 +599,11 @@ namespace Opc.Ua.Server
                 Tcs = new TaskCompletionSource<ISubscription>();
                 m_cancellationTokenRegistration = cancellationToken.Register(
                     () => Tcs.TrySetCanceled());
-                // Cancell publish request if it times out
-                if (operationTimeout < DateTime.MaxValue && operationTimeout > DateTime.UtcNow)
+                // Cancel publish request if it times out
+                TimeSpan timeOut = operationTimeout.AddMilliseconds(500) - DateTime.UtcNow;
+                if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
-                    m_cancellationTokenSource = new CancellationTokenSource(operationTimeout.AddMilliseconds(500) - DateTime.UtcNow);
+                    m_cancellationTokenSource = new CancellationTokenSource(timeOut);
                     m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
                     () => Tcs.TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
                 }
@@ -715,7 +709,6 @@ namespace Opc.Ua.Server
         private readonly Queue<ISubscription> m_readyToPublish;
         private List<QueuedSubscription> m_queuedSubscriptions;
         private readonly int m_maxRequestCount;
-        private StatusCode? m_customStatusToReturn;
         private bool m_subscriptionsWaiting;
     }
 }
