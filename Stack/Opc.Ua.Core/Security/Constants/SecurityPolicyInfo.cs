@@ -234,7 +234,7 @@ namespace Opc.Ua
         {
             DerivedSignatureKeyLength = 192 / 8,
             SymmetricEncryptionKeyLength = 256 / 8,
-            SymmetricSignatureLength = 128 / 8,
+            SymmetricSignatureLength = 256 / 8,
             InitializationVectorLength = 128 / 8,
             MinAsymmetricKeyLength = 1024,
             MaxAsymmetricKeyLength = 2048,
