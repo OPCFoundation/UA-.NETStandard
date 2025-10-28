@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new TestableSession(channel, configuration, endpoint, Telemetry);
+            return new TestableSession(channel, configuration, endpoint);
         }
 
         /// <inheritdoc/>
@@ -73,7 +73,6 @@ namespace Opc.Ua.Client.Tests
                 configuration,
                 endpoint,
                 clientCertificate,
-                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

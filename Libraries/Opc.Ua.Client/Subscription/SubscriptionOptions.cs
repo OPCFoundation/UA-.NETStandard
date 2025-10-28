@@ -35,10 +35,11 @@ using System.Text.Json.Serialization;
 namespace Opc.Ua.Client
 {
     [JsonSerializable(typeof(SubscriptionOptions))]
+    [JsonSerializable(typeof(SubscriptionState))]
     internal partial class SubscriptionOptionsContext : JsonSerializerContext;
 
     /// <summary>
-    /// Stores the options/state for a subscription which can be serialized.
+    /// Serializable options for a subscription.
     /// <para>
     /// These client side options correspond to parameters used with the
     /// CreateSubscription / ModifySubscription and related services in the

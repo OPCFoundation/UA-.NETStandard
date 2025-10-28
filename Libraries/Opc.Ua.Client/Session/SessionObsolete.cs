@@ -30,6 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -706,10 +710,100 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptions,
             out IList<ServiceResult> errors)
         {
-            (bool result, errors) = session.ResendDataAsync(subscriptions)
+            (bool success, errors) = session.ResendDataAsync(subscriptions)
                 .GetAwaiter()
                 .GetResult();
-            return result;
+            return success;
+        }
+
+        /// <summary>
+        /// Call the ResendData method on the server for all subscriptions.
+        /// </summary>
+        [Obsolete("Use ResendDataAsync using subscription ids instead.")]
+        public static async Task<(bool, IList<ServiceResult>)> ResendDataAsync(
+            this ISession session,
+            IEnumerable<Subscription> subscriptions,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                IReadOnlyList<ServiceResult> errorsRo = await session.ResendDataAsync(
+                    subscriptions.Select(s => s.Id), ct).ConfigureAwait(false);
+                return (true, errorsRo.ToList());
+            }
+            catch
+            {
+                return (false, Array.Empty<ServiceResult>());
+            }
+        }
+    }
+
+    /// <summary>
+    /// Obsolete traceable session, which now is supported by session
+    /// </summary>
+    [Obsolete("Use Session which also provides tracing")]
+    public class TraceableSession : Session
+    {
+        /// <summary>
+        /// Create session
+        /// </summary>
+        public TraceableSession(
+            ISessionChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint)
+            : base(channel, configuration, endpoint)
+        {
+        }
+
+        /// <summary>
+        /// Create session
+        /// </summary>
+        public TraceableSession(
+            ITransportChannel channel,
+            Session template,
+            bool copyEventHandlers)
+            : base(channel, template, copyEventHandlers)
+        {
+        }
+
+        /// <summary>
+        /// Create session
+        /// </summary>
+        public TraceableSession(
+            ITransportChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+            : base(
+                  channel,
+                  configuration,
+                  endpoint,
+                  clientCertificate,
+                  availableEndpoints,
+                  discoveryProfileUris)
+        {
+        }
+
+        /// <summary>
+        /// Object that creates instances of a session
+        /// </summary>
+        [Obsolete("Use DefaultSessionFactory which also provides tracing capabilities.")]
+        public class TraceableSessionFactory : DefaultSessionFactory
+        {
+            /// <summary>
+            /// The default instance of the factory.
+            /// </summary>
+            public static new readonly TraceableSessionFactory Instance = new();
+
+            /// <summary>
+            /// Obsolete default constructor
+            /// </summary>
+            public TraceableSessionFactory()
+                : base(null)
+            {
+            }
         }
     }
 }

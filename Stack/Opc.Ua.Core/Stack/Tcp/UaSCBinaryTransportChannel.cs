@@ -289,6 +289,7 @@ namespace Opc.Ua.Bindings
         /// of failure
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         private async ValueTask OpenInternalAsync(
             Uri endpointUrl,
             ITransportWaitingConnection? connection,

@@ -36,7 +36,7 @@ namespace Opc.Ua.Client
     /// It can be used to create instances of enhanced Session
     /// classes with added functionality or overridden methods.
     /// </summary>
-    public class TraceableRequestHeaderClientSessionFactory : TraceableSessionFactory
+    public class TraceableRequestHeaderClientSessionFactory : DefaultSessionFactory
     {
         public TraceableRequestHeaderClientSessionFactory(ITelemetryContext telemetry)
             : base(telemetry)

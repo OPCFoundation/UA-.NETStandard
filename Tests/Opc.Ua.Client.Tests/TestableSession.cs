@@ -47,9 +47,6 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// A subclass of a session for testing purposes, e.g. to override some implementations.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaClient)]
-    [KnownType(typeof(TestableSubscription))]
-    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSession : Session
     {
         /// <summary>
@@ -61,9 +58,8 @@ namespace Opc.Ua.Client.Tests
         public TestableSession(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            ITelemetryContext telemetry)
-            : this(channel as ITransportChannel, configuration, endpoint, null, telemetry)
+            ConfiguredEndpoint endpoint)
+            : this(channel as ITransportChannel, configuration, endpoint, null)
         {
         }
 
@@ -89,7 +85,6 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            ITelemetryContext telemetry,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
             : base(
@@ -108,8 +103,14 @@ namespace Opc.Ua.Client.Tests
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public TestableSession(ITransportChannel channel, Session template, bool copyEventHandlers)
-            : base(channel, template, copyEventHandlers)
+        public TestableSession(
+            ITransportChannel channel,
+            Session template,
+            bool copyEventHandlers)
+            : base(
+                  channel,
+                  template,
+                  copyEventHandlers)
         {
         }
 
@@ -137,35 +138,82 @@ namespace Opc.Ua.Client.Tests
                 TimestampOffset = TimestampOffset
             };
         }
+
+        /// <inheritdoc/>
+        protected override Subscription CreateSubscription(SubscriptionOptions options)
+        {
+            return new TestableSubscription(MessageContext.Telemetry, options);
+        }
+
+        /// <inheritdoc/>
+        public override void Snapshot(out SessionState state)
+        {
+            base.Snapshot(out state);
+            state = new TestableSessionState(state)
+            {
+                TimestampOffset = TimestampOffset
+            };
+        }
+
+        /// <inheritdoc/>
+        public override void Restore(SessionState state)
+        {
+            if (state is TestableSessionState s)
+            {
+                TimestampOffset = s.TimestampOffset;
+            }
+            base.Restore(state);
+        }
+    }
+
+    /// <summary>
+    /// Testable session state
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaClient)]
+    [KnownType(typeof(MonitoredItemState))]
+    [KnownType(typeof(SubscriptionState))]
+    public record class TestableSessionState : SessionState
+    {
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        public TestableSessionState()
+        {
+        }
+
+        /// <summary>
+        /// Create a new instance of the <see cref="TestableSessionState"/> class.
+        /// </summary>
+        /// <param name="state"></param>
+        public TestableSessionState(SessionState state)
+            : base(state)
+        {
+        }
+
+        /// <summary>
+        /// The timespan offset to be used to modify the request header timestamp.
+        /// </summary>
+        [DataMember]
+        public TimeSpan TimestampOffset { get; set; } = new TimeSpan(0);
     }
 
     /// <summary>
     /// A subclass of the subscription for testing purposes.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaClient)]
-    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSubscription : Subscription
     {
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
-        public TestableSubscription(ITelemetryContext telemetry)
-            : base(telemetry)
+        public TestableSubscription(ITelemetryContext telemetry, SubscriptionOptions options = null)
+            : base(telemetry, options)
         {
         }
 
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
-        public TestableSubscription(Subscription template)
-            : this(template, false)
-        {
-        }
-
-        /// <summary>
-        /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
-        /// </summary>
-        public TestableSubscription(Subscription template, bool copyEventHandlers)
+        public TestableSubscription(Subscription template, bool copyEventHandlers = false)
             : base(template, copyEventHandlers)
         {
         }
@@ -175,19 +223,24 @@ namespace Opc.Ua.Client.Tests
         {
             return new TestableSubscription(this, copyEventHandlers);
         }
+
+        /// <inheritdoc/>
+        protected override MonitoredItem CreateMonitoredItem(MonitoredItemOptions options)
+        {
+            return new TestableMonitoredItem(Telemetry, options);
+        }
     }
 
     /// <summary>
     /// A subclass of a monitored item for testing purposes.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaClient)]
-    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableMonitoredItem : MonitoredItem
     {
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
         /// </summary>
-        public TestableMonitoredItem()
+        public TestableMonitoredItem(ITelemetryContext telemetry, MonitoredItemOptions options = null)
+            : base(telemetry, options)
         {
         }
 

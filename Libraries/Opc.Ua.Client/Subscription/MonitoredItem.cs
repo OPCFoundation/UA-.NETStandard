@@ -32,8 +32,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -43,14 +41,16 @@ namespace Opc.Ua.Client
     /// <summary>
     /// A monitored item.
     /// </summary>
-    public class MonitoredItem : ICloneable
+    public class MonitoredItem : ISnapshotRestore<MonitoredItemState>, ICloneable
     {
         private static readonly TimeSpan s_time_epsilon = TimeSpan.FromMilliseconds(500);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
         /// </summary>
-        public MonitoredItem(ITelemetryContext telemetry, MonitoredItemOptions? options = null)
+        public MonitoredItem(
+            ITelemetryContext telemetry,
+            MonitoredItemOptions? options = null)
             : this(Utils.IncrementIdentifier(ref s_globalClientHandle), telemetry, options)
         {
         }
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client
             MonitoredItemOptions? options = null)
         {
             State = options ?? new MonitoredItemOptions();
-            Status = new MonitoredItemStatus(this);
+            Status = new MonitoredItemStatus();
             m_logger = telemetry.CreateLogger<MonitoredItem>();
             ClientHandle = clientHandle;
         }
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client
             bool copyEventHandlers = false,
             bool copyClientHandle = false)
         {
-            Status = new MonitoredItemStatus(this);
+            Status = new MonitoredItemStatus();
             if (template == null)
             {
                 throw new ArgumentNullException(nameof(template));
@@ -99,9 +99,7 @@ namespace Opc.Ua.Client
                 int index = displayName.LastIndexOf(' ');
                 if (index != -1)
                 {
-                    try
-                    { displayName = displayName[..index]; }
-                    catch { }
+                    displayName = displayName[..index];
                 }
             }
 
@@ -130,8 +128,26 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use constructor with ITelemetryContext argument")]
         public MonitoredItem()
-            : this((ITelemetryContext)null!, null)
+            : this(null!, null)
         {
+        }
+
+        /// <inheritdoc/>
+        public virtual void Restore(MonitoredItemState state)
+        {
+            State = state;
+            ClientHandle = state.ClientId;
+            ServerId = state.ServerId;
+        }
+
+        /// <inheritdoc/>
+        public virtual void Snapshot(out MonitoredItemState state)
+        {
+            state = new MonitoredItemState(State)
+            {
+                ServerId = Status.Id,
+                ClientId = ClientHandle
+            };
         }
 
         /// <summary>
@@ -181,37 +197,34 @@ namespace Opc.Ua.Client
             get => State.NodeClass;
             set
             {
-                if (NodeClass != value)
+                if (State.NodeClass == value)
                 {
-                    if (((int)value & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
-                    {
-                        if (State.Filter is not EventFilter)
-                        {
-                            UseDefaultEventFilter();
-                            State = State with { Filter = m_filter };
-                        }
-                        if (State.QueueSize <= 1)
-                        {
-                            State = State with { QueueSize = (uint)int.MaxValue };
-                        }
-                        State = State with { AttributeId = Attributes.EventNotifier };
-                    }
-                    else
-                    {
-                        if (State.Filter is EventFilter)
-                        {
-                            State = State with { Filter = null };
-                        }
-                        if (State.QueueSize == int.MaxValue)
-                        {
-                            State = State with { QueueSize = 1 };
-                        }
-                        State = State with { AttributeId = Attributes.Value };
-                    }
-                    State = State with { NodeClass = value };
-                    m_dataCache = null;
-                    m_eventCache = null;
+                    return;
                 }
+                if (((int)value & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
+                {
+                    State = State with
+                    {
+                        NodeClass = value,
+                        AttributeId = Attributes.EventNotifier,
+                        QueueSize = State.QueueSize <= 1 ? int.MaxValue : State.QueueSize,
+                        Filter = State.Filter is not EventFilter ?
+                            GetDefaultEventFilter() : State.Filter
+                    };
+                }
+                else
+                {
+                    State = State with
+                    {
+                        NodeClass = value,
+                        AttributeId = Attributes.Value,
+                        QueueSize = State.QueueSize == int.MaxValue ? 1 : State.QueueSize,
+                        Filter = State.Filter is EventFilter ?
+                            null : State.Filter,
+                    };
+                }
+                m_dataCache = null;
+                m_eventCache = null;
             }
         }
 
@@ -221,14 +234,7 @@ namespace Opc.Ua.Client
         public uint AttributeId
         {
             get => State.AttributeId;
-            set
-            {
-                if (State.AttributeId != value)
-                {
-                    AttributesModified = true;
-                }
-                State = State with { AttributeId = value };
-            }
+            set => State = State with { AttributeId = value };
         }
 
         /// <summary>
@@ -255,14 +261,7 @@ namespace Opc.Ua.Client
         public MonitoringMode MonitoringMode
         {
             get => State.MonitoringMode;
-            set
-            {
-                if (State.MonitoringMode != value)
-                {
-                    AttributesModified = true;
-                }
-                State = State with { MonitoringMode = value };
-            }
+            set => State = State with { MonitoringMode = value };
         }
 
         /// <summary>
@@ -331,21 +330,12 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Server id
+        /// Server-assigned id for the MonitoredItem.
         /// </summary>
-        internal uint ServerId
+        public uint ServerId
         {
-            get => State.ServerId;
-            set => State = State with { ServerId = value };
-        }
-
-        /// <summary>
-        /// The identifier assigned by the client.
-        /// </summary>
-        public uint ClientHandle
-        {
-            get => State.ClientId;
-            private set => State = State with { ClientId = value };
+            get => Status.Id;
+            set => Status.Id = value;
         }
 
         /// <summary>
@@ -375,6 +365,11 @@ namespace Opc.Ua.Client
         public bool Created => Status.Created;
 
         /// <summary>
+        /// The identifier assigned by the client.
+        /// </summary>
+        public uint ClientHandle { get; private set; }
+
+        /// <summary>
         /// The node id to monitor after applying any relative path.
         /// </summary>
         public NodeId ResolvedNodeId
@@ -399,7 +394,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The status associated with the monitored item.
         /// </summary>
-        public MonitoredItemStatus Status { get; private set; }
+        public MonitoredItemStatus Status { get; }
 
         /// <summary>
         /// Returns the queue size used by the cache.
@@ -582,7 +577,8 @@ namespace Opc.Ua.Client
                         if (datachange.Value.StatusCode.Overflow)
                         {
                             m_logger.LogWarning(
-                                "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} and value {Value} for MonitoredItemId {MonitoredItemId}",
+                                "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} " +
+                                "and value {Value} for MonitoredItemId {MonitoredItemId}",
                                 datachange.Value.ServerTimestamp.ToLocalTime(),
                                 datachange.Value.Value,
                                 ClientHandle);
@@ -637,7 +633,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a translate browse path request.
         /// </summary>
-        public void SetResolvePathResult(
+        protected internal void SetResolvePathResult(
             BrowsePathResult result,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
@@ -672,7 +668,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a create monitored item request.
         /// </summary>
-        public void SetCreateResult(
+        protected internal void SetCreateResult(
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult result,
             int index,
@@ -697,7 +693,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a modify monitored item request.
         /// </summary>
-        public void SetModifyResult(
+        protected internal void SetModifyResult(
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult result,
             int index,
@@ -722,7 +718,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a transfer subscription request.
         /// </summary>
-        public void SetTransferResult(uint clientHandle)
+        protected internal void SetTransferResult(uint clientHandle)
         {
             // ensure the global counter is not duplicating future handle ids
             Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, clientHandle);
@@ -734,7 +730,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a delete monitored item request.
         /// </summary>
-        public void SetDeleteResult(
+        protected internal void SetDeleteResult(
             StatusCode result,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
@@ -755,7 +751,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public string? GetFieldName(int index)
         {
-            if (m_filter is not EventFilter filter)
+            if (State.Filter is not EventFilter filter)
             {
                 return null;
             }
@@ -809,7 +805,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            if (m_filter is not EventFilter filter)
+            if (State.Filter is not EventFilter filter)
             {
                 return null;
             }
@@ -1050,9 +1046,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sets the default event filter.
         /// </summary>
-        private void UseDefaultEventFilter()
+        private static EventFilter GetDefaultEventFilter()
         {
-            EventFilter filter = _ = new EventFilter();
+            var filter = new EventFilter();
 
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
@@ -1064,12 +1060,11 @@ namespace Opc.Ua.Client
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Message);
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Severity);
 
-            m_filter = filter;
+            return filter;
         }
 
-        private NodeId m_resolvedNodeId = NodeId.Null;
-        private MonitoringFilter? m_filter;
         private static uint s_globalClientHandle;
+        private NodeId m_resolvedNodeId = NodeId.Null;
         private Subscription? m_subscription;
         private ILogger m_logger = Utils.Null.Logger;
         private readonly Lock m_cache = new();
@@ -1210,7 +1205,7 @@ namespace Opc.Ua.Client
             if (queueSize <= 1)
             {
                 queueSize = 1;
-                m_values = new ConcurrentQueue<DataValue>();
+                m_values = null;
             }
             else
             {
@@ -1219,6 +1214,10 @@ namespace Opc.Ua.Client
 
             QueueSize = queueSize;
 
+            if (m_values == null)
+            {
+                return;
+            }
             while (m_values.Count > QueueSize)
             {
                 if (!m_values.TryDequeue(out DataValue? dropped))

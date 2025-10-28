@@ -202,8 +202,8 @@ namespace Opc.Ua.Client.Tests
             subscription.Priority = 200;
             await subscription.ModifyAsync().ConfigureAwait(false);
 
-            // save with custom Subscription subclass information
-            Session.Save(m_subscriptionTestXml, [typeof(TestableSubscription)]);
+            // save with custom Subscription state subclass information
+            Session.Save(m_subscriptionTestXml);
 
             await Task.Delay(5000).ConfigureAwait(false);
             OutputSubscriptionInfo(TestContext.Out, subscription);
@@ -250,8 +250,7 @@ namespace Opc.Ua.Client.Tests
             // load
             IEnumerable<Subscription> subscriptions = Session.Load(
                 m_subscriptionTestXml,
-                false,
-                [typeof(TestableSubscription)]);
+                false);
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);
 
@@ -507,10 +506,11 @@ namespace Opc.Ua.Client.Tests
             const int kQueueSize = 10;
 
             ServiceResultException sre;
-
             UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
                 : new UserIdentity("user1", "password"u8);
+
+            ClientFixture.SessionFactory = new TestableSessionFactory(Telemetry);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -578,8 +578,7 @@ namespace Opc.Ua.Client.Tests
             var subscriptionStream = new MemoryStream();
             session1.Save(
                 subscriptionStream,
-                session1.Subscriptions,
-                [typeof(TestableSubscription)]);
+                session1.Subscriptions);
 
             byte[] subscriptionStreamArray = subscriptionStream.ToArray();
             TestContext.Out.WriteLine($"Subscriptions: {subscriptionStreamArray.Length} bytes");
@@ -611,7 +610,7 @@ namespace Opc.Ua.Client.Tests
             // restore the subscriptions
             var loadSubscriptionStream = new MemoryStream(subscriptionStreamArray);
             var restoredSubscriptions = new SubscriptionCollection(
-                session2.Load(loadSubscriptionStream, true, [typeof(TestableSubscription)]));
+                session2.Load(loadSubscriptionStream, true, [typeof(SubscriptionState)]));
 
             // hook notifications for log output
             int ii = 0;
@@ -986,7 +985,7 @@ namespace Opc.Ua.Client.Tests
                 originSession.DeleteSubscriptionsOnClose = false;
 
                 // save with custom Subscription subclass information
-                originSession.Save(filePath, [typeof(TestableSubscription)]);
+                originSession.Save(filePath);
 
                 if (transferType == TransferType.CloseSession)
                 {
@@ -1027,8 +1026,7 @@ namespace Opc.Ua.Client.Tests
             if (transferType != TransferType.KeepOpen)
             {
                 // load subscriptions for transfer
-                transferSubscriptions.AddRange(
-                    targetSession.Load(filePath, true, [typeof(TestableSubscription)]));
+                transferSubscriptions.AddRange(targetSession.Load(filePath, true));
 
                 // hook notifications for log output
                 int ii = 0;

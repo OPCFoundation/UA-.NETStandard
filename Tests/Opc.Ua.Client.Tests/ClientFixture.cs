@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                SessionFactory = new TraceableSessionFactory(telemetry)
+                SessionFactory = new DefaultSessionFactory(telemetry)
                 {
                     ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
                 };

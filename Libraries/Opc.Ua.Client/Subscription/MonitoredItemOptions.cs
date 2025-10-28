@@ -35,10 +35,11 @@ using System.Text.Json.Serialization;
 namespace Opc.Ua.Client
 {
     [JsonSerializable(typeof(MonitoredItemOptions))]
+    [JsonSerializable(typeof(MonitoredItemState))]
     internal partial class MonitoredItemOptionsContext : JsonSerializerContext;
 
     /// <summary>
-    /// Serializable options/state for a client monitored item.
+    /// Serializable options for a client monitored item.
     /// <para>
     /// These options map to parameters used when creating and modifying monitored
     /// items within a subscription. See OPC UA Part4 v1.05 Sections 5.13 and 5.14
@@ -176,23 +177,5 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(Order = 12)]
         public bool DiscardOldest { get; init; } = true;
-
-        /// <summary>
-        /// Server-side identifier assigned to this monitored item (the
-        /// <c>monitoredItemId</c>). Stored so the client can correlate notifications
-        /// and perform Modify/SetMonitoringMode/Delete operations across reconnects.
-        /// 0 indicates not yet created or invalidated.
-        /// </summary>
-        [DataMember(Order = 13)]
-        public uint ServerId { get; init; }
-
-        /// <summary>
-        /// Client-assigned handle used in Publish notifications (clientHandle)
-        /// to quickly map incoming data changes or events to local application
-        /// structures without lookups on serverId. Should be unique per subscription.
-        /// Typically used as an index/key into client data structures.
-        /// </summary>
-        [DataMember(Order = 14)]
-        public uint ClientId { get; init; }
     }
 }
