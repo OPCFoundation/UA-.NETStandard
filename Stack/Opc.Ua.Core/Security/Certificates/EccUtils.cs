@@ -83,7 +83,6 @@ namespace Opc.Ua
             int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
             int paddingSize = blockSize - ((data.Count + paddingByteSize) % blockSize);
             paddingSize %= blockSize;
-            //System.Console.WriteLine($"PaddingOut {data.Offset} {data.Count} P={paddingSize}");
 
             int endOfData = data.Offset + data.Count;
             int endOfPaddedData = data.Offset + data.Count + paddingSize + paddingByteSize;
@@ -114,7 +113,6 @@ namespace Opc.Ua
         {
             int paddingSize = data.Array[data.Offset + data.Count - 1];
             int paddingByteSize = 1;
-            //System.Console.WriteLine($"PaddingIn {data.Offset} {data.Count} P={paddingSize}");
 
             if (blockSize > byte.MaxValue)
             {
@@ -282,15 +280,6 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
-            //if (!signOnly)
-            //{
-            //    System.Console.WriteLine(
-            //        $"ENC KEY={Utils.ToHexString(encryptingKey).Substring(0, 8)} " +
-            //        $"IV={Utils.ToHexString(iv).Substring(0, 8)} " +
-            //        $"TAG={Utils.ToHexString(tag).Substring(0, 8)}"
-            //    );
-            //}
-
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
@@ -347,15 +336,6 @@ namespace Opc.Ua
                 signOnly ? data.Offset + data.Count - kChaChaPolyTagLength : data.Offset);
 
             using var chacha = new ChaCha20Poly1305(encryptingKey);
-
-            //if (!signOnly)
-            //{
-            //    System.Console.WriteLine(
-            //        $"DEC KEY={Utils.ToHexString(encryptingKey).Substring(0, 8)} " +
-            //        $"IV={Utils.ToHexString(iv).Substring(0, 8)} " +
-            //        $"TAG={Utils.ToHexString(tag).Substring(0, 8)}"
-            //    );
-            //}
 
             chacha.Decrypt(
                 iv,
@@ -421,8 +401,6 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
-            //System.Console.WriteLine($"Encrypt {data.Offset} {data.Count} {Utils.ToHexString(tag)}");
-
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
@@ -478,8 +456,6 @@ namespace Opc.Ua
                 signOnly ? data.Offset + data.Count - kAesGcmTagLength : data.Offset);
 
             using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
-
-            //System.Console.WriteLine($"Decrypt {data.Offset} {data.Count - AesGcmTagLength} {Utils.ToHexString(tag)}");
 
             aesGcm.Decrypt(
                 iv,

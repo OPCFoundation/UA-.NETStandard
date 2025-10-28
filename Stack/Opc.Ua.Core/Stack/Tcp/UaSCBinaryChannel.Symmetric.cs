@@ -133,9 +133,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Calculates the symmetric key sizes based on the current security policy.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void CalculateSymmetricKeySizes()
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(SecurityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(SecurityPolicyUri)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    SecurityPolicyUri);
 
             SymmetricSignatureSize = info.SymmetricSignatureLength;
             m_signatureKeySize = info.DerivedSignatureKeyLength;
@@ -220,9 +225,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Computes the keys for a token.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void ComputeKeys(ChannelToken token)
         {
-            token.SecurityPolicy = SecurityPolicies.GetInfo(SecurityPolicyUri);
+            token.SecurityPolicy = SecurityPolicies.GetInfo(SecurityPolicyUri)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    SecurityPolicyUri);
 
             if (SecurityMode == MessageSecurityMode.None)
             {

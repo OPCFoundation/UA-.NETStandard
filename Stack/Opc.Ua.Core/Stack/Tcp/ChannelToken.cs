@@ -112,11 +112,6 @@ namespace Opc.Ua.Bindings
         public byte[] ServerNonce { get; set; }
 
         /// <summary>
-        /// The nonce provided by the server.
-        /// </summary>
-        public byte[] SecureChannelSecret { get; set; }
-
-        /// <summary>
         /// The certificate provided by the server.
         /// </summary>
         public byte[] ServerCertificate { get; set; }
