@@ -7674,6 +7674,239 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region ServiceCertificateDataType Class
+    #if (!OPCUA_EXCLUDE_ServiceCertificateDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ServiceCertificateDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public ServiceCertificateDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_certificate = null;
+            m_issuers = new ByteStringCollection();
+            m_validFrom = DateTime.MinValue;
+            m_validTo = DateTime.MinValue;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Certificate", IsRequired = false, Order = 1)]
+        public byte[] Certificate
+        {
+            get { return m_certificate;  }
+            set { m_certificate = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Issuers", IsRequired = false, Order = 2)]
+        public ByteStringCollection Issuers
+        {
+            get
+            {
+                return m_issuers;
+            }
+
+            set
+            {
+                m_issuers = value;
+
+                if (value == null)
+                {
+                    m_issuers = new ByteStringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ValidFrom", IsRequired = false, Order = 3)]
+        public DateTime ValidFrom
+        {
+            get { return m_validFrom;  }
+            set { m_validFrom = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ValidTo", IsRequired = false, Order = 4)]
+        public DateTime ValidTo
+        {
+            get { return m_validTo;  }
+            set { m_validTo = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ServiceCertificateDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServiceCertificateDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceCertificateDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServiceCertificateDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteByteString("Certificate", Certificate);
+            encoder.WriteByteStringArray("Issuers", Issuers);
+            encoder.WriteDateTime("ValidFrom", ValidFrom);
+            encoder.WriteDateTime("ValidTo", ValidTo);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Certificate = decoder.ReadByteString("Certificate");
+            Issuers = decoder.ReadByteStringArray("Issuers");
+            ValidFrom = decoder.ReadDateTime("ValidFrom");
+            ValidTo = decoder.ReadDateTime("ValidTo");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ServiceCertificateDataType value = encodeable as ServiceCertificateDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_certificate, value.m_certificate)) return false;
+            if (!Utils.IsEqual(m_issuers, value.m_issuers)) return false;
+            if (!Utils.IsEqual(m_validFrom, value.m_validFrom)) return false;
+            if (!Utils.IsEqual(m_validTo, value.m_validTo)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ServiceCertificateDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ServiceCertificateDataType clone = (ServiceCertificateDataType)base.MemberwiseClone();
+
+            clone.m_certificate = (byte[])Utils.Clone(this.m_certificate);
+            clone.m_issuers = (ByteStringCollection)Utils.Clone(this.m_issuers);
+            clone.m_validFrom = (DateTime)Utils.Clone(this.m_validFrom);
+            clone.m_validTo = (DateTime)Utils.Clone(this.m_validTo);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private byte[] m_certificate;
+        private ByteStringCollection m_issuers;
+        private DateTime m_validFrom;
+        private DateTime m_validTo;
+        #endregion
+    }
+
+    #region ServiceCertificateDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfServiceCertificateDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServiceCertificateDataType")]
+    public partial class ServiceCertificateDataTypeCollection : List<ServiceCertificateDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ServiceCertificateDataTypeCollection() {}
+
+        /// <remarks />
+        public ServiceCertificateDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ServiceCertificateDataTypeCollection(IEnumerable<ServiceCertificateDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ServiceCertificateDataTypeCollection(ServiceCertificateDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ServiceCertificateDataTypeCollection(values);
+            }
+
+            return new ServiceCertificateDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ServiceCertificateDataType[](ServiceCertificateDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ServiceCertificateDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ServiceCertificateDataTypeCollection clone = new ServiceCertificateDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ServiceCertificateDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region AuthorizationServiceConfigurationDataType Class
     #if (!OPCUA_EXCLUDE_AuthorizationServiceConfigurationDataType)
     /// <remarks />
@@ -7698,7 +7931,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_serviceUri = null;
-            m_serviceCertificate = new ByteStringCollection();
+            m_serviceCertificates = new ServiceCertificateDataTypeCollection();
             m_issuerEndpointSettings = null;
         }
         #endregion
@@ -7713,21 +7946,21 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "ServiceCertificate", IsRequired = false, Order = 2)]
-        public ByteStringCollection ServiceCertificate
+        [DataMember(Name = "ServiceCertificates", IsRequired = false, Order = 2)]
+        public ServiceCertificateDataTypeCollection ServiceCertificates
         {
             get
             {
-                return m_serviceCertificate;
+                return m_serviceCertificates;
             }
 
             set
             {
-                m_serviceCertificate = value;
+                m_serviceCertificates = value;
 
                 if (value == null)
                 {
-                    m_serviceCertificate = new ByteStringCollection();
+                    m_serviceCertificates = new ServiceCertificateDataTypeCollection();
                 }
             }
         }
@@ -7762,7 +7995,7 @@ namespace Opc.Ua
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteString("ServiceUri", ServiceUri);
-            encoder.WriteByteStringArray("ServiceCertificate", ServiceCertificate);
+            encoder.WriteEncodeableArray("ServiceCertificates", ServiceCertificates.ToArray(), typeof(ServiceCertificateDataType));
             encoder.WriteString("IssuerEndpointSettings", IssuerEndpointSettings);
 
             encoder.PopNamespace();
@@ -7776,7 +8009,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ServiceUri = decoder.ReadString("ServiceUri");
-            ServiceCertificate = decoder.ReadByteStringArray("ServiceCertificate");
+            ServiceCertificates = (ServiceCertificateDataTypeCollection)decoder.ReadEncodeableArray("ServiceCertificates", typeof(ServiceCertificateDataType));
             IssuerEndpointSettings = decoder.ReadString("IssuerEndpointSettings");
 
             decoder.PopNamespace();
@@ -7798,7 +8031,7 @@ namespace Opc.Ua
             }
 
             if (!Utils.IsEqual(m_serviceUri, value.m_serviceUri)) return false;
-            if (!Utils.IsEqual(m_serviceCertificate, value.m_serviceCertificate)) return false;
+            if (!Utils.IsEqual(m_serviceCertificates, value.m_serviceCertificates)) return false;
             if (!Utils.IsEqual(m_issuerEndpointSettings, value.m_issuerEndpointSettings)) return false;
 
             return base.IsEqual(encodeable);
@@ -7816,7 +8049,7 @@ namespace Opc.Ua
             AuthorizationServiceConfigurationDataType clone = (AuthorizationServiceConfigurationDataType)base.MemberwiseClone();
 
             clone.m_serviceUri = (string)Utils.Clone(this.m_serviceUri);
-            clone.m_serviceCertificate = (ByteStringCollection)Utils.Clone(this.m_serviceCertificate);
+            clone.m_serviceCertificates = (ServiceCertificateDataTypeCollection)Utils.Clone(this.m_serviceCertificates);
             clone.m_issuerEndpointSettings = (string)Utils.Clone(this.m_issuerEndpointSettings);
 
             return clone;
@@ -7825,7 +8058,7 @@ namespace Opc.Ua
 
         #region Private Fields
         private string m_serviceUri;
-        private ByteStringCollection m_serviceCertificate;
+        private ServiceCertificateDataTypeCollection m_serviceCertificates;
         private string m_issuerEndpointSettings;
         #endregion
     }

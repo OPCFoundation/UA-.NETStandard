@@ -48,13 +48,9 @@ namespace Opc.Ua
         #region Client Interface
         #region CreateSession Methods
         #if (!OPCUA_EXCLUDE_CreateSession)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
-        #endif
         ResponseHeader CreateSession(
             RequestHeader                           requestHeader,
             ApplicationDescription                  clientDescription,
@@ -74,15 +70,10 @@ namespace Opc.Ua
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData                       serverSignature,
             out uint                                maxRequestMessageSize);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
-        #endif
         IAsyncResult BeginCreateSession(
             RequestHeader          requestHeader,
             ApplicationDescription clientDescription,
@@ -99,9 +90,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
-        #endif
         ResponseHeader EndCreateSession(
             IAsyncResult                            result,
             out NodeId                              sessionId,
@@ -113,7 +101,6 @@ namespace Opc.Ua
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData                       serverSignature,
             out uint                                maxRequestMessageSize);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -136,13 +123,9 @@ namespace Opc.Ua
 
         #region ActivateSession Methods
         #if (!OPCUA_EXCLUDE_ActivateSession)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
-        #endif
         ResponseHeader ActivateSession(
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
@@ -153,15 +136,10 @@ namespace Opc.Ua
             out byte[]                          serverNonce,
             out StatusCodeCollection            results,
             out DiagnosticInfoCollection        diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
-        #endif
         IAsyncResult BeginActivateSession(
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
@@ -175,15 +153,11 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
-        #endif
         ResponseHeader EndActivateSession(
             IAsyncResult                 result,
             out byte[]                   serverNonce,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -203,25 +177,16 @@ namespace Opc.Ua
 
         #region CloseSession Methods
         #if (!OPCUA_EXCLUDE_CloseSession)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
-        #endif
         ResponseHeader CloseSession(
             RequestHeader requestHeader,
             bool          deleteSubscriptions);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
-        #endif
         IAsyncResult BeginCloseSession(
             RequestHeader requestHeader,
             bool          deleteSubscriptions,
@@ -231,12 +196,8 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
-        #endif
         ResponseHeader EndCloseSession(
             IAsyncResult result);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -252,26 +213,17 @@ namespace Opc.Ua
 
         #region Cancel Methods
         #if (!OPCUA_EXCLUDE_Cancel)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
-        #endif
         ResponseHeader Cancel(
             RequestHeader requestHeader,
             uint          requestHandle,
             out uint      cancelCount);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
-        #endif
         IAsyncResult BeginCancel(
             RequestHeader requestHeader,
             uint          requestHandle,
@@ -281,13 +233,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
-        #endif
         ResponseHeader EndCancel(
             IAsyncResult result,
             out uint cancelCount);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -303,27 +251,18 @@ namespace Opc.Ua
 
         #region AddNodes Methods
         #if (!OPCUA_EXCLUDE_AddNodes)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
-        #endif
         ResponseHeader AddNodes(
             RequestHeader                requestHeader,
             AddNodesItemCollection       nodesToAdd,
             out AddNodesResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
-        #endif
         IAsyncResult BeginAddNodes(
             RequestHeader          requestHeader,
             AddNodesItemCollection nodesToAdd,
@@ -333,14 +272,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
-        #endif
         ResponseHeader EndAddNodes(
             IAsyncResult                 result,
             out AddNodesResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -356,27 +291,18 @@ namespace Opc.Ua
 
         #region AddReferences Methods
         #if (!OPCUA_EXCLUDE_AddReferences)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
-        #endif
         ResponseHeader AddReferences(
             RequestHeader                requestHeader,
             AddReferencesItemCollection  referencesToAdd,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
-        #endif
         IAsyncResult BeginAddReferences(
             RequestHeader               requestHeader,
             AddReferencesItemCollection referencesToAdd,
@@ -386,14 +312,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
-        #endif
         ResponseHeader EndAddReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -409,27 +331,18 @@ namespace Opc.Ua
 
         #region DeleteNodes Methods
         #if (!OPCUA_EXCLUDE_DeleteNodes)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
-        #endif
         ResponseHeader DeleteNodes(
             RequestHeader                requestHeader,
             DeleteNodesItemCollection    nodesToDelete,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
-        #endif
         IAsyncResult BeginDeleteNodes(
             RequestHeader             requestHeader,
             DeleteNodesItemCollection nodesToDelete,
@@ -439,14 +352,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
-        #endif
         ResponseHeader EndDeleteNodes(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -462,27 +371,18 @@ namespace Opc.Ua
 
         #region DeleteReferences Methods
         #if (!OPCUA_EXCLUDE_DeleteReferences)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
-        #endif
         ResponseHeader DeleteReferences(
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             out StatusCodeCollection       results,
             out DiagnosticInfoCollection   diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
-        #endif
         IAsyncResult BeginDeleteReferences(
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
@@ -492,14 +392,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
-        #endif
         ResponseHeader EndDeleteReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -515,13 +411,9 @@ namespace Opc.Ua
 
         #region Browse Methods
         #if (!OPCUA_EXCLUDE_Browse)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
-        #endif
         ResponseHeader Browse(
             RequestHeader                requestHeader,
             ViewDescription              view,
@@ -529,15 +421,10 @@ namespace Opc.Ua
             BrowseDescriptionCollection  nodesToBrowse,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
-        #endif
         IAsyncResult BeginBrowse(
             RequestHeader               requestHeader,
             ViewDescription             view,
@@ -549,14 +436,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
-        #endif
         ResponseHeader EndBrowse(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -574,28 +457,19 @@ namespace Opc.Ua
 
         #region BrowseNext Methods
         #if (!OPCUA_EXCLUDE_BrowseNext)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
-        #endif
         ResponseHeader BrowseNext(
             RequestHeader                requestHeader,
             bool                         releaseContinuationPoints,
             ByteStringCollection         continuationPoints,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
-        #endif
         IAsyncResult BeginBrowseNext(
             RequestHeader        requestHeader,
             bool                 releaseContinuationPoints,
@@ -606,14 +480,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
-        #endif
         ResponseHeader EndBrowseNext(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -630,27 +500,18 @@ namespace Opc.Ua
 
         #region TranslateBrowsePathsToNodeIds Methods
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
-        #endif
         ResponseHeader TranslateBrowsePathsToNodeIds(
             RequestHeader                  requestHeader,
             BrowsePathCollection           browsePaths,
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
-        #endif
         IAsyncResult BeginTranslateBrowsePathsToNodeIds(
             RequestHeader        requestHeader,
             BrowsePathCollection browsePaths,
@@ -660,14 +521,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
-        #endif
         ResponseHeader EndTranslateBrowsePathsToNodeIds(
             IAsyncResult                   result,
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -683,26 +540,17 @@ namespace Opc.Ua
 
         #region RegisterNodes Methods
         #if (!OPCUA_EXCLUDE_RegisterNodes)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
-        #endif
         ResponseHeader RegisterNodes(
             RequestHeader        requestHeader,
             NodeIdCollection     nodesToRegister,
             out NodeIdCollection registeredNodeIds);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
-        #endif
         IAsyncResult BeginRegisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToRegister,
@@ -712,13 +560,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
-        #endif
         ResponseHeader EndRegisterNodes(
             IAsyncResult         result,
             out NodeIdCollection registeredNodeIds);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -734,25 +578,16 @@ namespace Opc.Ua
 
         #region UnregisterNodes Methods
         #if (!OPCUA_EXCLUDE_UnregisterNodes)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
-        #endif
         ResponseHeader UnregisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToUnregister);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
-        #endif
         IAsyncResult BeginUnregisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToUnregister,
@@ -762,12 +597,8 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
-        #endif
         ResponseHeader EndUnregisterNodes(
             IAsyncResult result);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -783,13 +614,9 @@ namespace Opc.Ua
 
         #region QueryFirst Methods
         #if (!OPCUA_EXCLUDE_QueryFirst)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
-        #endif
         ResponseHeader QueryFirst(
             RequestHeader                 requestHeader,
             ViewDescription               view,
@@ -802,15 +629,10 @@ namespace Opc.Ua
             out ParsingResultCollection   parsingResults,
             out DiagnosticInfoCollection  diagnosticInfos,
             out ContentFilterResult       filterResult);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
-        #endif
         IAsyncResult BeginQueryFirst(
             RequestHeader                 requestHeader,
             ViewDescription               view,
@@ -824,9 +646,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
-        #endif
         ResponseHeader EndQueryFirst(
             IAsyncResult                 result,
             out QueryDataSetCollection   queryDataSets,
@@ -834,7 +653,6 @@ namespace Opc.Ua
             out ParsingResultCollection  parsingResults,
             out DiagnosticInfoCollection diagnosticInfos,
             out ContentFilterResult      filterResult);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -854,28 +672,19 @@ namespace Opc.Ua
 
         #region QueryNext Methods
         #if (!OPCUA_EXCLUDE_QueryNext)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
-        #endif
         ResponseHeader QueryNext(
             RequestHeader              requestHeader,
             bool                       releaseContinuationPoint,
             byte[]                     continuationPoint,
             out QueryDataSetCollection queryDataSets,
             out byte[]                 revisedContinuationPoint);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
-        #endif
         IAsyncResult BeginQueryNext(
             RequestHeader requestHeader,
             bool          releaseContinuationPoint,
@@ -886,14 +695,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
-        #endif
         ResponseHeader EndQueryNext(
             IAsyncResult               result,
             out QueryDataSetCollection queryDataSets,
             out byte[]                 revisedContinuationPoint);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -910,13 +715,9 @@ namespace Opc.Ua
 
         #region Read Methods
         #if (!OPCUA_EXCLUDE_Read)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
-        #endif
         ResponseHeader Read(
             RequestHeader                requestHeader,
             double                       maxAge,
@@ -924,15 +725,10 @@ namespace Opc.Ua
             ReadValueIdCollection        nodesToRead,
             out DataValueCollection      results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
-        #endif
         IAsyncResult BeginRead(
             RequestHeader         requestHeader,
             double                maxAge,
@@ -944,14 +740,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
-        #endif
         ResponseHeader EndRead(
             IAsyncResult                 result,
             out DataValueCollection      results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -969,13 +761,9 @@ namespace Opc.Ua
 
         #region HistoryRead Methods
         #if (!OPCUA_EXCLUDE_HistoryRead)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
-        #endif
         ResponseHeader HistoryRead(
             RequestHeader                   requestHeader,
             ExtensionObject                 historyReadDetails,
@@ -984,15 +772,10 @@ namespace Opc.Ua
             HistoryReadValueIdCollection    nodesToRead,
             out HistoryReadResultCollection results,
             out DiagnosticInfoCollection    diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
-        #endif
         IAsyncResult BeginHistoryRead(
             RequestHeader                requestHeader,
             ExtensionObject              historyReadDetails,
@@ -1005,14 +788,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
-        #endif
         ResponseHeader EndHistoryRead(
             IAsyncResult                    result,
             out HistoryReadResultCollection results,
             out DiagnosticInfoCollection    diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1031,27 +810,18 @@ namespace Opc.Ua
 
         #region Write Methods
         #if (!OPCUA_EXCLUDE_Write)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
-        #endif
         ResponseHeader Write(
             RequestHeader                requestHeader,
             WriteValueCollection         nodesToWrite,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
-        #endif
         IAsyncResult BeginWrite(
             RequestHeader        requestHeader,
             WriteValueCollection nodesToWrite,
@@ -1061,14 +831,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
-        #endif
         ResponseHeader EndWrite(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1084,27 +850,18 @@ namespace Opc.Ua
 
         #region HistoryUpdate Methods
         #if (!OPCUA_EXCLUDE_HistoryUpdate)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
-        #endif
         ResponseHeader HistoryUpdate(
             RequestHeader                     requestHeader,
             ExtensionObjectCollection         historyUpdateDetails,
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection      diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
-        #endif
         IAsyncResult BeginHistoryUpdate(
             RequestHeader             requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
@@ -1114,14 +871,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
-        #endif
         ResponseHeader EndHistoryUpdate(
             IAsyncResult                      result,
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection      diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1137,27 +890,18 @@ namespace Opc.Ua
 
         #region Call Methods
         #if (!OPCUA_EXCLUDE_Call)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
-        #endif
         ResponseHeader Call(
             RequestHeader                  requestHeader,
             CallMethodRequestCollection    methodsToCall,
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
-        #endif
         IAsyncResult BeginCall(
             RequestHeader               requestHeader,
             CallMethodRequestCollection methodsToCall,
@@ -1167,14 +911,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
-        #endif
         ResponseHeader EndCall(
             IAsyncResult                   result,
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1190,13 +930,9 @@ namespace Opc.Ua
 
         #region CreateMonitoredItems Methods
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
-        #endif
         ResponseHeader CreateMonitoredItems(
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
@@ -1204,15 +940,10 @@ namespace Opc.Ua
             MonitoredItemCreateRequestCollection    itemsToCreate,
             out MonitoredItemCreateResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
-        #endif
         IAsyncResult BeginCreateMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
@@ -1224,14 +955,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
-        #endif
         ResponseHeader EndCreateMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemCreateResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1249,13 +976,9 @@ namespace Opc.Ua
 
         #region ModifyMonitoredItems Methods
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
-        #endif
         ResponseHeader ModifyMonitoredItems(
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
@@ -1263,15 +986,10 @@ namespace Opc.Ua
             MonitoredItemModifyRequestCollection    itemsToModify,
             out MonitoredItemModifyResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
-        #endif
         IAsyncResult BeginModifyMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
@@ -1283,14 +1001,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
-        #endif
         ResponseHeader EndModifyMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemModifyResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1308,13 +1022,9 @@ namespace Opc.Ua
 
         #region SetMonitoringMode Methods
         #if (!OPCUA_EXCLUDE_SetMonitoringMode)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
-        #endif
         ResponseHeader SetMonitoringMode(
             RequestHeader                requestHeader,
             uint                         subscriptionId,
@@ -1322,15 +1032,10 @@ namespace Opc.Ua
             UInt32Collection             monitoredItemIds,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
-        #endif
         IAsyncResult BeginSetMonitoringMode(
             RequestHeader    requestHeader,
             uint             subscriptionId,
@@ -1342,14 +1047,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
-        #endif
         ResponseHeader EndSetMonitoringMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1367,13 +1068,9 @@ namespace Opc.Ua
 
         #region SetTriggering Methods
         #if (!OPCUA_EXCLUDE_SetTriggering)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
-        #endif
         ResponseHeader SetTriggering(
             RequestHeader                requestHeader,
             uint                         subscriptionId,
@@ -1384,15 +1081,10 @@ namespace Opc.Ua
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection     removeResults,
             out DiagnosticInfoCollection removeDiagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
-        #endif
         IAsyncResult BeginSetTriggering(
             RequestHeader    requestHeader,
             uint             subscriptionId,
@@ -1405,16 +1097,12 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
-        #endif
         ResponseHeader EndSetTriggering(
             IAsyncResult                 result,
             out StatusCodeCollection     addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection     removeResults,
             out DiagnosticInfoCollection removeDiagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1433,28 +1121,19 @@ namespace Opc.Ua
 
         #region DeleteMonitoredItems Methods
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
-        #endif
         ResponseHeader DeleteMonitoredItems(
             RequestHeader                requestHeader,
             uint                         subscriptionId,
             UInt32Collection             monitoredItemIds,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
-        #endif
         IAsyncResult BeginDeleteMonitoredItems(
             RequestHeader    requestHeader,
             uint             subscriptionId,
@@ -1465,14 +1144,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
-        #endif
         ResponseHeader EndDeleteMonitoredItems(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1489,13 +1164,9 @@ namespace Opc.Ua
 
         #region CreateSubscription Methods
         #if (!OPCUA_EXCLUDE_CreateSubscription)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
-        #endif
         ResponseHeader CreateSubscription(
             RequestHeader requestHeader,
             double        requestedPublishingInterval,
@@ -1508,15 +1179,10 @@ namespace Opc.Ua
             out double    revisedPublishingInterval,
             out uint      revisedLifetimeCount,
             out uint      revisedMaxKeepAliveCount);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
-        #endif
         IAsyncResult BeginCreateSubscription(
             RequestHeader requestHeader,
             double        requestedPublishingInterval,
@@ -1531,16 +1197,12 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
-        #endif
         ResponseHeader EndCreateSubscription(
             IAsyncResult result,
             out uint   subscriptionId,
             out double revisedPublishingInterval,
             out uint   revisedLifetimeCount,
             out uint   revisedMaxKeepAliveCount);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1561,13 +1223,9 @@ namespace Opc.Ua
 
         #region ModifySubscription Methods
         #if (!OPCUA_EXCLUDE_ModifySubscription)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
-        #endif
         ResponseHeader ModifySubscription(
             RequestHeader requestHeader,
             uint          subscriptionId,
@@ -1579,15 +1237,10 @@ namespace Opc.Ua
             out double    revisedPublishingInterval,
             out uint      revisedLifetimeCount,
             out uint      revisedMaxKeepAliveCount);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
-        #endif
         IAsyncResult BeginModifySubscription(
             RequestHeader requestHeader,
             uint          subscriptionId,
@@ -1602,15 +1255,11 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
-        #endif
         ResponseHeader EndModifySubscription(
             IAsyncResult result,
             out double revisedPublishingInterval,
             out uint   revisedLifetimeCount,
             out uint   revisedMaxKeepAliveCount);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1631,28 +1280,19 @@ namespace Opc.Ua
 
         #region SetPublishingMode Methods
         #if (!OPCUA_EXCLUDE_SetPublishingMode)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
-        #endif
         ResponseHeader SetPublishingMode(
             RequestHeader                requestHeader,
             bool                         publishingEnabled,
             UInt32Collection             subscriptionIds,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
-        #endif
         IAsyncResult BeginSetPublishingMode(
             RequestHeader    requestHeader,
             bool             publishingEnabled,
@@ -1663,14 +1303,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
-        #endif
         ResponseHeader EndSetPublishingMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1687,13 +1323,9 @@ namespace Opc.Ua
 
         #region Publish Methods
         #if (!OPCUA_EXCLUDE_Publish)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
-        #endif
         ResponseHeader Publish(
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
@@ -1703,15 +1335,10 @@ namespace Opc.Ua
             out NotificationMessage               notificationMessage,
             out StatusCodeCollection              results,
             out DiagnosticInfoCollection          diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
-        #endif
         IAsyncResult BeginPublish(
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
@@ -1721,9 +1348,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
-        #endif
         ResponseHeader EndPublish(
             IAsyncResult                 result,
             out uint                     subscriptionId,
@@ -1732,7 +1356,6 @@ namespace Opc.Ua
             out NotificationMessage      notificationMessage,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1748,27 +1371,18 @@ namespace Opc.Ua
 
         #region Republish Methods
         #if (!OPCUA_EXCLUDE_Republish)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
-        #endif
         ResponseHeader Republish(
             RequestHeader           requestHeader,
             uint                    subscriptionId,
             uint                    retransmitSequenceNumber,
             out NotificationMessage notificationMessage);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
-        #endif
         IAsyncResult BeginRepublish(
             RequestHeader requestHeader,
             uint          subscriptionId,
@@ -1779,13 +1393,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
-        #endif
         ResponseHeader EndRepublish(
             IAsyncResult            result,
             out NotificationMessage notificationMessage);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1802,28 +1412,19 @@ namespace Opc.Ua
 
         #region TransferSubscriptions Methods
         #if (!OPCUA_EXCLUDE_TransferSubscriptions)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
-        #endif
         ResponseHeader TransferSubscriptions(
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
             bool                         sendInitialValues,
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
-        #endif
         IAsyncResult BeginTransferSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
@@ -1834,14 +1435,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
-        #endif
         ResponseHeader EndTransferSubscriptions(
             IAsyncResult                 result,
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -1858,27 +1455,18 @@ namespace Opc.Ua
 
         #region DeleteSubscriptions Methods
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
-        #endif
         ResponseHeader DeleteSubscriptions(
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
-        #endif
         IAsyncResult BeginDeleteSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
@@ -1888,14 +1476,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
-        #endif
         ResponseHeader EndDeleteSubscriptions(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -2127,13 +1711,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
-        #endif
         public virtual ResponseHeader CreateSession(
             RequestHeader                           requestHeader,
             ApplicationDescription                  clientDescription,
@@ -2198,15 +1778,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginCreateSession(
             RequestHeader          requestHeader,
             ApplicationDescription clientDescription,
@@ -2240,9 +1815,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
-        #endif
         public virtual ResponseHeader EndCreateSession(
             IAsyncResult                            result,
             out NodeId                              sessionId,
@@ -2286,7 +1858,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2493,13 +2064,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
-        #endif
         public virtual ResponseHeader ActivateSession(
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
@@ -2546,15 +2113,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginActivateSession(
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
@@ -2582,9 +2144,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
-        #endif
         public virtual ResponseHeader EndActivateSession(
             IAsyncResult                 result,
             out byte[]                   serverNonce,
@@ -2616,7 +2175,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2789,13 +2347,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
-        #endif
         public virtual ResponseHeader CloseSession(
             RequestHeader requestHeader,
             bool          deleteSubscriptions)
@@ -2828,15 +2382,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginCloseSession(
             RequestHeader requestHeader,
             bool          deleteSubscriptions,
@@ -2856,9 +2405,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
-        #endif
         public virtual ResponseHeader EndCloseSession(
             IAsyncResult result)
         {
@@ -2884,7 +2430,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3053,13 +2598,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
-        #endif
         public virtual ResponseHeader Cancel(
             RequestHeader requestHeader,
             uint          requestHandle,
@@ -3094,15 +2635,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginCancel(
             RequestHeader requestHeader,
             uint          requestHandle,
@@ -3122,9 +2658,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
-        #endif
         public virtual ResponseHeader EndCancel(
             IAsyncResult result,
             out uint cancelCount)
@@ -3152,7 +2685,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3325,13 +2857,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader AddNodes(
             RequestHeader                requestHeader,
             AddNodesItemCollection       nodesToAdd,
@@ -3368,15 +2896,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginAddNodes(
             RequestHeader          requestHeader,
             AddNodesItemCollection nodesToAdd,
@@ -3396,9 +2919,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader EndAddNodes(
             IAsyncResult                 result,
             out AddNodesResultCollection results,
@@ -3428,7 +2948,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3601,13 +3120,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
-        #endif
         public virtual ResponseHeader AddReferences(
             RequestHeader                requestHeader,
             AddReferencesItemCollection  referencesToAdd,
@@ -3644,15 +3159,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginAddReferences(
             RequestHeader               requestHeader,
             AddReferencesItemCollection referencesToAdd,
@@ -3672,9 +3182,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
-        #endif
         public virtual ResponseHeader EndAddReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -3704,7 +3211,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3877,13 +3383,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader DeleteNodes(
             RequestHeader                requestHeader,
             DeleteNodesItemCollection    nodesToDelete,
@@ -3920,15 +3422,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginDeleteNodes(
             RequestHeader             requestHeader,
             DeleteNodesItemCollection nodesToDelete,
@@ -3948,9 +3445,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader EndDeleteNodes(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -3980,7 +3474,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -4153,13 +3646,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
-        #endif
         public virtual ResponseHeader DeleteReferences(
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
@@ -4196,15 +3685,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginDeleteReferences(
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
@@ -4224,9 +3708,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
-        #endif
         public virtual ResponseHeader EndDeleteReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -4256,7 +3737,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -4437,13 +3917,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
-        #endif
         public virtual ResponseHeader Browse(
             RequestHeader                requestHeader,
             ViewDescription              view,
@@ -4484,15 +3960,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginBrowse(
             RequestHeader               requestHeader,
             ViewDescription             view,
@@ -4516,9 +3987,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
-        #endif
         public virtual ResponseHeader EndBrowse(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
@@ -4548,7 +4016,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -4729,13 +4196,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
-        #endif
         public virtual ResponseHeader BrowseNext(
             RequestHeader                requestHeader,
             bool                         releaseContinuationPoints,
@@ -4774,15 +4237,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginBrowseNext(
             RequestHeader        requestHeader,
             bool                 releaseContinuationPoints,
@@ -4804,9 +4262,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
-        #endif
         public virtual ResponseHeader EndBrowseNext(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
@@ -4836,7 +4291,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -5011,13 +4465,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
-        #endif
         public virtual ResponseHeader TranslateBrowsePathsToNodeIds(
             RequestHeader                  requestHeader,
             BrowsePathCollection           browsePaths,
@@ -5054,15 +4504,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(
             RequestHeader        requestHeader,
             BrowsePathCollection browsePaths,
@@ -5082,9 +4527,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
-        #endif
         public virtual ResponseHeader EndTranslateBrowsePathsToNodeIds(
             IAsyncResult                   result,
             out BrowsePathResultCollection results,
@@ -5114,7 +4556,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -5283,13 +4724,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader RegisterNodes(
             RequestHeader        requestHeader,
             NodeIdCollection     nodesToRegister,
@@ -5324,15 +4761,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginRegisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToRegister,
@@ -5352,9 +4784,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader EndRegisterNodes(
             IAsyncResult         result,
             out NodeIdCollection registeredNodeIds)
@@ -5382,7 +4811,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -5547,13 +4975,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader UnregisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToUnregister)
@@ -5586,15 +5010,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginUnregisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToUnregister,
@@ -5614,9 +5033,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
-        #endif
         public virtual ResponseHeader EndUnregisterNodes(
             IAsyncResult result)
         {
@@ -5642,7 +5058,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -5843,13 +5258,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
-        #endif
         public virtual ResponseHeader QueryFirst(
             RequestHeader                 requestHeader,
             ViewDescription               view,
@@ -5900,15 +5311,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginQueryFirst(
             RequestHeader                 requestHeader,
             ViewDescription               view,
@@ -5936,9 +5342,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
-        #endif
         public virtual ResponseHeader EndQueryFirst(
             IAsyncResult                 result,
             out QueryDataSetCollection   queryDataSets,
@@ -5974,7 +5377,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -6159,13 +5561,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
-        #endif
         public virtual ResponseHeader QueryNext(
             RequestHeader              requestHeader,
             bool                       releaseContinuationPoint,
@@ -6204,15 +5602,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginQueryNext(
             RequestHeader requestHeader,
             bool          releaseContinuationPoint,
@@ -6234,9 +5627,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
-        #endif
         public virtual ResponseHeader EndQueryNext(
             IAsyncResult               result,
             out QueryDataSetCollection queryDataSets,
@@ -6266,7 +5656,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -6449,13 +5838,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
-        #endif
         public virtual ResponseHeader Read(
             RequestHeader                requestHeader,
             double                       maxAge,
@@ -6496,15 +5881,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginRead(
             RequestHeader         requestHeader,
             double                maxAge,
@@ -6528,9 +5908,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
-        #endif
         public virtual ResponseHeader EndRead(
             IAsyncResult                 result,
             out DataValueCollection      results,
@@ -6560,7 +5937,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -6749,13 +6125,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
-        #endif
         public virtual ResponseHeader HistoryRead(
             RequestHeader                   requestHeader,
             ExtensionObject                 historyReadDetails,
@@ -6798,15 +6170,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginHistoryRead(
             RequestHeader                requestHeader,
             ExtensionObject              historyReadDetails,
@@ -6832,9 +6199,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
-        #endif
         public virtual ResponseHeader EndHistoryRead(
             IAsyncResult                    result,
             out HistoryReadResultCollection results,
@@ -6864,7 +6228,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -7043,13 +6406,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
-        #endif
         public virtual ResponseHeader Write(
             RequestHeader                requestHeader,
             WriteValueCollection         nodesToWrite,
@@ -7086,15 +6445,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginWrite(
             RequestHeader        requestHeader,
             WriteValueCollection nodesToWrite,
@@ -7114,9 +6468,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
-        #endif
         public virtual ResponseHeader EndWrite(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -7146,7 +6497,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -7319,13 +6669,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
-        #endif
         public virtual ResponseHeader HistoryUpdate(
             RequestHeader                     requestHeader,
             ExtensionObjectCollection         historyUpdateDetails,
@@ -7362,15 +6708,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginHistoryUpdate(
             RequestHeader             requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
@@ -7390,9 +6731,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
-        #endif
         public virtual ResponseHeader EndHistoryUpdate(
             IAsyncResult                      result,
             out HistoryUpdateResultCollection results,
@@ -7422,7 +6760,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -7595,13 +6932,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
-        #endif
         public virtual ResponseHeader Call(
             RequestHeader                  requestHeader,
             CallMethodRequestCollection    methodsToCall,
@@ -7638,15 +6971,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginCall(
             RequestHeader               requestHeader,
             CallMethodRequestCollection methodsToCall,
@@ -7666,9 +6994,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
-        #endif
         public virtual ResponseHeader EndCall(
             IAsyncResult                   result,
             out CallMethodResultCollection results,
@@ -7698,7 +7023,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -7879,13 +7203,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
-        #endif
         public virtual ResponseHeader CreateMonitoredItems(
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
@@ -7926,15 +7246,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginCreateMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
@@ -7958,9 +7273,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
-        #endif
         public virtual ResponseHeader EndCreateMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemCreateResultCollection results,
@@ -7990,7 +7302,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -8175,13 +7486,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
-        #endif
         public virtual ResponseHeader ModifyMonitoredItems(
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
@@ -8222,15 +7529,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginModifyMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
@@ -8254,9 +7556,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
-        #endif
         public virtual ResponseHeader EndModifyMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemModifyResultCollection results,
@@ -8286,7 +7585,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -8471,13 +7769,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
-        #endif
         public virtual ResponseHeader SetMonitoringMode(
             RequestHeader                requestHeader,
             uint                         subscriptionId,
@@ -8518,15 +7812,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginSetMonitoringMode(
             RequestHeader    requestHeader,
             uint             subscriptionId,
@@ -8550,9 +7839,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
-        #endif
         public virtual ResponseHeader EndSetMonitoringMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -8582,7 +7868,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -8779,13 +8064,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
-        #endif
         public virtual ResponseHeader SetTriggering(
             RequestHeader                requestHeader,
             uint                         subscriptionId,
@@ -8832,15 +8113,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginSetTriggering(
             RequestHeader    requestHeader,
             uint             subscriptionId,
@@ -8866,9 +8142,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
-        #endif
         public virtual ResponseHeader EndSetTriggering(
             IAsyncResult                 result,
             out StatusCodeCollection     addResults,
@@ -8902,7 +8175,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -9085,13 +8357,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
-        #endif
         public virtual ResponseHeader DeleteMonitoredItems(
             RequestHeader                requestHeader,
             uint                         subscriptionId,
@@ -9130,15 +8398,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginDeleteMonitoredItems(
             RequestHeader    requestHeader,
             uint             subscriptionId,
@@ -9160,9 +8423,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
-        #endif
         public virtual ResponseHeader EndDeleteMonitoredItems(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -9192,7 +8452,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -9395,13 +8654,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
-        #endif
         public virtual ResponseHeader CreateSubscription(
             RequestHeader requestHeader,
             double        requestedPublishingInterval,
@@ -9452,15 +8707,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginCreateSubscription(
             RequestHeader requestHeader,
             double        requestedPublishingInterval,
@@ -9490,9 +8740,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
-        #endif
         public virtual ResponseHeader EndCreateSubscription(
             IAsyncResult result,
             out uint   subscriptionId,
@@ -9526,7 +8773,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -9733,13 +8979,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
-        #endif
         public virtual ResponseHeader ModifySubscription(
             RequestHeader requestHeader,
             uint          subscriptionId,
@@ -9788,15 +9030,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginModifySubscription(
             RequestHeader requestHeader,
             uint          subscriptionId,
@@ -9826,9 +9063,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
-        #endif
         public virtual ResponseHeader EndModifySubscription(
             IAsyncResult result,
             out double revisedPublishingInterval,
@@ -9860,7 +9094,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -10047,13 +9280,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
-        #endif
         public virtual ResponseHeader SetPublishingMode(
             RequestHeader                requestHeader,
             bool                         publishingEnabled,
@@ -10092,15 +9321,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginSetPublishingMode(
             RequestHeader    requestHeader,
             bool             publishingEnabled,
@@ -10122,9 +9346,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
-        #endif
         public virtual ResponseHeader EndSetPublishingMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -10154,7 +9375,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -10345,13 +9565,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
-        #endif
         public virtual ResponseHeader Publish(
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
@@ -10396,15 +9612,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginPublish(
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
@@ -10424,9 +9635,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
-        #endif
         public virtual ResponseHeader EndPublish(
             IAsyncResult                 result,
             out uint                     subscriptionId,
@@ -10464,7 +9672,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -10637,13 +9844,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
-        #endif
         public virtual ResponseHeader Republish(
             RequestHeader           requestHeader,
             uint                    subscriptionId,
@@ -10680,15 +9883,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginRepublish(
             RequestHeader requestHeader,
             uint          subscriptionId,
@@ -10710,9 +9908,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
-        #endif
         public virtual ResponseHeader EndRepublish(
             IAsyncResult            result,
             out NotificationMessage notificationMessage)
@@ -10740,7 +9935,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -10919,13 +10113,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
-        #endif
         public virtual ResponseHeader TransferSubscriptions(
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
@@ -10964,15 +10154,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginTransferSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
@@ -10994,9 +10179,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
-        #endif
         public virtual ResponseHeader EndTransferSubscriptions(
             IAsyncResult                 result,
             out TransferResultCollection results,
@@ -11026,7 +10208,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -11201,13 +10382,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
-        #endif
         public virtual ResponseHeader DeleteSubscriptions(
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
@@ -11244,15 +10421,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginDeleteSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
@@ -11272,9 +10444,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
-        #endif
         public virtual ResponseHeader EndDeleteSubscriptions(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
@@ -11304,7 +10473,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -11360,28 +10528,19 @@ namespace Opc.Ua
         #region Client Interface
         #region FindServers Methods
         #if (!OPCUA_EXCLUDE_FindServers)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
-        #endif
         ResponseHeader FindServers(
             RequestHeader                        requestHeader,
             string                               endpointUrl,
             StringCollection                     localeIds,
             StringCollection                     serverUris,
             out ApplicationDescriptionCollection servers);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
-        #endif
         IAsyncResult BeginFindServers(
             RequestHeader    requestHeader,
             string           endpointUrl,
@@ -11393,13 +10552,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
-        #endif
         ResponseHeader EndFindServers(
             IAsyncResult                         result,
             out ApplicationDescriptionCollection servers);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -11417,13 +10572,9 @@ namespace Opc.Ua
 
         #region FindServersOnNetwork Methods
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
-        #endif
         ResponseHeader FindServersOnNetwork(
             RequestHeader                 requestHeader,
             uint                          startingRecordId,
@@ -11431,15 +10582,10 @@ namespace Opc.Ua
             StringCollection              serverCapabilityFilter,
             out DateTime                  lastCounterResetTime,
             out ServerOnNetworkCollection servers);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
-        #endif
         IAsyncResult BeginFindServersOnNetwork(
             RequestHeader    requestHeader,
             uint             startingRecordId,
@@ -11451,14 +10597,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
-        #endif
         ResponseHeader EndFindServersOnNetwork(
             IAsyncResult                  result,
             out DateTime                  lastCounterResetTime,
             out ServerOnNetworkCollection servers);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -11476,28 +10618,19 @@ namespace Opc.Ua
 
         #region GetEndpoints Methods
         #if (!OPCUA_EXCLUDE_GetEndpoints)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
-        #endif
         ResponseHeader GetEndpoints(
             RequestHeader                     requestHeader,
             string                            endpointUrl,
             StringCollection                  localeIds,
             StringCollection                  profileUris,
             out EndpointDescriptionCollection endpoints);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
-        #endif
         IAsyncResult BeginGetEndpoints(
             RequestHeader    requestHeader,
             string           endpointUrl,
@@ -11509,13 +10642,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
-        #endif
         ResponseHeader EndGetEndpoints(
             IAsyncResult                      result,
             out EndpointDescriptionCollection endpoints);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -11697,13 +10826,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
-        #endif
         public virtual ResponseHeader FindServers(
             RequestHeader                        requestHeader,
             string                               endpointUrl,
@@ -11742,15 +10867,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginFindServers(
             RequestHeader    requestHeader,
             string           endpointUrl,
@@ -11774,9 +10894,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
-        #endif
         public virtual ResponseHeader EndFindServers(
             IAsyncResult                         result,
             out ApplicationDescriptionCollection servers)
@@ -11804,7 +10921,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -11989,13 +11105,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
-        #endif
         public virtual ResponseHeader FindServersOnNetwork(
             RequestHeader                 requestHeader,
             uint                          startingRecordId,
@@ -12036,15 +11148,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginFindServersOnNetwork(
             RequestHeader    requestHeader,
             uint             startingRecordId,
@@ -12068,9 +11175,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
-        #endif
         public virtual ResponseHeader EndFindServersOnNetwork(
             IAsyncResult                  result,
             out DateTime                  lastCounterResetTime,
@@ -12100,7 +11204,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -12281,13 +11384,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
-        #endif
         public virtual ResponseHeader GetEndpoints(
             RequestHeader                     requestHeader,
             string                            endpointUrl,
@@ -12326,15 +11425,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginGetEndpoints(
             RequestHeader    requestHeader,
             string           endpointUrl,
@@ -12358,9 +11452,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
-        #endif
         public virtual ResponseHeader EndGetEndpoints(
             IAsyncResult                      result,
             out EndpointDescriptionCollection endpoints)
@@ -12388,7 +11479,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -12448,25 +11538,16 @@ namespace Opc.Ua
         #region Client Interface
         #region RegisterServer Methods
         #if (!OPCUA_EXCLUDE_RegisterServer)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
-        #endif
         ResponseHeader RegisterServer(
             RequestHeader    requestHeader,
             RegisteredServer server);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
-        #endif
         IAsyncResult BeginRegisterServer(
             RequestHeader    requestHeader,
             RegisteredServer server,
@@ -12476,12 +11557,8 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
-        #endif
         ResponseHeader EndRegisterServer(
             IAsyncResult result);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -12497,28 +11574,19 @@ namespace Opc.Ua
 
         #region RegisterServer2 Methods
         #if (!OPCUA_EXCLUDE_RegisterServer2)
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
-        #endif
         ResponseHeader RegisterServer2(
             RequestHeader                requestHeader,
             RegisteredServer             server,
             ExtensionObjectCollection    discoveryConfiguration,
             out StatusCodeCollection     configurationResults,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
-        #endif
         IAsyncResult BeginRegisterServer2(
             RequestHeader             requestHeader,
             RegisteredServer          server,
@@ -12529,14 +11597,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
-        #endif
         ResponseHeader EndRegisterServer2(
             IAsyncResult                 result,
             out StatusCodeCollection     configurationResults,
             out DiagnosticInfoCollection diagnosticInfos);
-        #endif
 
         #if (NET_STANDARD_ASYNC)
         /// <summary>
@@ -12705,13 +11769,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
-        #endif
         public virtual ResponseHeader RegisterServer(
             RequestHeader    requestHeader,
             RegisteredServer server)
@@ -12744,15 +11804,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
-        #endif
         public virtual IAsyncResult BeginRegisterServer(
             RequestHeader    requestHeader,
             RegisteredServer server,
@@ -12772,9 +11827,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
-        #endif
         public virtual ResponseHeader EndRegisterServer(
             IAsyncResult result)
         {
@@ -12800,7 +11852,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -12977,13 +12028,9 @@ namespace Opc.Ua
             return response.ResponseHeader;
         }
         #else  // NET_STANDARD
-        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
-        [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
-        #endif
         public virtual ResponseHeader RegisterServer2(
             RequestHeader                requestHeader,
             RegisteredServer             server,
@@ -13022,15 +12069,10 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
 
-        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
-        #endif
         public virtual IAsyncResult BeginRegisterServer2(
             RequestHeader             requestHeader,
             RegisteredServer          server,
@@ -13052,9 +12094,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
-        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
-        #endif
         public virtual ResponseHeader EndRegisterServer2(
             IAsyncResult                 result,
             out StatusCodeCollection     configurationResults,
@@ -13084,7 +12123,6 @@ namespace Opc.Ua
 
             return response.ResponseHeader;
         }
-        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)

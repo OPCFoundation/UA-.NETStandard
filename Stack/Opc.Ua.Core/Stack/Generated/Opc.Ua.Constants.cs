@@ -271,7 +271,7 @@ namespace Opc.Ua
         public const uint TransactionErrorType = 32285;
 
         /// <remarks />
-        public const uint ApplicationConfigurationDataType = 15549;
+        public const uint ApplicationConfigurationDataType = 23743;
 
         /// <remarks />
         public const uint ApplicationIdentityDataType = 15556;
@@ -289,7 +289,10 @@ namespace Opc.Ua
         public const uint UserTokenSettingsDataType = 15560;
 
         /// <remarks />
-        public const uint AuthorizationServiceConfigurationDataType = 19445;
+        public const uint ServiceCertificateDataType = 23724;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType = 23744;
 
         /// <remarks />
         public const uint DecimalDataType = 17861;
@@ -1993,6 +1996,27 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve = 16516;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Disable = 20034;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Enable = 20035;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_AddComment = 20036;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Acknowledge = 23493;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve = 23651;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_Unshelve = 23655;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_OneShotShelve = 23659;
 
         /// <remarks />
         public const uint ShelvedStateMachineType_TimedShelve = 2949;
@@ -3864,6 +3888,9 @@ namespace Opc.Ua
         public const uint PriorityMappingTableType_DeletePriorityMappingEntry = 25231;
 
         /// <remarks />
+        public const uint SerializationEntityType_ConfigureSerialization = 19839;
+
+        /// <remarks />
         public const uint LogObjectType_GetRecords = 19353;
 
         /// <remarks />
@@ -4151,12 +4178,6 @@ namespace Opc.Ua
         public const uint QuantityType_ServerUnits_ServerUnit_Placeholder = 32482;
 
         /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder = 32503;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits = 32509;
-
-        /// <remarks />
         public const uint Quantities = 32530;
 
         /// <remarks />
@@ -4170,6 +4191,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder = 16406;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder = 19847;
 
         /// <remarks />
         public const uint ShelvedStateMachineType_Unshelved = 2930;
@@ -5027,7 +5051,7 @@ namespace Opc.Ua
         public const uint TransactionErrorType_Encoding_DefaultBinary = 32382;
 
         /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultBinary = 16542;
+        public const uint ApplicationConfigurationDataType_Encoding_DefaultBinary = 23754;
 
         /// <remarks />
         public const uint ApplicationIdentityDataType_Encoding_DefaultBinary = 16543;
@@ -5045,7 +5069,10 @@ namespace Opc.Ua
         public const uint UserTokenSettingsDataType_Encoding_DefaultBinary = 16547;
 
         /// <remarks />
-        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary = 19752;
+        public const uint ServiceCertificateDataType_Encoding_DefaultBinary = 23725;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary = 23755;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultBinary = 17863;
@@ -6086,7 +6113,7 @@ namespace Opc.Ua
         public const uint TransactionErrorType_Encoding_DefaultXml = 32386;
 
         /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultXml = 16591;
+        public const uint ApplicationConfigurationDataType_Encoding_DefaultXml = 23762;
 
         /// <remarks />
         public const uint ApplicationIdentityDataType_Encoding_DefaultXml = 16592;
@@ -6104,7 +6131,10 @@ namespace Opc.Ua
         public const uint UserTokenSettingsDataType_Encoding_DefaultXml = 16596;
 
         /// <remarks />
-        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultXml = 19772;
+        public const uint ServiceCertificateDataType_Encoding_DefaultXml = 23735;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultXml = 23763;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultXml = 17862;
@@ -7145,7 +7175,7 @@ namespace Opc.Ua
         public const uint TransactionErrorType_Encoding_DefaultJson = 32390;
 
         /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultJson = 16636;
+        public const uint ApplicationConfigurationDataType_Encoding_DefaultJson = 23776;
 
         /// <remarks />
         public const uint ApplicationIdentityDataType_Encoding_DefaultJson = 16637;
@@ -7163,7 +7193,10 @@ namespace Opc.Ua
         public const uint UserTokenSettingsDataType_Encoding_DefaultJson = 16645;
 
         /// <remarks />
-        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultJson = 19802;
+        public const uint ServiceCertificateDataType_Encoding_DefaultJson = 23739;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultJson = 23777;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultJson = 15045;
@@ -8308,6 +8341,12 @@ namespace Opc.Ua
         public const uint AggregateFunctionType = 2340;
 
         /// <remarks />
+        public const uint DataTypeRefinementType = 19820;
+
+        /// <remarks />
+        public const uint SubtypeRestrictionType = 19822;
+
+        /// <remarks />
         public const uint StateMachineType = 2299;
 
         /// <remarks />
@@ -8384,9 +8423,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint QuantityType = 32475;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType = 32502;
 
         /// <remarks />
         public const uint ConditionType = 2782;
@@ -8618,9 +8654,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint TlsClientCertificateType = 19326;
-
-        /// <remarks />
-        public const uint UserCredentialCertificateType = 15181;
 
         /// <remarks />
         public const uint RsaMinApplicationCertificateType = 12559;
@@ -8962,6 +8995,9 @@ namespace Opc.Ua
         public const uint LldpRemoteSystemType = 19033;
 
         /// <remarks />
+        public const uint SerializationEntityType = 19824;
+
+        /// <remarks />
         public const uint LogObjectType = 19352;
 
         /// <remarks />
@@ -9070,6 +9106,27 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint IsDeprecated = 23562;
+
+        /// <remarks />
+        public const uint UsesDataTypeRefinement = 19814;
+
+        /// <remarks />
+        public const uint HasFieldDescription = 19815;
+
+        /// <remarks />
+        public const uint HasFieldDescriptionSetMandatory = 19816;
+
+        /// <remarks />
+        public const uint IsDisabledOptionalField = 19817;
+
+        /// <remarks />
+        public const uint UsesSubtypeRestriction = 19818;
+
+        /// <remarks />
+        public const uint AllowedSubtype = 19819;
+
+        /// <remarks />
+        public const uint HasDataTypeRefinement = 19846;
 
         /// <remarks />
         public const uint HasGuard = 15112;
@@ -9196,6 +9253,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint HasReferenceDescription = 32679;
+
+        /// <remarks />
+        public const uint HasSerializationEntity = 19845;
     }
     #endregion
 
@@ -9525,6 +9585,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerCapabilitiesType_MaxHistoryContinuationPoints = 2734;
+
+        /// <remarks />
+        public const uint ServerCapabilitiesType_MaxLogObjectContinuationPoints = 19809;
 
         /// <remarks />
         public const uint ServerCapabilitiesType_SoftwareCertificates = 3049;
@@ -10269,6 +10332,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint AuditEventType_ClientUserId = 2057;
+
+        /// <remarks />
+        public const uint AuditEventType_ClientApplicationUri = 19811;
 
         /// <remarks />
         public const uint AuditSecurityEventType_StatusCodeId = 17615;
@@ -11354,6 +11420,12 @@ namespace Opc.Ua
         public const uint HistoryServerCapabilities_ServerTimestampSupported = 19091;
 
         /// <remarks />
+        public const uint DataTypeRefinementType_FieldDescription_Placeholder = 19821;
+
+        /// <remarks />
+        public const uint SubtypeRestrictionType_FieldDescription_Placeholder = 19823;
+
+        /// <remarks />
         public const uint StateMachineType_CurrentState = 2769;
 
         /// <remarks />
@@ -12329,9 +12401,6 @@ namespace Opc.Ua
         public const uint QuantityType_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = 32500;
 
         /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_Dimension = 32508;
-
-        /// <remarks />
         public const uint TwoStateVariableType_Id = 8996;
 
         /// <remarks />
@@ -12828,6 +12897,156 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint AlarmSuppressionGroupType_DigitalVariable_Placeholder = 32226;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_EventId = 19904;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_EventType = 19905;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_SourceNode = 19906;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_SourceName = 19907;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Time = 19908;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ReceiveTime = 19909;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Message = 19911;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Severity = 19912;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionClassId = 19913;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionClassName = 19914;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionName = 19969;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_BranchId = 19970;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Retain = 19971;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_EnabledState = 19972;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_EnabledState_Id = 19973;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Quality = 19981;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Quality_SourceTimestamp = 20028;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_LastSeverity = 20029;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_LastSeverity_SourceTimestamp = 20030;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Comment = 20031;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Comment_SourceTimestamp = 20032;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ClientUserId = 20033;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_AddComment_InputArguments = 20037;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_AckedState = 20038;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_AckedState_Id = 20039;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConfirmedState_Id = 23481;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Acknowledge_InputArguments = 23561;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Confirm_InputArguments = 23578;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ActiveState = 23579;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ActiveState_Id = 23580;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_InputNode = 23588;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_SuppressedState_Id = 23590;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_OutOfServiceState_Id = 23611;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_CurrentState = 23624;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_CurrentState_Id = 23625;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_LastTransition_Id = 23630;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_UnshelveTime = 23650;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve_InputArguments = 23652;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve2_InputArguments = 23654;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_Unshelve2_InputArguments = 23657;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_OneShotShelve2_InputArguments = 23661;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_SuppressedOrShelved = 23662;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_SilenceState_Id = 23670;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_LatchedState_Id = 23696;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Suppress2_InputArguments = 23709;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Unsuppress2_InputArguments = 23712;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_RemoveFromService2_InputArguments = 23715;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_PlaceInService2_InputArguments = 23718;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Reset2_InputArguments = 23721;
+
+        /// <remarks />
+        public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_GetGroupMemberships_OutputArguments = 23723;
 
         /// <remarks />
         public const uint ShelvedStateMachineType_UnshelveTime = 9115;
@@ -18366,6 +18585,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationType_Enabled = 26849;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_IsNonUaApplication = 23741;
 
         /// <remarks />
         public const uint ApplicationConfigurationType_KeyCredentials_CreateCredential_InputArguments = 19425;
@@ -25436,6 +25658,42 @@ namespace Opc.Ua
         public const uint ReferenceDescriptionVariableType_ReferenceRefinement = 32658;
 
         /// <remarks />
+        public const uint SerializationEntityType_SerializedData = 19825;
+
+        /// <remarks />
+        public const uint SerializationEntityType_IncludeReferenceTypes = 19826;
+
+        /// <remarks />
+        public const uint SerializationEntityType_ExcludeReferenceTypes = 19827;
+
+        /// <remarks />
+        public const uint SerializationEntityType_SerializationDepth = 19828;
+
+        /// <remarks />
+        public const uint SerializationEntityType_ConsiderSubElementSerializationProperties = 19829;
+
+        /// <remarks />
+        public const uint SerializationEntityType_CustomMetaDataProperties = 19830;
+
+        /// <remarks />
+        public const uint SerializationEntityType_CustomMetaDataRef = 19835;
+
+        /// <remarks />
+        public const uint SerializationEntityType_IncludeStatus = 19836;
+
+        /// <remarks />
+        public const uint SerializationEntityType_IncludeSourceTimestamp = 19837;
+
+        /// <remarks />
+        public const uint SerializationEntityType_IncludeDictionaryReference = 19838;
+
+        /// <remarks />
+        public const uint SerializationEntityType_ConfigureSerialization_InputArguments = 19840;
+
+        /// <remarks />
+        public const uint SerializationEntityType_ConfigureSerialization_OutputArguments = 19841;
+
+        /// <remarks />
         public const uint LogObjectType_GetRecords_InputArguments = 19354;
 
         /// <remarks />
@@ -25655,7 +25913,7 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_TransactionErrorType = 32383;
 
         /// <remarks />
-        public const uint OpcUa_BinarySchema_ApplicationConfigurationDataType = 16564;
+        public const uint OpcUa_BinarySchema_ApplicationConfigurationDataType = 23756;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_ApplicationIdentityDataType = 16567;
@@ -25673,7 +25931,10 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_UserTokenSettingsDataType = 16584;
 
         /// <remarks />
-        public const uint OpcUa_BinarySchema_AuthorizationServiceConfigurationDataType = 19757;
+        public const uint OpcUa_BinarySchema_ServiceCertificateDataType = 23732;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_AuthorizationServiceConfigurationDataType = 23759;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_DataTypeSchemaHeader = 15741;
@@ -26219,7 +26480,7 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_TransactionErrorType = 32387;
 
         /// <remarks />
-        public const uint OpcUa_XmlSchema_ApplicationConfigurationDataType = 16614;
+        public const uint OpcUa_XmlSchema_ApplicationConfigurationDataType = 23764;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_ApplicationIdentityDataType = 16617;
@@ -26237,7 +26498,10 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_UserTokenSettingsDataType = 16629;
 
         /// <remarks />
-        public const uint OpcUa_XmlSchema_AuthorizationServiceConfigurationDataType = 19787;
+        public const uint OpcUa_XmlSchema_ServiceCertificateDataType = 23736;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_AuthorizationServiceConfigurationDataType = 23773;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_DataTypeSchemaHeader = 16027;
@@ -27142,6 +27406,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId UserTokenSettingsDataType = new NodeId(Opc.Ua.DataTypes.UserTokenSettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId ServiceCertificateDataType = new NodeId(Opc.Ua.DataTypes.ServiceCertificateDataType);
 
         /// <remarks />
         public static readonly NodeId AuthorizationServiceConfigurationDataType = new NodeId(Opc.Ua.DataTypes.AuthorizationServiceConfigurationDataType);
@@ -28848,6 +29115,27 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Disable = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Disable);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Enable = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Enable);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_AddComment = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_AddComment);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Acknowledge = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Acknowledge);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_Unshelve);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_OneShotShelve);
 
         /// <remarks />
         public static readonly NodeId ShelvedStateMachineType_TimedShelve = new NodeId(Opc.Ua.Methods.ShelvedStateMachineType_TimedShelve);
@@ -30719,6 +31007,9 @@ namespace Opc.Ua
         public static readonly NodeId PriorityMappingTableType_DeletePriorityMappingEntry = new NodeId(Opc.Ua.Methods.PriorityMappingTableType_DeletePriorityMappingEntry);
 
         /// <remarks />
+        public static readonly NodeId SerializationEntityType_ConfigureSerialization = new NodeId(Opc.Ua.Methods.SerializationEntityType_ConfigureSerialization);
+
+        /// <remarks />
         public static readonly NodeId LogObjectType_GetRecords = new NodeId(Opc.Ua.Methods.LogObjectType_GetRecords);
 
         /// <remarks />
@@ -31006,12 +31297,6 @@ namespace Opc.Ua
         public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder = new NodeId(Opc.Ua.Objects.QuantityType_ServerUnits_ServerUnit_Placeholder);
 
         /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder = new NodeId(Opc.Ua.Objects.QuantitiesFolderType_Quantity_Placeholder);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits = new NodeId(Opc.Ua.Objects.QuantitiesFolderType_Quantity_Placeholder_ServerUnits);
-
-        /// <remarks />
         public static readonly NodeId Quantities = new NodeId(Opc.Ua.Objects.Quantities);
 
         /// <remarks />
@@ -31025,6 +31310,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder = new NodeId(Opc.Ua.Objects.AlarmGroupType_AlarmConditionInstance_Placeholder);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder = new NodeId(Opc.Ua.Objects.AlarmSuppressionGroupType_AlarmCondition_Placeholder);
 
         /// <remarks />
         public static readonly NodeId ShelvedStateMachineType_Unshelved = new NodeId(Opc.Ua.Objects.ShelvedStateMachineType_Unshelved);
@@ -31898,6 +32186,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId ServiceCertificateDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ServiceCertificateDataType_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary);
@@ -32959,6 +33250,9 @@ namespace Opc.Ua
         public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId ServiceCertificateDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ServiceCertificateDataType_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId AuthorizationServiceConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AuthorizationServiceConfigurationDataType_Encoding_DefaultXml);
 
         /// <remarks />
@@ -34016,6 +34310,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ServiceCertificateDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServiceCertificateDataType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId AuthorizationServiceConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AuthorizationServiceConfigurationDataType_Encoding_DefaultJson);
@@ -35163,6 +35460,12 @@ namespace Opc.Ua
         public static readonly NodeId AggregateFunctionType = new NodeId(Opc.Ua.ObjectTypes.AggregateFunctionType);
 
         /// <remarks />
+        public static readonly NodeId DataTypeRefinementType = new NodeId(Opc.Ua.ObjectTypes.DataTypeRefinementType);
+
+        /// <remarks />
+        public static readonly NodeId SubtypeRestrictionType = new NodeId(Opc.Ua.ObjectTypes.SubtypeRestrictionType);
+
+        /// <remarks />
         public static readonly NodeId StateMachineType = new NodeId(Opc.Ua.ObjectTypes.StateMachineType);
 
         /// <remarks />
@@ -35239,9 +35542,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId QuantityType = new NodeId(Opc.Ua.ObjectTypes.QuantityType);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType = new NodeId(Opc.Ua.ObjectTypes.QuantitiesFolderType);
 
         /// <remarks />
         public static readonly NodeId ConditionType = new NodeId(Opc.Ua.ObjectTypes.ConditionType);
@@ -35473,9 +35773,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId TlsClientCertificateType = new NodeId(Opc.Ua.ObjectTypes.TlsClientCertificateType);
-
-        /// <remarks />
-        public static readonly NodeId UserCredentialCertificateType = new NodeId(Opc.Ua.ObjectTypes.UserCredentialCertificateType);
 
         /// <remarks />
         public static readonly NodeId RsaMinApplicationCertificateType = new NodeId(Opc.Ua.ObjectTypes.RsaMinApplicationCertificateType);
@@ -35817,6 +36114,9 @@ namespace Opc.Ua
         public static readonly NodeId LldpRemoteSystemType = new NodeId(Opc.Ua.ObjectTypes.LldpRemoteSystemType);
 
         /// <remarks />
+        public static readonly NodeId SerializationEntityType = new NodeId(Opc.Ua.ObjectTypes.SerializationEntityType);
+
+        /// <remarks />
         public static readonly NodeId LogObjectType = new NodeId(Opc.Ua.ObjectTypes.LogObjectType);
 
         /// <remarks />
@@ -35925,6 +36225,27 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId IsDeprecated = new NodeId(Opc.Ua.ReferenceTypes.IsDeprecated);
+
+        /// <remarks />
+        public static readonly NodeId UsesDataTypeRefinement = new NodeId(Opc.Ua.ReferenceTypes.UsesDataTypeRefinement);
+
+        /// <remarks />
+        public static readonly NodeId HasFieldDescription = new NodeId(Opc.Ua.ReferenceTypes.HasFieldDescription);
+
+        /// <remarks />
+        public static readonly NodeId HasFieldDescriptionSetMandatory = new NodeId(Opc.Ua.ReferenceTypes.HasFieldDescriptionSetMandatory);
+
+        /// <remarks />
+        public static readonly NodeId IsDisabledOptionalField = new NodeId(Opc.Ua.ReferenceTypes.IsDisabledOptionalField);
+
+        /// <remarks />
+        public static readonly NodeId UsesSubtypeRestriction = new NodeId(Opc.Ua.ReferenceTypes.UsesSubtypeRestriction);
+
+        /// <remarks />
+        public static readonly NodeId AllowedSubtype = new NodeId(Opc.Ua.ReferenceTypes.AllowedSubtype);
+
+        /// <remarks />
+        public static readonly NodeId HasDataTypeRefinement = new NodeId(Opc.Ua.ReferenceTypes.HasDataTypeRefinement);
 
         /// <remarks />
         public static readonly NodeId HasGuard = new NodeId(Opc.Ua.ReferenceTypes.HasGuard);
@@ -36051,6 +36372,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId HasReferenceDescription = new NodeId(Opc.Ua.ReferenceTypes.HasReferenceDescription);
+
+        /// <remarks />
+        public static readonly NodeId HasSerializationEntity = new NodeId(Opc.Ua.ReferenceTypes.HasSerializationEntity);
     }
     #endregion
 
@@ -36380,6 +36704,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerCapabilitiesType_MaxHistoryContinuationPoints = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxHistoryContinuationPoints);
+
+        /// <remarks />
+        public static readonly NodeId ServerCapabilitiesType_MaxLogObjectContinuationPoints = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxLogObjectContinuationPoints);
 
         /// <remarks />
         public static readonly NodeId ServerCapabilitiesType_SoftwareCertificates = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_SoftwareCertificates);
@@ -37124,6 +37451,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId AuditEventType_ClientUserId = new NodeId(Opc.Ua.Variables.AuditEventType_ClientUserId);
+
+        /// <remarks />
+        public static readonly NodeId AuditEventType_ClientApplicationUri = new NodeId(Opc.Ua.Variables.AuditEventType_ClientApplicationUri);
 
         /// <remarks />
         public static readonly NodeId AuditSecurityEventType_StatusCodeId = new NodeId(Opc.Ua.Variables.AuditSecurityEventType_StatusCodeId);
@@ -38209,6 +38539,12 @@ namespace Opc.Ua
         public static readonly NodeId HistoryServerCapabilities_ServerTimestampSupported = new NodeId(Opc.Ua.Variables.HistoryServerCapabilities_ServerTimestampSupported);
 
         /// <remarks />
+        public static readonly NodeId DataTypeRefinementType_FieldDescription_Placeholder = new NodeId(Opc.Ua.Variables.DataTypeRefinementType_FieldDescription_Placeholder);
+
+        /// <remarks />
+        public static readonly NodeId SubtypeRestrictionType_FieldDescription_Placeholder = new NodeId(Opc.Ua.Variables.SubtypeRestrictionType_FieldDescription_Placeholder);
+
+        /// <remarks />
         public static readonly NodeId StateMachineType_CurrentState = new NodeId(Opc.Ua.Variables.StateMachineType_CurrentState);
 
         /// <remarks />
@@ -39184,9 +39520,6 @@ namespace Opc.Ua
         public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = new NodeId(Opc.Ua.Variables.QuantityType_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem);
 
         /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_Dimension = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_Dimension);
-
-        /// <remarks />
         public static readonly NodeId TwoStateVariableType_Id = new NodeId(Opc.Ua.Variables.TwoStateVariableType_Id);
 
         /// <remarks />
@@ -39683,6 +40016,156 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId AlarmSuppressionGroupType_DigitalVariable_Placeholder = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_DigitalVariable_Placeholder);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_EventId = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_EventId);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_EventType = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_EventType);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_SourceNode = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_SourceNode);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_SourceName = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_SourceName);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Time = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Time);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ReceiveTime = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ReceiveTime);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Message = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Message);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Severity = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Severity);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionClassId = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionClassName = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionName = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConditionName);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_BranchId = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_BranchId);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Retain = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Retain);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_EnabledState = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_EnabledState);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_EnabledState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_EnabledState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Quality = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Quality);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Quality_SourceTimestamp);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_LastSeverity = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_LastSeverity);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_LastSeverity_SourceTimestamp);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Comment = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Comment);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Comment_SourceTimestamp);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ClientUserId = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ClientUserId);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_AddComment_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_AckedState = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_AckedState);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_AckedState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_AckedState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ConfirmedState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Acknowledge_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Confirm_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ActiveState = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ActiveState);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ActiveState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ActiveState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_InputNode = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_InputNode);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_SuppressedState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_SuppressedState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_OutOfServiceState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_CurrentState);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_CurrentState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_LastTransition_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_UnshelveTime);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_TimedShelve2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_Unshelve2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_ShelvingState_OneShotShelve2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_SuppressedOrShelved);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_SilenceState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_SilenceState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_LatchedState_Id = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_LatchedState_Id);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Suppress2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Unsuppress2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_RemoveFromService2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_PlaceInService2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Reset2_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmCondition_Placeholder_GetGroupMemberships_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ShelvedStateMachineType_UnshelveTime = new NodeId(Opc.Ua.Variables.ShelvedStateMachineType_UnshelveTime);
@@ -45221,6 +45704,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_Enabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_Enabled);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_IsNonUaApplication = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_IsNonUaApplication);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_KeyCredentials_CreateCredential_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_KeyCredentials_CreateCredential_InputArguments);
@@ -52291,6 +52777,42 @@ namespace Opc.Ua
         public static readonly NodeId ReferenceDescriptionVariableType_ReferenceRefinement = new NodeId(Opc.Ua.Variables.ReferenceDescriptionVariableType_ReferenceRefinement);
 
         /// <remarks />
+        public static readonly NodeId SerializationEntityType_SerializedData = new NodeId(Opc.Ua.Variables.SerializationEntityType_SerializedData);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_IncludeReferenceTypes = new NodeId(Opc.Ua.Variables.SerializationEntityType_IncludeReferenceTypes);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_ExcludeReferenceTypes = new NodeId(Opc.Ua.Variables.SerializationEntityType_ExcludeReferenceTypes);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_SerializationDepth = new NodeId(Opc.Ua.Variables.SerializationEntityType_SerializationDepth);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_ConsiderSubElementSerializationProperties = new NodeId(Opc.Ua.Variables.SerializationEntityType_ConsiderSubElementSerializationProperties);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_CustomMetaDataProperties = new NodeId(Opc.Ua.Variables.SerializationEntityType_CustomMetaDataProperties);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_CustomMetaDataRef = new NodeId(Opc.Ua.Variables.SerializationEntityType_CustomMetaDataRef);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_IncludeStatus = new NodeId(Opc.Ua.Variables.SerializationEntityType_IncludeStatus);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_IncludeSourceTimestamp = new NodeId(Opc.Ua.Variables.SerializationEntityType_IncludeSourceTimestamp);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_IncludeDictionaryReference = new NodeId(Opc.Ua.Variables.SerializationEntityType_IncludeDictionaryReference);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_ConfigureSerialization_InputArguments = new NodeId(Opc.Ua.Variables.SerializationEntityType_ConfigureSerialization_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId SerializationEntityType_ConfigureSerialization_OutputArguments = new NodeId(Opc.Ua.Variables.SerializationEntityType_ConfigureSerialization_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId LogObjectType_GetRecords_InputArguments = new NodeId(Opc.Ua.Variables.LogObjectType_GetRecords_InputArguments);
 
         /// <remarks />
@@ -52526,6 +53048,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserTokenSettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_ServiceCertificateDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ServiceCertificateDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_AuthorizationServiceConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AuthorizationServiceConfigurationDataType);
@@ -53090,6 +53615,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserTokenSettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_ServiceCertificateDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ServiceCertificateDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_AuthorizationServiceConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AuthorizationServiceConfigurationDataType);
@@ -54079,6 +54607,9 @@ namespace Opc.Ua
         public const string Aggregates = "Aggregates";
 
         /// <remarks />
+        public const string AlarmCondition_Placeholder = "<AlarmCondition>";
+
+        /// <remarks />
         public const string AlarmConditionInstance_Placeholder = "<AlarmConditionInstance>";
 
         /// <remarks />
@@ -54133,7 +54664,13 @@ namespace Opc.Ua
         public const string AliasNameType = "AliasNameType";
 
         /// <remarks />
+        public const string AllowedSubtype = "AllowedSubtype";
+
+        /// <remarks />
         public const string AllowNulls = "AllowNulls";
+
+        /// <remarks />
+        public const string AlternativeUnit_Placeholder = "<AlternativeUnit>";
 
         /// <remarks />
         public const string AlternativeUnits = "AlternativeUnits";
@@ -54709,6 +55246,9 @@ namespace Opc.Ua
         public const string Classification = "Classification";
 
         /// <remarks />
+        public const string ClientApplicationUri = "ClientApplicationUri";
+
+        /// <remarks />
         public const string ClientAuditEntryId = "ClientAuditEntryId";
 
         /// <remarks />
@@ -54838,6 +55378,9 @@ namespace Opc.Ua
         public const string ConfiguredSize = "ConfiguredSize";
 
         /// <remarks />
+        public const string ConfigureSerialization = "ConfigureSerialization";
+
+        /// <remarks />
         public const string Confirm = "Confirm";
 
         /// <remarks />
@@ -54866,6 +55409,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ConnectSecurityGroups = "ConnectSecurityGroups";
+
+        /// <remarks />
+        public const string ConsiderSubElementSerializationProperties = "ConsiderSubElementSerializationProperties";
 
         /// <remarks />
         public const string Constant = "Constant";
@@ -55021,6 +55567,12 @@ namespace Opc.Ua
         public const string CustomConfiguration = "CustomConfiguration";
 
         /// <remarks />
+        public const string CustomMetaDataProperties = "CustomMetaDataProperties";
+
+        /// <remarks />
+        public const string CustomMetaDataRef = "CustomMetaDataRef";
+
+        /// <remarks />
         public const string CyclicDataSet = "CyclicDataSet";
 
         /// <remarks />
@@ -55091,6 +55643,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string DataSetMetaDataType = "DataSetMetaDataType";
+
+        /// <remarks />
+        public const string DataSetName_Placeholder = "<DataSetName>";
 
         /// <remarks />
         public const string DataSetOffset = "DataSetOffset";
@@ -55175,6 +55730,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string DataTypeNode = "DataTypeNode";
+
+        /// <remarks />
+        public const string DataTypeRefinementType = "DataTypeRefinementType";
 
         /// <remarks />
         public const string DataTypeSchemaHeader = "DataTypeSchemaHeader";
@@ -55636,6 +56194,9 @@ namespace Opc.Ua
         public const string ExceptionDeviationFormat = "ExceptionDeviationFormat";
 
         /// <remarks />
+        public const string ExcludeReferenceTypes = "ExcludeReferenceTypes";
+
+        /// <remarks />
         public const string ExclusiveDeviationAlarmType = "ExclusiveDeviationAlarmType";
 
         /// <remarks />
@@ -55691,6 +56252,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string FalseState = "FalseState";
+
+        /// <remarks />
+        public const string FieldDescription_Placeholder = "<FieldDescription>";
 
         /// <remarks />
         public const string FieldMetaData = "FieldMetaData";
@@ -55903,6 +56467,9 @@ namespace Opc.Ua
         public const string HasDataSetWriter = "HasDataSetWriter";
 
         /// <remarks />
+        public const string HasDataTypeRefinement = "HasDataTypeRefinement";
+
+        /// <remarks />
         public const string HasDescription = "HasDescription";
 
         /// <remarks />
@@ -55934,6 +56501,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string HasFalseSubState = "HasFalseSubState";
+
+        /// <remarks />
+        public const string HasFieldDescription = "HasFieldDescription";
+
+        /// <remarks />
+        public const string HasFieldDescriptionSetMandatory = "HasFieldDescriptionSetMandatory";
 
         /// <remarks />
         public const string HasGuard = "HasGuard";
@@ -55985,6 +56558,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string HasSecureElement = "HasSecureElement";
+
+        /// <remarks />
+        public const string HasSerializationEntity = "HasSerializationEntity";
 
         /// <remarks />
         public const string HasStructuredComponent = "HasStructuredComponent";
@@ -56215,6 +56791,18 @@ namespace Opc.Ua
         public const string InApplicationSetup = "InApplicationSetup";
 
         /// <remarks />
+        public const string IncludeDictionaryReference = "IncludeDictionaryReference";
+
+        /// <remarks />
+        public const string IncludeReferenceTypes = "IncludeReferenceTypes";
+
+        /// <remarks />
+        public const string IncludeSourceTimestamp = "IncludeSourceTimestamp";
+
+        /// <remarks />
+        public const string IncludeStatus = "IncludeStatus";
+
+        /// <remarks />
         public const string Index = "Index";
 
         /// <remarks />
@@ -56317,6 +56905,9 @@ namespace Opc.Ua
         public const string IsDeprecated = "IsDeprecated";
 
         /// <remarks />
+        public const string IsDisabledOptionalField = "IsDisabledOptionalField";
+
+        /// <remarks />
         public const string IsExecutableOn = "IsExecutableOn";
 
         /// <remarks />
@@ -56327,6 +56918,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string IsNamespaceSubset = "IsNamespaceSubset";
+
+        /// <remarks />
+        public const string IsNonUaApplication = "IsNonUaApplication";
 
         /// <remarks />
         public const string IsPhysicallyConnectedTo = "IsPhysicallyConnectedTo";
@@ -56548,10 +57142,16 @@ namespace Opc.Ua
         public const string LldpManagementAddressType = "LldpManagementAddressType";
 
         /// <remarks />
+        public const string LldpPortInformation_Placeholder = "<LldpPortInformation>";
+
+        /// <remarks />
         public const string LldpPortInformationType = "LldpPortInformationType";
 
         /// <remarks />
         public const string LldpRemoteStatisticsType = "LldpRemoteStatisticsType";
+
+        /// <remarks />
+        public const string LldpRemoteSystem_Placeholder = "<LldpRemoteSystem>";
 
         /// <remarks />
         public const string LldpRemoteSystemType = "LldpRemoteSystemType";
@@ -56738,6 +57338,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string MaxLifetimeCount = "MaxLifetimeCount";
+
+        /// <remarks />
+        public const string MaxLogObjectContinuationPoints = "MaxLogObjectContinuationPoints";
 
         /// <remarks />
         public const string MaxMonitoredItems = "MaxMonitoredItems";
@@ -57676,12 +58279,6 @@ namespace Opc.Ua
         public const string Quantities = "Quantities";
 
         /// <remarks />
-        public const string QuantitiesFolderType = "QuantitiesFolderType";
-
-        /// <remarks />
-        public const string Quantity_Placeholder = "<Quantity>";
-
-        /// <remarks />
         public const string QuantityDimension = "QuantityDimension";
 
         /// <remarks />
@@ -58282,6 +58879,15 @@ namespace Opc.Ua
         public const string SemanticVersionString = "SemanticVersionString";
 
         /// <remarks />
+        public const string SerializationDepth = "SerializationDepth";
+
+        /// <remarks />
+        public const string SerializationEntityType = "SerializationEntityType";
+
+        /// <remarks />
+        public const string SerializedData = "SerializedData";
+
+        /// <remarks />
         public const string Server = "Server";
 
         /// <remarks />
@@ -58366,6 +58972,9 @@ namespace Opc.Ua
         public const string ServerType = "ServerType";
 
         /// <remarks />
+        public const string ServerUnit_Placeholder = "<ServerUnit>";
+
+        /// <remarks />
         public const string ServerUnits = "ServerUnits";
 
         /// <remarks />
@@ -58385,6 +58994,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ServiceCertificate = "ServiceCertificate";
+
+        /// <remarks />
+        public const string ServiceCertificateDataType = "ServiceCertificateDataType";
 
         /// <remarks />
         public const string ServiceCounterDataType = "ServiceCounterDataType";
@@ -58618,10 +59230,28 @@ namespace Opc.Ua
         public const string State = "State";
 
         /// <remarks />
+        public const string StateDisabledByMethod = "StateDisabledByMethod";
+
+        /// <remarks />
+        public const string StateError = "StateError";
+
+        /// <remarks />
         public const string StateMachineType = "StateMachineType";
 
         /// <remarks />
         public const string StateNumber = "StateNumber";
+
+        /// <remarks />
+        public const string StateOperationalByMethod = "StateOperationalByMethod";
+
+        /// <remarks />
+        public const string StateOperationalByParent = "StateOperationalByParent";
+
+        /// <remarks />
+        public const string StateOperationalFromError = "StateOperationalFromError";
+
+        /// <remarks />
+        public const string StatePausedByParent = "StatePausedByParent";
 
         /// <remarks />
         public const string StateType = "StateType";
@@ -58736,6 +59366,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string SubscriptionId = "SubscriptionId";
+
+        /// <remarks />
+        public const string SubtypeRestrictionType = "SubtypeRestrictionType";
 
         /// <remarks />
         public const string SupportedDataType = "SupportedDataType";
@@ -59242,9 +59875,6 @@ namespace Opc.Ua
         public const string UserConfigurationMask = "UserConfigurationMask";
 
         /// <remarks />
-        public const string UserCredentialCertificateType = "UserCredentialCertificateType";
-
-        /// <remarks />
         public const string UserIdentityToken = "UserIdentityToken";
 
         /// <remarks />
@@ -59278,10 +59908,16 @@ namespace Opc.Ua
         public const string UserWritable = "UserWritable";
 
         /// <remarks />
+        public const string UsesDataTypeRefinement = "UsesDataTypeRefinement";
+
+        /// <remarks />
         public const string UseSlopedExtrapolation = "UseSlopedExtrapolation";
 
         /// <remarks />
         public const string UsesPriorityMappingTable = "UsesPriorityMappingTable";
+
+        /// <remarks />
+        public const string UsesSubtypeRestriction = "UsesSubtypeRestriction";
 
         /// <remarks />
         public const string UtcTime = "UtcTime";
