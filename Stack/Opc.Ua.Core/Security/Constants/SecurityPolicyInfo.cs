@@ -228,6 +228,30 @@ namespace Opc.Ua
         };
 
         /// <summary>
+        /// The security policy that uses SHA1 and 256 bit encryption. This policy is considered insecure and should not be used for new deployments.
+        /// </summary>
+        public static readonly SecurityPolicyInfo Basic256 = new(SecurityPolicies.Basic256)
+        {
+            DerivedSignatureKeyLength = 192 / 8,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            InitializationVectorLength = 128 / 8,
+            MinAsymmetricKeyLength = 1024,
+            MaxAsymmetricKeyLength = 2048,
+            SecureChannelNonceLength = 32,
+            LegacySequenceNumbers = true,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.RsaOaepSha1,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha1,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha1,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.None,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.PSha1,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha1,
+            IsDeprecated = true
+        };
+
+        /// <summary>
         /// Aes128_Sha256_RsaOaep is a required minimum security policy. It uses SHA256 and 128 bit encryption.
         /// </summary>
         public static readonly SecurityPolicyInfo Aes128_Sha256_RsaOaep = new(SecurityPolicies.Aes128_Sha256_RsaOaep)
