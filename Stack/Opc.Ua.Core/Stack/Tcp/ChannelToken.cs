@@ -112,16 +112,6 @@ namespace Opc.Ua.Bindings
         public byte[] ServerNonce { get; set; }
 
         /// <summary>
-        /// The certificate provided by the server.
-        /// </summary>
-        public byte[] ServerCertificate { get; set; }
-
-        /// <summary>
-        /// The certificate provided by the client.
-        /// </summary>
-        public byte[] ClientCertificate { get; set; }
-
-        /// <summary>
         /// The key used to sign messages sent by the client.
         /// </summary>
         internal byte[] ClientSigningKey { get; set; }
