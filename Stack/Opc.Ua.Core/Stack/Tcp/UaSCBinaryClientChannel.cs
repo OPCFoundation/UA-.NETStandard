@@ -1689,6 +1689,7 @@ namespace Opc.Ua.Bindings
         private readonly Random m_random;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+
         private static readonly string s_implementationString =
             "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
     }

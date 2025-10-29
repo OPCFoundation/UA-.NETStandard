@@ -32,17 +32,19 @@ namespace Opc.Ua.Client
         /// </remarks>
         /// <param name="requestHeader">Request header to use</param>
         /// <param name="nodeIds">The nodeId collection to read.</param>
-        /// <param name="optionalAttributes">If optional attributes to read.</param>
+        /// <param name="skipOptionalAttributes">If optional attributes should
+        /// not be read.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The node collection and associated errors.</returns>
         ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
             IReadOnlyList<NodeId> nodeIds,
-            bool optionalAttributes = true,
+            bool skipOptionalAttributes = false,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
+        /// Reads the values for the node attributes and returns a node object
+        /// collection.
         /// </summary>
         /// <remarks>
         /// If the nodeclass for the nodes in nodeIdCollection is already known
@@ -53,15 +55,15 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The nodeId collection to read.</param>
         /// <param name="nodeClass">The nodeClass of all nodes in the collection.
         /// Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes
-        /// should not be omitted.</param>
+        /// <param name="skipOptionalAttributes">Set to <c>true</c> if optional
+        /// attributes should omitted.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The node collection and associated errors.</returns>
         ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
             IReadOnlyList<NodeId> nodeIds,
-            NodeClass nodeClass = NodeClass.Unspecified,
-            bool optionalAttributes = true,
+            NodeClass nodeClass,
+            bool skipOptionalAttributes = false,
             CancellationToken ct = default);
 
         /// <summary>
@@ -74,13 +76,13 @@ namespace Opc.Ua.Client
         /// <param name="requestHeader">Request header to use</param>
         /// <param name="nodeId">The nodeId.</param>
         /// <param name="nodeClass">The nodeclass of the node to read.</param>
-        /// <param name="optionalAttributes">Read optional attributes.</param>
+        /// <param name="skipOptionalAttributes">Skip reading optional attributes.</param>
         /// <param name="ct">The cancellation token for the request.</param>
         ValueTask<Node> FetchNodeAsync(
             RequestHeader? requestHeader,
             NodeId nodeId,
             NodeClass nodeClass = NodeClass.Unspecified,
-            bool optionalAttributes = true,
+            bool skipOptionalAttributes = false,
             CancellationToken ct = default);
 
         /// <summary>

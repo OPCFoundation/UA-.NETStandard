@@ -221,7 +221,8 @@ namespace Opc.Ua.Client
         bool DeleteSubscriptionsOnClose { get; set; }
 
         /// <summary>
-        /// Gets or sets the time in milliseconds to wait for outstanding publish requests to complete before canceling them during session close.
+        /// Gets or sets the time in milliseconds to wait for outstanding publish
+        /// requests to complete before canceling them during session close.
         /// </summary>
         /// <remarks>
         /// A value of 0 means no waiting - outstanding requests are canceled immediately.
@@ -305,16 +306,9 @@ namespace Opc.Ua.Client
         OperationLimits OperationLimits { get; }
 
         /// <summary>
-        /// Max continuation points per browse supported by the server
-        /// TODO: Add to a new limits class
+        /// Stores the capabilities of a OPC UA server.
         /// </summary>
-        uint ServerMaxContinuationPointsPerBrowse { get; }
-
-        /// <summary>
-        /// Server max byte string length
-        /// TODO: Add to a new limits class
-        /// </summary>
-        uint ServerMaxByteStringLength { get; }
+        ServerCapabilities ServerCapabilities { get; }
 
         /// <summary>
         /// If the subscriptions are transferred when a session is reconnected.
@@ -342,19 +336,15 @@ namespace Opc.Ua.Client
         event RenewUserIdentityEventHandler RenewUserIdentity;
 
         /// <summary>
-        /// Reconnects to the server after a network failure.
+        /// Reconnects to the server after a network failure using
+        /// a waiting connection or channel which either is provided.
+        /// If none is provided creates a new channel.
         /// </summary>
-        Task ReconnectAsync(CancellationToken ct = default);
-
-        /// <summary>
-        /// Reconnects to the server after a network failure using a waiting connection.
-        /// </summary>
-        Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reconnects to the server using a new channel.
-        /// </summary>
-        Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default);
+        /// <exception cref="ServiceResultException"></exception>
+        Task ReconnectAsync(
+            ITransportWaitingConnection connection,
+            ITransportChannel channel,
+            CancellationToken ct = default);
 
         /// <summary>
         ///Reload the own certificate used by the session and the issuer chain when available.
@@ -423,47 +413,6 @@ namespace Opc.Ua.Client
         /// Establishes a session with the server.
         /// </summary>
         /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct = default);
-
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the
-        /// domain in the certificate must match the endpoint used.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            bool checkDomain,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The session timeout.</param>
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The list of preferred locales.</param>
@@ -500,16 +449,6 @@ namespace Opc.Ua.Client
         Task ChangePreferredLocalesAsync(
             StringCollection preferredLocales,
             CancellationToken ct = default);
-
-        /// <summary>
-        /// Close the session with the server and optionally closes the channel.
-        /// </summary>
-        Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default);
-
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
-        Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default);
 
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.

@@ -36,7 +36,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -132,7 +132,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     NodeClass.Unspecified,
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(expected)
                 .Verifiable(Times.Once);
@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     NodeClass.Unspecified,
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, NodeId, NodeClass, bool, CancellationToken>((_, nodeId, _, _, ct)
                     => ValueTask.FromResult(expected))
@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     NodeClass.Unspecified,
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, NodeId, NodeClass, bool, CancellationToken>((_, nodeId, _, _, ct)
                     => ValueTask.FromException<Node>(new ServiceResultException()))
@@ -290,7 +290,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == id),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -394,7 +394,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == childId),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -406,7 +406,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -486,7 +486,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -572,7 +572,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -614,7 +614,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -698,7 +698,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
-                    true,
+                    false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
                 {

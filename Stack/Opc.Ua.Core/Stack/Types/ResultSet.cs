@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <typeparam name="T"></typeparam>
     /// <param name="Results"></param>
     /// <param name="Errors"></param>
-    public record struct ResultSet<T>(
+    public readonly record struct ResultSet<T>(
         IReadOnlyList<T> Results,
         IReadOnlyList<ServiceResult> Errors)
     {
@@ -48,7 +48,7 @@ namespace Opc.Ua
         {
             return results.Count == 0 ?
                 ResultSet<T>.Empty :
-                new(results, new ServiceResult[results.Count]);
+                new(results, [.. Enumerable.Repeat(ServiceResult.Good, results.Count)]);
         }
 
         /// <summary>

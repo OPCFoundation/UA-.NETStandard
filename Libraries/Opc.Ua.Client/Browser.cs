@@ -352,10 +352,32 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Manage browsing
+        /// 1. if, during a Browse or BrowseNext, service call one of the status codes
+        /// BadNoContinuationPoint or BadContinuationPointInvalid is returned,
+        /// the node is browsed again.
+        /// 2. tries to avoid the status code BadNoContinuationPoint by creating
+        /// packages of size at most MaxNodesPerBrowse, taken from the Operationlimits
+        /// retrieved from the server at client startup.
+        /// 3. with the help of a new property of the session the new method calls
+        /// Browse for at most
+        /// min(MaxNodesPerBrowse, MaxBrowseContinuationPoints)
+        /// nodes in one call, to further reduce the risk of the status code
+        /// BadNoContinuationPoint
+        /// 4. calls BrowseNext, if necessary, before working on a new package. This is
+        /// the reason that the packages have to be created directly in this method
+        /// and package creation cannot be delegated to the SessionClientBatched class.
+        /// This call sequence avoids the cannibalization of continuation points from
+        /// previously worked on packages, at least if no concurrent browse operation
+        /// is started. (The server is supposed to manage the continuation point quota
+        /// on session level.The reference server, which is used in the tests, does
+        /// this correctly).
+        /// 5. the maximum number of browse continuation points is retrieved from
+        /// the server capabilities in a new method, which may also be viewed as
+        /// a prototype for evaluation of all server capabilities (this is not an
+        /// operation limit).
         /// </summary>
-        /// <param name="nodesToBrowse"></param>
-        /// <param name="ct"></param>
+        /// <param name="nodesToBrowse">The nodes to browse</param>
+        /// <param name="ct">Cancellation token to use</param>
         /// <returns></returns>
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<ResultSet<ReferenceDescriptionCollection>> BrowseAsync(
@@ -379,153 +401,141 @@ namespace Opc.Ua.Client
                 result.Add([]);
                 errors.Add(new ServiceResult(StatusCodes.Good));
             }
-            try
+            // in the first pass, we browse all nodes from the input.
+            // Some nodes may need to be browsed again, these are then fed into the next pass.
+            var nodesToBrowseForPass = new List<NodeId>(count);
+            nodesToBrowseForPass.AddRange(nodesToBrowse);
+
+            var resultForPass = new List<ReferenceDescriptionCollection>(count);
+            resultForPass.AddRange(result);
+
+            var errorsForPass = new List<ServiceResult>(count);
+            errorsForPass.AddRange(errors);
+
+            int passCount = 0;
+
+            do
             {
-                // in the first pass, we browse all nodes from the input.
-                // Some nodes may need to be browsed again, these are then fed into the next pass.
-                var nodesToBrowseForPass = new List<NodeId>(count);
-                nodesToBrowseForPass.AddRange(nodesToBrowse);
+                int badNoCPErrorsPerPass = 0;
+                int badCPInvalidErrorsPerPass = 0;
+                int otherErrorsPerPass = 0;
+                uint maxNodesPerBrowse = session.OperationLimits.MaxNodesPerBrowse;
 
-                var resultForPass = new List<ReferenceDescriptionCollection>(count);
-                resultForPass.AddRange(result);
-
-                var errorsForPass = new List<ServiceResult>(count);
-                errorsForPass.AddRange(errors);
-
-                int passCount = 0;
-
-                do
+                if (session.ContinuationPointPolicy == ContinuationPointPolicy.Balanced &&
+                    session.ServerCapabilities.MaxBrowseContinuationPoints > 0)
                 {
-                    int badNoCPErrorsPerPass = 0;
-                    int badCPInvalidErrorsPerPass = 0;
-                    int otherErrorsPerPass = 0;
-                    uint maxNodesPerBrowse = session.OperationLimits.MaxNodesPerBrowse;
+                    maxNodesPerBrowse =
+                        session.ServerCapabilities.MaxBrowseContinuationPoints < maxNodesPerBrowse
+                            ? session.ServerCapabilities.MaxBrowseContinuationPoints
+                            : maxNodesPerBrowse;
+                }
 
-                    if (session.ContinuationPointPolicy == ContinuationPointPolicy.Balanced &&
-                        session.ServerMaxContinuationPointsPerBrowse > 0)
+                // split input into batches
+                int batchOffset = 0;
+
+                var nodesToBrowseForNextPass = new List<NodeId>();
+                var referenceDescriptionsForNextPass
+                    = new List<ReferenceDescriptionCollection>();
+                var errorsForNextPass = new List<ServiceResult>();
+
+                // loop over the batches
+                foreach (List<NodeId> nodesToBrowseBatch in nodesToBrowseForPass
+                    .Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
+                {
+                    int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
+
+                    ResultSet<ReferenceDescriptionCollection> results = await BrowseAsync(
+                        session,
+                        state.RequestHeader,
+                        state.View,
+                        nodesToBrowseBatch,
+                        state.MaxReferencesReturned,
+                        state.BrowseDirection,
+                        state.ReferenceTypeId,
+                        state.IncludeSubtypes,
+                        state.NodeClassMask,
+                        ct)
+                    .ConfigureAwait(false);
+
+                    int resultOffset = batchOffset;
+                    for (int ii = 0; ii < nodesToBrowseBatchCount; ii++)
                     {
-                        maxNodesPerBrowse =
-                            session.ServerMaxContinuationPointsPerBrowse < maxNodesPerBrowse
-                                ? session.ServerMaxContinuationPointsPerBrowse
-                                : maxNodesPerBrowse;
-                    }
-
-                    // split input into batches
-                    int batchOffset = 0;
-
-                    var nodesToBrowseForNextPass = new List<NodeId>();
-                    var referenceDescriptionsForNextPass
-                        = new List<ReferenceDescriptionCollection>();
-                    var errorsForNextPass = new List<ServiceResult>();
-
-                    // loop over the batches
-                    foreach (List<NodeId> nodesToBrowseBatch in nodesToBrowseForPass
-                        .Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
-                    {
-                        int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
-
-                        ResultSet<ReferenceDescriptionCollection> results = await BrowseAsync(
-                            session,
-                            state.RequestHeader,
-                            state.View,
-                            nodesToBrowseBatch,
-                            state.MaxReferencesReturned,
-                            state.BrowseDirection,
-                            state.ReferenceTypeId,
-                            state.IncludeSubtypes,
-                            state.NodeClassMask,
-                            ct)
-                        .ConfigureAwait(false);
-
-                        int resultOffset = batchOffset;
-                        for (int ii = 0; ii < nodesToBrowseBatchCount; ii++)
+                        StatusCode statusCode = results.Errors[ii].StatusCode;
+                        if (StatusCode.IsBad(statusCode))
                         {
-                            StatusCode statusCode = results.Errors[ii].StatusCode;
-                            if (StatusCode.IsBad(statusCode))
+                            bool addToNextPass = false;
+                            if (statusCode == StatusCodes.BadNoContinuationPoints)
                             {
-                                bool addToNextPass = false;
-                                if (statusCode == StatusCodes.BadNoContinuationPoints)
-                                {
-                                    addToNextPass = true;
-                                    badNoCPErrorsPerPass++;
-                                }
-                                else if (statusCode == StatusCodes.BadContinuationPointInvalid)
-                                {
-                                    addToNextPass = true;
-                                    badCPInvalidErrorsPerPass++;
-                                }
-                                else
-                                {
-                                    otherErrorsPerPass++;
-                                }
-
-                                if (addToNextPass)
-                                {
-                                    nodesToBrowseForNextPass.Add(
-                                        nodesToBrowseForPass[resultOffset]);
-                                    referenceDescriptionsForNextPass.Add(
-                                        resultForPass[resultOffset]);
-                                    errorsForNextPass.Add(errorsForPass[resultOffset]);
-                                }
+                                addToNextPass = true;
+                                badNoCPErrorsPerPass++;
+                            }
+                            else if (statusCode == StatusCodes.BadContinuationPointInvalid)
+                            {
+                                addToNextPass = true;
+                                badCPInvalidErrorsPerPass++;
+                            }
+                            else
+                            {
+                                otherErrorsPerPass++;
                             }
 
-                            resultForPass[resultOffset].Clear();
-                            resultForPass[resultOffset].AddRange(results.Results[ii]);
-                            errorsForPass[resultOffset] = results.Errors[ii];
-                            resultOffset++;
+                            if (addToNextPass)
+                            {
+                                nodesToBrowseForNextPass.Add(
+                                    nodesToBrowseForPass[resultOffset]);
+                                referenceDescriptionsForNextPass.Add(
+                                    resultForPass[resultOffset]);
+                                errorsForNextPass.Add(errorsForPass[resultOffset]);
+                            }
                         }
 
-                        batchOffset += nodesToBrowseBatchCount;
+                        resultForPass[resultOffset].Clear();
+                        resultForPass[resultOffset].AddRange(results.Results[ii]);
+                        errorsForPass[resultOffset] = results.Errors[ii];
+                        errors[resultOffset] = results.Errors[ii];
+                        resultOffset++;
                     }
 
-                    resultForPass = referenceDescriptionsForNextPass;
-                    referenceDescriptionsForNextPass = [];
+                    batchOffset += nodesToBrowseBatchCount;
+                }
 
-                    errorsForPass = errorsForNextPass;
-                    errorsForNextPass = [];
+                resultForPass = referenceDescriptionsForNextPass;
+                errorsForPass = errorsForNextPass;
+                nodesToBrowseForPass = nodesToBrowseForNextPass;
 
-                    nodesToBrowseForPass = nodesToBrowseForNextPass;
-                    nodesToBrowseForNextPass = [];
+                if (badCPInvalidErrorsPerPass > 0)
+                {
+                    m_logger.LogDebug(
+                        "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
+                        passCount,
+                        badCPInvalidErrorsPerPass,
+                        nameof(StatusCodes.BadContinuationPointInvalid));
+                }
+                if (badNoCPErrorsPerPass > 0)
+                {
+                    m_logger.LogDebug(
+                        "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
+                        passCount,
+                        badNoCPErrorsPerPass,
+                        nameof(StatusCodes.BadNoContinuationPoints));
+                }
+                if (otherErrorsPerPass > 0)
+                {
+                    m_logger.LogDebug(
+                        "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
+                        passCount,
+                        otherErrorsPerPass,
+                        $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
+                }
+                if (otherErrorsPerPass == 0 &&
+                    badCPInvalidErrorsPerPass == 0 &&
+                    badNoCPErrorsPerPass == 0)
+                {
+                    m_logger.LogTrace("ManagedBrowse completed with no errors.");
+                }
 
-                    if (badCPInvalidErrorsPerPass > 0)
-                    {
-                        m_logger.LogDebug(
-                            "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
-                            passCount,
-                            badCPInvalidErrorsPerPass,
-                            nameof(StatusCodes.BadContinuationPointInvalid));
-                    }
-                    if (badNoCPErrorsPerPass > 0)
-                    {
-                        m_logger.LogDebug(
-                            "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
-                            passCount,
-                            badNoCPErrorsPerPass,
-                            nameof(StatusCodes.BadNoContinuationPoints));
-                    }
-                    if (otherErrorsPerPass > 0)
-                    {
-                        m_logger.LogDebug(
-                            "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
-                            passCount,
-                            otherErrorsPerPass,
-                            $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
-                    }
-                    if (otherErrorsPerPass == 0 &&
-                        badCPInvalidErrorsPerPass == 0 &&
-                        badNoCPErrorsPerPass == 0)
-                    {
-                        m_logger.LogTrace("ManagedBrowse completed with no errors.");
-                    }
-
-                    passCount++;
-                } while (nodesToBrowseForPass.Count > 0);
-            }
-            catch (Exception ex)
-            {
-                m_logger.LogError(ex, "ManagedBrowse failed");
-            }
-
+                passCount++;
+            } while (nodesToBrowseForPass.Count > 0);
             return new ResultSet<ReferenceDescriptionCollection>(result, errors);
         }
 

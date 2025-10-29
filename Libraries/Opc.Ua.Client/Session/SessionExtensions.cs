@@ -46,6 +46,136 @@ namespace Opc.Ua.Client
     public static class SessionExtensions
     {
         /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="session">session to use</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public static Task OpenAsync(
+            this ISession session,
+            string sessionName,
+            IUserIdentity identity,
+            CancellationToken ct = default)
+        {
+            return session.OpenAsync(sessionName, 0, identity, null, ct);
+        }
+
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="session">session to use</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public static Task OpenAsync(
+            this ISession session,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string>? preferredLocales,
+            CancellationToken ct = default)
+        {
+            return session.OpenAsync(
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                true,
+                ct);
+        }
+
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="session">session to use</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the
+        /// domain in the certificate must match the endpoint used.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public static Task OpenAsync(
+            this ISession session,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string>? preferredLocales,
+            bool checkDomain,
+            CancellationToken ct = default)
+        {
+            return session.OpenAsync(
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                checkDomain,
+                true,
+                ct);
+        }
+
+        /// <summary>
+        /// Reconnects to the server after a network failure.
+        /// Uses the current channel if possible or creates
+        /// a new one.
+        /// </summary>
+        public static Task ReconnectAsync(
+            this ISession session,
+            CancellationToken ct = default)
+        {
+            return session.ReconnectAsync(null, null, ct);
+        }
+
+        /// <summary>
+        /// Reconnects to the server on a waiting connection
+        /// </summary>
+        public static Task ReconnectAsync(
+            this ISession session,
+            ITransportWaitingConnection connection,
+            CancellationToken ct = default)
+        {
+            return session.ReconnectAsync(connection, null, ct);
+        }
+
+        /// <summary>
+        /// Reconnects to the server after a network failure
+        /// using a new channel.
+        /// </summary>
+        public static Task ReconnectAsync(
+            this ISession session,
+            ITransportChannel channel,
+            CancellationToken ct = default)
+        {
+            return session.ReconnectAsync(null, channel, ct);
+        }
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        public static Task<StatusCode> CloseAsync(
+            this ISession session,
+            bool closeChannel,
+            CancellationToken ct = default)
+        {
+            return session.CloseAsync(session.KeepAliveInterval, closeChannel, ct);
+        }
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources (closes
+        /// the channel) with the specified timeout.
+        /// </summary>
+        public static Task<StatusCode> CloseAsync(
+            this ISession session,
+            int timeout,
+            CancellationToken ct = default)
+        {
+            return session.CloseAsync(timeout, true, ct);
+        }
+
+        /// <summary>
         /// Reads the values for a set of variables.
         /// </summary>
         public static async ValueTask<(
@@ -289,7 +419,7 @@ namespace Opc.Ua.Client
                 null,
                 [.. nodeIds],
                 nodeClass,
-                optionalAttributes,
+                !optionalAttributes,
                 ct).ConfigureAwait(false);
             return (result.Results.ToList(), result.Errors.ToList());
         }
@@ -313,7 +443,7 @@ namespace Opc.Ua.Client
             ResultSet<Node> result = await nodeCacheContext.FetchNodesAsync(
                 null,
                 [.. nodeIds],
-                optionalAttributes,
+                !optionalAttributes,
                 ct).ConfigureAwait(false);
             return (result.Results.ToList(), result.Errors.ToList());
         }
@@ -355,7 +485,7 @@ namespace Opc.Ua.Client
                 null,
                 nodeId,
                 nodeClass,
-                optionalAttributes,
+                !optionalAttributes,
                 ct).AsTask();
         }
 
@@ -781,12 +911,11 @@ namespace Opc.Ua.Client
             }
 
             BrowseResponse browseResponse = await session.BrowseAsync(
-                    requestHeader,
-                    view,
-                    maxResultsToReturn,
-                    browseDescriptions,
-                    ct)
-                .ConfigureAwait(false);
+                requestHeader,
+                view,
+                maxResultsToReturn,
+                browseDescriptions,
+                ct).ConfigureAwait(false);
 
             BrowseResultCollection results = browseResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
@@ -960,7 +1089,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            int count = (int)session.ServerMaxByteStringLength;
+            int count = (int)session.ServerCapabilities.MaxByteStringLength;
             if (count <= 1)
             {
                 throw ServiceResultException.Create(

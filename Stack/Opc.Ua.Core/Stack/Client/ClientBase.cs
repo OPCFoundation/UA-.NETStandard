@@ -550,7 +550,7 @@ namespace Opc.Ua
             if (expectedType != null && !expectedType.IsInstanceOfType(value.Value))
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadUnexpectedError,
+                    StatusCodes.BadTypeMismatch,
                     "The server returned data value of type {0} when a value of type {1} was expected.",
                     value.Value != null ? value.Value.GetType().Name : "(null)",
                     expectedType.Name);

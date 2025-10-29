@@ -56,6 +56,11 @@ namespace Opc.Ua.Client
             IReadOnlyList<NodeId> nodeIds,
             CancellationToken ct = default)
         {
+            if (nodeIds.Count == 0)
+            {
+                return new ValueTask<ResultSet<ReferenceDescriptionCollection>>(
+                    ResultSet<ReferenceDescriptionCollection>.Empty);
+            }
             var browser = new Browser(Session, new BrowserOptions
             {
                 RequestHeader = requestHeader,
@@ -71,7 +76,7 @@ namespace Opc.Ua.Client
         public async ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
             IReadOnlyList<NodeId> nodeIds,
-            bool optionalAttributes = false,
+            bool skipOptionalAttributes = false,
             CancellationToken ct = default)
         {
             if (nodeIds.Count == 0)
@@ -118,7 +123,7 @@ namespace Opc.Ua.Client
                 attributesPerNodeId,
                 nodeCollection,
                 serviceResults,
-                optionalAttributes);
+                skipOptionalAttributes);
 
             if (attributesToRead.Count > 0)
             {
@@ -153,8 +158,8 @@ namespace Opc.Ua.Client
         public async ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
             IReadOnlyList<NodeId> nodeIds,
-            NodeClass nodeClass = NodeClass.Unspecified,
-            bool optionalAttributes = false,
+            NodeClass nodeClass,
+            bool skipOptionalAttributes = false,
             CancellationToken ct = default)
         {
             if (nodeIds.Count == 0)
@@ -164,7 +169,10 @@ namespace Opc.Ua.Client
 
             if (nodeClass == NodeClass.Unspecified)
             {
-                return await FetchNodesAsync(requestHeader, nodeIds, optionalAttributes, ct).ConfigureAwait(false);
+                return await FetchNodesAsync(
+                    requestHeader,
+                    nodeIds,
+                    skipOptionalAttributes, ct).ConfigureAwait(false);
             }
 
             var nodeCollection = new NodeCollection(nodeIds.Count);
@@ -179,7 +187,7 @@ namespace Opc.Ua.Client
                 attributesToRead,
                 attributesPerNodeId,
                 nodeCollection,
-                optionalAttributes);
+                skipOptionalAttributes);
 
             ReadResponse readResponse = await Session.ReadAsync(
                 requestHeader,
@@ -213,13 +221,13 @@ namespace Opc.Ua.Client
             RequestHeader? requestHeader,
             NodeId nodeId,
             NodeClass nodeClass = NodeClass.Unspecified,
-            bool optionalAttributes = true,
+            bool skipOptionalAttributes = false,
             CancellationToken ct = default)
         {
             // build list of attributes.
             IDictionary<uint, DataValue?> attributes = CreateAttributes(
                 nodeClass,
-                optionalAttributes);
+                skipOptionalAttributes);
 
             // build list of values to read.
             var itemsToRead = new ReadValueIdCollection();
@@ -355,9 +363,9 @@ namespace Opc.Ua.Client
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
             NodeCollection nodeCollection,
             List<ServiceResult> errors,
-            bool optionalAttributes)
+            bool skipOptionalAttributes)
         {
-            int? nodeClass;
+            NodeClass? nodeClass;
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
                 var node = new Node { NodeId = itemsToRead[ii].NodeId };
@@ -375,25 +383,32 @@ namespace Opc.Ua.Client
                 }
 
                 // check for valid node class.
-                nodeClass = nodeClassValues[ii].Value as int?;
+                nodeClass = nodeClassValues[ii].Value as NodeClass?;
 
                 if (nodeClass == null)
                 {
-                    nodeCollection.Add(node);
-                    errors.Add(
-                        ServiceResult.Create(
-                            StatusCodes.BadUnexpectedError,
-                            "Node does not have a valid value for NodeClass: {0}.",
-                            nodeClassValues[ii].Value));
-                    attributesPerNodeId.Add(null);
-                    continue;
+                    if (nodeClassValues[ii].Value is int nc)
+                    {
+                        nodeClass = (NodeClass)nc;
+                    }
+                    else
+                    {
+                        nodeCollection.Add(node);
+                        errors.Add(
+                            ServiceResult.Create(
+                                StatusCodes.BadUnexpectedError,
+                                "Node does not have a valid value for NodeClass: {0}.",
+                                nodeClassValues[ii].Value));
+                        attributesPerNodeId.Add(null);
+                        continue;
+                    }
                 }
 
-                node.NodeClass = (NodeClass)nodeClass;
+                node.NodeClass = nodeClass.Value;
 
                 Dictionary<uint, DataValue?> attributes = CreateAttributes(
                     node.NodeClass,
-                    optionalAttributes);
+                    skipOptionalAttributes);
                 foreach (uint attributeId in attributes.Keys)
                 {
                     var itemToRead = new ReadValueId
@@ -476,7 +491,7 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection diagnosticInfos)
         {
             // process results.
-            int? nodeClass = null;
+            NodeClass? nodeClass = null;
 
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
@@ -495,13 +510,19 @@ namespace Opc.Ua.Client
                     }
 
                     // check for valid node class.
-                    nodeClass = values[ii].Value as int?;
-
+                    nodeClass = values[ii].Value as NodeClass?;
                     if (nodeClass == null)
                     {
-                        throw ServiceResultException.Unexpected(
-                            "Node does not have a valid value for NodeClass: {0}.",
-                            values[ii].Value);
+                        if (values[ii].Value is int nc)
+                        {
+                            nodeClass = (NodeClass)nc;
+                        }
+                        else
+                        {
+                            throw ServiceResultException.Unexpected(
+                                "Node does not have a valid value for NodeClass: {0}.",
+                                values[ii].Value);
+                        }
                     }
                 }
                 else if (!DataValue.IsGood(values[ii]))
@@ -546,7 +567,7 @@ namespace Opc.Ua.Client
 
             Node node;
             DataValue? value;
-            switch ((NodeClass?)nodeClass)
+            switch (nodeClass)
             {
                 case NodeClass.Object:
                     var objectNode = new ObjectNode();
@@ -848,7 +869,7 @@ namespace Opc.Ua.Client
             }
 
             node.NodeId = (NodeId)value.GetValue(typeof(NodeId));
-            node.NodeClass = (NodeClass)nodeClass.Value;
+            node.NodeClass = nodeClass.Value;
 
             // BrowseName Attribute
             value = attributes[Attributes.BrowseName];
@@ -936,8 +957,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private static Dictionary<uint, DataValue?> CreateAttributes(
-            NodeClass nodeClass = NodeClass.Unspecified,
-            bool optionalAttributes = true)
+            NodeClass nodeClass,
+            bool skipOptionalAttributes)
         {
             // Attributes to read for all types of nodes
             var attributes = new Dictionary<uint, DataValue?>(Attributes.MaxAttributes)
@@ -991,42 +1012,29 @@ namespace Opc.Ua.Client
                     break;
                 case NodeClass.Unspecified:
                     // build complete list of attributes.
-                    attributes = new Dictionary<uint, DataValue?>(Attributes.MaxAttributes)
-                    {
-                        { Attributes.NodeId, null },
-                        { Attributes.NodeClass, null },
-                        { Attributes.BrowseName, null },
-                        { Attributes.DisplayName, null },
-                        //{ Attributes.Description, null },
-                        //{ Attributes.WriteMask, null },
-                        //{ Attributes.UserWriteMask, null },
-                        { Attributes.DataType, null },
-                        { Attributes.ValueRank, null },
-                        { Attributes.ArrayDimensions, null },
-                        { Attributes.AccessLevel, null },
-                        { Attributes.UserAccessLevel, null },
-                        { Attributes.MinimumSamplingInterval, null },
-                        { Attributes.Historizing, null },
-                        { Attributes.EventNotifier, null },
-                        { Attributes.Executable, null },
-                        { Attributes.UserExecutable, null },
-                        { Attributes.IsAbstract, null },
-                        { Attributes.InverseName, null },
-                        { Attributes.Symmetric, null },
-                        { Attributes.ContainsNoLoops, null },
-                        { Attributes.DataTypeDefinition, null },
-                        //{ Attributes.RolePermissions, null },
-                        //{ Attributes.UserRolePermissions, null },
-                        //{ Attributes.AccessRestrictions, null },
-                        { Attributes.AccessLevelEx, null }
-                    };
+                    attributes.Add(Attributes.DataType, null);
+                    attributes.Add(Attributes.ValueRank, null);
+                    attributes.Add(Attributes.ArrayDimensions, null);
+                    attributes.Add(Attributes.AccessLevel, null);
+                    attributes.Add(Attributes.UserAccessLevel, null);
+                    attributes.Add(Attributes.MinimumSamplingInterval, null);
+                    attributes.Add(Attributes.Historizing, null);
+                    attributes.Add(Attributes.EventNotifier, null);
+                    attributes.Add(Attributes.Executable, null);
+                    attributes.Add(Attributes.UserExecutable, null);
+                    attributes.Add(Attributes.IsAbstract, null);
+                    attributes.Add(Attributes.InverseName, null);
+                    attributes.Add(Attributes.Symmetric, null);
+                    attributes.Add(Attributes.ContainsNoLoops, null);
+                    attributes.Add(Attributes.DataTypeDefinition, null);
+                    attributes.Add(Attributes.AccessLevelEx, null);
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass: {nodeClass}.");
             }
 
-            if (optionalAttributes)
+            if (!skipOptionalAttributes)
             {
                 attributes.Add(Attributes.Description, null);
                 attributes.Add(Attributes.WriteMask, null);
@@ -1043,20 +1051,20 @@ namespace Opc.Ua.Client
         /// Creates a read request with attributes determined by the NodeClass.
         /// </summary>
         private static void CreateNodeClassAttributesReadNodesRequest(
-            IReadOnlyList<NodeId> nodeIdCollection,
+            IReadOnlyList<NodeId> nodeIds,
             NodeClass nodeClass,
             ReadValueIdCollection attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
             NodeCollection nodeCollection,
-            bool optionalAttributes)
+            bool skipOptionalAttributes)
         {
-            for (int ii = 0; ii < nodeIdCollection.Count; ii++)
+            for (int ii = 0; ii < nodeIds.Count; ii++)
             {
-                var node = new Node { NodeId = nodeIdCollection[ii], NodeClass = nodeClass };
+                var node = new Node { NodeId = nodeIds[ii], NodeClass = nodeClass };
 
                 Dictionary<uint, DataValue?> attributes = CreateAttributes(
                     node.NodeClass,
-                    optionalAttributes);
+                    skipOptionalAttributes);
                 foreach (uint attributeId in attributes.Keys)
                 {
                     var itemToRead = new ReadValueId
