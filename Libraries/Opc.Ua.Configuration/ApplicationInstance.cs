@@ -361,13 +361,13 @@ namespace Opc.Ua.Configuration
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
             // doesn't match ApplicationConfiguration.ApplicationUri, however each certificate is validated individually
-            // in CheckApplicationInstanceCertificateAsync (called via CheckCertificateTypeAsync) to ensure it contains 
+            // in CheckApplicationInstanceCertificateAsync (called via CheckOrCreateCertificateAsync) to ensure it contains 
             // the configuration's ApplicationUri.
             bool result = true;
             foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
             {
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
-                bool nextResult = await CheckCertificateTypeAsync(
+                bool nextResult = await CheckOrCreateCertificateAsync(
                         certId,
                         silent,
                         minimumKeySize,
@@ -381,12 +381,14 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Check certificate type.
+        /// Checks, validates, and optionally creates an application certificate.
+        /// Loads the certificate, validates it against configured requirements (ApplicationUri, key size, domains),
+        /// and creates a new certificate if none exists and auto-creation is enabled.
         /// Note: FindAsync searches certificates in order: thumbprint, subjectName, applicationUri.
         /// The applicationUri parameter is only used if thumbprint and subjectName don't find a match.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task<bool> CheckCertificateTypeAsync(
+        private async Task<bool> CheckOrCreateCertificateAsync(
             CertificateIdentifier id,
             bool silent,
             ushort minimumKeySize,
@@ -772,7 +774,10 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            m_logger.LogInformation("Certificate validated for ApplicationUri: {ApplicationUri}", configuration.ApplicationUri);
+            m_logger.LogInformation(
+                "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}",
+                certificate.AsLogSafeString(),
+                configuration.ApplicationUri);
 
             // update configuration.
             id.Certificate = certificate;

@@ -133,6 +133,13 @@ namespace Opc.Ua.Server.Tests
             // Attempt to create session - should succeed
             Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false);
             Assert.NotNull(session);
+            Assert.IsTrue(session.Connected, "Session should be connected");
+
+            // Verify session is functional by reading server state
+            DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
+            Assert.NotNull(result, "Should be able to read server state");
+            Assert.AreEqual(StatusCodes.Good, result.StatusCode, "Read operation should succeed");
+
             await session.CloseAsync(5_000, true).ConfigureAwait(false);
             session.Dispose();
         }
@@ -161,7 +168,7 @@ namespace Opc.Ua.Server.Tests
             // Attempt to create session - should throw BadCertificateUriInvalid
             var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, ex.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUriInvalid, (StatusCode)ex.StatusCode);
         }
 
         /// <summary>
@@ -198,6 +205,13 @@ namespace Opc.Ua.Server.Tests
             // Attempt to create session - should succeed because one URI matches
             Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false);
             Assert.NotNull(session);
+            Assert.IsTrue(session.Connected, "Session should be connected");
+
+            // Verify session is functional by reading server state
+            DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
+            Assert.NotNull(result, "Should be able to read server state");
+            Assert.AreEqual(StatusCodes.Good, result.StatusCode, "Read operation should succeed");
+
             await session.CloseAsync(5_000, true).ConfigureAwait(false);
             session.Dispose();
         }
@@ -236,7 +250,7 @@ namespace Opc.Ua.Server.Tests
             // Attempt to create session - should throw BadCertificateUriInvalid
             var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, ex.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUriInvalid, (StatusCode)ex.StatusCode);
         }
 
         #region Helper Methods
