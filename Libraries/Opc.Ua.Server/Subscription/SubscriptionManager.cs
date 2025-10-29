@@ -1250,6 +1250,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     // find subscription.
+
                     if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out ISubscription subscription))
                     {
                         throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
@@ -1266,7 +1267,7 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Add(null);
                     }
                 }
-                catch (Exception e) when (e is not ServiceResultException)
+                catch (Exception e)
                 {
                     m_logger.LogError(e, "Error occurred in SetPublishingMode");
 
