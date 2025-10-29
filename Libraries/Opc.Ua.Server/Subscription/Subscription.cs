@@ -539,8 +539,10 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // check if keep alive expired.
-                if (m_keepAliveCounter >= m_maxKeepAliveCount)
+                // check if keep alive expired or if this is the first publishing interval.
+                // According to the spec, the server shall send a message after the first publishing interval,
+                // even if there are no notifications, to inform the client that the subscription is operational.
+                if (m_keepAliveCounter >= m_maxKeepAliveCount || m_keepAliveCounter == 1)
                 {
                     if (!m_waitingForPublish)
                     {
