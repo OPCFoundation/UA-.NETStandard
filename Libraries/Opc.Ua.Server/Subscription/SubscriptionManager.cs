@@ -1269,7 +1269,10 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Error occurred in SetPublishingMode");
+                    if (e is not ServiceResultException)
+                    {
+                        m_logger.LogError(e, "Error occurred in SetPublishingMode");
+                    }
 
                     var result = ServiceResult.Create(
                         e,
