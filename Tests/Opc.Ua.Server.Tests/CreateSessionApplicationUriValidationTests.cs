@@ -35,6 +35,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
@@ -263,6 +264,7 @@ namespace Opc.Ua.Server.Tests
             string clientApplicationUri)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var logger = telemetry.CreateLogger<CreateSessionApplicationUriValidationTests>();
 
             // Create temporary PKI directory
             string clientPkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
@@ -318,18 +320,38 @@ namespace Opc.Ua.Server.Tests
                 endpointConfiguration.OperationTimeout = 10000;
                 var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
 
-                // Create and open session
+                // Create and open session with retry logic for transient errors
                 var sessionFactory = new DefaultSessionFactory(telemetry);
-                return await sessionFactory.CreateAsync(
-                    clientConfig,
-                    configuredEndpoint,
-                    false, // updateBeforeConnect
-                    false, // checkDomain
-                    "TestSession",
-                    60000, // sessionTimeout
-                    null, // userIdentity
-                    null) // preferredLocales
-                    .ConfigureAwait(false);
+                const int maxAttempts = 5;
+                const int delayMs = 1000;
+                for (int attempt = 0; ; attempt++)
+                {
+                    try
+                    {
+                        return await sessionFactory.CreateAsync(
+                            clientConfig,
+                            configuredEndpoint,
+                            false, // updateBeforeConnect
+                            false, // checkDomain
+                            "TestSession",
+                            60000, // sessionTimeout
+                            null, // userIdentity
+                            null) // preferredLocales
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException e) when ((e.StatusCode is
+                        StatusCodes.BadServerHalted or
+                        StatusCodes.BadSecureChannelClosed or
+                        StatusCodes.BadNoCommunication or
+                        StatusCodes.BadNotConnected) &&
+                        attempt < maxAttempts)
+                    {
+                        // Retry for transient connection errors (can happen on busy CI environments)
+                        logger.LogWarning(e, "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
+                            attempt + 1, maxAttempts, delayMs, e.StatusCode);
+                        await Task.Delay(delayMs).ConfigureAwait(false);
+                    }
+                }
             }
             finally
             {
