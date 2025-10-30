@@ -4031,7 +4031,6 @@ namespace Opc.Ua.Client
 
                         // raised notification indicating the session is closed.
                         SessionCreated(null, null);
-
                     }
                 }
 
