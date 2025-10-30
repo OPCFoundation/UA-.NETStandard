@@ -811,7 +811,7 @@ namespace Opc.Ua
                 value = InternalParse(text, false);
                 return true;
             }
-            catch
+            catch (Exception)
             {
                 value = Null;
                 return false;
@@ -837,7 +837,7 @@ namespace Opc.Ua
                 value = Parse(context, text, options);
                 return true;
             }
-            catch
+            catch (Exception)
             {
                 value = Null;
                 return false;

@@ -654,17 +654,10 @@ namespace Opc.Ua
         {
             try
             {
-                // check for null.
-                if (string.IsNullOrEmpty(text))
-                {
-                    value = Null;
-                    return true;
-                }
-
-                value = new ExpandedNodeId(text);
+                value = string.IsNullOrEmpty(text) ? Null : new ExpandedNodeId(text);
                 return true;
             }
-            catch
+            catch (Exception)
             {
                 value = Null;
                 return false;
@@ -690,7 +683,7 @@ namespace Opc.Ua
                 value = Parse(context, text, options);
                 return true;
             }
-            catch
+            catch (Exception)
             {
                 value = Null;
                 return false;
