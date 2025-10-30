@@ -934,77 +934,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a subscription.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public NotificationMessage Publish(
-            OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            AsyncPublishOperation operation,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
-        {
-            availableSequenceNumbers = null;
-            moreNotifications = false;
-
-            // get publish queue for session.
-            if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue queue))
-            {
-                if (m_subscriptions.IsEmpty)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
-                }
-
-                throw new ServiceResultException(StatusCodes.BadSessionClosed);
-            }
-
-            // acknowledge previous messages.
-            queue.Acknowledge(
-                context,
-                subscriptionAcknowledgements,
-                out acknowledgeResults,
-                out acknowledgeDiagnosticInfos);
-
-            // update diagnostics.
-            if (context.Session != null)
-            {
-                lock (context.Session.DiagnosticsLock)
-                {
-                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    diagnostics.CurrentPublishRequestsInQueue++;
-                }
-            }
-
-            // save results for asynchronous operation.
-            if (operation != null)
-            {
-                operation.Response.Results = acknowledgeResults;
-                operation.Response.DiagnosticInfos = acknowledgeDiagnosticInfos;
-            }
-
-            // gets the next message that is ready to publish.
-            NotificationMessage message = GetNextMessage(
-                context,
-                queue,
-                operation,
-                out subscriptionId,
-                out availableSequenceNumbers,
-                out moreNotifications);
-
-            // if no message and no async operation then a timeout occurred.
-            if (message == null && operation == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadTimeout);
-            }
-
-            // return message.
-            return message;
-        }
-
-        /// <summary>
         /// Called when a subscription expires.
         /// </summary>
         /// <param name="subscription">The subscription.</param>
@@ -1029,176 +958,146 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Completes the publish.
+        /// Publishes a subscription.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="operation">The asynchronous operation.</param>
-        /// <returns>
-        /// True if successful. False if the request has been requeued.
-        /// </returns>
         /// <exception cref="ServiceResultException"></exception>
-        public bool CompletePublish(OperationContext context, AsyncPublishOperation operation)
+        public NotificationMessage Publish(
+            OperationContext context,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            out uint subscriptionId,
+            out UInt32Collection availableSequenceNumbers,
+            out bool moreNotifications,
+            out StatusCodeCollection acknowledgeResults,
+            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
         {
-            // get publish queue for session.
-            if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue queue))
-            {
-                throw new ServiceResultException(StatusCodes.BadSessionClosed);
-            }
+            PublishResponse response = PublishAsync(context, subscriptionAcknowledgements).GetAwaiter().GetResult();
 
-            UInt32Collection availableSequenceNumbers = null;
+            subscriptionId = response.SubscriptionId;
+            availableSequenceNumbers = response.AvailableSequenceNumbers;
+            moreNotifications = response.MoreNotifications;
+            acknowledgeResults = response.Results;
+            acknowledgeDiagnosticInfos = response.DiagnosticInfos;
 
-            NotificationMessage message = null;
-
-            m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
-            bool requeue = false;
-
-            uint subscriptionId;
-            bool moreNotifications;
-            do
-            {
-                // wait for a subscription to publish.
-                ISubscription subscription = queue.CompletePublish(
-                    requeue,
-                    operation,
-                    operation.Calldata);
-
-                if (subscription == null)
-                {
-                    return false;
-                }
-
-                subscriptionId = subscription.Id;
-                moreNotifications = false;
-
-                // publish notifications.
-                try
-                {
-                    requeue = false;
-
-                    message = subscription.Publish(
-                        context,
-                        out availableSequenceNumbers,
-                        out moreNotifications);
-
-                    // a null message indicates a false alarm and that there were no notifications
-                    // to publish and that the request needs to be requeued.
-                    if (message != null)
-                    {
-                        break;
-                    }
-
-                    m_logger.LogTrace(
-                        "Publish False Alarm - Request #{ClientHandle} Requeued.",
-                        context.ClientHandle);
-                    requeue = true;
-                }
-                finally
-                {
-                    queue.PublishCompleted(subscription, moreNotifications);
-                }
-            } while (requeue);
-
-            // fill in response if operation completed.
-            if (message != null)
-            {
-                operation.Response.SubscriptionId = subscriptionId;
-                operation.Response.AvailableSequenceNumbers = availableSequenceNumbers;
-                operation.Response.MoreNotifications = moreNotifications;
-                operation.Response.NotificationMessage = message;
-
-                // update diagnostics.
-                if (context.Session != null)
-                {
-                    lock (context.Session.DiagnosticsLock)
-                    {
-                        SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                        diagnostics.CurrentPublishRequestsInQueue--;
-                    }
-                }
-            }
-
-            return true;
+            return response.NotificationMessage;
         }
 
         /// <summary>
         /// Publishes a subscription.
         /// </summary>
-        public NotificationMessage GetNextMessage(
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<PublishResponse> PublishAsync(
             OperationContext context,
-            SessionPublishQueue queue,
-            AsyncPublishOperation operation,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications)
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            CancellationToken cancellationToken = default)
         {
-            subscriptionId = 0;
-            availableSequenceNumbers = null;
-            moreNotifications = false;
+            // get publish queue for session.
+            if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue queue))
+            {
+                if (m_subscriptions.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
+                }
 
-            NotificationMessage message = null;
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+
+            // acknowledge previous messages.
+            queue.Acknowledge(
+                context,
+                subscriptionAcknowledgements,
+                out StatusCodeCollection acknowledgeResults,
+                out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
+
+            // update diagnostics.
+            if (context.Session != null)
+            {
+                lock (context.Session.DiagnosticsLock)
+                {
+                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
+                    diagnostics.CurrentPublishRequestsInQueue++;
+                }
+            }
 
             try
             {
                 m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
 
-                if (ReturnPendingStatusMessage(context, out message, out subscriptionId))
+                // check for any pending status messages that need to be sent.
+                if (ReturnPendingStatusMessage(context, out NotificationMessage statusMessage, out uint statusSubscriptionId))
                 {
-                    return message;
+                    return new PublishResponse
+                    {
+                        SubscriptionId = statusSubscriptionId,
+                        MoreNotifications = false,
+                        NotificationMessage = statusMessage,
+                        Results = acknowledgeResults,
+                        DiagnosticInfos = acknowledgeDiagnosticInfos
+                    };
                 }
 
                 bool requeue = false;
 
                 do
                 {
-                    // wait for a subscription to publish.
-                    ISubscription subscription = queue.Publish(
-                        context.ClientHandle,
+                    // blocks until a subscription is available or timeout expires.
+                    ISubscription subscription = await queue.PublishAsync(
+                        context.ChannelContext.SecureChannelId,
                         context.OperationDeadline,
                         requeue,
-                        operation);
+                        cancellationToken).ConfigureAwait(false);
 
-                    if (subscription == null)
+                    // check for pending status message that may have arrived while waiting.
+                    if (ReturnPendingStatusMessage(context, out statusMessage, out statusSubscriptionId))
                     {
-                        // check for pending status message.
-                        if (ReturnPendingStatusMessage(context, out message, out subscriptionId))
-                        {
-                            return message;
-                        }
+                        // requeue the subscription that was ready to publish.
+                        queue.Requeue(subscription);
 
-                        m_logger.LogTrace("Publish #{ClientHandle} Timeout", context.ClientHandle);
-                        return null;
+                        return new PublishResponse
+                        {
+                            SubscriptionId = statusSubscriptionId,
+                            MoreNotifications = false,
+                            NotificationMessage = statusMessage,
+                            Results = acknowledgeResults,
+                            DiagnosticInfos = acknowledgeDiagnosticInfos
+                        };
                     }
 
-                    subscriptionId = subscription.Id;
-                    moreNotifications = false;
+                    bool moreNotifications = false;
 
                     // publish notifications.
                     try
                     {
-                        requeue = false;
-
-                        message = subscription.Publish(
+                        NotificationMessage message = subscription.Publish(
                             context,
-                            out availableSequenceNumbers,
+                            out UInt32Collection availableSequenceNumbers,
                             out moreNotifications);
 
-                        // a null message indicates a false alarm and that there were no notifications
-                        // to publish and that the request needs to be requeued.
+                        // a null message indicates a false alarm; requeue and wait for the next one.
                         if (message != null)
                         {
-                            break;
+                            return new PublishResponse
+                            {
+                                SubscriptionId = subscription.Id,
+                                AvailableSequenceNumbers = availableSequenceNumbers,
+                                MoreNotifications = moreNotifications,
+                                NotificationMessage = message,
+                                Results = acknowledgeResults,
+                                DiagnosticInfos = acknowledgeDiagnosticInfos
+                            };
                         }
 
+                        requeue = true;
                         m_logger.LogTrace(
                             "Publish False Alarm - Request #{ClientHandle} Requeued.",
                             context.ClientHandle);
-                        requeue = true;
                     }
                     finally
                     {
                         queue.PublishCompleted(subscription, moreNotifications);
                     }
                 } while (requeue);
+
+                throw new ServiceResultException(StatusCodes.BadTimeout);
             }
             finally
             {
@@ -1212,8 +1111,6 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-
-            return message;
         }
 
         /// <summary>
@@ -1372,7 +1269,10 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Error occurred in SetPublishingMode");
+                    if (e is not ServiceResultException)
+                    {
+                        m_logger.LogError(e, "Error occurred in SetPublishingMode");
+                    }
 
                     var result = ServiceResult.Create(
                         e,

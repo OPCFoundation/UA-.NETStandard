@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -47,10 +48,10 @@ namespace Opc.Ua.Server
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SessionPublishQueue>();
             m_session = session ?? throw new ArgumentNullException(nameof(session));
-            m_publishEvent = new ManualResetEvent(false);
-            m_queuedRequests = new LinkedList<QueuedRequest>();
+            m_queuedRequests = new LinkedList<QueuedPublishRequest>();
+            m_readyToPublish = new Queue<ISubscription>();
             m_queuedSubscriptions = [];
-            m_maxPublishRequests = maxPublishRequests;
+            m_maxRequestCount = maxPublishRequests;
         }
 
         /// <summary>
@@ -71,16 +72,14 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    m_publishEvent.Set();
-
                     while (m_queuedRequests.Count > 0)
                     {
-                        QueuedRequest request = m_queuedRequests.First.Value;
+                        QueuedPublishRequest request = m_queuedRequests.First.Value;
                         m_queuedRequests.RemoveFirst();
 
                         try
                         {
-                            request.Error = StatusCodes.BadServerHalted;
+                            request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadServerHalted));
                             request.Dispose();
                         }
                         catch
@@ -90,8 +89,67 @@ namespace Opc.Ua.Server
                     }
 
                     m_queuedSubscriptions.Clear();
-                    m_publishEvent.Dispose();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Waits for a subscription to be ready to publish.
+        /// </summary>
+        public Task<ISubscription> PublishAsync(string secureChannelId,
+                                                DateTime operationTimeout,
+                                                bool requeue,
+                                                CancellationToken cancellationToken)
+        {
+            lock (m_lock)
+            {
+                if (m_queuedSubscriptions.Count == 0)
+                {
+                    return Task.FromException<ISubscription>(
+                        new ServiceResultException(StatusCodes.BadNoSubscription));
+                }
+
+                // find the waiting subscription with the highest priority.
+                QueuedSubscription subscriptionToPublish = GetSubscriptionToPublish();
+
+                // check if a subscription is already waiting.
+                if (subscriptionToPublish != null)
+                {
+                    // reset subscriptions waiting flag.
+                    m_subscriptionsWaiting = false;
+                    for (int jj = 0; jj < m_queuedSubscriptions.Count; jj++)
+                    {
+                        if (m_queuedSubscriptions[jj].ReadyToPublish)
+                        {
+                            m_subscriptionsWaiting = true;
+                            break;
+                        }
+                    }
+
+                    subscriptionToPublish.Publishing = true;
+                    return Task.FromResult(subscriptionToPublish.Subscription);
+                }
+
+                // check if queue is full.
+                if (m_queuedRequests.Count >= m_maxRequestCount)
+                {
+                    return Task.FromException<ISubscription>(
+                        new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
+                }
+
+                // add to queue.
+                var request = new QueuedPublishRequest(secureChannelId, operationTimeout, cancellationToken);
+
+                if (requeue)
+                {
+                    m_queuedRequests.AddFirst(request);
+                }
+                else
+                {
+                    m_queuedRequests.AddLast(request);
+                }
+
+                return request.Tcs.Task;
             }
         }
 
@@ -105,15 +163,13 @@ namespace Opc.Ua.Server
             {
                 // TraceState("SESSION CLOSED");
 
-                // wake up any waiting publish requests.
-                m_publishEvent.Set();
-
+                // set any waiting publish requests to Status BadSessionClosed.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedRequest request = m_queuedRequests.First.Value;
+                    QueuedPublishRequest request = m_queuedRequests.First.Value;
                     m_queuedRequests.RemoveFirst();
-                    request.Error = StatusCodes.BadSessionClosed;
-                    request.Set();
+                    request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSessionClosed));
+                    request.Dispose();
                 }
 
                 // tell the subscriptions that the session is closed.
@@ -186,7 +242,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Removes outstanding requests if no
+        /// Removes outstanding requests if no subscriptions exist for the Session.
         /// </summary>
         public void RemoveQueuedRequests()
         {
@@ -197,10 +253,10 @@ namespace Opc.Ua.Server
                 {
                     while (m_queuedRequests.Count > 0)
                     {
-                        QueuedRequest request = m_queuedRequests.First.Value;
-                        request.Error = StatusCodes.BadNoSubscription;
-                        request.Set();
+                        QueuedPublishRequest request = m_queuedRequests.First.Value;
                         m_queuedRequests.RemoveFirst();
+                        request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadNoSubscription));
+                        request.Dispose();
                     }
                 }
             }
@@ -214,12 +270,18 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_queuedRequests.Count > 0)
+                while (m_queuedRequests.Count > 0)
                 {
-                    QueuedRequest request = m_queuedRequests.Last.Value;
-                    request.Error = statusCode;
-                    request.Set();
+                    QueuedPublishRequest request = m_queuedRequests.Last.Value;
                     m_queuedRequests.RemoveLast();
+                    if (request.Tcs.Task.IsCompleted)
+                    {
+                        request.Dispose();
+                        continue;
+                    }
+
+                    request.Tcs.TrySetException(new ServiceResultException(statusCode));
+                    request.Dispose();
                     return true;
                 }
 
@@ -327,267 +389,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns a subscription that is ready to publish.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public ISubscription Publish(
-            uint clientHandle,
-            DateTime deadline,
-            bool requeue,
-            AsyncPublishOperation operation)
-        {
-            QueuedRequest request = null;
-
-            // DateTime queueTime = DateTime.UtcNow;
-            // DateTime dequeueTime = DateTime.UtcNow;
-
-            lock (m_lock)
-            {
-                if (m_queuedSubscriptions.Count == 0)
-                {
-                    // TraceState("PUBLISH ERROR (BadNoSubscription)");
-                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
-                }
-
-                // find the waiting subscription with the highest priority.
-                var subscriptions = new List<QueuedSubscription>();
-
-                for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
-                {
-                    QueuedSubscription subscription = m_queuedSubscriptions[ii];
-
-                    if (subscription.ReadyToPublish && !subscription.Publishing)
-                    {
-                        subscriptions.Add(subscription);
-                    }
-                }
-
-                // find waiting the subscription that has been waiting the longest.
-                if (subscriptions.Count > 0)
-                {
-                    byte maxPriority = 0;
-                    DateTime earliestTimestamp = DateTime.MaxValue;
-                    QueuedSubscription subscriptionToPublish = null;
-
-                    for (int ii = 0; ii < subscriptions.Count; ii++)
-                    {
-                        QueuedSubscription subscription = subscriptions[ii];
-                        byte priority = subscription.Subscription.Priority;
-                        if (priority > maxPriority)
-                        {
-                            maxPriority = priority;
-                            earliestTimestamp = DateTime.MaxValue;
-                        }
-
-                        if (priority >= maxPriority && earliestTimestamp > subscription.Timestamp)
-                        {
-                            earliestTimestamp = subscription.Timestamp;
-                            subscriptionToPublish = subscription;
-                        }
-                    }
-
-                    // reset subscriptions flag.
-                    m_subscriptionsWaiting = false;
-
-                    for (int jj = 0; jj < m_queuedSubscriptions.Count; jj++)
-                    {
-                        if (m_queuedSubscriptions[jj].ReadyToPublish)
-                        {
-                            m_subscriptionsWaiting = true;
-                            break;
-                        }
-                    }
-
-                    // TraceState("REQUEST #{0} ASSIGNED TO WAITING SUBSCRIPTION", clientHandle);
-                    subscriptionToPublish.Publishing = true;
-                    return subscriptionToPublish.Subscription;
-                }
-
-                // queue request because there is nothing waiting.
-                if (subscriptions.Count == 0)
-                {
-                    LinkedListNode<QueuedRequest> node = m_queuedRequests.First;
-
-                    while (node != null)
-                    {
-                        LinkedListNode<QueuedRequest> next = node.Next;
-                        QueuedRequest queuedRequest = node.Value;
-                        StatusCode requestStatus = StatusCodes.Good;
-
-                        // check if expired.
-                        if (queuedRequest.Deadline < DateTime.MaxValue &&
-                            queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
-                        {
-                            requestStatus = StatusCodes.BadTimeout;
-                        }
-                        // check secure channel.
-                        else if (!m_session.IsSecureChannelValid(queuedRequest.SecureChannelId))
-                        {
-                            requestStatus = StatusCodes.BadSecureChannelIdInvalid;
-                        }
-
-                        // remove bad requests.
-                        if (StatusCode.IsBad(requestStatus))
-                        {
-                            queuedRequest.Error = requestStatus;
-                            queuedRequest.Set();
-                            m_queuedRequests.Remove(node);
-                        }
-
-                        node = next;
-                    }
-
-                    // clear excess requests - keep the newest ones.
-                    while (m_maxPublishRequests > 0 &&
-                        m_queuedRequests.Count >= m_maxPublishRequests)
-                    {
-                        request = m_queuedRequests.First.Value;
-                        request.Error = StatusCodes.BadTooManyPublishRequests;
-                        request.Set();
-                        m_queuedRequests.RemoveFirst();
-                    }
-
-                    request = new QueuedRequest(SecureChannelContext.Current.SecureChannelId, deadline, m_logger);
-
-                    if (operation == null)
-                    {
-                        request.Event = new ManualResetEvent(false);
-                    }
-                    else
-                    {
-                        request.Operation = operation;
-                    }
-
-                    if (requeue)
-                    {
-                        m_queuedRequests.AddFirst(request);
-                        // TraceState("REQUEST #{0} RE-QUEUED", clientHandle);
-                    }
-                    else
-                    {
-                        m_queuedRequests.AddLast(request);
-                        // TraceState("REQUEST #{0} QUEUED", clientHandle);
-                    }
-                }
-            }
-
-            // check for non-blocking operation.
-            if (operation != null)
-            {
-                // TraceState("PUBLISH: #{0} Async Request Queued.", clientHandle);
-                return null;
-            }
-
-            // wait for subscription.
-            ServiceResult error = request.Wait(Timeout.Infinite);
-
-            // check for error.
-            if (ServiceResult.IsGood(error) && StatusCode.IsBad(request.Error))
-            {
-                _ = request.Error;
-            }
-
-            // must reassign subscription on error.
-            if (ServiceResult.IsBad(request.Error))
-            {
-                if (request.Subscription != null)
-                {
-                    lock (m_lock)
-                    {
-                        request.Subscription.Publishing = false;
-                        AssignSubscriptionToRequest(request.Subscription);
-                    }
-                }
-
-                // TraceState("REQUEST #{0} PUBLISH ERROR ({1})", clientHandle, error.StatusCode);
-                throw new ServiceResultException(request.Error);
-            }
-            // special case to force a status message is handled correctly
-            else if (request.Error == StatusCodes.GoodSubscriptionTransferred)
-            {
-                if (request.Subscription != null)
-                {
-                    lock (m_lock)
-                    {
-                        request.Subscription.Publishing = false;
-                        AssignSubscriptionToRequest(request.Subscription);
-                    }
-                    request.Subscription = null;
-                }
-                return null;
-            }
-
-            // must be shuting down if this is null but no error.
-            if (request.Subscription == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNoSubscription);
-            }
-
-            // TraceState("REQUEST #{0} ASSIGNED", clientHandle);
-            // return whatever was assigned.
-            return request.Subscription.Subscription;
-        }
-
-        /// <summary>
-        /// Completes the publish.
-        /// </summary>
-        /// <param name="requeue">if set to <c>true</c> the request must be requeued.</param>
-        /// <param name="operation">The asynchronous operation.</param>
-        /// <param name="calldata">The calldata.</param>
-        /// <exception cref="ServiceResultException"></exception>
-        public ISubscription CompletePublish(
-            bool requeue,
-            AsyncPublishOperation operation,
-            object calldata)
-        {
-            m_logger.LogTrace("PUBLISH: #{RequestHandle} Completing. Requeue={Requeue}", operation.RequestHandle, requeue);
-
-            var request = (QueuedRequest)calldata;
-
-            // check if need to requeue.
-            lock (m_lock)
-            {
-                if (requeue)
-                {
-                    request.Subscription = null;
-                    request.Error = StatusCodes.Good;
-                    m_queuedRequests.AddFirst(request);
-                    return null;
-                }
-            }
-
-            // must reassign subscription on error.
-            if (ServiceResult.IsBad(request.Error))
-            {
-                m_logger.LogTrace(
-                    "PUBLISH: #{RequestHandle} Reassigned ERROR({StatusCode})",
-                    operation.RequestHandle,
-                    request.Error);
-
-                if (request.Subscription != null)
-                {
-                    lock (m_lock)
-                    {
-                        request.Subscription.Publishing = false;
-                        AssignSubscriptionToRequest(request.Subscription);
-                    }
-                }
-
-                // TraceState("REQUEST #{0} PUBLISH ERROR ({StatusCode})", clientHandle, error.StatusCode);
-                throw new ServiceResultException(request.Error);
-            }
-
-            // must be shuting down if this is null but no error.
-            if (request.Subscription == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNoSubscription);
-            }
-
-            // return whatever was assigned.
-            return request.Subscription.Subscription;
-        }
-
-        /// <summary>
         /// Adds a subscription back into the queue because it has more notifications to publish.
         /// </summary>
         public void PublishCompleted(ISubscription subscription, bool moreNotifications)
@@ -613,6 +414,17 @@ namespace Opc.Ua.Server
                         break;
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Puts a subscription back in the queue to be published.
+        /// </summary>
+        public void Requeue(ISubscription subscription)
+        {
+            lock (m_lock)
+            {
+                m_readyToPublish.Enqueue(subscription);
             }
         }
 
@@ -687,179 +499,133 @@ namespace Opc.Ua.Server
         /// </summary>
         private void AssignSubscriptionToRequest(QueuedSubscription subscription)
         {
-            // find a request.
-            for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First;
-                node != null;
-                node = node.Next)
+            lock (m_lock)
             {
-                QueuedRequest request = node.Value;
-
-                StatusCode error = StatusCodes.Good;
-
-                // check if expired.
-                if (request.Deadline < DateTime.MaxValue &&
-                    request.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
+                // find a request.
+                while (m_queuedRequests.Count > 0)
                 {
-                    error = StatusCodes.BadTimeout;
-                }
-                // check secure channel.
-                else if (!m_session.IsSecureChannelValid(request.SecureChannelId))
-                {
-                    error = StatusCodes.BadSecureChannelIdInvalid;
-                    m_logger.LogWarning("Publish abandoned because the secure channel changed.");
-                }
+                    QueuedPublishRequest request = m_queuedRequests.First.Value;
+                    m_queuedRequests.RemoveFirst();
 
-                if (StatusCode.IsBad(error))
-                {
-                    // remove request.
-                    LinkedListNode<QueuedRequest> next = node.Next;
-                    m_queuedRequests.Remove(node);
-                    node = next;
-
-                    // wake up thread with error.
-                    request.Error = error;
-                    request.Set();
-
-                    if (node == null)
+                    if (request.Tcs.Task.IsCompleted)
                     {
-                        break;
+                        request.Dispose();
+                        continue;
                     }
 
-                    continue;
+                    // check secure channel.
+                    if (!m_session.IsSecureChannelValid(request.SecureChannelId))
+                    {
+                        m_logger.LogWarning("Publish abandoned because the secure channel changed.");
+                        request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
+                        request.Dispose();
+                        continue;
+                    }
+
+                    m_logger.LogTrace(
+                        "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}).",
+                        request.SecureChannelId,
+                        subscription.Subscription.Id);
+
+                    subscription.Publishing = true;
+                    request.Tcs.TrySetResult(subscription.Subscription);
+                    request.Dispose();
+                    return;
                 }
 
-                // remove request.
-                m_queuedRequests.Remove(node);
-
-                m_logger.LogTrace(
-                    "PUBLISH: #000 Assigned To Subscription({SubscriptionId}).",
-                    subscription.Subscription.Id);
-
-                request.Error = StatusCodes.Good;
-                request.Subscription = subscription;
-                request.Subscription.Publishing = true;
-                request.Set();
-                return;
+                // mark it as available.
+                subscription.ReadyToPublish = true;
+                subscription.Timestamp = DateTime.UtcNow;
             }
-
-            // mark it as available.
-            subscription.ReadyToPublish = true;
-            subscription.Timestamp = DateTime.UtcNow;
         }
 
         /// <summary>
-        /// A request queued while waiting for a subscription.
+        /// Selects a subscription to publish based on priority and timestamp.
         /// </summary>
-        private sealed class QueuedRequest : IDisposable
+        private QueuedSubscription GetSubscriptionToPublish()
         {
-            public QueuedRequest(string secureChannelId, DateTime deadline, ILogger logger)
+            var availableSubscriptions = new List<QueuedSubscription>();
+
+            for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
             {
-                m_logger = logger;
-                SecureChannelId = secureChannelId;
-                Deadline = deadline;
-                Error = StatusCodes.Good;
+                QueuedSubscription subscription = m_queuedSubscriptions[ii];
+
+                if (subscription.ReadyToPublish && !subscription.Publishing)
+                {
+                    availableSubscriptions.Add(subscription);
+                }
             }
 
-            public ManualResetEvent Event { get; set; }
-            public AsyncPublishOperation Operation { get; set; }
-            public DateTime Deadline { get; }
-            public StatusCode Error { get; set; }
-            public QueuedSubscription Subscription { get; set; }
-            public string SecureChannelId { get; }
+            // find the subscription that has been waiting the longest.
+            if (availableSubscriptions.Count > 0)
+            {
+                byte maxPriority = 0;
+                DateTime earliestTimestamp = DateTime.MaxValue;
+                QueuedSubscription subscriptionToPublish = null;
 
-            /// <summary>
-            /// Frees any unmanaged resources.
-            /// </summary>
+                for (int ii = 0; ii < availableSubscriptions.Count; ii++)
+                {
+                    QueuedSubscription subscription = availableSubscriptions[ii];
+                    byte priority = subscription.Subscription.Priority;
+
+                    if (priority > maxPriority)
+                    {
+                        maxPriority = priority;
+                        earliestTimestamp = DateTime.MaxValue;
+                    }
+
+                    if (priority >= maxPriority && earliestTimestamp > subscription.Timestamp)
+                    {
+                        earliestTimestamp = subscription.Timestamp;
+                        subscriptionToPublish = subscription;
+                    }
+                }
+
+                return subscriptionToPublish;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// A request queued while waiting for a subscription to be ready to publish.
+        /// </summary>
+        private sealed class QueuedPublishRequest : IDisposable
+        {
+            public QueuedPublishRequest(string secureChannelId, DateTime operationTimeout, CancellationToken cancellationToken)
+            {
+                SecureChannelId = secureChannelId;
+                OperationTimeout = operationTimeout;
+                Tcs = new TaskCompletionSource<ISubscription>();
+                m_cancellationTokenRegistration = cancellationToken.Register(
+                    () => Tcs.TrySetCanceled());
+                // Cancel publish request if it times out
+                TimeSpan timeOut = operationTimeout < DateTime.MaxValue ? operationTimeout.AddMilliseconds(500) - DateTime.UtcNow : TimeSpan.Zero;
+                if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
+                {
+                    m_cancellationTokenSource = new CancellationTokenSource(timeOut);
+                    m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
+                    () => Tcs.TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
+                }
+            }
+
             public void Dispose()
             {
-                Error = StatusCodes.BadServerHalted;
-
-                if (Operation != null)
-                {
-                    Operation.Dispose();
-                    Operation = null;
-                }
-
-                if (Event != null)
-                {
-                    try
-                    {
-                        Event.Set();
-                        Event.Dispose();
-                    }
-                    catch
-                    {
-                        // ignore errors.
-                    }
-                }
+                Utils.SilentDispose(m_cancellationTokenRegistration);
+                Utils.SilentDispose(m_cancellationTokenSource);
+                Utils.SilentDispose(m_cancellationTokenRegistration2);
             }
 
-            /// <summary>
-            /// Waits for the request to be processed.
-            /// </summary>
-            public ServiceResult Wait(int timeout)
-            {
-                try
-                {
-                    // do not block for an async operation.
-                    if (Operation != null)
-                    {
-                        return StatusCodes.BadWouldBlock;
-                    }
-
-                    if (!Event.WaitOne(timeout))
-                    {
-                        return StatusCodes.BadTimeout;
-                    }
-
-                    return ServiceResult.Good;
-                }
-                catch (Exception e)
-                {
-                    return ServiceResult.Create(
-                        e,
-                        StatusCodes.BadTimeout,
-                        "Unexpected error waiting for subscription.");
-                }
-                finally
-                {
-                    try
-                    {
-                        Event.Dispose();
-                    }
-                    catch
-                    {
-                        // ignore errors on close.
-                    }
-                }
-            }
-
-            /// <summary>
-            /// Sets the event that wakes up the publish thread.
-            /// </summary>
-            public void Set()
-            {
-                try
-                {
-                    if (Operation != null)
-                    {
-                        Operation.CompletePublish(this);
-                        return;
-                    }
-
-                    Event.Set();
-                }
-                catch (Exception e)
-                {
-                    m_logger.LogError(e, "Publish request no longer available.");
-                }
-            }
-
-            private readonly ILogger m_logger;
+            public readonly string SecureChannelId;
+            public readonly DateTime OperationTimeout;
+            public readonly TaskCompletionSource<ISubscription> Tcs;
+            private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
+            private readonly CancellationTokenSource m_cancellationTokenSource;
+            private readonly CancellationTokenRegistration m_cancellationTokenRegistration2;
         }
 
         /// <summary>
-        /// Stores a subscription that has notifications ready to be sent back to the client.
+        /// Stores a subscription that belongs to this Session Publish Queue.
         /// </summary>
         private sealed class QueuedSubscription
         {
@@ -916,9 +682,9 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First; node != null; node = node.Next)
+                foreach (QueuedPublishRequest request in m_queuedRequests)
                 {
-                    if (node.Value.Deadline < DateTime.UtcNow)
+                    if (request.OperationTimeout < DateTime.UtcNow)
                     {
                         expiredCount++;
                     }
@@ -939,10 +705,10 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
-        private readonly ManualResetEvent m_publishEvent;
-        private readonly LinkedList<QueuedRequest> m_queuedRequests;
+        private readonly LinkedList<QueuedPublishRequest> m_queuedRequests;
+        private readonly Queue<ISubscription> m_readyToPublish;
         private List<QueuedSubscription> m_queuedSubscriptions;
-        private readonly int m_maxPublishRequests;
+        private readonly int m_maxRequestCount;
         private bool m_subscriptionsWaiting;
     }
 }
