@@ -556,13 +556,21 @@
     <opc:Field Name="AuthorizationServiceName" TypeName="opc:String" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="ServiceCertificateDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="Certificate" TypeName="opc:ByteString" />
+    <opc:Field Name="NoOfIssuers" TypeName="opc:Int32" />
+    <opc:Field Name="Issuers" TypeName="opc:ByteString" LengthField="NoOfIssuers" />
+    <opc:Field Name="ValidFrom" TypeName="opc:DateTime" />
+    <opc:Field Name="ValidTo" TypeName="opc:DateTime" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="AuthorizationServiceConfigurationDataType" BaseType="tns:BaseConfigurationRecordDataType">
     <opc:Field Name="Name" TypeName="opc:String" SourceType="tns:BaseConfigurationRecordDataType" />
     <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
     <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
     <opc:Field Name="ServiceUri" TypeName="opc:String" />
-    <opc:Field Name="NoOfServiceCertificate" TypeName="opc:Int32" />
-    <opc:Field Name="ServiceCertificate" TypeName="opc:ByteString" LengthField="NoOfServiceCertificate" />
+    <opc:Field Name="NoOfServiceCertificates" TypeName="opc:Int32" />
+    <opc:Field Name="ServiceCertificates" TypeName="tns:ServiceCertificateDataType" LengthField="NoOfServiceCertificates" />
     <opc:Field Name="IssuerEndpointSettings" TypeName="opc:String" />
   </opc:StructuredType>
 

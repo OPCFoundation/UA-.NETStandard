@@ -4283,6 +4283,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Removes an explicitly defined child from the node.
+        /// </summary>
+        protected virtual void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            // no explicitly defined children on base type.
+        }
+        
+        /// <summary>
         /// Removes a child from the node.
         /// </summary>
         public void RemoveChild(BaseInstanceState child)
@@ -4302,6 +4310,8 @@ namespace Opc.Ua
                         }
                     }
                 }
+
+                RemoveExplicitlyDefinedChild(child);
             }
         }
 

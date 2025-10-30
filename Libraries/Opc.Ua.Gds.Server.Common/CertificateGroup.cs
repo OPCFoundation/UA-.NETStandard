@@ -717,7 +717,7 @@ namespace Opc.Ua.Gds.Server
                 return certificateType == null ||
                     certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
                     certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
-                    certificateType == Ua.ObjectTypeIds.UserCredentialCertificateType ||
+                    certificateType == Ua.ObjectTypeIds.UserCertificateType ||
                     certificateType == Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
                     certificateType == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
             }
