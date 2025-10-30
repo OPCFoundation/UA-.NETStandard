@@ -622,23 +622,13 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
         public static ExpandedNodeId Parse(string text)
         {
-            try
-            {
-                // check for null.
-                if (string.IsNullOrEmpty(text))
-                {
-                    return Null;
-                }
-
-                return new ExpandedNodeId(text);
-            }
-            catch (Exception e)
+            if (!InternalTryParse(text, out ExpandedNodeId value, out string errorMessage))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
-                    Utils.Format("Cannot parse expanded node id text: '{0}'", text),
-                    e);
+                    errorMessage ?? Utils.Format("Cannot parse expanded node id text: '{0}'", text));
             }
+            return value;
         }
 
         /// <summary>
@@ -652,13 +642,35 @@ namespace Opc.Ua
         /// <returns>True if the parsing was successful, false otherwise.</returns>
         public static bool TryParse(string text, out ExpandedNodeId value)
         {
+            return InternalTryParse(text, out value, out _);
+        }
+
+        /// <summary>
+        /// Internal try parse method that returns error message on failure.
+        /// </summary>
+        /// <param name="text">The ExpandedNodeId value as string.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
+        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <returns>True if parsing was successful, false otherwise.</returns>
+        private static bool InternalTryParse(string text, out ExpandedNodeId value, out string errorMessage)
+        {
+            errorMessage = null;
+            value = Null;
+
             try
             {
-                value = string.IsNullOrEmpty(text) ? Null : new ExpandedNodeId(text);
+                if (string.IsNullOrEmpty(text))
+                {
+                    value = Null;
+                    return true;
+                }
+
+                value = new ExpandedNodeId(text);
                 return true;
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                errorMessage = Utils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
                 value = Null;
                 return false;
             }
@@ -678,16 +690,148 @@ namespace Opc.Ua
             out ExpandedNodeId value,
             NodeIdParsingOptions options = null)
         {
-            try
+            return InternalTryParseWithContext(context, text, options, out value, out _);
+        }
+
+        /// <summary>
+        /// Parses an ExpandedNodeId formatted as a string and converts it a local NodeId.
+        /// </summary>
+        /// <param name="context">The current context,</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <returns>The local identifier.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
+        public static ExpandedNodeId Parse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options = null)
+        {
+            if (!InternalTryParseWithContext(context, text, options, out ExpandedNodeId value, out string errorMessage))
             {
-                value = Parse(context, text, options);
-                return true;
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid,
+                    errorMessage ?? Utils.Format("Cannot parse expanded node id text: '{0}'", text));
             }
-            catch (Exception)
+            return value;
+        }
+
+        /// <summary>
+        /// Internal try parse method with context that returns error message on failure.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
+        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <returns>True if parsing was successful, false otherwise.</returns>
+        private static bool InternalTryParseWithContext(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options,
+            out ExpandedNodeId value,
+            out string errorMessage)
+        {
+            errorMessage = null;
+            value = Null;
+
+            if (string.IsNullOrEmpty(text))
             {
                 value = Null;
+                return true;
+            }
+
+            string originalText = text;
+            int serverIndex = 0;
+
+            if (text.StartsWith("svu=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    return false;
+                }
+
+                string serverUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
+                serverIndex =
+                    options?.UpdateTables == true
+                        ? context.ServerUris.GetIndexOrAppend(serverUri)
+                        : context.ServerUris.GetIndex(serverUri);
+
+                if (serverIndex < 0)
+                {
+                    errorMessage = Utils.Format("No mapping to ServerIndex for ServerUri ({0}).", serverUri);
+                    return false;
+                }
+
+                text = text[(index + 1)..];
+            }
+
+            if (text.StartsWith("svr=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    return false;
+                }
+
+                if (ushort.TryParse(text[4..index], out ushort ns))
+                {
+                    serverIndex = ns;
+
+                    if (options.ServerMappings != null && options?.NamespaceMappings.Length < ns)
+                    {
+                        serverIndex = options.NamespaceMappings[ns];
+                    }
+                }
+
+                text = text[(index + 1)..];
+            }
+
+            int namespaceIndex = 0;
+            string namespaceUri = null;
+
+            if (text.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    return false;
+                }
+
+                namespaceUri = Utils.UnescapeUri(text[4..index]);
+                namespaceIndex =
+                    options?.UpdateTables == true
+                        ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
+                        : context.NamespaceUris.GetIndex(namespaceUri);
+
+                text = text[(index + 1)..];
+            }
+
+            if (!NodeId.InternalTryParseWithContext(context, text, options, out NodeId nodeId, out errorMessage))
+            {
                 return false;
             }
+
+            if (namespaceIndex > 0)
+            {
+                value = new ExpandedNodeId(
+                    nodeId.Identifier,
+                    (ushort)namespaceIndex,
+                    null,
+                    (uint)serverIndex);
+            }
+            else
+            {
+                value = new ExpandedNodeId(nodeId, namespaceUri, (uint)serverIndex);
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -1029,115 +1173,6 @@ namespace Opc.Ua
         internal void SetServerIndex(uint serverIndex)
         {
             ServerIndex = serverIndex;
-        }
-
-        /// <summary>
-        /// Parses an ExpandedNodeId formatted as a string and converts it a local NodeId.
-        /// </summary>
-        /// <param name="context">The current context,</param>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
-        /// <returns>The local identifier.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
-        public static ExpandedNodeId Parse(
-            IServiceMessageContext context,
-            string text,
-            NodeIdParsingOptions options = null)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return Null;
-            }
-
-            string originalText = text;
-            int serverIndex = 0;
-
-            if (text.StartsWith("svu=", StringComparison.Ordinal))
-            {
-                int index = text.IndexOf(';', 4);
-
-                if (index < 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid,
-                        $"Invalid ExpandedNodeId ({originalText}).");
-                }
-
-                string serverUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
-                serverIndex =
-                    options?.UpdateTables == true
-                        ? context.ServerUris.GetIndexOrAppend(serverUri)
-                        : context.ServerUris.GetIndex(serverUri);
-
-                if (serverIndex < 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid,
-                        $"No mapping to ServerIndex for ServerUri ({serverUri}).");
-                }
-
-                text = text[(index + 1)..];
-            }
-
-            if (text.StartsWith("svr=", StringComparison.Ordinal))
-            {
-                int index = text.IndexOf(';', 4);
-
-                if (index < 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid,
-                        $"Invalid ExpandedNodeId ({originalText}).");
-                }
-
-                if (ushort.TryParse(text[4..index], out ushort ns))
-                {
-                    serverIndex = ns;
-
-                    if (options.ServerMappings != null && options?.NamespaceMappings.Length < ns)
-                    {
-                        serverIndex = options.NamespaceMappings[ns];
-                    }
-                }
-
-                text = text[(index + 1)..];
-            }
-
-            int namespaceIndex = 0;
-            string namespaceUri = null;
-
-            if (text.StartsWith("nsu=", StringComparison.Ordinal))
-            {
-                int index = text.IndexOf(';', 4);
-
-                if (index < 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid,
-                        $"Invalid ExpandedNodeId ({originalText}).");
-                }
-
-                namespaceUri = Utils.UnescapeUri(text[4..index]);
-                namespaceIndex =
-                    options?.UpdateTables == true
-                        ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
-                        : context.NamespaceUris.GetIndex(namespaceUri);
-
-                text = text[(index + 1)..];
-            }
-
-            var nodeId = NodeId.Parse(context, text, options);
-
-            if (namespaceIndex > 0)
-            {
-                return new ExpandedNodeId(
-                    nodeId.Identifier,
-                    (ushort)namespaceIndex,
-                    null,
-                    (uint)serverIndex);
-            }
-
-            return new ExpandedNodeId(nodeId, namespaceUri, (uint)serverIndex);
         }
 
         /// <summary>
