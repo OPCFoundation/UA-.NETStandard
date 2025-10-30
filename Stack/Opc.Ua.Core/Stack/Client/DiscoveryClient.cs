@@ -485,7 +485,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="uri">The URI to normalize.</param>
         /// <returns>A normalized endpoint URL string.</returns>
-        private static string GetNormalizedEndpointUrl(Uri uri)
+        internal static string GetNormalizedEndpointUrl(Uri uri)
         {
             // Manually reconstruct the URL to normalize it (e.g., add trailing slashes)
             // while preserving IPv6 scope IDs using DnsSafeHost.

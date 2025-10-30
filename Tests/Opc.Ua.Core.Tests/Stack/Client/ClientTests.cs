@@ -108,13 +108,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var uri1 = new Uri(url1);
             var uri2 = new Uri(url2);
 
-            // Use reflection to call the private GetNormalizedEndpointUrl method
-            var method = typeof(DiscoveryClient).GetMethod("GetNormalizedEndpointUrl",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            Assert.IsNotNull(method, "GetNormalizedEndpointUrl method should exist");
-
-            var normalized1 = (string)method.Invoke(null, new object[] { uri1 });
-            var normalized2 = (string)method.Invoke(null, new object[] { uri2 });
+            // Call the internal GetNormalizedEndpointUrl method
+            var normalized1 = DiscoveryClient.GetNormalizedEndpointUrl(uri1);
+            var normalized2 = DiscoveryClient.GetNormalizedEndpointUrl(uri2);
 
             // Both URIs should normalize to the same value
             Assert.AreEqual(expectedNormalized, normalized1, "First URI should normalize correctly");
