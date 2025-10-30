@@ -32,6 +32,9 @@ namespace Opc.Ua.Client
         public NamespaceTable NamespaceUris => m_session.MessageContext.NamespaceUris;
 
         /// <inheritdoc/>
+        public StringTable ServerUris => m_session.MessageContext.ServerUris;
+
+        /// <inheritdoc/>
         public async ValueTask<ReferenceDescriptionCollection> FetchReferencesAsync(
             RequestHeader? requestHeader,
             NodeId nodeId,

@@ -451,9 +451,13 @@ namespace Opc.Ua.Client
             CancellationToken ct = default);
 
         /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// Disconnects from the server and frees any network resources
+        /// with the specified timeout.
         /// </summary>
-        Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default);
+        Task<StatusCode> CloseAsync(
+            int timeout,
+            bool closeChannel,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Adds a subscription to the session.

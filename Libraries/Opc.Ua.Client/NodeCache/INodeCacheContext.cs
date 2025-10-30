@@ -22,6 +22,11 @@ namespace Opc.Ua.Client
         NamespaceTable NamespaceUris { get; }
 
         /// <summary>
+        /// Get the table with the server uris known to the server.
+        /// </summary>
+        StringTable ServerUris { get; }
+
+        /// <summary>
         /// Reads the values for the node attributes and returns a node object
         /// collection.
         /// </summary>

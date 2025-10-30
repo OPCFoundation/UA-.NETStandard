@@ -46,12 +46,15 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public NodeCache(ISession session, ITelemetryContext telemetry)
+        public NodeCache(INodeCacheContext context, ITelemetryContext telemetry)
         {
-            m_session = session ?? throw new ArgumentNullException(nameof(session));
+            m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = telemetry.CreateLogger<NodeCache>();
-            m_typeTree = new TypeTable(m_session.NamespaceUris);
-            m_nodes = new NodeTable(m_session.NamespaceUris, m_session.ServerUris, m_typeTree);
+            m_typeTree = new TypeTable(m_context.NamespaceUris);
+            m_nodes = new NodeTable(
+                m_context.NamespaceUris,
+                m_context.ServerUris,
+                m_typeTree);
             m_uaTypesLoaded = false;
             m_cacheLock = new ReaderWriterLockSlim();
         }
@@ -63,7 +66,6 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                m_session = null;
                 m_cacheLock?.Dispose();
             }
         }
@@ -76,10 +78,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public NamespaceTable NamespaceUris => m_session.NamespaceUris;
+        public NamespaceTable NamespaceUris => m_context.NamespaceUris;
 
         /// <inheritdoc/>
-        public StringTable ServerUris => m_session.ServerUris;
+        public StringTable ServerUris => m_context.ServerUris;
 
         /// <inheritdoc/>
         IAsyncTypeTable IAsyncNodeTable.TypeTree => this;
@@ -365,7 +367,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<Node> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            var localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris);
 
             if (localId == null)
             {
@@ -373,13 +375,13 @@ namespace Opc.Ua.Client
             }
 
             // fetch node from server.
-            Node source = await m_session.ReadNodeAsync(localId, ct).ConfigureAwait(false);
+            Node source = await m_context.FetchNodeAsync(null, localId, ct: ct).ConfigureAwait(false);
 
             try
             {
                 // fetch references from server.
-                ReferenceDescriptionCollection references = await m_session
-                    .FetchReferencesAsync(localId, ct)
+                ReferenceDescriptionCollection references = await m_context
+                    .FetchReferencesAsync(null, localId, ct)
                     .ConfigureAwait(false);
 
                 m_cacheLock.EnterUpgradeableReadLock();
@@ -438,14 +440,14 @@ namespace Opc.Ua.Client
             }
 
             var localIds = new NodeIdCollection(
-                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
+                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris)));
 
             // fetch nodes and references from server.
-            (IList<Node> sourceNodes, IList<ServiceResult> readErrors) = await m_session
-                .ReadNodesAsync(localIds, NodeClass.Unspecified, ct: ct)
+            (IReadOnlyList<Node> sourceNodes, IReadOnlyList<ServiceResult> readErrors) = await m_context
+                .FetchNodesAsync(null, localIds, NodeClass.Unspecified, ct: ct)
                 .ConfigureAwait(false);
-            (IList<ReferenceDescriptionCollection> referenceCollectionList, IList<ServiceResult> fetchErrors) =
-                await m_session.FetchReferencesAsync(localIds, ct).ConfigureAwait(false);
+            (IReadOnlyList<ReferenceDescriptionCollection> referenceCollectionList, IReadOnlyList<ServiceResult> fetchErrors) =
+                await m_context.FetchReferencesAsync(null, localIds, ct).ConfigureAwait(false);
 
             int ii = 0;
             for (ii = 0; ii < count; ii++)
@@ -496,7 +498,7 @@ namespace Opc.Ua.Client
                 InternalWriteLockedAttach(sourceNodes[ii]);
             }
 
-            return sourceNodes;
+            return [.. sourceNodes];
         }
 
         /// <inheritdoc/>
@@ -1032,7 +1034,7 @@ namespace Opc.Ua.Client
 
             if (references.Count > 0)
             {
-                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_session.NamespaceUris);
+                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_context.NamespaceUris);
             }
 
             return NodeId.Null;
@@ -1064,7 +1066,7 @@ namespace Opc.Ua.Client
 
             if (references.Count > 0)
             {
-                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_session.NamespaceUris);
+                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_context.NamespaceUris);
             }
 
             return NodeId.Null;
@@ -1267,7 +1269,7 @@ namespace Opc.Ua.Client
 
         private readonly ReaderWriterLockSlim m_cacheLock = new();
         private readonly ILogger m_logger;
-        private ISession m_session;
+        private readonly INodeCacheContext m_context;
         private readonly TypeTable m_typeTree;
         private readonly NodeTable m_nodes;
         private bool m_uaTypesLoaded;

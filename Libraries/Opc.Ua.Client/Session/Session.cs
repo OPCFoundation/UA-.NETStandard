@@ -131,6 +131,7 @@ namespace Opc.Ua.Client
         {
             m_instanceCertificate = template.m_instanceCertificate;
             m_instanceCertificateChain = template.m_instanceCertificateChain;
+            m_effectiveEndpoint = template.m_effectiveEndpoint;
             SessionFactory = template.SessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
@@ -213,7 +214,7 @@ namespace Opc.Ua.Client
 
             // save configuration information.
             m_configuration = configuration;
-            m_endpoint = endpoint;
+            m_effectiveEndpoint = m_endpoint = endpoint;
 
             // update the default subscription.
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
@@ -224,7 +225,7 @@ namespace Opc.Ua.Client
             Factory = messageContext.Factory;
 
             // initialize the NodeCache late, it needs references to the namespaceUris
-            m_nodeCache = new NodeCache(this, m_telemetry);
+            m_nodeCache = new NodeCache(new NodeCacheContext(this), m_telemetry);
 
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
@@ -1056,7 +1057,7 @@ namespace Opc.Ua.Client
             using Activity activity = m_telemetry.StartActivity();
 
             // Load certificate and chain if not already loaded.
-            await LoadInstanceCertificateAsync(ct).ConfigureAwait(false);
+            await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
 
             OpenValidateIdentity(
                 ref identity,
@@ -2211,7 +2212,7 @@ namespace Opc.Ua.Client
             {
                 // Force reload
                 m_instanceCertificate = null;
-                await LoadInstanceCertificateAsync(ct).ConfigureAwait(false);
+                await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -2252,6 +2253,14 @@ namespace Opc.Ua.Client
 
                 // need to refresh the identity (reprompt for password, refresh token).
                 RecreateRenewUserIdentity();
+
+                //
+                // It is possible the session was created and a previous configuration was
+                // applied, then reconnect can be called even though we are not connected
+                // But while valid we also want to check that otherwise the endpoint was not
+                // changed.
+                //
+                await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, m_serverNonce);
@@ -4494,13 +4503,32 @@ namespace Opc.Ua.Client
         /// Asynchronously load instance certificate
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task LoadInstanceCertificateAsync(CancellationToken ct = default)
+        private async Task LoadInstanceCertificateAsync(
+            bool throwIfConfigurationChangedFromLastLoad,
+            CancellationToken ct = default)
         {
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
                 // No need to load instance certificates
                 return;
             }
+
+            if (m_instanceCertificate != null &&
+                m_instanceCertificate.HasPrivateKey &&
+                !m_endpoint.Equals(m_effectiveEndpoint))
+            {
+                if (throwIfConfigurationChangedFromLastLoad)
+                {
+                    // Updating a live session must be prevented unless the session was
+                    // closed. Therefore we need to throw here to catch this case during any
+                    // reconnect or other activation operation
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        "Configuration was changed for an active session.");
+                }
+                // If the configured endpoint was updated while we are closed we reload.
+                m_instanceCertificate = null;
+            }
+
             if (m_instanceCertificate == null || !m_instanceCertificate.HasPrivateKey)
             {
                 m_instanceCertificate = await LoadInstanceCertificateAsync(
@@ -4515,7 +4543,7 @@ namespace Opc.Ua.Client
                         StatusCodes.BadConfigurationError,
                         "The client configuration does not specify an application instance certificate.");
                 }
-
+                m_effectiveEndpoint = m_endpoint;
                 m_instanceCertificateChain = null; // Reload the chain too
             }
 
@@ -4533,8 +4561,7 @@ namespace Opc.Ua.Client
             m_instanceCertificateChain ??= await LoadCertificateChainAsync(
                 m_configuration,
                 m_instanceCertificate,
-                ct)
-                .ConfigureAwait(false);
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -4854,9 +4881,14 @@ namespace Opc.Ua.Client
         protected ApplicationConfiguration m_configuration;
 
         /// <summary>
-        /// The endpoint used to connect to the server.
+        /// The endpoint configured for the session.
         /// </summary>
         protected ConfiguredEndpoint m_endpoint;
+
+        /// <summary>
+        /// The endpoint used while connected to the server.
+        /// </summary>
+        protected ConfiguredEndpoint m_effectiveEndpoint;
 
         /// <summary>
         /// The Instance Certificate.
@@ -4897,7 +4929,7 @@ namespace Opc.Ua.Client
         /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
-        private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
+        private SubscriptionAcknowledgementCollection m_acknowledgementsToSend = [];
         private readonly object m_acknowledgementsToSendLock = new();
 #if DEBUG_SEQUENTIALPUBLISHING
         private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];

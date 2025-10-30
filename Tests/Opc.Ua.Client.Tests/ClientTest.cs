@@ -1757,12 +1757,14 @@ namespace Opc.Ua.Client.Tests
 
                     // Mock the channel and session
                     var channelMock = new Mock<ITransportChannel>();
+                    var messageContext = new ServiceMessageContext(telemetry);
+                    channelMock.Setup(mock => mock.MessageContext).Returns(messageContext);
 
                     var testableTraceableRequestHeaderClientSession
                         = new TestableTraceableRequestHeaderClientSession(
-                        channelMock.Object,
-                        ClientFixture.Config,
-                        endpoint);
+                            channelMock.Object,
+                            ClientFixture.Config,
+                            endpoint);
                     var request = new CreateSessionRequest { RequestHeader = new RequestHeader() };
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update
