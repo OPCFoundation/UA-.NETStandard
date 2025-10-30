@@ -367,7 +367,6 @@ namespace Opc.Ua.Client.Tests
                 NodeClass = NodeClass.Variable
             };
 
-
             var context = new Mock<INodeCacheContext>();
             var nsTable = new NamespaceTable();
             context.Setup(c => c.NamespaceUris).Returns(nsTable);

@@ -45,27 +45,20 @@ namespace Opc.Ua.Client
         /// Set diagnostics for all sessions created by the factory
         /// </summary>
         DiagnosticsMasks ReturnDiagnostics { get; set; }
+
         /// <summary>
         /// Telemetry configuration to use when creating sessions.
         /// </summary>
         ITelemetryContext Telemetry { get; }
 
         /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        ISession Create(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint);
-
-        /// <summary>
-        /// Creates a new session with a server using the specified channel by invoking
-        /// the CreateSession service.
+        /// Creates a new unconnected session with the channel to the server.
         /// </summary>
         /// <param name="channel">The channel for the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="clientCertificateChain">The certificate chain for the client cert.</param>
         /// <param name="availableEndpoints">The list of available endpoints returned by
         /// server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in
@@ -74,7 +67,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate,
+            X509Certificate2? clientCertificate = null,
+            X509Certificate2Collection? clientCertificateChain = null,
             EndpointDescriptionCollection? availableEndpoints = null,
             StringCollection? discoveryProfileUris = null);
 

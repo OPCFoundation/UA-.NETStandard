@@ -1668,11 +1668,10 @@ namespace Opc.Ua.Client.Tests
         public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
         {
             public TestableTraceableRequestHeaderClientSession(
-                ISessionChannel channel,
+                ITransportChannel channel,
                 ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint,
-                ITelemetryContext telemetry)
-                : base(channel, configuration, endpoint)
+                ConfiguredEndpoint endpoint)
+                : base(channel, configuration, endpoint, null)
             {
             }
 
@@ -1758,14 +1757,12 @@ namespace Opc.Ua.Client.Tests
 
                     // Mock the channel and session
                     var channelMock = new Mock<ITransportChannel>();
-                    Mock<ISessionChannel> sessionChannelMock = channelMock.As<ISessionChannel>();
 
                     var testableTraceableRequestHeaderClientSession
                         = new TestableTraceableRequestHeaderClientSession(
-                        sessionChannelMock.Object,
+                        channelMock.Object,
                         ClientFixture.Config,
-                        endpoint,
-                        telemetry);
+                        endpoint);
                     var request = new CreateSessionRequest { RequestHeader = new RequestHeader() };
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update

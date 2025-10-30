@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -49,19 +46,11 @@ namespace Opc.Ua.Client.Tests
 
         /// <inheritdoc/>
         public override ISession Create(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-        {
-            return new TestableSession(channel, configuration, endpoint);
-        }
-
-        /// <inheritdoc/>
-        public override ISession Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection certificateChain,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
         {

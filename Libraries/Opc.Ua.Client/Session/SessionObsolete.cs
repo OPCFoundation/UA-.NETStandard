@@ -1050,6 +1050,7 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
+                null,
                 availableEndpoints,
                 discoveryProfileUris);
         }
@@ -1224,6 +1225,7 @@ namespace Opc.Ua.Client
                   configuration,
                   endpoint,
                   clientCertificate,
+                  null,
                   availableEndpoints,
                   discoveryProfileUris)
         {
@@ -1279,6 +1281,7 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
+                null,
                 availableEndpoints,
                 discoveryProfileUris);
         }

@@ -46,21 +46,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public override ISession Create(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-        {
-            return new TraceableRequestHeaderClientSession(channel, configuration, endpoint);
-        }
-
-        /// <inheritdoc/>
-        public override ISession Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            X509Certificate2Collection clientCertificateChain,
+            EndpointDescriptionCollection availableEndpoints,
+            StringCollection discoveryProfileUris)
         {
             return new TraceableRequestHeaderClientSession(
                 channel,

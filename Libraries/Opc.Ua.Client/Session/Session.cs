@@ -62,6 +62,7 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
+        [Obsolete("Use constructor with ITransportChannel instead of ISessionChannel.")]
         public Session(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
@@ -69,8 +70,7 @@ namespace Opc.Ua.Client
             : this(
                   channel as ITransportChannel,
                   configuration,
-                  endpoint,
-                  clientCertificate: null)
+                  endpoint)
         {
         }
 
@@ -81,21 +81,27 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint used to initialize the channel.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
-        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        /// <param name="clientCertificateChain">The certificate chain of the client
+        /// certificate.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned
+        /// by server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in
+        /// GetEndpoints() request.</param>
         /// <remarks>
-        /// The application configuration is used to look up the certificate if none is provided.
-        /// The clientCertificate must have the private key. This will require that the certificate
-        /// be loaded from a certicate store. Converting a DER encoded blob to a X509Certificate2
-        /// will not include a private key.
-        /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are used to validate
-        /// that the list of EndpointDescriptions returned at GetEndpoints matches the list returned at CreateSession.
+        /// The application configuration is used to look up the certificate if none
+        /// is provided. The clientCertificate must have the private key. This will
+        /// require that the certificate be loaded from a certicate store. Converting
+        /// a DER encoded blob to a X509Certificate2 will not include a private key.
+        /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are
+        /// used to validate that the list of EndpointDescriptions returned at GetEndpoints
+        /// matches the list returned at CreateSession.
         /// </remarks>
         public Session(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            X509Certificate2 clientCertificate = null,
+            X509Certificate2Collection clientCertificateChain = null,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
             : this(
@@ -104,7 +110,8 @@ namespace Opc.Ua.Client
                   endpoint,
                   channel.MessageContext ?? configuration.CreateMessageContext(true))
         {
-            LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
+            m_instanceCertificate = clientCertificate;
+            m_instanceCertificateChain = clientCertificateChain;
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
         }
@@ -122,7 +129,8 @@ namespace Opc.Ua.Client
                   template.ConfiguredEndpoint,
                   channel.MessageContext ?? template.m_configuration.CreateMessageContext(true))
         {
-            LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
+            m_instanceCertificate = template.m_instanceCertificate;
+            m_instanceCertificateChain = template.m_instanceCertificateChain;
             SessionFactory = template.SessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
@@ -186,7 +194,20 @@ namespace Opc.Ua.Client
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
-            Initialize();
+            SessionFactory ??= new DefaultSessionFactory(m_telemetry)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
+
+            NamespaceUris = new NamespaceTable();
+            ServerUris = new StringTable();
+            Factory = EncodeableFactory.Create();
+            m_keepAliveInterval = 5000;
+            m_minPublishRequestCount = kDefaultPublishRequestCount;
+            m_maxPublishRequestCount = kMaxPublishRequestCountMax;
+            m_sessionName = string.Empty;
+            DeleteSubscriptionsOnClose = true;
+            PublishRequestCancelDelayOnCloseSession = 5000; // 5 seconds default
 
             ValidateClientConfiguration(configuration);
 
@@ -223,44 +244,6 @@ namespace Opc.Ua.Client
                 SessionId = null,
                 UserIdentity = null
             };
-        }
-
-        /// <summary>
-        /// Sets the object members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            SessionFactory ??= new DefaultSessionFactory(m_telemetry)
-            {
-                ReturnDiagnostics = ReturnDiagnostics
-            };
-            m_sessionTimeout = 0;
-            NamespaceUris = new NamespaceTable();
-            ServerUris = new StringTable();
-            Factory = EncodeableFactory.Create();
-            m_configuration = null;
-            m_instanceCertificate = null;
-            m_endpoint = null;
-            m_subscriptions = [];
-            m_acknowledgementsToSend = [];
-            m_acknowledgementsToSendLock = new object();
-#if DEBUG_SEQUENTIALPUBLISHING
-            m_latestAcknowledgementsSent = new Dictionary<uint, uint>();
-#endif
-            m_identityHistory = [];
-            m_outstandingRequests = new LinkedList<AsyncRequestState>();
-            m_keepAliveInterval = 5000;
-            m_tooManyPublishRequests = 0;
-            m_minPublishRequestCount = kDefaultPublishRequestCount;
-            m_maxPublishRequestCount = kMaxPublishRequestCountMax;
-            m_sessionName = string.Empty;
-            DeleteSubscriptionsOnClose = true;
-            PublishRequestCancelDelayOnCloseSession = 5000; // 5 seconds default
-            TransferSubscriptionsOnReconnect = false;
-            Reconnecting = false;
-            Closing = false;
-            m_reconnectLock = new SemaphoreSlim(1, 1);
-            ServerCapabilities.MaxBrowseContinuationPoints = 0;
         }
 
         /// <summary>
@@ -1072,6 +1055,9 @@ namespace Opc.Ua.Client
             ThrowIfDisposed();
             using Activity activity = m_telemetry.StartActivity();
 
+            // Load certificate and chain if not already loaded.
+            await LoadInstanceCertificateAsync(ct).ConfigureAwait(false);
+
             OpenValidateIdentity(
                 ref identity,
                 out UserIdentityToken identityToken,
@@ -1179,17 +1165,16 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 response = await base.CreateSessionAsync(
-                        requestHeader,
-                        clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl.ToString(),
-                        sessionName,
-                        clientNonce,
-                        clientCertificateChainData ?? clientCertificateData,
-                        sessionTimeout,
-                        (uint)MessageContext.MaxMessageSize,
-                        ct)
-                    .ConfigureAwait(false);
+                    requestHeader,
+                    clientDescription,
+                    m_endpoint.Description.Server.ApplicationUri,
+                    m_endpoint.EndpointUrl.ToString(),
+                    sessionName,
+                    clientNonce,
+                    clientCertificateChainData ?? clientCertificateData,
+                    sessionTimeout,
+                    (uint)MessageContext.MaxMessageSize,
+                    ct).ConfigureAwait(false);
             }
 
             NodeId sessionId = response.SessionId;
@@ -1988,13 +1973,15 @@ namespace Opc.Ua.Client
                         ct)
                     .ConfigureAwait(false);
 
-                await session.RecreateSubscriptionsAsync(Subscriptions, ct)
-                    .ConfigureAwait(false);
+                await session.RecreateSubscriptionsAsync(
+                    TransferSubscriptionsOnReconnect,
+                    Subscriptions,
+                    ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 session.Dispose();
-                ThrowCouldNotRecreateSessionException(e, m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, SessionName);
             }
             return session;
         }
@@ -2017,8 +2004,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 connection,
-                m_endpoint.Description,
-                m_endpoint.Configuration,
+                ConfiguredEndpoint.Description,
+                ConfiguredEndpoint.Configuration,
                 m_instanceCertificate,
                 m_configuration.SecurityConfiguration.SendCertificateChain
                     ? m_instanceCertificateChain
@@ -2035,21 +2022,23 @@ namespace Opc.Ua.Client
                 // open the session.
                 await session
                     .OpenAsync(
-                        m_sessionName,
-                        (uint)m_sessionTimeout,
+                        SessionName,
+                        (uint)SessionTimeout,
                         session.Identity,
-                        m_preferredLocales,
-                        m_checkDomain,
+                        PreferredLocales,
+                        CheckDomain,
                         ct)
                     .ConfigureAwait(false);
 
-                await session.RecreateSubscriptionsAsync(Subscriptions, ct)
-                    .ConfigureAwait(false);
+                await session.RecreateSubscriptionsAsync(
+                    TransferSubscriptionsOnReconnect,
+                    Subscriptions,
+                    ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 session.Dispose();
-                ThrowCouldNotRecreateSessionException(e, m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, SessionName);
             }
 
             return session;
@@ -2079,25 +2068,25 @@ namespace Opc.Ua.Client
                 // open the session.
                 await session
                     .OpenAsync(
-                        m_sessionName,
-                        (uint)m_sessionTimeout,
+                        SessionName,
+                        (uint)SessionTimeout,
                         session.Identity,
-                        m_preferredLocales,
-                        m_checkDomain,
+                        PreferredLocales,
+                        CheckDomain,
                         false,
                         ct)
                     .ConfigureAwait(false);
 
                 // create the subscriptions.
-                foreach (Subscription subscription in session.Subscriptions)
-                {
-                    await subscription.CreateAsync(ct).ConfigureAwait(false);
-                }
+                await session.RecreateSubscriptionsAsync(
+                    false,
+                    Subscriptions,
+                    ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 session.Dispose();
-                ThrowCouldNotRecreateSessionException(e, m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, SessionName);
             }
 
             return session;
@@ -2220,7 +2209,9 @@ namespace Opc.Ua.Client
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await LoadInstanceCertificateAsync(clientCertificate: null, ct).ConfigureAwait(false);
+                // Force reload
+                m_instanceCertificate = null;
+                await LoadInstanceCertificateAsync(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -2514,17 +2505,19 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Recreate the subscriptions in a reconnected session.
-        /// Uses Transfer service if <see cref="TransferSubscriptionsOnReconnect"/> is set to <c>true</c>.
         /// </summary>
+        /// <param name="transferSbscriptionTemplates">Uses Transfer service
+        /// if set to <c>true</c>.</param>
         /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         private async Task RecreateSubscriptionsAsync(
+            bool transferSbscriptionTemplates,
             IEnumerable<Subscription> subscriptionsTemplate,
             CancellationToken ct)
         {
             using Activity activity = m_telemetry.StartActivity();
             bool transferred = false;
-            if (TransferSubscriptionsOnReconnect)
+            if (transferSbscriptionTemplates)
             {
                 try
                 {
@@ -4501,57 +4494,54 @@ namespace Opc.Ua.Client
         /// Asynchronously load instance certificate
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task LoadInstanceCertificateAsync(
-            X509Certificate2 clientCertificate,
-            CancellationToken ct = default)
+        private async Task LoadInstanceCertificateAsync(CancellationToken ct = default)
         {
-            if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
+            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
-                if (clientCertificate == null)
-                {
-                    m_instanceCertificate = await LoadCertificateAsync(
-                            m_configuration,
-                            m_endpoint.Description.SecurityPolicyUri,
-                            m_telemetry,
-                            ct)
-                        .ConfigureAwait(false);
-                    if (m_instanceCertificate == null)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
-                            "The client configuration does not specify an application instance certificate.");
-                    }
-                }
-                else
-                {
-                    // update client certificate.
-                    m_instanceCertificate = clientCertificate;
-                }
-
-                // check for private key.
-                if (!m_instanceCertificate.HasPrivateKey)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
-                        m_instanceCertificate.Subject,
-                        m_instanceCertificate.Thumbprint);
-                }
-
-                // load certificate chain.
-                m_instanceCertificateChain = await LoadCertificateChainAsync(
+                // No need to load instance certificates
+                return;
+            }
+            if (m_instanceCertificate == null || !m_instanceCertificate.HasPrivateKey)
+            {
+                m_instanceCertificate = await LoadInstanceCertificateAsync(
                     m_configuration,
-                    m_instanceCertificate,
+                    m_endpoint.Description.SecurityPolicyUri,
+                    m_telemetry,
                     ct)
                     .ConfigureAwait(false);
+                if (m_instanceCertificate == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "The client configuration does not specify an application instance certificate.");
+                }
+
+                m_instanceCertificateChain = null; // Reload the chain too
             }
+
+            // check for private key.
+            if (!m_instanceCertificate.HasPrivateKey)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
+                    m_instanceCertificate.Subject,
+                    m_instanceCertificate.Thumbprint);
+            }
+
+            // load certificate chain.
+            m_instanceCertificateChain ??= await LoadCertificateChainAsync(
+                m_configuration,
+                m_instanceCertificate,
+                ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
         /// Load certificate for connection.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<X509Certificate2> LoadCertificateAsync(
+        internal static async Task<X509Certificate2> LoadInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
@@ -4908,15 +4898,15 @@ namespace Opc.Ua.Client
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
-        private object m_acknowledgementsToSendLock;
+        private readonly object m_acknowledgementsToSendLock = new();
 #if DEBUG_SEQUENTIALPUBLISHING
-        private Dictionary<uint, uint> m_latestAcknowledgementsSent;
+        private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];
 #endif
-        private List<Subscription> m_subscriptions;
+        private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
         private readonly SystemContext m_systemContext;
         private NodeCache m_nodeCache;
-        private List<IUserIdentity> m_identityHistory;
+        private readonly List<IUserIdentity> m_identityHistory = [];
         private byte[] m_serverNonce;
         private byte[] m_previousServerNonce;
         private X509Certificate2 m_serverCertificate;
@@ -4931,10 +4921,10 @@ namespace Opc.Ua.Client
         private uint m_keepAliveCounter;
         private Task m_keepAliveWorker;
         private CancellationTokenSource m_keepAliveCancellation;
-        private SemaphoreSlim m_reconnectLock;
+        private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
-        private LinkedList<AsyncRequestState> m_outstandingRequests;
+        private readonly LinkedList<AsyncRequestState> m_outstandingRequests = [];
         private string m_userTokenSecurityPolicyUri;
         private Nonce m_eccServerEphemeralKey;
         private Subscription m_defaultSubscription;

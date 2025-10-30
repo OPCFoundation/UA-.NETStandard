@@ -108,7 +108,7 @@ namespace Opc.Ua.Client
         {
             return CreateAsync(
                 configuration,
-                (ITransportWaitingConnection?)null,
+                null,
                 endpoint,
                 updateBeforeConnect,
                 checkDomain,
@@ -258,7 +258,7 @@ namespace Opc.Ua.Client
             X509Certificate2Collection? clientCertificateChain = null;
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
-                clientCertificate = await Session.LoadCertificateAsync(
+                clientCertificate = await Session.LoadInstanceCertificateAsync(
                     configuration,
                     endpointDescription.SecurityPolicyUri,
                     messageContext.Telemetry,
@@ -347,22 +347,11 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public virtual ISession Create(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-        {
-            return new Session(channel, configuration, endpoint)
-            {
-                ReturnDiagnostics = ReturnDiagnostics
-            };
-        }
-
-        /// <inheritdoc/>
-        public virtual ISession Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate,
+            X509Certificate2? clientCertificate = null,
+            X509Certificate2Collection? clientCertificateChain = null,
             EndpointDescriptionCollection? availableEndpoints = null,
             StringCollection? discoveryProfileUris = null)
         {
@@ -371,6 +360,7 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
+                clientCertificateChain,
                 availableEndpoints,
                 discoveryProfileUris)
             {
