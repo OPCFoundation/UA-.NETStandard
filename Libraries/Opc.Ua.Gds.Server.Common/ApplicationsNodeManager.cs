@@ -311,8 +311,8 @@ namespace Opc.Ua.Gds.Server
                         Ua.ObjectTypeIds.HttpsCertificateType,
                         nameof(Ua.ObjectTypeIds.HttpsCertificateType) },
                     {
-                        Ua.ObjectTypeIds.UserCredentialCertificateType,
-                        nameof(Ua.ObjectTypeIds.UserCredentialCertificateType)
+                        Ua.ObjectTypeIds.UserCertificateType,
+                        nameof(Ua.ObjectTypeIds.UserCertificateType)
                     },
                     {
                         Ua.ObjectTypeIds.ApplicationCertificateType,
@@ -543,7 +543,7 @@ namespace Opc.Ua.Gds.Server
                     {
                         activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value =
                         [
-                            Ua.ObjectTypeIds.UserCredentialCertificateType
+                            Ua.ObjectTypeIds.UserCertificateType
                         ];
                     }
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime
@@ -1821,7 +1821,7 @@ namespace Opc.Ua.Gds.Server
                     typeof(TrustListState));
             }
             else if (certificateGroup.CertificateTypes
-                .Contains(Ua.ObjectTypeIds.UserCredentialCertificateType))
+                .Contains(Ua.ObjectTypeIds.UserCertificateType))
             {
                 certificateGroup.Id = m_defaultUserTokenGroupId;
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(
