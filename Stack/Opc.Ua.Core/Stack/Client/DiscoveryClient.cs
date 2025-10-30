@@ -481,6 +481,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets a normalized endpoint URL from a Uri that preserves IPv6 scope IDs.
+        /// </summary>
+        /// <param name="uri">The URI to normalize.</param>
+        /// <returns>A normalized endpoint URL string.</returns>
+        private static string GetNormalizedEndpointUrl(Uri uri)
+        {
+            // Manually reconstruct the URL to normalize it (e.g., add trailing slashes)
+            // while preserving IPv6 scope IDs using DnsSafeHost.
+            string host = uri.DnsSafeHost;
+
+            // For IPv6 addresses, wrap in brackets
+            if (uri.HostNameType == UriHostNameType.IPv6)
+            {
+                host = $"[{host}]";
+            }
+
+            // Reconstruct the URL
+            return $"{uri.Scheme}://{host}:{uri.Port}{uri.AbsolutePath}";
+        }
+
+        /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
         /// <param name="discoveryUrl">The discovery url.</param>
@@ -498,7 +519,7 @@ namespace Opc.Ua
             // create a default description.
             var endpoint = new EndpointDescription
             {
-                EndpointUrl = discoveryUrl.OriginalString,
+                EndpointUrl = GetNormalizedEndpointUrl(discoveryUrl),
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             };
@@ -530,7 +551,7 @@ namespace Opc.Ua
             // create a default description.
             var endpoint = new EndpointDescription
             {
-                EndpointUrl = connection.EndpointUrl.OriginalString,
+                EndpointUrl = GetNormalizedEndpointUrl(connection.EndpointUrl),
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             };
@@ -563,7 +584,7 @@ namespace Opc.Ua
             // create a default description.
             var endpoint = new EndpointDescription
             {
-                EndpointUrl = discoveryUrl.OriginalString,
+                EndpointUrl = GetNormalizedEndpointUrl(discoveryUrl),
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             };

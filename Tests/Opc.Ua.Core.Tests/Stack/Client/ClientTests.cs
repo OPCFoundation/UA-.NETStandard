@@ -89,6 +89,45 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.AreEqual(uri.OriginalString, uriBuilder.Uri.OriginalString);
         }
 
+        /// <summary>
+        /// Ensure that URIs with and without trailing slashes are normalized to be identical,
+        /// while preserving IPv6 scope IDs.
+        /// </summary>
+        [Test]
+        [TestCase("opc.tcp://hostname:4840/", "opc.tcp://hostname:4840", "opc.tcp://hostname:4840/")]
+        [TestCase("opc.tcp://hostname:4840/path", "opc.tcp://hostname:4840/path", 
+            "opc.tcp://hostname:4840/path")]
+        [TestCase("opc.tcp://[fe80::280:deff:fa02:c63e%eth0]:4840/", 
+            "opc.tcp://[fe80::280:deff:fa02:c63e%eth0]:4840", 
+            "opc.tcp://[fe80::280:deff:fa02:c63e%eth0]:4840/")]
+        [TestCase("opc.tcp://[fe80::de39:6fff:feae:c78%12]:4840/Endpoint1", 
+            "opc.tcp://[fe80::de39:6fff:feae:c78%12]:4840/Endpoint1", 
+            "opc.tcp://[fe80::de39:6fff:feae:c78%12]:4840/Endpoint1")]
+        public void DiscoveryEndPointUrlNormalization(string url1, string url2, string expectedNormalized)
+        {
+            var uri1 = new Uri(url1);
+            var uri2 = new Uri(url2);
+
+            // Use reflection to call the private GetNormalizedEndpointUrl method
+            var method = typeof(DiscoveryClient).GetMethod("GetNormalizedEndpointUrl",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(method, "GetNormalizedEndpointUrl method should exist");
+
+            var normalized1 = (string)method.Invoke(null, new object[] { uri1 });
+            var normalized2 = (string)method.Invoke(null, new object[] { uri2 });
+
+            // Both URIs should normalize to the same value
+            Assert.AreEqual(expectedNormalized, normalized1, "First URI should normalize correctly");
+            Assert.AreEqual(expectedNormalized, normalized2, "Second URI should normalize correctly");
+            Assert.AreEqual(normalized1, normalized2, "Both URIs should normalize to the same value");
+
+            // Verify IPv6 scope IDs are preserved
+            if (url1.Contains("%"))
+            {
+                Assert.IsTrue(normalized1.Contains("%"), "IPv6 scope ID should be preserved");
+            }
+        }
+
         [Test]
         public void ValidateAppConfigWithoutAppCert()
         {
