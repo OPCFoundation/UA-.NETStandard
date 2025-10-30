@@ -735,6 +735,7 @@ namespace Opc.Ua
                 {
                     if (!Utils.IsSupportedCertificateType(newCertificates[i].CertificateType))
                     {
+                        // TODO: Log when ITelemetry instance is available
                         newCertificates.RemoveAt(i);
                     }
                 }
