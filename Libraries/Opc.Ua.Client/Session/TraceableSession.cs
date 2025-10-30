@@ -181,6 +181,13 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public int PublishRequestCancelDelayOnCloseSession
+        {
+            get => Session.PublishRequestCancelDelayOnCloseSession;
+            set => Session.PublishRequestCancelDelayOnCloseSession = value;
+        }
+
+        /// <inheritdoc/>
         public Subscription DefaultSubscription
         {
             get => Session.DefaultSubscription;
@@ -653,7 +660,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IAsyncResult BeginPublish(int timeout)
+        public bool BeginPublish(int timeout)
         {
             return Session.BeginPublish(timeout);
         }

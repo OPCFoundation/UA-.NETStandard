@@ -808,6 +808,7 @@ namespace Opc.Ua
                 }
 
                 ushort namespaceIndex = 0;
+                bool namespaceUriSpecified = namespaceSet; // Track if nsu= was used (from ExpandedNodeId)
 
                 // parse the namespace index if present.
                 if (text.StartsWith("ns=", StringComparison.Ordinal))
@@ -822,7 +823,7 @@ namespace Opc.Ua
                     }
 
                     namespaceIndex = Convert.ToUInt16(text[3..index], CultureInfo.InvariantCulture);
-                    namespaceSet = true;
+                    // Don't set namespaceSet = true here, only ns= was parsed, not nsu=
 
                     text = text[(index + 1)..];
                 }
@@ -861,14 +862,15 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    // treat as a string identifier if a namespace was specified.
-                    if (namespaceSet)
+                    // Allow implicit string identifier only if namespace URI was specified (from ExpandedNodeId)
+                    // Do not allow it if only namespace index (ns=) was specified
+                    if (namespaceUriSpecified)
                     {
                         return new NodeId(text, namespaceIndex);
                     }
 
                     argumentException = new ArgumentException(
-                        "Invalid string NodeId without namespace index ('ns=').");
+                        Utils.Format("Invalid NodeId identifier. Missing valid identifier prefix ('i=', 's=', 'g=', 'b='): '{0}'", text));
                 }
             }
             catch (Exception e)

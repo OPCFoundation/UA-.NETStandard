@@ -1019,7 +1019,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Both,
                 readIdCollection,
                 out DataValueCollection serverEventNotifierValues,
-                out DiagnosticInfoCollection diagnosticInfos);
+                out DiagnosticInfoCollection _);
 
             ServerFixtureUtils.ValidateResponse(response, serverEventNotifierValues, readIdCollection);
             Assert.AreEqual(1, serverEventNotifierValues.Count);
@@ -1049,15 +1049,17 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Both,
                 historyCapabilitiesReadIds,
                 out DataValueCollection historyCapabilitiesValues,
-                out diagnosticInfos);
+                out DiagnosticInfoCollection _);
 
             ServerFixtureUtils.ValidateResponse(response, historyCapabilitiesValues, historyCapabilitiesReadIds);
             Assert.AreEqual(2, historyCapabilitiesValues.Count);
 
-            bool accessHistoryEventsCapability = historyCapabilitiesValues[0].Value != null && 
-                                                 (bool)historyCapabilitiesValues[0].Value;
-            bool accessHistoryDataCapability = historyCapabilitiesValues[1].Value != null && 
-                                               (bool)historyCapabilitiesValues[1].Value;
+            bool accessHistoryEventsCapability =
+                historyCapabilitiesValues[0].Value != null &&
+                (bool)historyCapabilitiesValues[0].Value;
+            bool accessHistoryDataCapability =
+                historyCapabilitiesValues[1].Value != null &&
+                (bool)historyCapabilitiesValues[1].Value;
 
             logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
             logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
@@ -1066,12 +1068,12 @@ namespace Opc.Ua.Server.Tests
             // If either history capability is enabled, the HistoryRead bit should be set
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
             {
-                Assert.IsTrue((eventNotifier & EventNotifiers.HistoryRead) != 0, 
+                Assert.IsTrue((eventNotifier & EventNotifiers.HistoryRead) != 0,
                     "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
-            Assert.IsTrue((eventNotifier & EventNotifiers.SubscribeToEvents) != 0, 
+            Assert.IsTrue((eventNotifier & EventNotifiers.SubscribeToEvents) != 0,
                 "Server EventNotifier should have SubscribeToEvents bit set");
         }
     }

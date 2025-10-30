@@ -33,6 +33,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
@@ -370,7 +371,7 @@ namespace Opc.Ua.Gds.Tests
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
-        public async Task SetEndpointAsync(string securityPolicyUri)
+        public async Task SetEndpointAsync(string securityPolicyUri, CancellationToken ct = default)
         {
             if (Configuration == null)
             {
@@ -381,13 +382,14 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("GDSClient must be initialized before setting endpoint.");
             }
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
-            using var discoveryClient = DiscoveryClient.Create(
+            using DiscoveryClient discoveryClient = await DiscoveryClient.CreateAsync(
                 new Uri(EndpointUrl),
                 endpointConfiguration,
-                m_telemetry);
+                m_telemetry,
+                ct: ct).ConfigureAwait(false);
             EndpointDescriptionCollection endpoints =
-                await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
-            await discoveryClient.CloseAsync().ConfigureAwait(false);
+                await discoveryClient.GetEndpointsAsync(null, ct).ConfigureAwait(false);
+            await discoveryClient.CloseAsync(ct).ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
             {

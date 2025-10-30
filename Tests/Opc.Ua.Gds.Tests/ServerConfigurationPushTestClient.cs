@@ -217,11 +217,12 @@ namespace Opc.Ua.Gds.Tests
             }
             await PushClient.DisconnectAsync().ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Config);
-            using var discoveryClient = DiscoveryClient.Create(
+            using DiscoveryClient discoveryClient = await DiscoveryClient.CreateAsync(
                 new Uri(EndpointUrl),
                 endpointConfiguration,
-                m_telemetry);
-            EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
+                m_telemetry).ConfigureAwait(false);
+            EndpointDescriptionCollection endpoints =
+                await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
             await discoveryClient.CloseAsync().ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
