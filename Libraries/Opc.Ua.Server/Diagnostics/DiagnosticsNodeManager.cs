@@ -1135,7 +1135,7 @@ namespace Opc.Ua.Server
                 HistoryServerCapabilitiesState historyCapabilities = GetDefaultHistoryCapabilities();
 
                 // Find the Server object
-                ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
+                var serverObject = (ServerObjectState)FindPredefinedNode(
                     ObjectIds.Server,
                     typeof(ServerObjectState));
 
