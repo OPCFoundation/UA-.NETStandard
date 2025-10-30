@@ -45,6 +45,12 @@ namespace Opc.Ua.Client
     public record class BrowserOptions
     {
         /// <summary>
+        /// Request header to use for the browse operations.
+        /// </summary>
+        [DataMember(Order = 0)]
+        public RequestHeader? RequestHeader { get; init; }
+
+        /// <summary>
         /// The view to use for the browse operation.
         /// </summary>
         [DataMember(Order = 1)]
@@ -87,17 +93,24 @@ namespace Opc.Ua.Client
         public uint ResultMask { get; init; } = (uint)BrowseResultMask.All;
 
         /// <summary>
-        /// gets or set the policy which is used to prevent the allocation of too many
-        /// Continuation Points in the ManagedBrowse(Async) methods
+        /// gets or set the policy which is used to prevent the allocation
+        /// of too many Continuation Points in the browse operation
         /// </summary>
         [DataMember(Order = 8)]
         public ContinuationPointPolicy ContinuationPointPolicy { get; init; }
 
         /// <summary>
-        /// Request header to use for the browse operations.
+        /// Max nodes to browse in a single operation.
         /// </summary>
         [DataMember(Order = 9)]
-        public RequestHeader? RequestHeader { get; init; }
+        public uint MaxNodesPerBrowse { get; set; }
+
+        /// <summary>
+        /// Max continuation points to use when ContinuationPointPolicy is set
+        /// to Balanced.
+        /// </summary>
+        [DataMember(Order = 10)]
+        public ushort MaxBrowseContinuationPoints { get; set; }
     }
 
     /// <summary>

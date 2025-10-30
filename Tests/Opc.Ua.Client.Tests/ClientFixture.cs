@@ -360,7 +360,7 @@ namespace Opc.Ua.Client.Tests
         /// <param name="endpoint">The configured endpoint</param>
         public ISession CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
         {
-            return SessionFactory.Create(Config, channel, endpoint, null);
+            return SessionFactory.Create(channel, Config, endpoint, null);
         }
 
         /// <summary>

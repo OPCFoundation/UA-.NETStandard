@@ -738,6 +738,449 @@ namespace Opc.Ua.Client
         }
     }
 
+    public partial class Session
+    {
+        /// <summary>
+        /// Creates a new communication session with a server by invoking the CreateSession service
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return Create(
+                configuration,
+                endpoint,
+                updateBeforeConnect,
+                false,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server by invoking the CreateSession service
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return Create(
+                configuration,
+                (ITransportWaitingConnection)null,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a new session with a server using the specified channel
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Session Create(
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+        {
+            return Create(
+                null,
+                configuration,
+                channel,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris);
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static Session Recreate(Session template)
+        {
+            return RecreateAsync(template).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="connection">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static Session Recreate(Session template, ITransportWaitingConnection connection)
+        {
+            return RecreateAsync(template, connection).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template using the provided channel.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="transportChannel">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static Session Recreate(Session template, ITransportChannel transportChannel)
+        {
+            return RecreateAsync(template, transportChannel).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static async Task<Session> RecreateAsync(
+            Session sessionTemplate,
+            CancellationToken ct = default)
+        {
+            var factory = new DefaultSessionFactory(sessionTemplate.MessageContext.Telemetry)
+            {
+                ReturnDiagnostics = sessionTemplate.ReturnDiagnostics
+            };
+            return (Session)await factory.RecreateAsync(
+                sessionTemplate,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static async Task<Session> RecreateAsync(
+            Session sessionTemplate,
+            ITransportWaitingConnection connection,
+            CancellationToken ct = default)
+        {
+            var factory = new DefaultSessionFactory(sessionTemplate.MessageContext.Telemetry)
+            {
+                ReturnDiagnostics = sessionTemplate.ReturnDiagnostics
+            };
+            return (Session)await factory.RecreateAsync(
+                sessionTemplate,
+                connection,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template using the provided channel.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static async Task<Session> RecreateAsync(
+            Session sessionTemplate,
+            ITransportChannel transportChannel,
+            CancellationToken ct = default)
+        {
+            var factory = new DefaultSessionFactory(sessionTemplate.MessageContext.Telemetry)
+            {
+                ReturnDiagnostics = sessionTemplate.ReturnDiagnostics
+            };
+            return (Session)await factory.RecreateAsync(
+                sessionTemplate,
+                transportChannel,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                null,
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                DiagnosticsMasks.None,
+                ct);
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                sessionInstantiator,
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                DiagnosticsMasks.None,
+                ct);
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                sessionInstantiator,
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                DiagnosticsMasks.None,
+                ct);
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a new session.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.Create")]
+        public static Session Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+        {
+            ServiceMessageContext context = configuration.CreateMessageContext(false);
+            var factory = new DefaultSessionFactory(context.Telemetry);
+            return (Session)factory.Create(
+                channel,
+                configuration,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris);
+        }
+
+        /// <summary>
+        /// Creates a secure channel to the specified endpoint.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateChannelAsync")]
+        public static Task<ITransportChannel> CreateChannelAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            CancellationToken ct = default)
+        {
+            ServiceMessageContext context = configuration.CreateMessageContext(false);
+            var factory = new DefaultSessionFactory(context.Telemetry);
+            return factory.CreateChannelAsync(
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static async Task<Session> CreateAsync(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            DiagnosticsMasks returnDiagnostics,
+            CancellationToken ct = default)
+        {
+            ServiceMessageContext context = configuration.CreateMessageContext(false);
+            var factory = new DefaultSessionFactory(context.Telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
+            return (Session)await factory.CreateAsync(
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connect manager.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static async Task<Session> CreateAsync(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            ServiceMessageContext context = configuration.CreateMessageContext(false);
+            var factory = new DefaultSessionFactory(context.Telemetry);
+            return (Session)await factory.CreateAsync(
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connect manager.
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static async Task<Session> CreateAsync(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            DiagnosticsMasks returnDiagnostics,
+            CancellationToken ct = default)
+        {
+            ServiceMessageContext context = configuration.CreateMessageContext(false);
+            var factory = new DefaultSessionFactory(context.Telemetry)
+            {
+                ReturnDiagnostics = returnDiagnostics
+            };
+            return (Session)await factory.CreateAsync(
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>
     /// Obsolete traceable session, which now is supported by session
     /// </summary>
@@ -804,6 +1247,40 @@ namespace Opc.Ua.Client
                 : base(null)
             {
             }
+        }
+    }
+
+    /// <summary>
+    /// Object that creates an instance of a Session object.
+    /// </summary>
+    [Obsolete("Use ISessionFactory instead. This interface will be removed in a future release.")]
+    public interface ISessionInstantiator : ISessionFactory;
+
+    /// <summary>
+    /// Obsolete session factory api
+    /// </summary>
+    public static class SessionFactoryObsolete
+    {
+        /// <summary>
+        /// Create session
+        /// </summary>
+        [Obsolete("Use Create with channel and configuration reversed")]
+        public static ISession Create(
+            this ISessionFactory factory,
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+        {
+            return factory.Create(
+                channel,
+                configuration,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris);
         }
     }
 }

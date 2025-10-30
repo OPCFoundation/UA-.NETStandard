@@ -155,9 +155,10 @@ namespace Opc.Ua.Client.Tests
 
             var expected = new Node();
             var id = new NodeId("test", 0);
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
 
             context
                 .Setup(c => c.FetchNodeAsync(
@@ -269,9 +270,10 @@ namespace Opc.Ua.Client.Tests
                     IsForward = true
                 }
             };
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
@@ -365,9 +367,10 @@ namespace Opc.Ua.Client.Tests
                 NodeClass = NodeClass.Variable
             };
 
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
 
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -471,9 +474,10 @@ namespace Opc.Ua.Client.Tests
                 }
             };
             var id = new NodeId("test", 0);
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
 
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -549,9 +553,10 @@ namespace Opc.Ua.Client.Tests
                 }
             };
             var id = new NodeId("test", 0);
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
 
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -676,9 +681,10 @@ namespace Opc.Ua.Client.Tests
                 }
             };
             var id = new NodeId("test", 0);
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
 
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -785,9 +791,10 @@ namespace Opc.Ua.Client.Tests
                     IsForward = false
                 }
             };
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
 
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -1033,9 +1040,10 @@ namespace Opc.Ua.Client.Tests
                     IsForward = false
                 }
             };
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
 
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -1101,9 +1109,10 @@ namespace Opc.Ua.Client.Tests
                     IsForward = true
                 }
             };
-            var session = new Mock<ISession>();
+
             var context = new Mock<INodeCacheContext>();
-            context.Setup(c => c.Session).Returns(session.Object);
+            var nsTable = new NamespaceTable();
+            context.Setup(c => c.NamespaceUris).Returns(nsTable);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),

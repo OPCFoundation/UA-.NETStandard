@@ -52,47 +52,32 @@ namespace Opc.Ua.Client
             ITelemetryContext telemetry,
             BrowserOptions? options = null)
         {
-            State = options ?? new BrowserOptions();
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<Browser>();
+            State = options ?? new BrowserOptions();
         }
 
         /// <summary>
         /// Creates new instance of a browser and attaches it to a session.
         /// </summary>
         public Browser(
-            ISession session,
+            ISessionClient session,
             BrowserOptions? options = null)
         {
-            State = options ?? new BrowserOptions();
             m_telemetry = session.MessageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Browser>();
+            State = options ?? new BrowserOptions();
             Session = session;
-        }
-
-        /// <summary>
-        /// Compatibility constructor accepting explicit telemetry context plus session.
-        /// </summary>
-        /// <remarks>
-        /// Some existing code instantiates the browser with (session, telemetry). This overload preserves
-        /// that pattern while delegating to the session-based constructor and then overriding the telemetry.
-        /// </remarks>
-        public Browser(ISession session, ITelemetryContext telemetry)
-        {
-            State = new BrowserOptions();
-            Session = session;
-            m_telemetry = telemetry ?? session.MessageContext.Telemetry;
-            m_logger = m_telemetry.CreateLogger<Browser>();
         }
 
         /// <summary>
         /// Creates an unattached instance of a browser.
         /// </summary>
-        [Obsolete("Use constructor with ISession or ITelemetryContext.")]
+        [Obsolete("Use constructor with ISessionClient or ITelemetryContext.")]
         public Browser(BrowserOptions? options = null)
         {
-            State = options ?? new BrowserOptions();
             m_logger = m_telemetry.CreateLogger<Browser>();
+            State = options ?? new BrowserOptions();
         }
 
         /// <summary>
@@ -105,9 +90,9 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(template));
             }
-            State = template.State;
             m_logger = template.m_logger;
             m_telemetry = template.m_telemetry;
+            State = template.State;
             Session = template.Session;
             ContinueUntilDone = template.ContinueUntilDone;
         }
@@ -120,7 +105,23 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The session that the browse is attached to.
         /// </summary>
-        public ISession? Session { get; set; }
+        public ISessionClient? Session
+        {
+            get => m_session;
+            set
+            {
+                if (value is ISession session)
+                {
+                    MaxNodesPerBrowse =
+                        session.OperationLimits.MaxNodesPerBrowse;
+                    MaxBrowseContinuationPoints =
+                        session.ServerCapabilities.MaxBrowseContinuationPoints;
+                    ContinuationPointPolicy =
+                        session.ContinuationPointPolicy;
+                }
+                m_session = value;
+            }
+        }
 
         /// <summary>
         /// The view to use for the browse operation.
@@ -132,12 +133,30 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The view to use for the browse operation.
+        /// The continuation point strategy to use
         /// </summary>
         public ContinuationPointPolicy ContinuationPointPolicy
         {
             get => State.ContinuationPointPolicy;
             set => State = State with { ContinuationPointPolicy = value };
+        }
+
+        /// <summary>
+        /// Max nodes to browse in a single operation
+        /// </summary>
+        public uint MaxNodesPerBrowse
+        {
+            get => State.MaxNodesPerBrowse;
+            set => State = State with { MaxNodesPerBrowse = value };
+        }
+
+        /// <summary>
+        /// Max continuation point limit to use
+        /// </summary>
+        public ushort MaxBrowseContinuationPoints
+        {
+            get => State.MaxBrowseContinuationPoints;
+            set => State = State with { MaxBrowseContinuationPoints = value };
         }
 
         /// <summary>
@@ -235,7 +254,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             BrowserOptions state = State;
-            ISession session = Session ??
+            ISessionClient session = Session ??
                 throw new ServiceResultException(
                     StatusCodes.BadServerNotConnected,
                     "Cannot browse if not connected to a server.");
@@ -385,7 +404,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             BrowserOptions state = State;
-            ISession session = Session ??
+            ISessionClient session = Session ??
                 throw new ServiceResultException(
                     StatusCodes.BadServerNotConnected,
                     "Cannot browse if not connected to a server.");
@@ -419,14 +438,14 @@ namespace Opc.Ua.Client
                 int badNoCPErrorsPerPass = 0;
                 int badCPInvalidErrorsPerPass = 0;
                 int otherErrorsPerPass = 0;
-                uint maxNodesPerBrowse = session.OperationLimits.MaxNodesPerBrowse;
+                uint maxNodesPerBrowse = MaxNodesPerBrowse;
 
-                if (session.ContinuationPointPolicy == ContinuationPointPolicy.Balanced &&
-                    session.ServerCapabilities.MaxBrowseContinuationPoints > 0)
+                if (ContinuationPointPolicy == ContinuationPointPolicy.Balanced &&
+                    MaxBrowseContinuationPoints > 0)
                 {
                     maxNodesPerBrowse =
-                        session.ServerCapabilities.MaxBrowseContinuationPoints < maxNodesPerBrowse
-                            ? session.ServerCapabilities.MaxBrowseContinuationPoints
+                        MaxBrowseContinuationPoints < maxNodesPerBrowse
+                            ? MaxBrowseContinuationPoints
                             : maxNodesPerBrowse;
                 }
 
@@ -546,7 +565,7 @@ namespace Opc.Ua.Client
         /// BadNoContinuationPoint and BadContinuationPointInvalid
         /// </summary>
         private static async ValueTask<ResultSet<ReferenceDescriptionCollection>> BrowseAsync(
-            ISession session,
+            ISessionClient session,
             RequestHeader? requestHeader,
             ViewDescription? view,
             List<NodeId> nodeIds,
@@ -666,7 +685,7 @@ namespace Opc.Ua.Client
         /// <returns>The next batch of references</returns>
         /// <exception cref="ServiceResultException"></exception>
         private static async ValueTask<(ReferenceDescriptionCollection, byte[])> BrowseNextAsync(
-            ISession session,
+            ISessionClient session,
             byte[] continuationPoint,
             bool cancel,
             CancellationToken ct = default)
@@ -739,6 +758,8 @@ namespace Opc.Ua.Client
 
         private readonly ILogger m_logger;
         private readonly ITelemetryContext? m_telemetry;
+        private ISessionClient? m_session;
+
         private event BrowserEventHandler? m_MoreReferences;
     }
 

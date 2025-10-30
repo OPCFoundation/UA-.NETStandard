@@ -33,8 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Configuration;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
 {

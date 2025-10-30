@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task LoadAllServerDataTypeSystemsAsync(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.
-            var browser = new Browser(Session, Telemetry)
+            var browser = new Browser(Session)
             {
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,

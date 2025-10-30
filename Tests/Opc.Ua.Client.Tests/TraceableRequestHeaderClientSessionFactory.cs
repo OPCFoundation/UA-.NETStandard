@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Session Create(
+        public override ISession Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
@@ -54,7 +54,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Session Create(
+        public override ISession Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,

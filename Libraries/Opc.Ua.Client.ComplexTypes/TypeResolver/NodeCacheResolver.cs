@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type resolver with a session to load the custom type information.
         /// </summary>
         public NodeCacheResolver(ISession session, ITelemetryContext telemetry)
-            : this(new LruNodeCache(
+            : this(session, new LruNodeCache(
                 new NodeCacheContext(session),
                 telemetry), telemetry)
         {
@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ISession session,
             TimeSpan cacheExpiry,
             ITelemetryContext telemetry)
-            : this(new LruNodeCache(
+            : this(session, new LruNodeCache(
                 new NodeCacheContext(session),
                 telemetry,
                 cacheExpiry), telemetry)
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TimeSpan cacheExpiry,
             int capacity,
             ITelemetryContext telemetry)
-            : this(new LruNodeCache(
+            : this(session, new LruNodeCache(
                 new NodeCacheContext(session),
                 telemetry,
                 cacheExpiry,
@@ -93,9 +93,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type resolver with a session and lru cache to load the
         /// custom type information with the specified expiry and cache size.
         /// </summary>
-        public NodeCacheResolver(ILruNodeCache lruNodeCache, ITelemetryContext telemetry)
+        public NodeCacheResolver(
+            ISession session,
+            ILruNodeCache lruNodeCache,
+            ITelemetryContext telemetry)
         {
-            m_session = lruNodeCache.Session;
+            m_session = session;
             m_lruNodeCache = lruNodeCache;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
             FactoryBuilder = m_session.Factory.Builder;

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -43,13 +45,46 @@ namespace Opc.Ua.Client
         /// Set diagnostics for all sessions created by the factory
         /// </summary>
         DiagnosticsMasks ReturnDiagnostics { get; set; }
+        /// <summary>
+        /// Telemetry configuration to use when creating sessions.
+        /// </summary>
+        ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// </summary>
+        ISession Create(
+            ISessionChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint);
+
+        /// <summary>
+        /// Creates a new session with a server using the specified channel by invoking
+        /// the CreateSession service.
+        /// </summary>
+        /// <param name="channel">The channel for the server.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by
+        /// server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in
+        /// GetEndpoints() request.</param>
+        ISession Create(
+            ITransportChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2? clientCertificate,
+            EndpointDescriptionCollection? availableEndpoints = null,
+            StringCollection? discoveryProfileUris = null);
 
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used
+        /// to update the endpoint description before connecting.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The identity.</param>
@@ -62,17 +97,20 @@ namespace Opc.Ua.Client
             bool updateBeforeConnect,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
+            IUserIdentity? identity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Creates a new communication session with a server by invoking the CreateSession service
+        /// Creates a new communication session with a server by invoking the CreateSession
+        /// service
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is
+        /// used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate
+        /// must match the endpoint used.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -86,26 +124,9 @@ namespace Opc.Ua.Client
             bool checkDomain,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
+            IUserIdentity? identity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default);
-
-        /// <summary>
-        /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="channel">The channel for the server.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
-        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
-        ISession Create(
-            ApplicationConfiguration configuration,
-            ITransportChannel channel,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null);
 
         /// <summary>
         /// Creates a secure channel to the specified endpoint.
@@ -113,8 +134,10 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The application configuration.</param>
         /// <param name="connection">The client endpoint for the reverse connect.</param>
         /// <param name="endpoint">A configured endpoint to connect to.</param>
-        /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
-        /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
+        /// <param name="updateBeforeConnect">Update configuration based on server
+        /// prior connect.</param>
+        /// <param name="checkDomain">Check that the certificate specifies a valid
+        /// domain (computer) name.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
         Task<ITransportChannel> CreateChannelAsync(
@@ -131,8 +154,10 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="connection">The client endpoint for the reverse connect.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint
+        /// is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the
+        /// certificate must match the endpoint used.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -147,18 +172,21 @@ namespace Opc.Ua.Client
             bool checkDomain,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
+            IUserIdentity? identity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new communication session with a server using a reverse connect manager.
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
+        /// <param name="reverseConnectManager">The reverse connect manager for the client
+        /// connection.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint
+        /// is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate
+        /// must match the endpoint used.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
@@ -173,8 +201,8 @@ namespace Opc.Ua.Client
             bool checkDomain,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity userIdentity,
-            IList<string> preferredLocales,
+            IUserIdentity? userIdentity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>
@@ -183,7 +211,9 @@ namespace Opc.Ua.Client
         /// <param name="sessionTemplate">The ISession object to use as template</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default);
+        Task<ISession> RecreateAsync(
+            ISession sessionTemplate,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Recreates a session based on a specified template.

@@ -258,7 +258,7 @@ namespace Quickstarts
             try
             {
                 // Create a Browser object
-                var browser = new Browser(session, m_telemetry)
+                var browser = new Browser(session)
                 {
                     // Set browse parameters
                     BrowseDirection = BrowseDirection.Forward,

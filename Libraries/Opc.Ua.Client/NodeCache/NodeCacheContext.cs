@@ -23,13 +23,13 @@ namespace Opc.Ua.Client
         /// Create node cache context
         /// </summary>
         /// <param name="session"></param>
-        public NodeCacheContext(ISession session)
+        public NodeCacheContext(ISessionClient session)
         {
-            Session = session;
+            m_session = session;
         }
 
         /// <inheritdoc/>
-        public ISession Session { get; }
+        public NamespaceTable NamespaceUris => m_session.MessageContext.NamespaceUris;
 
         /// <inheritdoc/>
         public async ValueTask<ReferenceDescriptionCollection> FetchReferencesAsync(
@@ -37,7 +37,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            var browser = new Browser(Session, new BrowserOptions
+            var browser = new Browser(m_session, new BrowserOptions
             {
                 RequestHeader = requestHeader,
                 BrowseDirection = BrowseDirection.Both,
@@ -61,7 +61,7 @@ namespace Opc.Ua.Client
                 return new ValueTask<ResultSet<ReferenceDescriptionCollection>>(
                     ResultSet<ReferenceDescriptionCollection>.Empty);
             }
-            var browser = new Browser(Session, new BrowserOptions
+            var browser = new Browser(m_session, new BrowserOptions
             {
                 RequestHeader = requestHeader,
                 BrowseDirection = BrowseDirection.Both,
@@ -95,7 +95,7 @@ namespace Opc.Ua.Client
                     AttributeId = Attributes.NodeClass })
             ];
 
-            ReadResponse readResponse = await Session.ReadAsync(
+            ReadResponse readResponse = await m_session.ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Neither,
@@ -127,7 +127,7 @@ namespace Opc.Ua.Client
 
             if (attributesToRead.Count > 0)
             {
-                readResponse = await Session.ReadAsync(
+                readResponse = await m_session.ReadAsync(
                     null,
                     0,
                     TimestampsToReturn.Neither,
@@ -189,7 +189,7 @@ namespace Opc.Ua.Client
                 nodeCollection,
                 skipOptionalAttributes);
 
-            ReadResponse readResponse = await Session.ReadAsync(
+            ReadResponse readResponse = await m_session.ReadAsync(
                 requestHeader,
                 0,
                 TimestampsToReturn.Neither,
@@ -238,7 +238,7 @@ namespace Opc.Ua.Client
             }
 
             // read from server.
-            ReadResponse readResponse = await Session.ReadAsync(
+            ReadResponse readResponse = await m_session.ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Neither,
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client
             var itemsToRead = new ReadValueIdCollection { itemToRead };
 
             // read from server.
-            ReadResponse readResponse = await Session.ReadAsync(
+            ReadResponse readResponse = await m_session.ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Both,
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client
             // read from server.
             var errors = new List<ServiceResult>(itemsToRead.Count);
 
-            ReadResponse readResponse = await Session.ReadAsync(
+            ReadResponse readResponse = await m_session.ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Both,
@@ -1079,5 +1079,7 @@ namespace Opc.Ua.Client
                 attributesPerNodeId.Add(attributes);
             }
         }
+
+        private readonly ISessionClient m_session;
     }
 }

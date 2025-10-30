@@ -116,7 +116,7 @@ namespace Opc.Ua.Client
         public ICacheMetrics? ReferencesMetrics => m_refs.Metrics.Value;
 
         /// <inheritdoc/>
-        public ISession Session => m_context.Session;
+        public NamespaceTable NamespaceUris => m_context.NamespaceUris;
 
         /// <inheritdoc/>
         public ValueTask<INode> GetNodeAsync(NodeId nodeId, CancellationToken ct)
@@ -517,7 +517,7 @@ namespace Opc.Ua.Client
                         {
                             reference.NodeId = ExpandedNodeId.ToNodeId(
                                 reference.NodeId,
-                                context.ctx.Session.NamespaceUris);
+                                context.ctx.NamespaceUris);
                         }
                     }
                     return references;
@@ -634,7 +634,7 @@ namespace Opc.Ua.Client
         {
             return references
                 .Where(r => !r.IsForward && r.ReferenceTypeId == ReferenceTypeIds.HasSubtype)
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris))
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris))
                 .DefaultIfEmpty(NodeId.Null)
                 .First();
         }
@@ -647,7 +647,7 @@ namespace Opc.Ua.Client
         {
             return expandedNodeId.IsAbsolute
                 ? NodeId.Null
-                : ExpandedNodeId.ToNodeId(expandedNodeId, Session.NamespaceUris);
+                : ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
         }
 
         /// <summary>

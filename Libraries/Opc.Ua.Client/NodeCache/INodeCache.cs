@@ -54,7 +54,7 @@ namespace Opc.Ua.Client
         /// fetches missing nodes from server.
         /// </summary>
         /// <param name="nodeIds">The node identifier collection.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         Task<IList<INode>> FindAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct = default);
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client
         /// Fetches a node from the server and updates the cache.
         /// </summary>
         /// <param name="nodeId">Node id to fetch.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         Task<Node> FetchNodeAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default);
@@ -72,7 +72,7 @@ namespace Opc.Ua.Client
         /// Fetches a node collection from the server and updates the cache.
         /// </summary>
         /// <param name="nodeIds">The node identifier collection.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         Task<IList<Node>> FetchNodesAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct = default);
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client
         /// Adds the supertypes of the node to the cache.
         /// </summary>
         /// <param name="nodeId">Node id to fetch.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         Task FetchSuperTypesAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default);

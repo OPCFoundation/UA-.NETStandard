@@ -41,7 +41,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The session used by the node cache
         /// </summary>
-        ISession Session { get; }
+        NamespaceTable NamespaceUris { get; }
 
         /// <summary>
         /// Get node from cache

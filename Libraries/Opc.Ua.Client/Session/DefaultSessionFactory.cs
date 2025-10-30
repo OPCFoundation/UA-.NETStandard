@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
@@ -38,13 +40,13 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Object that creates instances of an Opc.Ua.Client.Session object.
     /// </summary>
-    public class DefaultSessionFactory : ISessionFactory, ISessionInstantiator
+    public class DefaultSessionFactory : ISessionFactory
     {
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
         [Obsolete("Use new DefaultSessionFactory instead.")]
-        public static readonly DefaultSessionFactory Instance = new(null);
+        public static readonly DefaultSessionFactory Instance = new(null!);
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry { get; init; }
@@ -57,7 +59,7 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
         public DefaultSessionFactory()
-            : this(null)
+            : this(null!)
         {
         }
 
@@ -76,8 +78,8 @@ namespace Opc.Ua.Client
             bool updateBeforeConnect,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
+            IUserIdentity? identity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default)
         {
             return CreateAsync(
@@ -93,36 +95,33 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual async Task<ISession> CreateAsync(
+        public virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
+            IUserIdentity? identity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session
-                .CreateAsync(
-                    this,
-                    configuration,
-                    (ITransportWaitingConnection)null,
-                    endpoint,
-                    updateBeforeConnect,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    identity,
-                    preferredLocales,
-                    ReturnDiagnostics,
-                    ct)
-                .ConfigureAwait(false);
+            return CreateAsync(
+                configuration,
+                (ITransportWaitingConnection?)null,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ReturnDiagnostics,
+                ct);
         }
 
         /// <inheritdoc/>
-        public virtual async Task<ISession> CreateAsync(
+        public virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -130,25 +129,22 @@ namespace Opc.Ua.Client
             bool checkDomain,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
+            IUserIdentity? identity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session
-                .CreateAsync(
-                    this,
-                    configuration,
-                    connection,
-                    endpoint,
-                    updateBeforeConnect,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    identity,
-                    preferredLocales,
-                    ReturnDiagnostics,
-                    ct)
-                .ConfigureAwait(false);
+            return CreateAsync(
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ReturnDiagnostics,
+                ct);
         }
 
         /// <inheritdoc/>
@@ -160,8 +156,8 @@ namespace Opc.Ua.Client
             bool checkDomain,
             string sessionName,
             uint sessionTimeout,
-            IUserIdentity userIdentity,
-            IList<string> preferredLocales,
+            IUserIdentity? userIdentity,
+            IList<string>? preferredLocales,
             CancellationToken ct = default)
         {
             if (reverseConnectManager == null)
@@ -175,11 +171,10 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     userIdentity,
                     preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
+                    ct).ConfigureAwait(false);
             }
 
-            ITransportWaitingConnection connection;
+            ITransportWaitingConnection? connection;
             do
             {
                 connection = await reverseConnectManager
@@ -191,69 +186,113 @@ namespace Opc.Ua.Client
 
                 if (updateBeforeConnect)
                 {
-                    await endpoint
-                        .UpdateFromServerAsync(
-                            endpoint.EndpointUrl,
-                            connection,
-                            endpoint.Description.SecurityMode,
-                            endpoint.Description.SecurityPolicyUri,
-                            Telemetry,
-                            ct)
-                        .ConfigureAwait(false);
+                    await endpoint.UpdateFromServerAsync(
+                        endpoint.EndpointUrl,
+                        connection,
+                        endpoint.Description.SecurityMode,
+                        endpoint.Description.SecurityPolicyUri,
+                        Telemetry,
+                        ct).ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
                 }
             } while (connection == null);
 
             return await CreateAsync(
-                    configuration,
-                    connection,
-                    endpoint,
-                    false,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    userIdentity,
-                    preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public virtual ISession Create(
-            ApplicationConfiguration configuration,
-            ITransportChannel channel,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
-        {
-            return Session.Create(
-                this,
                 configuration,
-                channel,
+                connection,
                 endpoint,
-                clientCertificate,
-                availableEndpoints,
-                discoveryProfileUris);
+                false,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ITransportChannel> CreateChannelAsync(
+        public virtual async Task<ITransportChannel> CreateChannelAsync(
             ApplicationConfiguration configuration,
-            ITransportWaitingConnection connection,
+            ITransportWaitingConnection? connection,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
             CancellationToken ct = default)
         {
-            return Session.CreateChannelAsync(
+            endpoint.UpdateBeforeConnect = updateBeforeConnect;
+
+            EndpointDescription endpointDescription = endpoint.Description;
+
+            // create the endpoint configuration (use the application configuration to provide default values).
+            EndpointConfiguration endpointConfiguration = endpoint.Configuration;
+
+            if (endpointConfiguration == null)
+            {
+                endpoint.Configuration = endpointConfiguration = EndpointConfiguration.Create(
+                    configuration);
+            }
+
+            // create message context.
+            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+
+            // update endpoint description using the discovery endpoint.
+            if (endpoint.UpdateBeforeConnect && connection == null)
+            {
+                await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
+                endpointDescription = endpoint.Description;
+                endpointConfiguration = endpoint.Configuration;
+            }
+
+            // checks the domains in the certificate.
+            if (checkDomain &&
+                endpoint.Description.ServerCertificate != null &&
+                endpoint.Description.ServerCertificate.Length > 0)
+            {
+                configuration.CertificateValidator?.ValidateDomains(
+                    CertificateFactory.Create(endpoint.Description.ServerCertificate),
+                    endpoint);
+            }
+
+            X509Certificate2? clientCertificate = null;
+            X509Certificate2Collection? clientCertificateChain = null;
+            if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
+            {
+                clientCertificate = await Session.LoadCertificateAsync(
+                    configuration,
+                    endpointDescription.SecurityPolicyUri,
+                    messageContext.Telemetry,
+                    ct)
+                    .ConfigureAwait(false);
+                clientCertificateChain = await Session.LoadCertificateChainAsync(
+                    configuration,
+                    clientCertificate,
+                    ct)
+                    .ConfigureAwait(false);
+            }
+
+            // initialize the channel which will be created with the server.
+            if (connection != null)
+            {
+                return await UaChannelBase.CreateUaBinaryChannelAsync(
+                    configuration,
+                    connection,
+                    endpointDescription,
+                    endpointConfiguration,
+                    clientCertificate,
+                    clientCertificateChain,
+                    messageContext,
+                    ct).ConfigureAwait(false);
+            }
+
+            return await UaChannelBase.CreateUaBinaryChannelAsync(
                 configuration,
-                connection,
-                endpoint,
-                updateBeforeConnect,
-                checkDomain,
-                ct);
+                endpointDescription,
+                endpointConfiguration,
+                clientCertificate,
+                clientCertificateChain,
+                messageContext,
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -269,7 +308,7 @@ namespace Opc.Ua.Client
             }
 
             template.ReturnDiagnostics = ReturnDiagnostics;
-            return await Session.RecreateAsync(template, ct).ConfigureAwait(false);
+            return await template.RecreateAsync(ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -286,7 +325,7 @@ namespace Opc.Ua.Client
             }
 
             template.ReturnDiagnostics = ReturnDiagnostics;
-            return await Session.RecreateAsync(template, connection, ct).ConfigureAwait(false);
+            return await template.RecreateAsync(connection, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -302,12 +341,12 @@ namespace Opc.Ua.Client
                     "The ISession provided is not of a supported type");
             }
             template.ReturnDiagnostics = ReturnDiagnostics;
-            return await Session.RecreateAsync(template, transportChannel, ct)
+            return await template.RecreateAsync(transportChannel, ct)
                 .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Session Create(
+        public virtual ISession Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
@@ -319,13 +358,13 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual Session Create(
+        public virtual ISession Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            X509Certificate2? clientCertificate,
+            EndpointDescriptionCollection? availableEndpoints = null,
+            StringCollection? discoveryProfileUris = null)
         {
             return new Session(
                 channel,
@@ -337,6 +376,72 @@ namespace Opc.Ua.Client
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to
+        /// update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match
+        /// the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="returnDiagnostics">The return diagnostics to use on this session</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
+        private async Task<ISession> CreateAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection? connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity? identity,
+            IList<string>? preferredLocales,
+            DiagnosticsMasks returnDiagnostics,
+            CancellationToken ct = default)
+        {
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel = await CreateChannelAsync(
+                    configuration,
+                    connection,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    ct)
+                .ConfigureAwait(false);
+
+            // create the session object.
+            ISession session = Create(channel, configuration, endpoint, null);
+            session.ReturnDiagnostics = returnDiagnostics;
+
+            // create the session.
+            try
+            {
+                await session
+                    .OpenAsync(
+                        sessionName,
+                        sessionTimeout,
+                        identity ?? new UserIdentity(),
+                        preferredLocales,
+                        checkDomain,
+                        ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                session.Dispose();
+                throw;
+            }
+
+            return session;
         }
     }
 }

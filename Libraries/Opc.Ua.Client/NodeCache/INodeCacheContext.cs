@@ -19,7 +19,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the table of namespace uris known to the server.
         /// </summary>
-        ISession Session { get; }
+        NamespaceTable NamespaceUris { get; }
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object

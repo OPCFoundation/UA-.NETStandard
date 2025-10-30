@@ -1014,8 +1014,8 @@ namespace Opc.Ua.Client.Tests
             // hook callback to renew the user identity
             session1.RenewUserIdentity += (_, _) => userIdentityPW;
 
-            Session session2 = await Client
-                .Session.RecreateAsync((Session)session1)
+            ISession session2 = await session1.SessionFactory
+                .RecreateAsync(session1)
                 .ConfigureAwait(false);
 
             // create new channel
@@ -1024,8 +1024,8 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             Assert.NotNull(channel2);
 
-            Session session3 = await Client
-                .Session.RecreateAsync((Session)session1, channel2)
+            ISession session3 = await session1.SessionFactory
+                .RecreateAsync(session1, channel2)
                 .ConfigureAwait(false);
 
             // validate new Session Ids are used and also UserName PW identity token is
