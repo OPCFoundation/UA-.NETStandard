@@ -642,6 +642,62 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Tries to parse an expanded node id string and returns true if successful.
+        /// </summary>
+        /// <remarks>
+        /// Tries to parse an ExpandedNodeId String and returns an ExpandedNodeId object if successful.
+        /// </remarks>
+        /// <param name="text">The ExpandedNodeId value as a string.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(string text, out ExpandedNodeId value)
+        {
+            try
+            {
+                // check for null.
+                if (string.IsNullOrEmpty(text))
+                {
+                    value = Null;
+                    return true;
+                }
+
+                value = new ExpandedNodeId(text);
+                return true;
+            }
+            catch
+            {
+                value = Null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Tries to parse an ExpandedNodeId formatted as a string and converts it to an ExpandedNodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            out ExpandedNodeId value,
+            NodeIdParsingOptions options = null)
+        {
+            try
+            {
+                value = Parse(context, text, options);
+                return true;
+            }
+            catch
+            {
+                value = Null;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Unescapes any reserved characters in the uri.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>

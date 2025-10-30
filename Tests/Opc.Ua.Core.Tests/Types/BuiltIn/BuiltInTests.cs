@@ -907,5 +907,256 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 actualValueRank == ValueRanks.Scalar,
                 ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar));
         }
+
+        [Test]
+        public void NodeIdTryParseValidInputs()
+        {
+            // Test numeric identifiers
+            Assert.IsTrue(NodeId.TryParse("i=1234", out NodeId result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(IdType.Numeric, result.IdType);
+            Assert.AreEqual(0, result.NamespaceIndex);
+
+            Assert.IsTrue(NodeId.TryParse("ns=2;i=1234", out result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(IdType.Numeric, result.IdType);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test string identifiers
+            Assert.IsTrue(NodeId.TryParse("s=HelloWorld", out result));
+            Assert.AreEqual("HelloWorld", result.Identifier);
+            Assert.AreEqual(IdType.String, result.IdType);
+            Assert.AreEqual(0, result.NamespaceIndex);
+
+            Assert.IsTrue(NodeId.TryParse("ns=2;s=HelloWorld", out result));
+            Assert.AreEqual("HelloWorld", result.Identifier);
+            Assert.AreEqual(IdType.String, result.IdType);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test GUID identifiers
+            Assert.IsTrue(NodeId.TryParse("g=af469096-f02a-4563-940b-603958363b81", out result));
+            Assert.AreEqual(new Guid("af469096-f02a-4563-940b-603958363b81"), result.Identifier);
+            Assert.AreEqual(IdType.Guid, result.IdType);
+            Assert.AreEqual(0, result.NamespaceIndex);
+
+            Assert.IsTrue(NodeId.TryParse("ns=2;g=af469096-f02a-4563-940b-603958363b81", out result));
+            Assert.AreEqual(new Guid("af469096-f02a-4563-940b-603958363b81"), result.Identifier);
+            Assert.AreEqual(IdType.Guid, result.IdType);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test opaque identifiers (b=01020304 is valid base64 that decodes to specific bytes)
+            Assert.IsTrue(NodeId.TryParse("b=01020304", out result));
+            byte[] expectedBytes1 = Convert.FromBase64String("01020304");
+            Assert.AreEqual(expectedBytes1, result.Identifier);
+            Assert.AreEqual(IdType.Opaque, result.IdType);
+            Assert.AreEqual(0, result.NamespaceIndex);
+
+            Assert.IsTrue(NodeId.TryParse("ns=2;b=04030201", out result));
+            byte[] expectedBytes2 = Convert.FromBase64String("04030201");
+            Assert.AreEqual(expectedBytes2, result.Identifier);
+            Assert.AreEqual(IdType.Opaque, result.IdType);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test null and empty
+            Assert.IsTrue(NodeId.TryParse(null, out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsTrue(NodeId.TryParse("", out result));
+            Assert.AreEqual(NodeId.Null, result);
+        }
+
+        [Test]
+        public void NodeIdTryParseInvalidInputs()
+        {
+            // Invalid formats should return false and NodeId.Null
+            Assert.IsFalse(NodeId.TryParse("HelloWorld", out NodeId result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsFalse(NodeId.TryParse("Test", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsFalse(NodeId.TryParse("nsu=http://opcfoundation.org/UA/;i=1234", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsFalse(NodeId.TryParse("nsu=urn:xyz;Test", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsFalse(NodeId.TryParse("ns=", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsFalse(NodeId.TryParse("nsu=", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            // Invalid identifier values
+            Assert.IsFalse(NodeId.TryParse("i=notanumber", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsFalse(NodeId.TryParse("g=not-a-valid-guid", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsFalse(NodeId.TryParse("b=notbase64!@#", out result));
+            Assert.AreEqual(NodeId.Null, result);
+        }
+
+        [Test]
+        public void NodeIdTryParseWithContext()
+        {
+            var context = new ServiceMessageContext(Telemetry);
+            context.NamespaceUris = new NamespaceTable();
+            context.NamespaceUris.Append("http://opcfoundation.org/UA/");
+            context.NamespaceUris.Append("http://test.org/");
+
+            // Test with namespace URI
+            Assert.IsTrue(NodeId.TryParse(context, "nsu=http://test.org/;i=1234", out NodeId result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test with namespace index
+            Assert.IsTrue(NodeId.TryParse(context, "ns=2;s=Test", out result));
+            Assert.AreEqual("Test", result.Identifier);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test with unknown namespace URI (should fail)
+            Assert.IsFalse(NodeId.TryParse(context, "nsu=http://unknown.org/;i=1234", out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            // Test null/empty
+            Assert.IsTrue(NodeId.TryParse(context, null, out result));
+            Assert.AreEqual(NodeId.Null, result);
+
+            Assert.IsTrue(NodeId.TryParse(context, "", out result));
+            Assert.AreEqual(NodeId.Null, result);
+        }
+
+        [Test]
+        public void ExpandedNodeIdTryParseValidInputs()
+        {
+            // Test numeric identifiers
+            Assert.IsTrue(ExpandedNodeId.TryParse("i=1234", out ExpandedNodeId result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(IdType.Numeric, result.IdType);
+            Assert.AreEqual(0, result.NamespaceIndex);
+
+            Assert.IsTrue(ExpandedNodeId.TryParse("ns=2;i=1234", out result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(IdType.Numeric, result.IdType);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test string identifiers
+            Assert.IsTrue(ExpandedNodeId.TryParse("s=HelloWorld", out result));
+            Assert.AreEqual("HelloWorld", result.Identifier);
+            Assert.AreEqual(IdType.String, result.IdType);
+            Assert.AreEqual(0, result.NamespaceIndex);
+
+            Assert.IsTrue(ExpandedNodeId.TryParse("ns=2;s=HelloWorld", out result));
+            Assert.AreEqual("HelloWorld", result.Identifier);
+            Assert.AreEqual(IdType.String, result.IdType);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test with namespace URI
+            Assert.IsTrue(ExpandedNodeId.TryParse("nsu=http://opcfoundation.org/UA/;s=Test", out result));
+            Assert.AreEqual("Test", result.Identifier);
+            Assert.AreEqual(IdType.String, result.IdType);
+            Assert.AreEqual("http://opcfoundation.org/UA/", result.NamespaceUri);
+
+            // Test with server index
+            Assert.IsTrue(ExpandedNodeId.TryParse("svr=1;i=1234", out result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(1u, result.ServerIndex);
+
+            // Test with both server index and namespace URI
+            Assert.IsTrue(ExpandedNodeId.TryParse("svr=1;nsu=http://test.org/;s=Test", out result));
+            Assert.AreEqual("Test", result.Identifier);
+            Assert.AreEqual(1u, result.ServerIndex);
+            Assert.AreEqual("http://test.org/", result.NamespaceUri);
+
+            // Test GUID identifiers
+            Assert.IsTrue(ExpandedNodeId.TryParse("g=af469096-f02a-4563-940b-603958363b81", out result));
+            Assert.AreEqual(new Guid("af469096-f02a-4563-940b-603958363b81"), result.Identifier);
+            Assert.AreEqual(IdType.Guid, result.IdType);
+
+            // Test opaque identifiers (b=01020304 is valid base64 that decodes to specific bytes)
+            Assert.IsTrue(ExpandedNodeId.TryParse("b=01020304", out result));
+            byte[] expectedOpaqueBytes = Convert.FromBase64String("01020304");
+            Assert.AreEqual(expectedOpaqueBytes, result.Identifier);
+            Assert.AreEqual(IdType.Opaque, result.IdType);
+
+            // Test null and empty
+            Assert.IsTrue(ExpandedNodeId.TryParse(null, out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            Assert.IsTrue(ExpandedNodeId.TryParse("", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+        }
+
+        [Test]
+        public void ExpandedNodeIdTryParseInvalidInputs()
+        {
+            // Invalid formats should return false and ExpandedNodeId.Null
+            Assert.IsFalse(ExpandedNodeId.TryParse("invalid", out ExpandedNodeId result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            Assert.IsFalse(ExpandedNodeId.TryParse("ns=", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            Assert.IsFalse(ExpandedNodeId.TryParse("nsu=", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            Assert.IsFalse(ExpandedNodeId.TryParse("svr=", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            // Invalid identifier values
+            Assert.IsFalse(ExpandedNodeId.TryParse("i=notanumber", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            Assert.IsFalse(ExpandedNodeId.TryParse("g=not-a-valid-guid", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            Assert.IsFalse(ExpandedNodeId.TryParse("b=notbase64!@#", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+        }
+
+        [Test]
+        public void ExpandedNodeIdTryParseWithContext()
+        {
+            var context = new ServiceMessageContext(Telemetry);
+            context.NamespaceUris = new NamespaceTable();
+            context.ServerUris = new StringTable();
+            context.NamespaceUris.Append("http://opcfoundation.org/UA/");
+            context.NamespaceUris.Append("http://test.org/");
+            context.ServerUris.Append("urn:server1");
+
+            // Test with namespace URI
+            Assert.IsTrue(ExpandedNodeId.TryParse(context, "nsu=http://test.org/;i=1234", out ExpandedNodeId result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test with namespace index
+            Assert.IsTrue(ExpandedNodeId.TryParse(context, "ns=2;s=Test", out result));
+            Assert.AreEqual("Test", result.Identifier);
+            Assert.AreEqual(2, result.NamespaceIndex);
+
+            // Test with server URI - ServerUris table starts at index 0
+            Assert.IsTrue(ExpandedNodeId.TryParse(context, "svu=urn:server1;i=1234", out result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual(0u, result.ServerIndex);  // First item in ServerUris is at index 0
+
+            // Test with unknown namespace URI - ExpandedNodeId can store URIs not in the table
+            // So this should succeed and create an ExpandedNodeId with the namespace URI
+            Assert.IsTrue(ExpandedNodeId.TryParse(context, "nsu=http://unknown.org/;i=1234", out result));
+            Assert.AreEqual(1234u, result.Identifier);
+            Assert.AreEqual("http://unknown.org/", result.NamespaceUri);
+
+            // Test with unknown server URI (should fail because ServerIndex must be resolved)
+            Assert.IsFalse(ExpandedNodeId.TryParse(context, "svu=urn:unknown;i=1234", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            // Test null/empty
+            Assert.IsTrue(ExpandedNodeId.TryParse(context, null, out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+
+            Assert.IsTrue(ExpandedNodeId.TryParse(context, "", out result));
+            Assert.AreEqual(ExpandedNodeId.Null, result);
+        }
     }
 }

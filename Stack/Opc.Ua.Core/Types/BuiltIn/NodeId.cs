@@ -791,6 +791,60 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Tries to parse a node id string and returns true if successful.
+        /// </summary>
+        /// <remarks>
+        /// Tries to parse a NodeId String and returns a NodeId object if successful.
+        /// Valid NodeId strings are of the form:
+        ///     "i=1234", "s=HelloWorld", "g=AF469096-F02A-4563-940B-603958363B81", "b=01020304",
+        ///     "ns=2;s=HelloWorld", "ns=2;i=1234", "ns=2;g=AF469096-F02A-4563-940B-603958363B81", "ns=2;b=01020304"
+        /// Invalid NodeId strings will return false and set value to NodeId.Null, e.g.
+        ///     "HelloWorld", "nsu=http://opcfoundation.org/UA/;i=1234"
+        /// </remarks>
+        /// <param name="text">The NodeId value as a string.</param>
+        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(string text, out NodeId value)
+        {
+            try
+            {
+                value = InternalParse(text, false);
+                return true;
+            }
+            catch
+            {
+                value = Null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Tries to parse a NodeId formatted as a string and converts it to a NodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
+        /// <param name="options">The options to use when parsing a NodeId.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            out NodeId value,
+            NodeIdParsingOptions options = null)
+        {
+            try
+            {
+                value = Parse(context, text, options);
+                return true;
+            }
+            catch
+            {
+                value = Null;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Internal parse method.
         /// </summary>
         /// <param name="text">The NodeId value as string.</param>
