@@ -28,13 +28,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-06-30T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-10-31T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/GDS/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.05" PublicationDate="2025-06-30T00:00:00Z" ModelVersion="1.5.5">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.05" PublicationDate="2025-04-25T00:00:00Z" ModelVersion="1.5.5" />
+    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.06" PublicationDate="2025-10-31T00:00:00Z" ModelVersion="1.5.6">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.06" PublicationDate="2025-10-31T00:00:00Z" ModelVersion="1.5.6" />
     </Model>
   </Models>
   <Aliases>
@@ -127,7 +127,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.05</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.06</String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=724" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=721" DataType="DateTime">
@@ -137,7 +137,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-06-30T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-10-31T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=725" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=721" DataType="Boolean">
@@ -212,7 +212,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.5</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.6</String>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=1661" BrowseName="1:DiscoveryAdmin" SymbolicName="WellKnownRole_DiscoveryAdmin">
@@ -2391,6 +2391,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63" BrowseName="1:CertificateDirectoryType">
     <DisplayName>CertificateDirectoryType</DisplayName>
@@ -3921,6 +3925,10 @@
       <Reference ReferenceType="HasProperty">ns=1;i=718</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=717" BrowseName="1:CertificateGroup" ParentNodeId="ns=1;i=91" DataType="NodeId">
     <DisplayName>CertificateGroup</DisplayName>
@@ -3947,6 +3955,10 @@
       <Reference ReferenceType="HasProperty">ns=1;i=720</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=719" BrowseName="1:CertificateGroup" ParentNodeId="ns=1;i=109" DataType="NodeId">
     <DisplayName>CertificateGroup</DisplayName>
@@ -3971,6 +3983,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=55" BrowseName="1:KeyCredentialManagementFolderType">
     <DisplayName>KeyCredentialManagementFolderType</DisplayName>
@@ -4271,7 +4287,7 @@
   </UAObject>
   <UAObjectType NodeId="ns=1;i=1020" BrowseName="1:KeyCredentialServiceType">
     <DisplayName>KeyCredentialServiceType</DisplayName>
-    <Category>Pull Model for KeyCredential Service</Category>
+    <Category>Pull Model for KeyCredential ServicePull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1021</Reference>
@@ -4602,6 +4618,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1057" BrowseName="1:KeyCredentialDeliveredAuditEventType">
     <DisplayName>KeyCredentialDeliveredAuditEventType</DisplayName>
@@ -4610,6 +4630,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1075" BrowseName="1:KeyCredentialRevokedAuditEventType">
     <DisplayName>KeyCredentialRevokedAuditEventType</DisplayName>
@@ -4618,6 +4642,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=233" BrowseName="1:AuthorizationServicesFolderType">
     <DisplayName>AuthorizationServicesFolderType</DisplayName>
@@ -4923,6 +4951,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="33">i=15644</RolePermission>
+      <RolePermission Permissions="2081">i=15704</RolePermission>
+    </RolePermissions>
   </UAObjectType>
   <UAObject NodeId="ns=1;i=141" BrowseName="1:Directory">
     <DisplayName>Directory</DisplayName>
@@ -8182,8 +8214,8 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9UeXBlcy54
 c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
 eXBlcy54c2QiDQogIGVsZW1lbnRGb3JtRGVmYXVsdD0icXVhbGlmaWVkIg0KPg0KICA8eHM6YW5u
 b3RhdGlvbj4NCiAgICA8eHM6YXBwaW5mbz4NCiAgICAgIDx1YTpNb2RlbCBNb2RlbFVyaT0iaHR0
-cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDUiIFB1YmxpY2F0
-aW9uRGF0ZT0iMjAyNS0wNi0zMFQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
+cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDYiIFB1YmxpY2F0
+aW9uRGF0ZT0iMjAyNS0xMC0zMVQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
 L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5hbWVzcGFjZT0iaHR0cDovL29wY2Zv
 dW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAvPg0KDQogIDx4czpjb21wbGV4VHlw
 ZSBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2VxdWVuY2U+DQog

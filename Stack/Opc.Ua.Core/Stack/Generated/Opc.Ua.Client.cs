@@ -1917,8 +1917,9 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class SessionClient : ClientBase, ISessionClientMethods
-        {
+    {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
@@ -11539,8 +11540,9 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class DiscoveryClient : ClientBase, IDiscoveryClientMethods
-        {
+    {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
@@ -12559,8 +12561,9 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class RegistrationClient : ClientBase, IRegistrationClientMethods
-        {
+    {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
