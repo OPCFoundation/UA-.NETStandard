@@ -37,29 +37,28 @@ using System.Threading.Tasks;
 using System.Threading;
 using Opc.Ua;
 
+#pragma warning disable 1591
+
 namespace Opc.Ua.Gds
 {
     #region FindApplicationsMethodState Class
     #if (!OPCUA_EXCLUDE_FindApplicationsMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class FindApplicationsMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public FindApplicationsMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new FindApplicationsMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -67,7 +66,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -86,10 +84,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public FindApplicationsMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public FindApplicationsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -97,7 +93,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -131,7 +126,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -167,14 +161,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult FindApplicationsMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -183,18 +176,13 @@ namespace Opc.Ua.Gds
         string applicationUri,
         ref ApplicationRecordDataType[] applications);
 
-    /// <remarks />
     /// <exclude />
     public partial class FindApplicationsMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public ApplicationRecordDataType[] Applications { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<FindApplicationsMethodStateResult> FindApplicationsMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -207,25 +195,22 @@ namespace Opc.Ua.Gds
 
     #region RegisterApplicationMethodState Class
     #if (!OPCUA_EXCLUDE_RegisterApplicationMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class RegisterApplicationMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public RegisterApplicationMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new RegisterApplicationMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -233,7 +218,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -252,10 +236,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public RegisterApplicationMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public RegisterApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -263,7 +245,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -297,7 +278,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -333,14 +313,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult RegisterApplicationMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -349,18 +328,13 @@ namespace Opc.Ua.Gds
         ApplicationRecordDataType application,
         ref NodeId applicationId);
 
-    /// <remarks />
     /// <exclude />
     public partial class RegisterApplicationMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public NodeId ApplicationId { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<RegisterApplicationMethodStateResult> RegisterApplicationMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -373,25 +347,22 @@ namespace Opc.Ua.Gds
 
     #region UpdateApplicationMethodState Class
     #if (!OPCUA_EXCLUDE_UpdateApplicationMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class UpdateApplicationMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public UpdateApplicationMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new UpdateApplicationMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -399,7 +370,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -416,10 +386,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public UpdateApplicationMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public UpdateApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -427,7 +395,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -456,7 +423,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -490,14 +456,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult UpdateApplicationMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -505,16 +470,12 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         ApplicationRecordDataType application);
 
-    /// <remarks />
     /// <exclude />
     public partial class UpdateApplicationMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<UpdateApplicationMethodStateResult> UpdateApplicationMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -527,25 +488,22 @@ namespace Opc.Ua.Gds
 
     #region UnregisterApplicationMethodState Class
     #if (!OPCUA_EXCLUDE_UnregisterApplicationMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class UnregisterApplicationMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public UnregisterApplicationMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new UnregisterApplicationMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -553,7 +511,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -570,10 +527,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public UnregisterApplicationMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public UnregisterApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -581,7 +536,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -610,7 +564,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -644,14 +597,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult UnregisterApplicationMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -659,16 +611,12 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId);
 
-    /// <remarks />
     /// <exclude />
     public partial class UnregisterApplicationMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<UnregisterApplicationMethodStateResult> UnregisterApplicationMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -681,25 +629,22 @@ namespace Opc.Ua.Gds
 
     #region GetApplicationMethodState Class
     #if (!OPCUA_EXCLUDE_GetApplicationMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class GetApplicationMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public GetApplicationMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new GetApplicationMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -707,7 +652,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -726,10 +670,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public GetApplicationMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public GetApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -737,7 +679,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -771,7 +712,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -807,14 +747,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult GetApplicationMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -823,18 +762,13 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         ref ApplicationRecordDataType application);
 
-    /// <remarks />
     /// <exclude />
     public partial class GetApplicationMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public ApplicationRecordDataType Application { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<GetApplicationMethodStateResult> GetApplicationMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -847,25 +781,22 @@ namespace Opc.Ua.Gds
 
     #region QueryApplicationsMethodState Class
     #if (!OPCUA_EXCLUDE_QueryApplicationsMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class QueryApplicationsMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public QueryApplicationsMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new QueryApplicationsMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -873,7 +804,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -897,10 +827,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public QueryApplicationsMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public QueryApplicationsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -908,7 +836,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -960,7 +887,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -1010,14 +936,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult QueryApplicationsMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -1034,22 +959,15 @@ namespace Opc.Ua.Gds
         ref uint nextRecordId,
         ref Opc.Ua.ApplicationDescription[] applications);
 
-    /// <remarks />
     /// <exclude />
     public partial class QueryApplicationsMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public DateTime LastCounterResetTime { get; set; }
-        /// <remarks />
         public uint NextRecordId { get; set; }
-        /// <remarks />
         public Opc.Ua.ApplicationDescription[] Applications { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<QueryApplicationsMethodStateResult> QueryApplicationsMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -1068,25 +986,22 @@ namespace Opc.Ua.Gds
 
     #region QueryServersMethodState Class
     #if (!OPCUA_EXCLUDE_QueryServersMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class QueryServersMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public QueryServersMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new QueryServersMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1094,7 +1009,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1117,10 +1031,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public QueryServersMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public QueryServersMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -1128,7 +1040,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -1175,7 +1086,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -1222,14 +1132,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult QueryServersMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -1244,20 +1153,14 @@ namespace Opc.Ua.Gds
         ref DateTime lastCounterResetTime,
         ref Opc.Ua.ServerOnNetwork[] servers);
 
-    /// <remarks />
     /// <exclude />
     public partial class QueryServersMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public DateTime LastCounterResetTime { get; set; }
-        /// <remarks />
         public Opc.Ua.ServerOnNetwork[] Servers { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<QueryServersMethodStateResult> QueryServersMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -1275,25 +1178,22 @@ namespace Opc.Ua.Gds
 
     #region DirectoryState Class
     #if (!OPCUA_EXCLUDE_DirectoryState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class DirectoryState : FolderState
     {
         #region Constructors
-        /// <remarks />
         public DirectoryState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.DirectoryType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1301,14 +1201,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1362,13 +1260,9 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Public Properties
-        /// <remarks />
         public FolderState Applications
         {
-            get
-            {
-                return m_applications;
-            }
+            get => m_applications;
 
             set
             {
@@ -1381,13 +1275,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public FindApplicationsMethodState FindApplications
         {
-            get
-            {
-                return m_findApplicationsMethod;
-            }
+            get => m_findApplicationsMethod;
 
             set
             {
@@ -1400,13 +1290,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public RegisterApplicationMethodState RegisterApplication
         {
-            get
-            {
-                return m_registerApplicationMethod;
-            }
+            get => m_registerApplicationMethod;
 
             set
             {
@@ -1419,13 +1305,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public UpdateApplicationMethodState UpdateApplication
         {
-            get
-            {
-                return m_updateApplicationMethod;
-            }
+            get => m_updateApplicationMethod;
 
             set
             {
@@ -1438,13 +1320,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public UnregisterApplicationMethodState UnregisterApplication
         {
-            get
-            {
-                return m_unregisterApplicationMethod;
-            }
+            get => m_unregisterApplicationMethod;
 
             set
             {
@@ -1457,13 +1335,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public GetApplicationMethodState GetApplication
         {
-            get
-            {
-                return m_getApplicationMethod;
-            }
+            get => m_getApplicationMethod;
 
             set
             {
@@ -1476,13 +1350,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public QueryApplicationsMethodState QueryApplications
         {
-            get
-            {
-                return m_queryApplicationsMethod;
-            }
+            get => m_queryApplicationsMethod;
 
             set
             {
@@ -1495,13 +1365,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public QueryServersMethodState QueryServers
         {
-            get
-            {
-                return m_queryServersMethod;
-            }
+            get => m_queryServersMethod;
 
             set
             {
@@ -1516,7 +1382,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -1564,7 +1429,59 @@ namespace Opc.Ua.Gds
             base.GetChildren(context, children);
         }
             
-        /// <remarks />
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (Object.ReferenceEquals(m_applications, child))
+            {
+                m_applications = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_findApplicationsMethod, child))
+            {
+                m_findApplicationsMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_registerApplicationMethod, child))
+            {
+                m_registerApplicationMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_updateApplicationMethod, child))
+            {
+                m_updateApplicationMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_unregisterApplicationMethod, child))
+            {
+                m_unregisterApplicationMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_getApplicationMethod, child))
+            {
+                m_getApplicationMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_queryApplicationsMethod, child))
+            {
+                m_queryApplicationsMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_queryServersMethod, child))
+            {
+                m_queryServersMethod = null;
+                return;
+            }
+
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -1774,25 +1691,22 @@ namespace Opc.Ua.Gds
 
     #region ApplicationRegistrationChangedAuditEventState Class
     #if (!OPCUA_EXCLUDE_ApplicationRegistrationChangedAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class ApplicationRegistrationChangedAuditEventState : AuditUpdateMethodEventState
     {
         #region Constructors
-        /// <remarks />
         public ApplicationRegistrationChangedAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.ApplicationRegistrationChangedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1800,14 +1714,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1850,25 +1762,22 @@ namespace Opc.Ua.Gds
 
     #region StartSigningRequestMethodState Class
     #if (!OPCUA_EXCLUDE_StartSigningRequestMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class StartSigningRequestMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public StartSigningRequestMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new StartSigningRequestMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1876,7 +1785,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1897,10 +1805,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public StartSigningRequestMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public StartSigningRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -1908,7 +1814,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -1948,7 +1853,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -1990,14 +1894,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult StartSigningRequestMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -2009,18 +1912,13 @@ namespace Opc.Ua.Gds
         byte[] certificateRequest,
         ref NodeId requestId);
 
-    /// <remarks />
     /// <exclude />
     public partial class StartSigningRequestMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public NodeId RequestId { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<StartSigningRequestMethodStateResult> StartSigningRequestMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -2036,25 +1934,22 @@ namespace Opc.Ua.Gds
 
     #region StartNewKeyPairRequestMethodState Class
     #if (!OPCUA_EXCLUDE_StartNewKeyPairRequestMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class StartNewKeyPairRequestMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public StartNewKeyPairRequestMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new StartNewKeyPairRequestMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2062,7 +1957,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2085,10 +1979,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public StartNewKeyPairRequestMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public StartNewKeyPairRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -2096,7 +1988,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -2142,7 +2033,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -2190,14 +2080,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult StartNewKeyPairRequestMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -2212,18 +2101,13 @@ namespace Opc.Ua.Gds
         string privateKeyPassword,
         ref NodeId requestId);
 
-    /// <remarks />
     /// <exclude />
     public partial class StartNewKeyPairRequestMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public NodeId RequestId { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<StartNewKeyPairRequestMethodStateResult> StartNewKeyPairRequestMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -2242,25 +2126,22 @@ namespace Opc.Ua.Gds
 
     #region FinishRequestMethodState Class
     #if (!OPCUA_EXCLUDE_FinishRequestMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class FinishRequestMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public FinishRequestMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new FinishRequestMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2268,7 +2149,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2289,10 +2169,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public FinishRequestMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public FinishRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -2300,7 +2178,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -2342,7 +2219,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -2382,14 +2258,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult FinishRequestMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -2401,22 +2276,15 @@ namespace Opc.Ua.Gds
         ref byte[] privateKey,
         ref byte[][] issuerCertificates);
 
-    /// <remarks />
     /// <exclude />
     public partial class FinishRequestMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public byte[] Certificate { get; set; }
-        /// <remarks />
         public byte[] PrivateKey { get; set; }
-        /// <remarks />
         public byte[][] IssuerCertificates { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<FinishRequestMethodStateResult> FinishRequestMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -2430,25 +2298,22 @@ namespace Opc.Ua.Gds
 
     #region GetCertificateGroupsMethodState Class
     #if (!OPCUA_EXCLUDE_GetCertificateGroupsMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class GetCertificateGroupsMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public GetCertificateGroupsMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new GetCertificateGroupsMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2456,7 +2321,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2475,10 +2339,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public GetCertificateGroupsMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public GetCertificateGroupsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -2486,7 +2348,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -2520,7 +2381,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -2556,14 +2416,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult GetCertificateGroupsMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -2572,18 +2431,13 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         ref NodeId[] certificateGroupIds);
 
-    /// <remarks />
     /// <exclude />
     public partial class GetCertificateGroupsMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public NodeId[] CertificateGroupIds { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<GetCertificateGroupsMethodStateResult> GetCertificateGroupsMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -2596,25 +2450,22 @@ namespace Opc.Ua.Gds
 
     #region GetTrustListMethodState Class
     #if (!OPCUA_EXCLUDE_GetTrustListMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class GetTrustListMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public GetTrustListMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new GetTrustListMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2622,7 +2473,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2642,10 +2492,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public GetTrustListMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public GetTrustListMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -2653,7 +2501,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -2689,7 +2536,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -2727,14 +2573,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult GetTrustListMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -2744,18 +2589,13 @@ namespace Opc.Ua.Gds
         NodeId certificateGroupId,
         ref NodeId trustListId);
 
-    /// <remarks />
     /// <exclude />
     public partial class GetTrustListMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public NodeId TrustListId { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<GetTrustListMethodStateResult> GetTrustListMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -2769,25 +2609,22 @@ namespace Opc.Ua.Gds
 
     #region RevokeCertificateMethodState Class
     #if (!OPCUA_EXCLUDE_RevokeCertificateMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class RevokeCertificateMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public RevokeCertificateMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new RevokeCertificateMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2795,7 +2632,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2813,10 +2649,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public RevokeCertificateMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public RevokeCertificateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -2824,7 +2658,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -2855,7 +2688,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -2891,14 +2723,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult RevokeCertificateMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -2907,16 +2738,12 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         byte[] certificate);
 
-    /// <remarks />
     /// <exclude />
     public partial class RevokeCertificateMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<RevokeCertificateMethodStateResult> RevokeCertificateMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -2930,25 +2757,22 @@ namespace Opc.Ua.Gds
 
     #region GetCertificateStatusMethodState Class
     #if (!OPCUA_EXCLUDE_GetCertificateStatusMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class GetCertificateStatusMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public GetCertificateStatusMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new GetCertificateStatusMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2956,7 +2780,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2976,10 +2799,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public GetCertificateStatusMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public GetCertificateStatusMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -2987,7 +2808,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -3025,7 +2845,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -3065,14 +2884,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult GetCertificateStatusMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -3083,18 +2901,13 @@ namespace Opc.Ua.Gds
         NodeId certificateTypeId,
         ref bool updateRequired);
 
-    /// <remarks />
     /// <exclude />
     public partial class GetCertificateStatusMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public bool UpdateRequired { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<GetCertificateStatusMethodStateResult> GetCertificateStatusMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -3109,25 +2922,22 @@ namespace Opc.Ua.Gds
 
     #region GetCertificatesMethodState Class
     #if (!OPCUA_EXCLUDE_GetCertificatesMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class GetCertificatesMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public GetCertificatesMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new GetCertificatesMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -3135,7 +2945,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -3155,10 +2964,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public GetCertificatesMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public GetCertificatesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -3166,7 +2973,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -3205,7 +3011,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -3244,14 +3049,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult GetCertificatesMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -3262,20 +3066,14 @@ namespace Opc.Ua.Gds
         ref NodeId[] certificateTypeIds,
         ref byte[][] certificates);
 
-    /// <remarks />
     /// <exclude />
     public partial class GetCertificatesMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public NodeId[] CertificateTypeIds { get; set; }
-        /// <remarks />
         public byte[][] Certificates { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<GetCertificatesMethodStateResult> GetCertificatesMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -3289,25 +3087,22 @@ namespace Opc.Ua.Gds
 
     #region CheckRevocationStatusMethodState Class
     #if (!OPCUA_EXCLUDE_CheckRevocationStatusMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class CheckRevocationStatusMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public CheckRevocationStatusMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new CheckRevocationStatusMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -3315,7 +3110,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -3335,10 +3129,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public CheckRevocationStatusMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public CheckRevocationStatusMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -3346,7 +3138,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -3383,7 +3174,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -3420,14 +3210,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult CheckRevocationStatusMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -3437,20 +3226,14 @@ namespace Opc.Ua.Gds
         ref StatusCode certificateStatus,
         ref DateTime validityTime);
 
-    /// <remarks />
     /// <exclude />
     public partial class CheckRevocationStatusMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public StatusCode CertificateStatus { get; set; }
-        /// <remarks />
         public DateTime ValidityTime { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<CheckRevocationStatusMethodStateResult> CheckRevocationStatusMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -3463,25 +3246,22 @@ namespace Opc.Ua.Gds
 
     #region CertificateDirectoryState Class
     #if (!OPCUA_EXCLUDE_CertificateDirectoryState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class CertificateDirectoryState : DirectoryState
     {
         #region Constructors
-        /// <remarks />
         public CertificateDirectoryState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateDirectoryType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -3489,14 +3269,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -3687,13 +3465,9 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Public Properties
-        /// <remarks />
         public CertificateGroupFolderState CertificateGroups
         {
-            get
-            {
-                return m_certificateGroups;
-            }
+            get => m_certificateGroups;
 
             set
             {
@@ -3706,13 +3480,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public StartSigningRequestMethodState StartSigningRequest
         {
-            get
-            {
-                return m_startSigningRequestMethod;
-            }
+            get => m_startSigningRequestMethod;
 
             set
             {
@@ -3725,13 +3495,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public StartNewKeyPairRequestMethodState StartNewKeyPairRequest
         {
-            get
-            {
-                return m_startNewKeyPairRequestMethod;
-            }
+            get => m_startNewKeyPairRequestMethod;
 
             set
             {
@@ -3744,13 +3510,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public FinishRequestMethodState FinishRequest
         {
-            get
-            {
-                return m_finishRequestMethod;
-            }
+            get => m_finishRequestMethod;
 
             set
             {
@@ -3763,13 +3525,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public RevokeCertificateMethodState RevokeCertificate
         {
-            get
-            {
-                return m_revokeCertificateMethod;
-            }
+            get => m_revokeCertificateMethod;
 
             set
             {
@@ -3782,13 +3540,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public GetCertificateGroupsMethodState GetCertificateGroups
         {
-            get
-            {
-                return m_getCertificateGroupsMethod;
-            }
+            get => m_getCertificateGroupsMethod;
 
             set
             {
@@ -3801,13 +3555,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public GetCertificatesMethodState GetCertificates
         {
-            get
-            {
-                return m_getCertificatesMethod;
-            }
+            get => m_getCertificatesMethod;
 
             set
             {
@@ -3820,13 +3570,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public GetTrustListMethodState GetTrustList
         {
-            get
-            {
-                return m_getTrustListMethod;
-            }
+            get => m_getTrustListMethod;
 
             set
             {
@@ -3839,13 +3585,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public GetCertificateStatusMethodState GetCertificateStatus
         {
-            get
-            {
-                return m_getCertificateStatusMethod;
-            }
+            get => m_getCertificateStatusMethod;
 
             set
             {
@@ -3858,13 +3600,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public CheckRevocationStatusMethodState CheckRevocationStatus
         {
-            get
-            {
-                return m_checkRevocationStatusMethod;
-            }
+            get => m_checkRevocationStatusMethod;
 
             set
             {
@@ -3879,7 +3617,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -3937,7 +3674,71 @@ namespace Opc.Ua.Gds
             base.GetChildren(context, children);
         }
             
-        /// <remarks />
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (Object.ReferenceEquals(m_certificateGroups, child))
+            {
+                m_certificateGroups = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_startSigningRequestMethod, child))
+            {
+                m_startSigningRequestMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_startNewKeyPairRequestMethod, child))
+            {
+                m_startNewKeyPairRequestMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_finishRequestMethod, child))
+            {
+                m_finishRequestMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_revokeCertificateMethod, child))
+            {
+                m_revokeCertificateMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_getCertificateGroupsMethod, child))
+            {
+                m_getCertificateGroupsMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_getCertificatesMethod, child))
+            {
+                m_getCertificatesMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_getTrustListMethod, child))
+            {
+                m_getTrustListMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_getCertificateStatusMethod, child))
+            {
+                m_getCertificateStatusMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_checkRevocationStatusMethod, child))
+            {
+                m_checkRevocationStatusMethod = null;
+                return;
+            }
+
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -4191,25 +3992,22 @@ namespace Opc.Ua.Gds
 
     #region CertificateRequestedAuditEventState Class
     #if (!OPCUA_EXCLUDE_CertificateRequestedAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class CertificateRequestedAuditEventState : AuditUpdateMethodEventState
     {
         #region Constructors
-        /// <remarks />
         public CertificateRequestedAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateRequestedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -4217,14 +4015,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -4255,13 +4051,9 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Public Properties
-        /// <remarks />
         public PropertyState<NodeId> CertificateGroup
         {
-            get
-            {
-                return m_certificateGroup;
-            }
+            get => m_certificateGroup;
 
             set
             {
@@ -4274,13 +4066,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public PropertyState<NodeId> CertificateType
         {
-            get
-            {
-                return m_certificateType;
-            }
+            get => m_certificateType;
 
             set
             {
@@ -4295,7 +4083,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -4313,7 +4100,23 @@ namespace Opc.Ua.Gds
             base.GetChildren(context, children);
         }
             
-        /// <remarks />
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (Object.ReferenceEquals(m_certificateGroup, child))
+            {
+                m_certificateGroup = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_certificateType, child))
+            {
+                m_certificateType = null;
+                return;
+            }
+
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -4391,25 +4194,22 @@ namespace Opc.Ua.Gds
 
     #region CertificateDeliveredAuditEventState Class
     #if (!OPCUA_EXCLUDE_CertificateDeliveredAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class CertificateDeliveredAuditEventState : AuditUpdateMethodEventState
     {
         #region Constructors
-        /// <remarks />
         public CertificateDeliveredAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateDeliveredAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -4417,14 +4217,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -4455,13 +4253,9 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Public Properties
-        /// <remarks />
         public PropertyState<NodeId> CertificateGroup
         {
-            get
-            {
-                return m_certificateGroup;
-            }
+            get => m_certificateGroup;
 
             set
             {
@@ -4474,13 +4268,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public PropertyState<NodeId> CertificateType
         {
-            get
-            {
-                return m_certificateType;
-            }
+            get => m_certificateType;
 
             set
             {
@@ -4495,7 +4285,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -4513,7 +4302,23 @@ namespace Opc.Ua.Gds
             base.GetChildren(context, children);
         }
             
-        /// <remarks />
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (Object.ReferenceEquals(m_certificateGroup, child))
+            {
+                m_certificateGroup = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_certificateType, child))
+            {
+                m_certificateType = null;
+                return;
+            }
+
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -4591,25 +4396,22 @@ namespace Opc.Ua.Gds
 
     #region CertificateRevokedAuditEventState Class
     #if (!OPCUA_EXCLUDE_CertificateRevokedAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class CertificateRevokedAuditEventState : AuditUpdateMethodEventState
     {
         #region Constructors
-        /// <remarks />
         public CertificateRevokedAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateRevokedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -4617,14 +4419,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -4666,25 +4466,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialManagementFolderState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialManagementFolderState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialManagementFolderState : FolderState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialManagementFolderState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialManagementFolderType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -4692,14 +4489,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -4745,25 +4540,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialServiceState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialServiceState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialServiceState : BaseObjectState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialServiceState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialServiceType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -4771,14 +4563,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -4833,13 +4623,9 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Public Properties
-        /// <remarks />
         public PropertyState<string> ResourceUri
         {
-            get
-            {
-                return m_resourceUri;
-            }
+            get => m_resourceUri;
 
             set
             {
@@ -4852,13 +4638,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public PropertyState<string[]> ProfileUris
         {
-            get
-            {
-                return m_profileUris;
-            }
+            get => m_profileUris;
 
             set
             {
@@ -4871,13 +4653,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public PropertyState<string[]> SecurityPolicyUris
         {
-            get
-            {
-                return m_securityPolicyUris;
-            }
+            get => m_securityPolicyUris;
 
             set
             {
@@ -4890,13 +4668,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public KeyCredentialStartRequestMethodState StartRequest
         {
-            get
-            {
-                return m_startRequestMethod;
-            }
+            get => m_startRequestMethod;
 
             set
             {
@@ -4909,13 +4683,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public KeyCredentialFinishRequestMethodState FinishRequest
         {
-            get
-            {
-                return m_finishRequestMethod;
-            }
+            get => m_finishRequestMethod;
 
             set
             {
@@ -4928,13 +4698,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public KeyCredentialRevokeMethodState Revoke
         {
-            get
-            {
-                return m_revokeMethod;
-            }
+            get => m_revokeMethod;
 
             set
             {
@@ -4949,7 +4715,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -4987,7 +4752,47 @@ namespace Opc.Ua.Gds
             base.GetChildren(context, children);
         }
             
-        /// <remarks />
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (Object.ReferenceEquals(m_resourceUri, child))
+            {
+                m_resourceUri = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_profileUris, child))
+            {
+                m_profileUris = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_securityPolicyUris, child))
+            {
+                m_securityPolicyUris = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_startRequestMethod, child))
+            {
+                m_startRequestMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_finishRequestMethod, child))
+            {
+                m_finishRequestMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_revokeMethod, child))
+            {
+                m_revokeMethod = null;
+                return;
+            }
+
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -5153,25 +4958,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialStartRequestMethodState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialStartRequestMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialStartRequestMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialStartRequestMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new KeyCredentialStartRequestMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5179,7 +4981,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5200,10 +5001,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public KeyCredentialStartRequestMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public KeyCredentialStartRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -5211,7 +5010,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -5251,7 +5049,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -5293,14 +5090,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult KeyCredentialStartRequestMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -5312,18 +5108,13 @@ namespace Opc.Ua.Gds
         NodeId[] requestedRoles,
         ref NodeId requestId);
 
-    /// <remarks />
     /// <exclude />
     public partial class KeyCredentialStartRequestMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public NodeId RequestId { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<KeyCredentialStartRequestMethodStateResult> KeyCredentialStartRequestMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -5339,25 +5130,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialFinishRequestMethodState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialFinishRequestMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialFinishRequestMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialFinishRequestMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new KeyCredentialFinishRequestMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5365,7 +5153,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5387,10 +5174,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public KeyCredentialFinishRequestMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public KeyCredentialFinishRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -5398,7 +5183,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -5446,7 +5230,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -5488,14 +5271,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult KeyCredentialFinishRequestMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -5509,26 +5291,17 @@ namespace Opc.Ua.Gds
         ref string securityPolicyUri,
         ref NodeId[] grantedRoles);
 
-    /// <remarks />
     /// <exclude />
     public partial class KeyCredentialFinishRequestMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public string CredentialId { get; set; }
-        /// <remarks />
         public byte[] CredentialSecret { get; set; }
-        /// <remarks />
         public string CertificateThumbprint { get; set; }
-        /// <remarks />
         public string SecurityPolicyUri { get; set; }
-        /// <remarks />
         public NodeId[] GrantedRoles { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<KeyCredentialFinishRequestMethodStateResult> KeyCredentialFinishRequestMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -5542,25 +5315,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialRevokeMethodState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialRevokeMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialRevokeMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialRevokeMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new KeyCredentialRevokeMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5568,7 +5338,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5585,10 +5354,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public KeyCredentialRevokeMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public KeyCredentialRevokeMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -5596,7 +5363,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -5625,7 +5391,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -5659,14 +5424,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult KeyCredentialRevokeMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -5674,16 +5438,12 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         string credentialId);
 
-    /// <remarks />
     /// <exclude />
     public partial class KeyCredentialRevokeMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<KeyCredentialRevokeMethodStateResult> KeyCredentialRevokeMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -5696,25 +5456,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialRequestedAuditEventState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialRequestedAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialRequestedAuditEventState : KeyCredentialAuditEventState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialRequestedAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialRequestedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5722,14 +5479,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5772,25 +5527,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialDeliveredAuditEventState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialDeliveredAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialDeliveredAuditEventState : KeyCredentialAuditEventState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialDeliveredAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialDeliveredAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5798,14 +5550,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5848,25 +5598,22 @@ namespace Opc.Ua.Gds
 
     #region KeyCredentialRevokedAuditEventState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialRevokedAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class KeyCredentialRevokedAuditEventState : KeyCredentialAuditEventState
     {
         #region Constructors
-        /// <remarks />
         public KeyCredentialRevokedAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialRevokedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5874,14 +5621,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5924,25 +5669,22 @@ namespace Opc.Ua.Gds
 
     #region AuthorizationServicesFolderState Class
     #if (!OPCUA_EXCLUDE_AuthorizationServicesFolderState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class AuthorizationServicesFolderState : FolderState
     {
         #region Constructors
-        /// <remarks />
         public AuthorizationServicesFolderState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AuthorizationServicesFolderType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5950,14 +5692,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5993,25 +5733,22 @@ namespace Opc.Ua.Gds
 
     #region AuthorizationServiceState Class
     #if (!OPCUA_EXCLUDE_AuthorizationServiceState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class AuthorizationServiceState : BaseObjectState
     {
         #region Constructors
-        /// <remarks />
         public AuthorizationServiceState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AuthorizationServiceType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -6019,14 +5756,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -6076,13 +5811,9 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Public Properties
-        /// <remarks />
         public PropertyState<string> ServiceUri
         {
-            get
-            {
-                return m_serviceUri;
-            }
+            get => m_serviceUri;
 
             set
             {
@@ -6095,13 +5826,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public PropertyState<byte[]> ServiceCertificate
         {
-            get
-            {
-                return m_serviceCertificate;
-            }
+            get => m_serviceCertificate;
 
             set
             {
@@ -6114,13 +5841,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public PropertyState<UserTokenPolicy[]> UserTokenPolicies
         {
-            get
-            {
-                return m_userTokenPolicies;
-            }
+            get => m_userTokenPolicies;
 
             set
             {
@@ -6133,13 +5856,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public GetServiceDescriptionMethodState GetServiceDescription
         {
-            get
-            {
-                return m_getServiceDescriptionMethod;
-            }
+            get => m_getServiceDescriptionMethod;
 
             set
             {
@@ -6152,13 +5871,9 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <remarks />
         public RequestAccessTokenMethodState RequestAccessToken
         {
-            get
-            {
-                return m_requestAccessTokenMethod;
-            }
+            get => m_requestAccessTokenMethod;
 
             set
             {
@@ -6173,7 +5888,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -6206,7 +5920,41 @@ namespace Opc.Ua.Gds
             base.GetChildren(context, children);
         }
             
-        /// <remarks />
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (Object.ReferenceEquals(m_serviceUri, child))
+            {
+                m_serviceUri = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_serviceCertificate, child))
+            {
+                m_serviceCertificate = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_userTokenPolicies, child))
+            {
+                m_userTokenPolicies = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_getServiceDescriptionMethod, child))
+            {
+                m_getServiceDescriptionMethod = null;
+                return;
+            }
+
+            if (Object.ReferenceEquals(m_requestAccessTokenMethod, child))
+            {
+                m_requestAccessTokenMethod = null;
+                return;
+            }
+
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -6350,25 +6098,22 @@ namespace Opc.Ua.Gds
 
     #region GetServiceDescriptionMethodState Class
     #if (!OPCUA_EXCLUDE_GetServiceDescriptionMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class GetServiceDescriptionMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public GetServiceDescriptionMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new GetServiceDescriptionMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -6376,7 +6121,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -6395,10 +6139,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public GetServiceDescriptionMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public GetServiceDescriptionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -6406,7 +6148,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -6443,7 +6184,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -6478,14 +6218,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult GetServiceDescriptionMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -6495,22 +6234,15 @@ namespace Opc.Ua.Gds
         ref byte[] serviceCertificate,
         ref Opc.Ua.UserTokenPolicy[] userTokenPolicies);
 
-    /// <remarks />
     /// <exclude />
     public partial class GetServiceDescriptionMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public string ServiceUri { get; set; }
-        /// <remarks />
         public byte[] ServiceCertificate { get; set; }
-        /// <remarks />
         public Opc.Ua.UserTokenPolicy[] UserTokenPolicies { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<GetServiceDescriptionMethodStateResult> GetServiceDescriptionMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -6522,25 +6254,22 @@ namespace Opc.Ua.Gds
 
     #region RequestAccessTokenMethodState Class
     #if (!OPCUA_EXCLUDE_RequestAccessTokenMethodState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class RequestAccessTokenMethodState : MethodState
     {
         #region Constructors
-        /// <remarks />
         public RequestAccessTokenMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new RequestAccessTokenMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -6548,7 +6277,6 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -6568,10 +6296,8 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Event Callbacks
-        /// <remarks />
         public RequestAccessTokenMethodStateMethodCallHandler OnCall;
 
-        /// <remarks />
         public RequestAccessTokenMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
@@ -6579,7 +6305,6 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Overridden Methods
-        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -6615,7 +6340,6 @@ namespace Opc.Ua.Gds
         }
 
         #if (OPCUA_INCLUDE_ASYNC)
-        /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
             NodeId _objectId,
@@ -6653,14 +6377,13 @@ namespace Opc.Ua.Gds
             return _result.ServiceResult;
         }
         #endif
-        
+
         #endregion
 
         #region Private Fields
         #endregion
     }
 
-    /// <remarks />
     /// <exclude />
     public delegate ServiceResult RequestAccessTokenMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -6670,18 +6393,13 @@ namespace Opc.Ua.Gds
         string resourceId,
         ref string accessToken);
 
-    /// <remarks />
     /// <exclude />
     public partial class RequestAccessTokenMethodStateResult
     {
-        /// <remarks />
         public ServiceResult ServiceResult { get; set; }
-        /// <remarks />
         public string AccessToken { get; set; }
     }
 
-
-    /// <remarks />
     /// <exclude />
     public delegate ValueTask<RequestAccessTokenMethodStateResult> RequestAccessTokenMethodStateMethodAsyncCallHandler(
         ISystemContext _context,
@@ -6695,25 +6413,22 @@ namespace Opc.Ua.Gds
 
     #region AccessTokenIssuedAuditEventState Class
     #if (!OPCUA_EXCLUDE_AccessTokenIssuedAuditEventState)
-    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class AccessTokenIssuedAuditEventState : AuditUpdateMethodEventState
     {
         #region Constructors
-        /// <remarks />
         public AccessTokenIssuedAuditEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AccessTokenIssuedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -6721,14 +6436,12 @@ namespace Opc.Ua.Gds
             InitializeOptionalChildren(context);
         }
 
-        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
