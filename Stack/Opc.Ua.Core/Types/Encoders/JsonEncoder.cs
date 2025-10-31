@@ -3049,6 +3049,7 @@ namespace Opc.Ua
             }
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Writes a raw value.
         /// </summary>
@@ -3124,7 +3125,7 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
         }
-
+#endif
         private void WriteRawExtensionObject(object value)
         {
             if (value is ExtensionObject eo)
@@ -3186,6 +3187,7 @@ namespace Opc.Ua
             m_commaRequired = true;
         }
 
+#if ZOMBIE // Manual
         private void WriteRawValueContents(FieldMetaData field, DataValue dv, bool dimensionsInline)
         {
             object value = dv.Value;
@@ -3320,6 +3322,7 @@ namespace Opc.Ua
                 m_writer.Write(kRightCurlyBrace);
             }
         }
+#endif
 
         /// <summary>
         /// Writes the contents of a Variant to the stream.
@@ -3551,6 +3554,7 @@ namespace Opc.Ua
 
                 if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
+#if ZOMBIE // Manual
                     string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
 
                     if (!string.IsNullOrEmpty(symbolicId))
@@ -3560,6 +3564,7 @@ namespace Opc.Ua
                             symbolicId,
                             EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                     }
+#endif
                 }
             }
 

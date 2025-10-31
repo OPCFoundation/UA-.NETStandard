@@ -657,6 +657,7 @@ namespace Opc.Ua
             Log(null, traceMask, format, handled, args);
         }
 
+#if ZOMBIE
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
@@ -678,6 +679,7 @@ namespace Opc.Ua
         {
             return ParseCertificateChainBlob(certificateData, null, useAsnParser);
         }
+#endif
 
         /// <summary>
         /// Looks for an extension with the specified type and uses the DataContractSerializer to serializes its replacement.

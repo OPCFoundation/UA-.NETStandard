@@ -118,10 +118,12 @@ namespace Opc.Ua
             "http://{0}/UADiscovery/Default.svc"
         ];
 
+#if ZOMBIE // Manual
         /// <summary>
         /// The default certificate store's type.
         /// </summary>
         public const string DefaultStoreType = CertificateStoreType.Directory;
+#endif
 
         /// <summary>
         /// The path to the default certificate store.
@@ -1531,6 +1533,7 @@ namespace Opc.Ua
                 Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Checks if two identities are equal.
         /// </summary>
@@ -1577,6 +1580,7 @@ namespace Opc.Ua
 
             return false;
         }
+#endif
 
         /// <summary>
         /// Checks if two DateTime values are equal.
@@ -2105,6 +2109,7 @@ namespace Opc.Ua
             return caseSensitive ? c : char.ToUpperInvariant(c);
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Returns the TimeZone information for the current local time.
         /// </summary>
@@ -2117,6 +2122,7 @@ namespace Opc.Ua
                 DaylightSavingInOffset = true
             };
         }
+#endif
 
         /// <summary>
         /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
@@ -2327,7 +2333,7 @@ namespace Opc.Ua
                 {
                     return Convert.ToUInt32(
                         field.GetValue(constants),
-                        CultureInfo.InvariantCulture);
+                        System.Globalization.CultureInfo.InvariantCulture);
                 }
             }
 
@@ -2470,6 +2476,7 @@ namespace Opc.Ua
             return output;
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
@@ -2545,7 +2552,7 @@ namespace Opc.Ua
 
             return certificateChain;
         }
-
+#endif
         /// <summary>
         /// Creates a DER blob from a X509Certificate2Collection.
         /// </summary>
@@ -2772,6 +2779,7 @@ namespace Opc.Ua
             return false;
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Returns if the certificate type is supported on the platform OS.
         /// </summary>
@@ -2813,6 +2821,7 @@ namespace Opc.Ua
             }
         }
 
+#endif
 #if ECC_SUPPORT
         /// <summary>
         /// Check if known curve is supported by platform

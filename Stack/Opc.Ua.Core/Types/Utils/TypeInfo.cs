@@ -237,6 +237,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// A constant representing an unknown type.
+        /// </summary>
+        /// <value>The constant representing an unknown type.</value>
+        public static TypeInfo Unknown { get; } = new TypeInfo();
+
+        /// <summary>
+        /// The built-in type.
+        /// </summary>
+        /// <value>The type of the type represented by this instance.</value>
+        public BuiltInType BuiltInType { get; }
+
+        /// <summary>
+        /// The value rank.
+        /// </summary>
+        /// <value>The value rank of the type represented by this instance.</value>
+        public int ValueRank { get; }
+
+        /// <summary>
         /// Returns the data type id that describes a value.
         /// </summary>
         /// <param name="value">The value instance to check the data type.</param>
@@ -258,6 +276,23 @@ namespace Opc.Ua
             return dataTypeId;
         }
 
+        /// <summary>
+        /// Is the data type a structure
+        /// </summary>
+        /// <param name="dataTypeId"></param>
+        /// <returns></returns>
+        public static bool IsStructureDataTypeId(NodeId dataTypeId)
+        {
+            if (dataTypeId == null ||
+                dataTypeId.NamespaceIndex != 0 ||
+                dataTypeId.IdType != IdType.Numeric)
+            {
+                return false;
+            }
+            return (uint)dataTypeId.Identifier == (uint)BuiltInType.ExtensionObject;
+        }
+
+#if ZOMBIE // Manual
         /// <summary>
         /// Returns the data type id that describes a value.
         /// </summary>
@@ -355,7 +390,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
-        }
+#endif
 
         /// <summary>
         /// Returns the array rank for a value.
@@ -405,6 +440,7 @@ namespace Opc.Ua
             return typeInfo.ValueRank;
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
@@ -468,6 +504,7 @@ namespace Opc.Ua
                     return builtInType;
             }
         }
+#endif
 
         /// <summary>
         /// Returns true if the built-in type is a numeric type.
@@ -611,7 +648,7 @@ namespace Opc.Ua
             return BuiltInType.Null;
         }
 #endif
-
+#if ZOMBIE // Manual
         /// <summary>
         /// Returns the system type for the datatype.
         /// </summary>
@@ -733,12 +770,7 @@ namespace Opc.Ua
                     return factory.GetSystemType(datatypeId);
             }
         }
-
-        /// <summary>
-        /// A constant representing an unknown type.
-        /// </summary>
-        /// <value>The constant representing an unknown type.</value>
-        public static TypeInfo Unknown { get; } = new TypeInfo();
+#endif
 
         /// <summary>
         /// Returns the xml qualified name for the specified system type id.
@@ -825,18 +857,6 @@ namespace Opc.Ua
             }
             return GetXmlName(value?.GetType());
         }
-
-        /// <summary>
-        /// The built-in type.
-        /// </summary>
-        /// <value>The type of the type represented by this instance.</value>
-        public BuiltInType BuiltInType { get; }
-
-        /// <summary>
-        /// The value rank.
-        /// </summary>
-        /// <value>The value rank of the type represented by this instance.</value>
-        public int ValueRank { get; }
 
         /// <summary>
         /// Returns the type info if the value is an instance of the data type with the specified value rank.

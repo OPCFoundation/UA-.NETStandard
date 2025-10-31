@@ -308,6 +308,7 @@ namespace Opc.Ua
             // append exception information.
             if (e != null)
             {
+#if ZOMBIE // Manual
                 if (e is ServiceResultException sre)
                 {
                     message.AppendFormat(
@@ -317,6 +318,7 @@ namespace Opc.Ua
                         sre.Message);
                 }
                 else
+#endif
                 {
                     message.AppendFormat(
                         CultureInfo.InvariantCulture,

@@ -230,6 +230,7 @@ namespace Opc.Ua
             return encoder.CloseAndReturnBuffer();
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
@@ -274,6 +275,7 @@ namespace Opc.Ua
                     (int)(encoder.m_ostrm.Position - start));
             }
         }
+#endif
 
         /// <summary>
         /// Encodes a message in a stream.

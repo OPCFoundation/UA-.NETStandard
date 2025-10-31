@@ -128,23 +128,6 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute identifier.</param>
         /// <returns>True if the node supports the attribute.</returns>
         bool SupportsAttribute(uint attributeId);
-
-        /// <summary>
-        /// Reads the value of a attribute.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of read operation.</returns>
-        ServiceResult Read(IOperationContext context, uint attributeId, DataValue value);
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of Write operation</returns>
-        ServiceResult Write(uint attributeId, DataValue value);
     }
 
     /// <summary>

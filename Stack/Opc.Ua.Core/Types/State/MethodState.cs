@@ -1,0 +1,903 @@
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation Corporate Members in good-standing
+     - GPL V2: everybody else
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Opc.Ua
+{
+    /// <summary>
+    /// The base class for all method nodes.
+    /// </summary>
+    public class MethodState : BaseInstanceState
+    {
+        /// <summary>
+        /// Initializes the instance with its default attribute values.
+        /// </summary>
+        public MethodState(NodeState parent)
+            : base(NodeClass.Method, parent)
+        {
+            m_executable = true;
+            m_userExecutable = true;
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new MethodState(parent);
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Executable = true;
+            UserExecutable = true;
+        }
+
+        /// <summary>
+        /// Initializes the instance from another instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            if (source is MethodState method)
+            {
+                m_executable = method.m_executable;
+                m_userExecutable = method.m_userExecutable;
+            }
+
+            base.Initialize(context, source);
+        }
+
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            var clone = (MethodState)Activator.CreateInstance(GetType(), Parent);
+            return CloneChildren(clone);
+        }
+
+        /// <summary>
+        /// The identifier for the declaration of the method in the type model.
+        /// </summary>
+        public NodeId MethodDeclarationId
+        {
+            get => TypeDefinitionId;
+            set => TypeDefinitionId = value;
+        }
+
+        /// <summary>
+        /// Whether the method can be called.
+        /// </summary>
+        public bool Executable
+        {
+            get => m_executable;
+            set
+            {
+                if (m_executable != value)
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_executable = value;
+            }
+        }
+
+        /// <summary>
+        /// Whether the method can be called by the current user.
+        /// </summary>
+        public bool UserExecutable
+        {
+            get => m_userExecutable;
+            set
+            {
+                if (m_userExecutable != value)
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_userExecutable = value;
+            }
+        }
+
+        /// <summary>
+        /// Raised when the Executable attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<bool> OnReadExecutable;
+
+        /// <summary>
+        /// Raised when the Executable attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<bool> OnWriteExecutable;
+
+        /// <summary>
+        /// Raised when the UserExecutable attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<bool> OnReadUserExecutable;
+
+        /// <summary>
+        /// Raised when the UserExecutable attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<bool> OnWriteUserExecutable;
+
+        /// <summary>
+        /// Raised when the method is called.
+        /// </summary>
+        public GenericMethodCalledEventHandler OnCallMethod;
+
+        /// <summary>
+        /// Raised when the method is called.
+        /// </summary>
+        public GenericMethodCalledEventHandler2 OnCallMethod2;
+
+        /// <summary>
+        /// Raised when the method is called.
+        /// Takes a Task delegate to allow for asynchronous processing.
+        /// Only works if the server / node managers supports async method calls.
+        /// </summary>
+        public GenericMethodCalledEventHandler2Async OnCallMethod2Async;
+
+        /// <summary>
+        /// Exports a copy of the node to a node table.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="node">The node.</param>
+        protected override void Export(ISystemContext context, Node node)
+        {
+            base.Export(context, node);
+
+            if (node is MethodNode methodNode)
+            {
+                methodNode.Executable = Executable;
+                methodNode.UserExecutable = UserExecutable;
+            }
+        }
+
+        /// <summary>
+        /// Saves the attributes from the stream.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="encoder">The encoder wrapping the stream to write.</param>
+        public override void Save(ISystemContext context, XmlEncoder encoder)
+        {
+            base.Save(context, encoder);
+
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            if (m_executable)
+            {
+                encoder.WriteBoolean("Executable", m_executable);
+            }
+
+            if (m_userExecutable)
+            {
+                encoder.WriteBoolean("UserExecutable", m_executable);
+            }
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary>
+        /// Updates the attributes from the stream.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="decoder">The decoder wrapping the stream to read.</param>
+        public override void Update(ISystemContext context, XmlDecoder decoder)
+        {
+            base.Update(context, decoder);
+
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            if (decoder.Peek("Executable"))
+            {
+                Executable = decoder.ReadBoolean("Executable");
+            }
+
+            if (decoder.Peek("UserExecutable"))
+            {
+                UserExecutable = decoder.ReadBoolean("UserExecutable");
+            }
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary>
+        /// Returns a mask which indicates which attributes have non-default value.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <returns>A mask the specifies the available attributes.</returns>
+        public override AttributesToSave GetAttributesToSave(ISystemContext context)
+        {
+            AttributesToSave attributesToSave = base.GetAttributesToSave(context);
+
+            if (m_executable)
+            {
+                attributesToSave |= AttributesToSave.Executable;
+            }
+
+            if (m_userExecutable)
+            {
+                attributesToSave |= AttributesToSave.UserExecutable;
+            }
+
+            return attributesToSave;
+        }
+
+        /// <summary>
+        /// Saves object in an binary stream.
+        /// </summary>
+        /// <param name="context">The context user.</param>
+        /// <param name="encoder">The encoder to write to.</param>
+        /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
+        {
+            base.Save(context, encoder, attributesToSave);
+
+            if ((attributesToSave & AttributesToSave.Executable) != 0)
+            {
+                encoder.WriteBoolean(null, m_executable);
+            }
+
+            if ((attributesToSave & AttributesToSave.UserExecutable) != 0)
+            {
+                encoder.WriteBoolean(null, m_userExecutable);
+            }
+        }
+
+        /// <summary>
+        /// Updates the specified context.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="decoder">The decoder.</param>
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
+        {
+            base.Update(context, decoder, attributesToLoad);
+
+            if ((attributesToLoad & AttributesToSave.Executable) != 0)
+            {
+                m_executable = decoder.ReadBoolean(null);
+            }
+
+            if ((attributesToLoad & AttributesToSave.UserExecutable) != 0)
+            {
+                m_userExecutable = decoder.ReadBoolean(null);
+            }
+        }
+
+        /// <summary>
+        /// Reads the value for any non-value attribute.
+        /// </summary>
+        protected override ServiceResult ReadNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            ref object value)
+        {
+            ServiceResult result = null;
+
+            switch (attributeId)
+            {
+                case Attributes.Executable:
+                    bool executable = m_executable;
+
+                    NodeAttributeEventHandler<bool> onReadExecutable = OnReadExecutable;
+
+                    if (onReadExecutable != null)
+                    {
+                        result = onReadExecutable(context, this, ref executable);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = executable;
+                    }
+
+                    return result;
+                case Attributes.UserExecutable:
+                    bool userExecutable = m_userExecutable;
+
+                    NodeAttributeEventHandler<bool> onReadUserExecutable = OnReadUserExecutable;
+
+                    if (onReadUserExecutable != null)
+                    {
+                        result = onReadUserExecutable(context, this, ref userExecutable);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = userExecutable;
+                    }
+
+                    return result;
+                default:
+                    return base.ReadNonValueAttribute(context, attributeId, ref value);
+            }
+        }
+
+        /// <summary>
+        /// Write the value for any non-value attribute.
+        /// </summary>
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
+        {
+            ServiceResult result = null;
+
+            switch (attributeId)
+            {
+                case Attributes.Executable:
+                    bool? executableRef = value as bool?;
+
+                    if (executableRef == null)
+                    {
+                        return StatusCodes.BadTypeMismatch;
+                    }
+
+                    if ((WriteMask & AttributeWriteMask.Executable) == 0)
+                    {
+                        return StatusCodes.BadNotWritable;
+                    }
+
+                    bool executable = executableRef.Value;
+
+                    NodeAttributeEventHandler<bool> onWriteExecutable = OnWriteExecutable;
+
+                    if (onWriteExecutable != null)
+                    {
+                        result = onWriteExecutable(context, this, ref executable);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        Executable = executable;
+                    }
+
+                    return result;
+                case Attributes.UserExecutable:
+                    bool? userExecutableRef = value as bool?;
+
+                    if (userExecutableRef == null)
+                    {
+                        return StatusCodes.BadTypeMismatch;
+                    }
+
+                    if ((WriteMask & AttributeWriteMask.UserExecutable) == 0)
+                    {
+                        return StatusCodes.BadNotWritable;
+                    }
+
+                    bool userExecutable = userExecutableRef.Value;
+
+                    NodeAttributeEventHandler<bool> onWriteUserExecutable = OnWriteUserExecutable;
+
+                    if (onWriteUserExecutable != null)
+                    {
+                        result = onWriteUserExecutable(context, this, ref userExecutable);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        UserExecutable = userExecutable;
+                    }
+
+                    return result;
+                default:
+                    return base.WriteNonValueAttribute(context, attributeId, value);
+            }
+        }
+
+        /// <summary>
+        /// The input arguments for the method.
+        /// </summary>
+        public PropertyState<Argument[]> InputArguments
+        {
+            get => m_inputArguments;
+            set
+            {
+                if (!ReferenceEquals(m_inputArguments, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_inputArguments = value;
+            }
+        }
+
+        /// <summary>
+        /// The output arguments for the method.
+        /// </summary>
+        public PropertyState<Argument[]> OutputArguments
+        {
+            get => m_outputArguments;
+            set
+            {
+                if (!ReferenceEquals(m_outputArguments, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_outputArguments = value;
+            }
+        }
+
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
+        {
+            PropertyState<Argument[]> inputArguments = m_inputArguments;
+
+            if (inputArguments != null)
+            {
+                children.Add(inputArguments);
+            }
+
+            PropertyState<Argument[]> outputArguments = m_outputArguments;
+
+            if (outputArguments != null)
+            {
+                children.Add(outputArguments);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            switch (browseName.Name)
+            {
+                case BrowseNames.InputArguments:
+                    if (createOrReplace && InputArguments == null)
+                    {
+                        if (replacement == null)
+                        {
+                            InputArguments = new PropertyState<Argument[]>(this);
+                        }
+                        else
+                        {
+                            InputArguments = (PropertyState<Argument[]>)replacement;
+                        }
+                    }
+                    return InputArguments ?? base.FindChild(context, browseName, createOrReplace, replacement);
+                case BrowseNames.OutputArguments:
+                    if (createOrReplace && OutputArguments == null)
+                    {
+                        if (replacement == null)
+                        {
+                            OutputArguments = new PropertyState<Argument[]>(this);
+                        }
+                        else
+                        {
+                            OutputArguments = (PropertyState<Argument[]>)replacement;
+                        }
+                    }
+                    return OutputArguments ?? base.FindChild(context, browseName, createOrReplace, replacement);
+                default:
+                    return base.FindChild(context, browseName, createOrReplace, replacement);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the methods and returns the output parameters.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="objectId">The object being called.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="argumentErrors">Any errors for the input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The result of the method call.</returns>
+        public virtual ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<Variant> inputArguments,
+            IList<ServiceResult> argumentErrors,
+            IList<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            return CallInternalSyncOrAsync(
+                context,
+                objectId,
+                inputArguments,
+                argumentErrors,
+                outputArguments,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Invokes the methods and returns the output parameters.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="objectId">The object being called.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="argumentErrors">Any errors for the input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <returns>The result of the method call.</returns>
+        public virtual ServiceResult Call(
+            ISystemContext context,
+            NodeId objectId,
+            IList<Variant> inputArguments,
+            IList<ServiceResult> argumentErrors,
+            IList<Variant> outputArguments)
+        {
+            // safe to access result directly as sync = true
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            ValueTask<ServiceResult> syncResult = CallInternalSyncOrAsync(
+                context,
+                objectId,
+                inputArguments,
+                argumentErrors,
+                outputArguments,
+                sync: true);
+#pragma warning restore CA2012 // Use ValueTasks correctly
+            return syncResult.Result;
+        }
+
+        /// <summary>
+        /// Invokes the methods and returns the output parameters.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="objectId">The object being called.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="argumentErrors">Any errors for the input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="sync">If the method shall execute synchronously.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The result of the method call.</returns>
+        protected virtual async ValueTask<ServiceResult> CallInternalSyncOrAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<Variant> inputArguments,
+            IList<ServiceResult> argumentErrors,
+            IList<Variant> outputArguments,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
+            // check if executable.
+            object executable = null;
+            ReadNonValueAttribute(context, Attributes.Executable, ref executable);
+
+            if (executable is bool exec && !exec)
+            {
+                return StatusCodes.BadNotExecutable;
+            }
+
+            // check if user executable.
+            object userExecutable = null;
+            ReadNonValueAttribute(context, Attributes.UserExecutable, ref userExecutable);
+
+            if (userExecutable is bool userExec && !userExec)
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            // validate input arguments.
+            var inputs = new List<object>();
+
+            // check for too few or too many arguments.
+            int expectedCount = 0;
+
+            PropertyState<Argument[]> expectedInputArguments = InputArguments;
+
+            if (expectedInputArguments != null && expectedInputArguments.Value != null)
+            {
+                expectedCount = expectedInputArguments.Value.Length;
+            }
+
+            if (expectedCount > inputArguments.Count)
+            {
+                return StatusCodes.BadArgumentsMissing;
+            }
+
+            if (expectedCount < inputArguments.Count)
+            {
+                return StatusCodes.BadTooManyArguments;
+            }
+
+            // validate individual arguements.
+            bool error = false;
+
+            for (int ii = 0; ii < inputArguments.Count; ii++)
+            {
+                ServiceResult argumentError = ValidateInputArgument(
+                    context,
+                    inputArguments[ii],
+                    ii);
+
+                if (ServiceResult.IsBad(argumentError))
+                {
+                    error = true;
+                }
+
+                inputs.Add(inputArguments[ii].Value);
+                argumentErrors.Add(argumentError);
+            }
+
+            // return good - caller must check argument errors.
+            if (error)
+            {
+                return ServiceResult.Good;
+            }
+
+            // set output arguments to default values.
+            var outputs = new List<object>();
+
+            PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
+
+            if (expectedOutputArguments != null)
+            {
+                Argument[] arguments = expectedOutputArguments.Value;
+
+                if (arguments != null && arguments.Length > 0)
+                {
+                    for (int ii = 0; ii < arguments.Length; ii++)
+                    {
+                        outputs.Add(GetArgumentDefaultValue(context, arguments[ii]));
+                    }
+                }
+            }
+
+            // invoke method.
+            ServiceResult result;
+            try
+            {
+                if (sync)
+                {
+                    result = Call(context, objectId, inputs, outputs);
+                }
+                else
+                {
+                    result = await CallAsync(context, objectId, inputs, outputs, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                result = new ServiceResult(e);
+            }
+
+            // copy out arguments.
+            if (ServiceResult.IsGoodOrUncertain(result))
+            {
+                for (int ii = 0; ii < outputs.Count; ii++)
+                {
+                    outputArguments.Add(new Variant(outputs[ii]));
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected virtual ServiceResult Call(
+            ISystemContext context,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            return Call(context, null, inputArguments, outputArguments);
+        }
+
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected virtual ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            IList<object> inputArguments,
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            return CallAsync(context, null, inputArguments, outputArguments, cancellationToken);
+        }
+
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="objectId">The id of the object.</param>
+        /// <param name="inputArguments">The input arguments which have been already validated.</param>
+        /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
+        protected virtual ServiceResult Call(
+            ISystemContext context,
+            NodeId objectId,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
+
+            if (onCallMethod2 != null)
+            {
+                return onCallMethod2(context, this, objectId, inputArguments, outputArguments);
+            }
+
+            GenericMethodCalledEventHandler onCallMethod = OnCallMethod;
+
+            if (onCallMethod != null)
+            {
+                return onCallMethod(context, this, inputArguments, outputArguments);
+            }
+
+            if (Executable && UserExecutable)
+            {
+                return StatusCodes.BadNotImplemented;
+            }
+
+            return StatusCodes.BadUserAccessDenied;
+        }
+
+        /// <summary>
+        /// Asynchonously invokes the method, returns the result and output argument.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="objectId">The id of the object.</param>
+        /// <param name="inputArguments">The input arguments which have been already validated.</param>
+        /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <returns></returns>
+        protected virtual async ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<object> inputArguments,
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            GenericMethodCalledEventHandler2Async onCallMethod2Async = OnCallMethod2Async;
+
+            if (OnCallMethod2Async != null)
+            {
+                return await onCallMethod2Async(
+                    context,
+                    this,
+                    objectId,
+                    inputArguments,
+                    outputArguments,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return Call(context, null, inputArguments, outputArguments);
+        }
+
+        /// <summary>
+        /// Validates the input argument.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="inputArgument">The input argument.</param>
+        /// <param name="index">The index in the list of input argument.</param>
+        /// <returns>Any error.</returns>
+        protected ServiceResult ValidateInputArgument(
+            ISystemContext context,
+            Variant inputArgument,
+            int index)
+        {
+            PropertyState<Argument[]> inputArguments = InputArguments;
+
+            if (inputArguments == null)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            Argument[] arguments = inputArguments.Value;
+
+            if (arguments == null || index < 0 || index >= arguments.Length)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            Argument expectedArgument = arguments[index];
+
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
+                inputArgument.Value,
+                expectedArgument.DataType,
+                expectedArgument.ValueRank,
+                context.NamespaceUris,
+                context.TypeTable);
+
+            if (typeInfo == null)
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns the default value for the output argument.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="outputArgument">The output argument description.</param>
+        /// <returns>The default value.</returns>
+        protected object GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
+        {
+            return TypeInfo.GetDefaultValue(
+                outputArgument.DataType,
+                outputArgument.ValueRank,
+                context.TypeTable);
+        }
+
+        private bool m_executable;
+        private bool m_userExecutable;
+        private PropertyState<Argument[]> m_inputArguments;
+        private PropertyState<Argument[]> m_outputArguments;
+    }
+
+    /// <summary>
+    /// Used to process a method call.
+    /// </summary>
+    public delegate ServiceResult GenericMethodCalledEventHandler(
+        ISystemContext context,
+        MethodState method,
+        IList<object> inputArguments,
+        IList<object> outputArguments);
+
+    /// <summary>
+    /// Used to process a method call.
+    /// </summary>
+    public delegate ServiceResult GenericMethodCalledEventHandler2(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        IList<object> inputArguments,
+        IList<object> outputArguments);
+
+    /// <summary>
+    /// Used to process a method call.
+    /// </summary>
+    public delegate ValueTask<ServiceResult> GenericMethodCalledEventHandler2Async(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        IList<object> inputArguments,
+        IList<object> outputArguments,
+        CancellationToken cancellationToken = default);
+}

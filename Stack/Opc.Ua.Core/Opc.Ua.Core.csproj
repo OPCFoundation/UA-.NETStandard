@@ -2,7 +2,7 @@
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC;NET_STANDARD_OBSOLETE_SYNC;NET_STANDARD_OBSOLETE_APM</DefineConstants>
     <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC; OPCUA_EXCLUDE_FindServers_ASYNC; OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC; OPCUA_EXCLUDE_GetEndpoints_ASYNC; OPCUA_EXCLUDE_CreateSession_ASYNC; OPCUA_EXCLUDE_ActivateSession_ASYNC; OPCUA_EXCLUDE_CloseSession_ASYNC; OPCUA_EXCLUDE_Cancel_ASYNC; OPCUA_EXCLUDE_AddNodes_ASYNC; OPCUA_EXCLUDE_AddReferences_ASYNC; OPCUA_EXCLUDE_DeleteNodes_ASYNC; OPCUA_EXCLUDE_DeleteReferences_ASYNC; OPCUA_EXCLUDE_RegisterNodes_ASYNC; OPCUA_EXCLUDE_UnregisterNodes_ASYNC; OPCUA_EXCLUDE_QueryFirst_ASYNC; OPCUA_EXCLUDE_QueryNext_ASYNC; OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC; OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC; OPCUA_EXCLUDE_SetMonitoringMode_ASYNC; OPCUA_EXCLUDE_SetTriggering_ASYNC; OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC; OPCUA_EXCLUDE_CreateSubscription_ASYNC; OPCUA_EXCLUDE_ModifySubscription_ASYNC; OPCUA_EXCLUDE_SetPublishingMode_ASYNC; OPCUA_EXCLUDE_Republish_ASYNC; OPCUA_EXCLUDE_TransferSubscriptions_ASYNC; OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC; OPCUA_EXCLUDE_RegisterServer_ASYNC; OPCUA_EXCLUDE_RegisterServer2_ASYNC</DefineConstants>
-    <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>$(AssemblyPrefix).Core</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
@@ -22,20 +22,46 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
-    <None Remove="Schema\Opc.Ua.Types.bsd" />
-    <None Remove="Schema\Opc.Ua.Types.xsd" />
-    <None Remove="Schema\UANodeSet.xsd" />
+    <Compile Remove="Schema\**" />
+    <Compile Remove="Security\**" />
+    <Compile Remove="Stack\**" />
+    <EmbeddedResource Remove="Schema\**" />
+    <EmbeddedResource Remove="Security\**" />
+    <EmbeddedResource Remove="Stack\**" />
+    <None Remove="Schema\**" />
+    <None Remove="Security\**" />
+    <None Remove="Stack\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Types\Constants\StatusCodes.Helpers.cs" />
+    <Compile Remove="Types\Utils\RelativePath.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
     <None Remove="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
-    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
-    <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
+    <Compile Include="Schema\UANodeSet.cs" />
+    <Compile Include="Schema\UANodeSetHelpers.cs" />
+    <Compile Include="Stack\Constants\Namespaces.cs" />
+    <Compile Include="Stack\Constants\ReferenceTypes.Helpers.cs" />
+    <Compile Include="Stack\Diagnostics\DefaultTelemetry.cs" />
+    <Compile Include="Stack\Diagnostics\ITelemetryContext.cs" />
+    <Compile Include="Stack\Diagnostics\TelemetryExtensions.cs" />
+    <Compile Include="Stack\Diagnostics\TelemetryUtils.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Constants.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.DataTypes.cs" />
+    <Compile Include="Stack\Nodes\INode.cs" />
+    <Compile Include="Stack\Nodes\Node.cs" />
+    <Compile Include="Stack\Nodes\NodeSet.cs" />
+    <Compile Include="Stack\Nodes\NodeTable.cs" />
+    <Compile Include="Stack\Nodes\ReferenceTable.cs" />
+    <Compile Include="Stack\Nodes\TypeTable.cs" />
+    <Compile Include="Stack\Tcp\TcpMessageLimits.cs" />
+    <Compile Include="Stack\Types\StructureDefinition.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
-    <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
     <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
@@ -66,6 +92,9 @@
   <ItemGroup>
     <EmbeddedResource Include="$(ZipNodeSet2XML)" Link="$(NodeSet2XML).zip" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Schema\UANodeSet.xsd" />
+  </ItemGroup>
   <!-- Zip the NodeSet2 file -->
   <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(NodeSet2XML)" Outputs="$(ZipNodeSet2XML)">
     <Message Text="Zip $(NodeSet2XML) in $(ZipNodeSet2XML)." Importance="high" />
@@ -76,7 +105,9 @@
   </Target>
   <!-- Clean up the zip file -->
   <Target Name="RemoveZipNodeset2" AfterTargets="Clean" Condition="Exists('$(ZipNodeSet2XML)')">
-    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high"></Message>
-    <Delete Files="$(ZipNodeSet2XML)"></Delete>
+    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high">
+    </Message>
+    <Delete Files="$(ZipNodeSet2XML)">
+    </Delete>
   </Target>
 </Project>

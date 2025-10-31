@@ -369,7 +369,7 @@ namespace Opc.Ua
 
             // allow matches non-structure values where the actual datatype is a supertype of the expected datatype.
             // for example: expected datatype of 'UtcTime' matches an actual datatype of 'DateTime'.
-            if (actualTypeId != DataTypeIds.Structure)
+            if (Ua.TypeInfo.IsStructureDataTypeId(actualTypeId))
             {
                 return IsTypeOf(expectedTypeId, actualTypeId);
             }

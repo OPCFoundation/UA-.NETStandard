@@ -183,6 +183,7 @@ namespace Opc.Ua
             return decoder.DecodeMessage(expectedType);
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Decodes a session-less message from a buffer.
         /// </summary>
@@ -229,6 +230,7 @@ namespace Opc.Ua
 
             return message.Message;
         }
+#endif
 
         /// <summary>
         /// Decodes a message from a buffer.

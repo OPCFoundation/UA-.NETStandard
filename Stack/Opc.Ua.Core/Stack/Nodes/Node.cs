@@ -291,31 +291,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the value of a attribute.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of read operation.</returns>
-        public ServiceResult Read(IOperationContext context, uint attributeId, DataValue value)
-        {
-            if (!SupportsAttribute(attributeId))
-            {
-                return StatusCodes.BadAttributeIdInvalid;
-            }
-
-            value.WrappedValue = new Variant(Read(attributeId));
-            value.StatusCode = StatusCodes.Good;
-
-            if (attributeId == Attributes.Value)
-            {
-                value.SourceTimestamp = DateTime.UtcNow;
-            }
-
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
         /// Writes the value of an attribute.
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>

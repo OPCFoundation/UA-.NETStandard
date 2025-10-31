@@ -633,6 +633,7 @@ namespace Opc.Ua
             return status.Code;
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Looks up the symbolic name for a status code.
         /// </summary>
@@ -640,6 +641,7 @@ namespace Opc.Ua
         {
             return StatusCodes.GetBrowseName(code & 0xFFFF0000);
         }
+#endif
 
         /// <summary>
         /// The status code associated with the result.
@@ -713,8 +715,9 @@ namespace Opc.Ua
         /// <param name="buffer"></param>
         internal void Append(StringBuilder buffer)
         {
+#if ZOMBIE // Manual
             buffer.Append(LookupSymbolicId(Code));
-
+#endif
             if (!string.IsNullOrEmpty(SymbolicId))
             {
                 if (!string.IsNullOrEmpty(NamespaceUri))
@@ -754,9 +757,10 @@ namespace Opc.Ua
         /// <param name="buffer"></param>
         internal void AppendLong(StringBuilder buffer)
         {
+#if ZOMBIE // Manual
             buffer.Append("Id: ")
                 .Append(StatusCodes.GetBrowseName(Code));
-
+#endif
             if (!string.IsNullOrEmpty(SymbolicId))
             {
                 buffer.AppendLine()

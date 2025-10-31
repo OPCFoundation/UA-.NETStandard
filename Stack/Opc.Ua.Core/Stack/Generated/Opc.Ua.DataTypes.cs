@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum Enumeration
     {
     }
@@ -116,7 +116,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum NamingRuleType
     {
         [EnumMember(Value = "Mandatory_1")]
@@ -354,7 +354,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum RedundantServerMode
     {
         [EnumMember(Value = "PrimaryWithBackup_0")]
@@ -2940,7 +2940,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum OpenFileMode
     {
         [EnumMember(Value = "Read_1")]
@@ -3022,7 +3022,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum IdentityCriteriaType
     {
         [EnumMember(Value = "UserName_1")]
@@ -3920,7 +3920,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ConversionLimitEnum
     {
         [EnumMember(Value = "NoConversion_0")]
@@ -4378,7 +4378,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum TrustListMasks
     {
         [EnumMember(Value = "None_0")]
@@ -5500,7 +5500,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ConfigurationUpdateType
     {
         [EnumMember(Value = "Insert_1")]
@@ -9661,7 +9661,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum PubSubState
     {
         [EnumMember(Value = "Disabled_0")]
@@ -12211,7 +12211,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ActionState
     {
         [EnumMember(Value = "Idle_0")]
@@ -16940,7 +16940,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum OverrideValueHandling
     {
         [EnumMember(Value = "Disabled_0")]
@@ -18830,7 +18830,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum DataSetOrderingType
     {
         [EnumMember(Value = "Undefined_0")]
@@ -22857,7 +22857,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum BrokerTransportQualityOfService
     {
         [EnumMember(Value = "NotSpecified_0")]
@@ -24155,7 +24155,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum DiagnosticsLevel
     {
         [EnumMember(Value = "Basic_0")]
@@ -24240,7 +24240,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum PubSubDiagnosticsCounterClassification
     {
         [EnumMember(Value = "Information_0")]
@@ -27513,7 +27513,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum Duplex
     {
         [EnumMember(Value = "Full_0")]
@@ -27592,7 +27592,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum InterfaceAdminStatus
     {
         [EnumMember(Value = "Up_0")]
@@ -27671,7 +27671,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum InterfaceOperStatus
     {
         [EnumMember(Value = "Up_0")]
@@ -27762,7 +27762,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum NegotiationStatus
     {
         [EnumMember(Value = "InProgress_0")]
@@ -27847,7 +27847,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum TsnFailureCode
     {
         [EnumMember(Value = "NoFailure_0")]
@@ -27995,7 +27995,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum TsnStreamState
     {
         [EnumMember(Value = "Disabled_0")]
@@ -28080,7 +28080,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum TsnTalkerStatus
     {
         [EnumMember(Value = "None_0")]
@@ -28159,7 +28159,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum TsnListenerStatus
     {
         [EnumMember(Value = "None_0")]
@@ -28241,7 +28241,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ChassisIdSubtype
     {
         [EnumMember(Value = "ChassisComponent_1")]
@@ -28332,7 +28332,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum PortIdSubtype
     {
         [EnumMember(Value = "InterfaceAlias_1")]
@@ -28423,7 +28423,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ManAddrIfSubtype
     {
         [EnumMember(Value = "None_0")]
@@ -29856,7 +29856,7 @@ namespace Opc.Ua
     #region LogRecord Class
     #if (!OPCUA_EXCLUDE_LogRecord)
     /// <exclude />
-    
+
     public enum LogRecordFields : uint
     {
         None = 0,
@@ -30999,7 +30999,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum IdType
     {
         [EnumMember(Value = "Numeric_0")]
@@ -31081,7 +31081,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum NodeClass
     {
         [EnumMember(Value = "Unspecified_0")]
@@ -31664,7 +31664,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum StructureType
     {
         [EnumMember(Value = "Structure_0")]
@@ -35263,7 +35263,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ApplicationType
     {
         [EnumMember(Value = "Server_0")]
@@ -37325,7 +37325,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum MessageSecurityMode
     {
         [EnumMember(Value = "Invalid_0")]
@@ -37407,7 +37407,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum UserTokenType
     {
         [EnumMember(Value = "Anonymous_0")]
@@ -39442,7 +39442,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum SecurityTokenRequestType
     {
         [EnumMember(Value = "Issue_0")]
@@ -42633,7 +42633,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum NodeAttributesMask
     {
         [EnumMember(Value = "None_0")]
@@ -46855,7 +46855,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum BrowseDirection
     {
         [EnumMember(Value = "Forward_0")]
@@ -47252,7 +47252,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum BrowseResultMask
     {
         [EnumMember(Value = "None_0")]
@@ -50974,7 +50974,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum FilterOperator
     {
         [EnumMember(Value = "Equals_0")]
@@ -53976,7 +53976,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum TimestampsToReturn
     {
         [EnumMember(Value = "Source_0")]
@@ -55357,7 +55357,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum SortOrderType
     {
         [EnumMember(Value = "Ascending_0")]
@@ -58043,7 +58043,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum HistoryUpdateType
     {
         [EnumMember(Value = "Insert_1")]
@@ -58066,7 +58066,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum PerformUpdateType
     {
         [EnumMember(Value = "Insert_1")]
@@ -58114,7 +58114,7 @@ namespace Opc.Ua
 
         #region Public Properties
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public override NodeId NodeId
+        public NodeId NodeId
         {
             get { return m_nodeId;  }
             set { m_nodeId = value; }
@@ -58269,7 +58269,7 @@ namespace Opc.Ua
 
         #region Public Properties
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public override NodeId NodeId
+        public NodeId NodeId
         {
             get { return m_nodeId;  }
             set { m_nodeId = value; }
@@ -58425,7 +58425,7 @@ namespace Opc.Ua
 
         #region Public Properties
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public override NodeId NodeId
+        public NodeId NodeId
         {
             get { return m_nodeId;  }
             set { m_nodeId = value; }
@@ -58606,7 +58606,7 @@ namespace Opc.Ua
 
         #region Public Properties
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public override NodeId NodeId
+        public NodeId NodeId
         {
             get { return m_nodeId;  }
             set { m_nodeId = value; }
@@ -58759,7 +58759,7 @@ namespace Opc.Ua
 
         #region Public Properties
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public override NodeId NodeId
+        public NodeId NodeId
         {
             get { return m_nodeId;  }
             set { m_nodeId = value; }
@@ -58901,7 +58901,7 @@ namespace Opc.Ua
 
         #region Public Properties
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public override NodeId NodeId
+        public NodeId NodeId
         {
             get { return m_nodeId;  }
             set { m_nodeId = value; }
@@ -60357,7 +60357,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum MonitoringMode
     {
         [EnumMember(Value = "Disabled_0")]
@@ -60377,7 +60377,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum DataChangeTrigger
     {
         [EnumMember(Value = "Status_0")]
@@ -60397,7 +60397,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum DeadbandType
     {
         [EnumMember(Value = "None_0")]
@@ -68686,7 +68686,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum RedundancySupport
     {
         [EnumMember(Value = "None_0")]
@@ -68715,7 +68715,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ServerState
     {
         [EnumMember(Value = "Running_0")]
@@ -72261,7 +72261,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ModelChangeStructureVerbMask
     {
         [EnumMember(Value = "NodeAdded_1")]
@@ -73062,7 +73062,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum AxisScaleEnumeration
     {
         [EnumMember(Value = "Linear_0")]
@@ -74668,7 +74668,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    
+
     public enum ExceptionDeviationFormat
     {
         [EnumMember(Value = "AbsoluteValue_0")]

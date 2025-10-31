@@ -10,18 +10,19 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.Runtime.Serialization;
-
 namespace Opc.Ua
 {
     /// <summary>
-    /// Interface implemented by structured type instances.
+    /// An interface that can be used to create new node ids.
     /// </summary>
-    public interface IStructureTypeInfo
+    public interface INodeIdFactory
     {
         /// <summary>
-        /// Gets the structure type.
+        /// Creates the NodeId for the specified node.
         /// </summary>
-        StructureType StructureType { get; }
+        /// <param name="context">The context.</param>
+        /// <param name="node">The node.</param>
+        /// <returns>The new NodeId.</returns>
+        NodeId New(ISystemContext context, NodeState node);
     }
 }

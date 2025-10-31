@@ -420,12 +420,14 @@ namespace Opc.Ua
         {
             if (format == null)
             {
+#if ZOMBIE // Manual
                 string text = StatusCodes.GetBrowseName(Code & 0xFFFF0000);
 
                 if (!string.IsNullOrEmpty(text))
                 {
                     return string.Format(formatProvider, "{0}", text);
                 }
+#endif
 
                 return string.Format(formatProvider, "0x{0:X8}", Code);
             }
@@ -472,8 +474,9 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
+#if ZOMBIE // Manual
             buffer.Append(LookupSymbolicId(Code));
-
+#endif
             if ((0x0000FFFF & Code) != 0)
             {
                 buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", 0x0000FFFF & Code);
@@ -500,6 +503,7 @@ namespace Opc.Ua
             return code.Code;
         }
 
+#if ZOMBIE // Manual
         /// <summary>
         /// Looks up the symbolic name for a status code.
         /// </summary>
@@ -517,6 +521,7 @@ namespace Opc.Ua
         {
             return StatusCodes.GetUtf8BrowseName(code);
         }
+#endif
 
         /// <summary>
         /// Returns true if the objects are not equal.
