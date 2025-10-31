@@ -43,7 +43,7 @@ namespace Opc.Ua
     #region Enumeration Enumeration
     #if (!OPCUA_EXCLUDE_Enumeration)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum Enumeration
@@ -52,8 +52,8 @@ namespace Opc.Ua
 
     #region EnumerationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Enumeration")]
     public partial class EnumerationCollection : List<Enumeration>, ICloneable
     {
@@ -114,7 +114,7 @@ namespace Opc.Ua
     #region NamingRuleType Enumeration
     #if (!OPCUA_EXCLUDE_NamingRuleType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum NamingRuleType
@@ -131,8 +131,8 @@ namespace Opc.Ua
 
     #region NamingRuleTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNamingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NamingRuleType")]
     public partial class NamingRuleTypeCollection : List<NamingRuleType>, ICloneable
     {
@@ -193,8 +193,8 @@ namespace Opc.Ua
     #region Union Class
     #if (!OPCUA_EXCLUDE_Union)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Union : IEncodeable, IJsonEncodeable
     {
@@ -290,8 +290,8 @@ namespace Opc.Ua
 
     #region UnionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUnion", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Union")]
     public partial class UnionCollection : List<Union>, ICloneable
     {
@@ -352,7 +352,7 @@ namespace Opc.Ua
     #region RedundantServerMode Enumeration
     #if (!OPCUA_EXCLUDE_RedundantServerMode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum RedundantServerMode
@@ -372,8 +372,8 @@ namespace Opc.Ua
 
     #region RedundantServerModeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfRedundantServerMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RedundantServerMode")]
     public partial class RedundantServerModeCollection : List<RedundantServerMode>, ICloneable
     {
@@ -434,8 +434,8 @@ namespace Opc.Ua
     #region KeyValuePair Class
     #if (!OPCUA_EXCLUDE_KeyValuePair)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class KeyValuePair : IEncodeable, IJsonEncodeable
     {
@@ -556,8 +556,8 @@ namespace Opc.Ua
 
     #region KeyValuePairCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfKeyValuePair", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "KeyValuePair")]
     public partial class KeyValuePairCollection : List<KeyValuePair>, ICloneable
     {
@@ -618,8 +618,8 @@ namespace Opc.Ua
     #region AdditionalParametersType Class
     #if (!OPCUA_EXCLUDE_AdditionalParametersType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AdditionalParametersType : IEncodeable, IJsonEncodeable
     {
@@ -743,8 +743,8 @@ namespace Opc.Ua
     #region EphemeralKeyType Class
     #if (!OPCUA_EXCLUDE_EphemeralKeyType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EphemeralKeyType : IEncodeable, IJsonEncodeable
     {
@@ -868,8 +868,8 @@ namespace Opc.Ua
     #region EndpointType Class
     #if (!OPCUA_EXCLUDE_EndpointType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointType : IEncodeable, IJsonEncodeable
     {
@@ -1016,8 +1016,8 @@ namespace Opc.Ua
 
     #region EndpointTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEndpointType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointType")]
     public partial class EndpointTypeCollection : List<EndpointType>, ICloneable
     {
@@ -1078,8 +1078,8 @@ namespace Opc.Ua
     #region BitFieldDefinition Class
     #if (!OPCUA_EXCLUDE_BitFieldDefinition)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BitFieldDefinition : IEncodeable, IJsonEncodeable
     {
@@ -1239,8 +1239,8 @@ namespace Opc.Ua
 
     #region BitFieldDefinitionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBitFieldDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BitFieldDefinition")]
     public partial class BitFieldDefinitionCollection : List<BitFieldDefinition>, ICloneable
     {
@@ -1301,8 +1301,8 @@ namespace Opc.Ua
     #region RationalNumber Class
     #if (!OPCUA_EXCLUDE_RationalNumber)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RationalNumber : IEncodeable, IJsonEncodeable
     {
@@ -1423,8 +1423,8 @@ namespace Opc.Ua
 
     #region RationalNumberCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RationalNumber")]
     public partial class RationalNumberCollection : List<RationalNumber>, ICloneable
     {
@@ -1485,8 +1485,8 @@ namespace Opc.Ua
     #region Vector Class
     #if (!OPCUA_EXCLUDE_Vector)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Vector : IEncodeable, IJsonEncodeable
     {
@@ -1582,8 +1582,8 @@ namespace Opc.Ua
 
     #region VectorCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Vector")]
     public partial class VectorCollection : List<Vector>, ICloneable
     {
@@ -1644,8 +1644,8 @@ namespace Opc.Ua
     #region ThreeDVector Class
     #if (!OPCUA_EXCLUDE_ThreeDVector)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDVector : Opc.Ua.Vector
     {
@@ -1783,8 +1783,8 @@ namespace Opc.Ua
 
     #region ThreeDVectorCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfThreeDVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDVector")]
     public partial class ThreeDVectorCollection : List<ThreeDVector>, ICloneable
     {
@@ -1845,8 +1845,8 @@ namespace Opc.Ua
     #region CartesianCoordinates Class
     #if (!OPCUA_EXCLUDE_CartesianCoordinates)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CartesianCoordinates : IEncodeable, IJsonEncodeable
     {
@@ -1942,8 +1942,8 @@ namespace Opc.Ua
 
     #region CartesianCoordinatesCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CartesianCoordinates")]
     public partial class CartesianCoordinatesCollection : List<CartesianCoordinates>, ICloneable
     {
@@ -2004,8 +2004,8 @@ namespace Opc.Ua
     #region ThreeDCartesianCoordinates Class
     #if (!OPCUA_EXCLUDE_ThreeDCartesianCoordinates)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDCartesianCoordinates : Opc.Ua.CartesianCoordinates
     {
@@ -2143,8 +2143,8 @@ namespace Opc.Ua
 
     #region ThreeDCartesianCoordinatesCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfThreeDCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDCartesianCoordinates")]
     public partial class ThreeDCartesianCoordinatesCollection : List<ThreeDCartesianCoordinates>, ICloneable
     {
@@ -2205,8 +2205,8 @@ namespace Opc.Ua
     #region Orientation Class
     #if (!OPCUA_EXCLUDE_Orientation)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Orientation : IEncodeable, IJsonEncodeable
     {
@@ -2302,8 +2302,8 @@ namespace Opc.Ua
 
     #region OrientationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Orientation")]
     public partial class OrientationCollection : List<Orientation>, ICloneable
     {
@@ -2364,8 +2364,8 @@ namespace Opc.Ua
     #region ThreeDOrientation Class
     #if (!OPCUA_EXCLUDE_ThreeDOrientation)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDOrientation : Opc.Ua.Orientation
     {
@@ -2503,8 +2503,8 @@ namespace Opc.Ua
 
     #region ThreeDOrientationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfThreeDOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDOrientation")]
     public partial class ThreeDOrientationCollection : List<ThreeDOrientation>, ICloneable
     {
@@ -2565,8 +2565,8 @@ namespace Opc.Ua
     #region Frame Class
     #if (!OPCUA_EXCLUDE_Frame)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Frame : IEncodeable, IJsonEncodeable
     {
@@ -2662,8 +2662,8 @@ namespace Opc.Ua
 
     #region FrameCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Frame")]
     public partial class FrameCollection : List<Frame>, ICloneable
     {
@@ -2724,8 +2724,8 @@ namespace Opc.Ua
     #region ThreeDFrame Class
     #if (!OPCUA_EXCLUDE_ThreeDFrame)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDFrame : Opc.Ua.Frame
     {
@@ -2876,8 +2876,8 @@ namespace Opc.Ua
 
     #region ThreeDFrameCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfThreeDFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDFrame")]
     public partial class ThreeDFrameCollection : List<ThreeDFrame>, ICloneable
     {
@@ -2938,7 +2938,7 @@ namespace Opc.Ua
     #region OpenFileMode Enumeration
     #if (!OPCUA_EXCLUDE_OpenFileMode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum OpenFileMode
@@ -2958,8 +2958,8 @@ namespace Opc.Ua
 
     #region OpenFileModeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfOpenFileMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OpenFileMode")]
     public partial class OpenFileModeCollection : List<OpenFileMode>, ICloneable
     {
@@ -3020,7 +3020,7 @@ namespace Opc.Ua
     #region IdentityCriteriaType Enumeration
     #if (!OPCUA_EXCLUDE_IdentityCriteriaType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum IdentityCriteriaType
@@ -3055,8 +3055,8 @@ namespace Opc.Ua
 
     #region IdentityCriteriaTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfIdentityCriteriaType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityCriteriaType")]
     public partial class IdentityCriteriaTypeCollection : List<IdentityCriteriaType>, ICloneable
     {
@@ -3117,8 +3117,8 @@ namespace Opc.Ua
     #region IdentityMappingRuleType Class
     #if (!OPCUA_EXCLUDE_IdentityMappingRuleType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class IdentityMappingRuleType : IEncodeable, IJsonEncodeable
     {
@@ -3239,8 +3239,8 @@ namespace Opc.Ua
 
     #region IdentityMappingRuleTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfIdentityMappingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityMappingRuleType")]
     public partial class IdentityMappingRuleTypeCollection : List<IdentityMappingRuleType>, ICloneable
     {
@@ -3301,8 +3301,8 @@ namespace Opc.Ua
     #region CurrencyUnitType Class
     #if (!OPCUA_EXCLUDE_CurrencyUnitType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CurrencyUnitType : IEncodeable, IJsonEncodeable
     {
@@ -3449,8 +3449,8 @@ namespace Opc.Ua
 
     #region CurrencyUnitTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfCurrencyUnitType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CurrencyUnitType")]
     public partial class CurrencyUnitTypeCollection : List<CurrencyUnitType>, ICloneable
     {
@@ -3511,8 +3511,8 @@ namespace Opc.Ua
     #region AnnotationDataType Class
     #if (!OPCUA_EXCLUDE_AnnotationDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AnnotationDataType : IEncodeable, IJsonEncodeable
     {
@@ -3646,8 +3646,8 @@ namespace Opc.Ua
 
     #region AnnotationDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAnnotationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AnnotationDataType")]
     public partial class AnnotationDataTypeCollection : List<AnnotationDataType>, ICloneable
     {
@@ -3708,8 +3708,8 @@ namespace Opc.Ua
     #region LinearConversionDataType Class
     #if (!OPCUA_EXCLUDE_LinearConversionDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LinearConversionDataType : IEncodeable, IJsonEncodeable
     {
@@ -3856,8 +3856,8 @@ namespace Opc.Ua
 
     #region LinearConversionDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLinearConversionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LinearConversionDataType")]
     public partial class LinearConversionDataTypeCollection : List<LinearConversionDataType>, ICloneable
     {
@@ -3918,7 +3918,7 @@ namespace Opc.Ua
     #region ConversionLimitEnum Enumeration
     #if (!OPCUA_EXCLUDE_ConversionLimitEnum)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ConversionLimitEnum
@@ -3935,8 +3935,8 @@ namespace Opc.Ua
 
     #region ConversionLimitEnumCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfConversionLimitEnum", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConversionLimitEnum")]
     public partial class ConversionLimitEnumCollection : List<ConversionLimitEnum>, ICloneable
     {
@@ -3997,8 +3997,8 @@ namespace Opc.Ua
     #region QuantityDimension Class
     #if (!OPCUA_EXCLUDE_QuantityDimension)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QuantityDimension : IEncodeable, IJsonEncodeable
     {
@@ -4197,8 +4197,8 @@ namespace Opc.Ua
 
     #region QuantityDimensionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfQuantityDimension", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QuantityDimension")]
     public partial class QuantityDimensionCollection : List<QuantityDimension>, ICloneable
     {
@@ -4259,7 +4259,7 @@ namespace Opc.Ua
     #region AlarmMask Enumeration
     #if (!OPCUA_EXCLUDE_AlarmMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum AlarmMask : UInt16
@@ -4279,8 +4279,8 @@ namespace Opc.Ua
 
     #region AlarmMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAlarmMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AlarmMask")]
     public partial class AlarmMaskCollection : List<AlarmMask>, ICloneable
     {
@@ -4341,7 +4341,7 @@ namespace Opc.Ua
     #region TrustListValidationOptions Enumeration
     #if (!OPCUA_EXCLUDE_TrustListValidationOptions)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum TrustListValidationOptions : UInt32
@@ -4376,7 +4376,7 @@ namespace Opc.Ua
     #region TrustListMasks Enumeration
     #if (!OPCUA_EXCLUDE_TrustListMasks)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum TrustListMasks
@@ -4405,8 +4405,8 @@ namespace Opc.Ua
     #region TrustListDataType Class
     #if (!OPCUA_EXCLUDE_TrustListDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TrustListDataType : IEncodeable, IJsonEncodeable
     {
@@ -4618,8 +4618,8 @@ namespace Opc.Ua
 
     #region TrustListDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTrustListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TrustListDataType")]
     public partial class TrustListDataTypeCollection : List<TrustListDataType>, ICloneable
     {
@@ -4680,8 +4680,8 @@ namespace Opc.Ua
     #region BaseConfigurationDataType Class
     #if (!OPCUA_EXCLUDE_BaseConfigurationDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BaseConfigurationDataType : IEncodeable, IJsonEncodeable
     {
@@ -4815,8 +4815,8 @@ namespace Opc.Ua
 
     #region BaseConfigurationDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBaseConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BaseConfigurationDataType")]
     public partial class BaseConfigurationDataTypeCollection : List<BaseConfigurationDataType>, ICloneable
     {
@@ -4877,8 +4877,8 @@ namespace Opc.Ua
     #region BaseConfigurationRecordDataType Class
     #if (!OPCUA_EXCLUDE_BaseConfigurationRecordDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BaseConfigurationRecordDataType : IEncodeable, IJsonEncodeable
     {
@@ -5012,8 +5012,8 @@ namespace Opc.Ua
 
     #region BaseConfigurationRecordDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBaseConfigurationRecordDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BaseConfigurationRecordDataType")]
     public partial class BaseConfigurationRecordDataTypeCollection : List<BaseConfigurationRecordDataType>, ICloneable
     {
@@ -5074,8 +5074,8 @@ namespace Opc.Ua
     #region CertificateGroupDataType Class
     #if (!OPCUA_EXCLUDE_CertificateGroupDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CertificateGroupDataType : Opc.Ua.BaseConfigurationRecordDataType
     {
@@ -5252,8 +5252,8 @@ namespace Opc.Ua
 
     #region CertificateGroupDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfCertificateGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CertificateGroupDataType")]
     public partial class CertificateGroupDataTypeCollection : List<CertificateGroupDataType>, ICloneable
     {
@@ -5314,8 +5314,8 @@ namespace Opc.Ua
     #region ConfigurationUpdateTargetType Class
     #if (!OPCUA_EXCLUDE_ConfigurationUpdateTargetType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ConfigurationUpdateTargetType : IEncodeable, IJsonEncodeable
     {
@@ -5436,8 +5436,8 @@ namespace Opc.Ua
 
     #region ConfigurationUpdateTargetTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfConfigurationUpdateTargetType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationUpdateTargetType")]
     public partial class ConfigurationUpdateTargetTypeCollection : List<ConfigurationUpdateTargetType>, ICloneable
     {
@@ -5498,7 +5498,7 @@ namespace Opc.Ua
     #region ConfigurationUpdateType Enumeration
     #if (!OPCUA_EXCLUDE_ConfigurationUpdateType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ConfigurationUpdateType
@@ -5518,8 +5518,8 @@ namespace Opc.Ua
 
     #region ConfigurationUpdateTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfConfigurationUpdateType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationUpdateType")]
     public partial class ConfigurationUpdateTypeCollection : List<ConfigurationUpdateType>, ICloneable
     {
@@ -5580,8 +5580,8 @@ namespace Opc.Ua
     #region TransactionErrorType Class
     #if (!OPCUA_EXCLUDE_TransactionErrorType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransactionErrorType : IEncodeable, IJsonEncodeable
     {
@@ -5715,8 +5715,8 @@ namespace Opc.Ua
 
     #region TransactionErrorTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTransactionErrorType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransactionErrorType")]
     public partial class TransactionErrorTypeCollection : List<TransactionErrorType>, ICloneable
     {
@@ -5777,8 +5777,8 @@ namespace Opc.Ua
     #region ApplicationConfigurationDataType Class
     #if (!OPCUA_EXCLUDE_ApplicationConfigurationDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ApplicationConfigurationDataType : Opc.Ua.BaseConfigurationDataType
     {
@@ -6059,8 +6059,8 @@ namespace Opc.Ua
 
     #region ApplicationConfigurationDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfApplicationConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationConfigurationDataType")]
     public partial class ApplicationConfigurationDataTypeCollection : List<ApplicationConfigurationDataType>, ICloneable
     {
@@ -6121,8 +6121,8 @@ namespace Opc.Ua
     #region ApplicationIdentityDataType Class
     #if (!OPCUA_EXCLUDE_ApplicationIdentityDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ApplicationIdentityDataType : Opc.Ua.BaseConfigurationRecordDataType
     {
@@ -6286,8 +6286,8 @@ namespace Opc.Ua
 
     #region ApplicationIdentityDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfApplicationIdentityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationIdentityDataType")]
     public partial class ApplicationIdentityDataTypeCollection : List<ApplicationIdentityDataType>, ICloneable
     {
@@ -6348,8 +6348,8 @@ namespace Opc.Ua
     #region EndpointDataType Class
     #if (!OPCUA_EXCLUDE_EndpointDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointDataType : Opc.Ua.BaseConfigurationRecordDataType
     {
@@ -6500,8 +6500,8 @@ namespace Opc.Ua
 
     #region EndpointDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEndpointDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDataType")]
     public partial class EndpointDataTypeCollection : List<EndpointDataType>, ICloneable
     {
@@ -6562,8 +6562,8 @@ namespace Opc.Ua
     #region ServerEndpointDataType Class
     #if (!OPCUA_EXCLUDE_ServerEndpointDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerEndpointDataType : Opc.Ua.EndpointDataType
     {
@@ -6779,8 +6779,8 @@ namespace Opc.Ua
 
     #region ServerEndpointDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfServerEndpointDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerEndpointDataType")]
     public partial class ServerEndpointDataTypeCollection : List<ServerEndpointDataType>, ICloneable
     {
@@ -6841,8 +6841,8 @@ namespace Opc.Ua
     #region SecuritySettingsDataType Class
     #if (!OPCUA_EXCLUDE_SecuritySettingsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SecuritySettingsDataType : Opc.Ua.BaseConfigurationRecordDataType
     {
@@ -7006,8 +7006,8 @@ namespace Opc.Ua
 
     #region SecuritySettingsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSecuritySettingsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SecuritySettingsDataType")]
     public partial class SecuritySettingsDataTypeCollection : List<SecuritySettingsDataType>, ICloneable
     {
@@ -7068,8 +7068,8 @@ namespace Opc.Ua
     #region UserTokenSettingsDataType Class
     #if (!OPCUA_EXCLUDE_UserTokenSettingsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserTokenSettingsDataType : Opc.Ua.BaseConfigurationRecordDataType
     {
@@ -7246,8 +7246,8 @@ namespace Opc.Ua
 
     #region UserTokenSettingsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUserTokenSettingsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenSettingsDataType")]
     public partial class UserTokenSettingsDataTypeCollection : List<UserTokenSettingsDataType>, ICloneable
     {
@@ -7308,8 +7308,8 @@ namespace Opc.Ua
     #region ServiceCertificateDataType Class
     #if (!OPCUA_EXCLUDE_ServiceCertificateDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServiceCertificateDataType : IEncodeable, IJsonEncodeable
     {
@@ -7469,8 +7469,8 @@ namespace Opc.Ua
 
     #region ServiceCertificateDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfServiceCertificateDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServiceCertificateDataType")]
     public partial class ServiceCertificateDataTypeCollection : List<ServiceCertificateDataType>, ICloneable
     {
@@ -7531,8 +7531,8 @@ namespace Opc.Ua
     #region AuthorizationServiceConfigurationDataType Class
     #if (!OPCUA_EXCLUDE_AuthorizationServiceConfigurationDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AuthorizationServiceConfigurationDataType : Opc.Ua.BaseConfigurationRecordDataType
     {
@@ -7683,8 +7683,8 @@ namespace Opc.Ua
 
     #region AuthorizationServiceConfigurationDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAuthorizationServiceConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AuthorizationServiceConfigurationDataType")]
     public partial class AuthorizationServiceConfigurationDataTypeCollection : List<AuthorizationServiceConfigurationDataType>, ICloneable
     {
@@ -7745,8 +7745,8 @@ namespace Opc.Ua
     #region DecimalDataType Class
     #if (!OPCUA_EXCLUDE_DecimalDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DecimalDataType : IEncodeable, IJsonEncodeable
     {
@@ -7870,8 +7870,8 @@ namespace Opc.Ua
     #region DataTypeSchemaHeader Class
     #if (!OPCUA_EXCLUDE_DataTypeSchemaHeader)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeSchemaHeader : IEncodeable, IJsonEncodeable
     {
@@ -8070,8 +8070,8 @@ namespace Opc.Ua
 
     #region DataTypeSchemaHeaderCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataTypeSchemaHeader", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeSchemaHeader")]
     public partial class DataTypeSchemaHeaderCollection : List<DataTypeSchemaHeader>, ICloneable
     {
@@ -8132,8 +8132,8 @@ namespace Opc.Ua
     #region DataTypeDescription Class
     #if (!OPCUA_EXCLUDE_DataTypeDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeDescription : IEncodeable, IJsonEncodeable
     {
@@ -8254,8 +8254,8 @@ namespace Opc.Ua
 
     #region DataTypeDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDescription")]
     public partial class DataTypeDescriptionCollection : List<DataTypeDescription>, ICloneable
     {
@@ -8316,8 +8316,8 @@ namespace Opc.Ua
     #region StructureDescription Class
     #if (!OPCUA_EXCLUDE_StructureDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureDescription : Opc.Ua.DataTypeDescription
     {
@@ -8442,8 +8442,8 @@ namespace Opc.Ua
 
     #region StructureDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfStructureDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDescription")]
     public partial class StructureDescriptionCollection : List<StructureDescription>, ICloneable
     {
@@ -8504,8 +8504,8 @@ namespace Opc.Ua
     #region EnumDescription Class
     #if (!OPCUA_EXCLUDE_EnumDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumDescription : Opc.Ua.DataTypeDescription
     {
@@ -8643,8 +8643,8 @@ namespace Opc.Ua
 
     #region EnumDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEnumDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDescription")]
     public partial class EnumDescriptionCollection : List<EnumDescription>, ICloneable
     {
@@ -8705,8 +8705,8 @@ namespace Opc.Ua
     #region SimpleTypeDescription Class
     #if (!OPCUA_EXCLUDE_SimpleTypeDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SimpleTypeDescription : Opc.Ua.DataTypeDescription
     {
@@ -8831,8 +8831,8 @@ namespace Opc.Ua
 
     #region SimpleTypeDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSimpleTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleTypeDescription")]
     public partial class SimpleTypeDescriptionCollection : List<SimpleTypeDescription>, ICloneable
     {
@@ -8893,8 +8893,8 @@ namespace Opc.Ua
     #region UABinaryFileDataType Class
     #if (!OPCUA_EXCLUDE_UABinaryFileDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UABinaryFileDataType : Opc.Ua.DataTypeSchemaHeader
     {
@@ -9045,8 +9045,8 @@ namespace Opc.Ua
 
     #region UABinaryFileDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUABinaryFileDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UABinaryFileDataType")]
     public partial class UABinaryFileDataTypeCollection : List<UABinaryFileDataType>, ICloneable
     {
@@ -9107,8 +9107,8 @@ namespace Opc.Ua
     #region PortableQualifiedName Class
     #if (!OPCUA_EXCLUDE_PortableQualifiedName)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PortableQualifiedName : IEncodeable, IJsonEncodeable
     {
@@ -9229,8 +9229,8 @@ namespace Opc.Ua
 
     #region PortableQualifiedNameCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPortableQualifiedName", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortableQualifiedName")]
     public partial class PortableQualifiedNameCollection : List<PortableQualifiedName>, ICloneable
     {
@@ -9291,8 +9291,8 @@ namespace Opc.Ua
     #region PortableNodeId Class
     #if (!OPCUA_EXCLUDE_PortableNodeId)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PortableNodeId : IEncodeable, IJsonEncodeable
     {
@@ -9413,8 +9413,8 @@ namespace Opc.Ua
 
     #region PortableNodeIdCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPortableNodeId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortableNodeId")]
     public partial class PortableNodeIdCollection : List<PortableNodeId>, ICloneable
     {
@@ -9475,8 +9475,8 @@ namespace Opc.Ua
     #region UnsignedRationalNumber Class
     #if (!OPCUA_EXCLUDE_UnsignedRationalNumber)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnsignedRationalNumber : IEncodeable, IJsonEncodeable
     {
@@ -9597,8 +9597,8 @@ namespace Opc.Ua
 
     #region UnsignedRationalNumberCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
     public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>, ICloneable
     {
@@ -9659,7 +9659,7 @@ namespace Opc.Ua
     #region PubSubState Enumeration
     #if (!OPCUA_EXCLUDE_PubSubState)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum PubSubState
@@ -9682,8 +9682,8 @@ namespace Opc.Ua
 
     #region PubSubStateCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubState")]
     public partial class PubSubStateCollection : List<PubSubState>, ICloneable
     {
@@ -9744,8 +9744,8 @@ namespace Opc.Ua
     #region DataSetMetaDataType Class
     #if (!OPCUA_EXCLUDE_DataSetMetaDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetMetaDataType : Opc.Ua.DataTypeSchemaHeader
     {
@@ -9935,8 +9935,8 @@ namespace Opc.Ua
 
     #region DataSetMetaDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetMetaDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetMetaDataType")]
     public partial class DataSetMetaDataTypeCollection : List<DataSetMetaDataType>, ICloneable
     {
@@ -9997,8 +9997,8 @@ namespace Opc.Ua
     #region FieldMetaData Class
     #if (!OPCUA_EXCLUDE_FieldMetaData)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FieldMetaData : IEncodeable, IJsonEncodeable
     {
@@ -10249,8 +10249,8 @@ namespace Opc.Ua
 
     #region FieldMetaDataCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfFieldMetaData", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldMetaData")]
     public partial class FieldMetaDataCollection : List<FieldMetaData>, ICloneable
     {
@@ -10311,7 +10311,7 @@ namespace Opc.Ua
     #region DataSetFieldFlags Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldFlags)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum DataSetFieldFlags : UInt16
@@ -10328,8 +10328,8 @@ namespace Opc.Ua
     #region ConfigurationVersionDataType Class
     #if (!OPCUA_EXCLUDE_ConfigurationVersionDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ConfigurationVersionDataType : IEncodeable, IJsonEncodeable
     {
@@ -10450,8 +10450,8 @@ namespace Opc.Ua
 
     #region ConfigurationVersionDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfConfigurationVersionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationVersionDataType")]
     public partial class ConfigurationVersionDataTypeCollection : List<ConfigurationVersionDataType>, ICloneable
     {
@@ -10512,8 +10512,8 @@ namespace Opc.Ua
     #region PublishedDataSetDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataSetDataType : IEncodeable, IJsonEncodeable
     {
@@ -10712,8 +10712,8 @@ namespace Opc.Ua
 
     #region PublishedDataSetDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetDataType")]
     public partial class PublishedDataSetDataTypeCollection : List<PublishedDataSetDataType>, ICloneable
     {
@@ -10774,8 +10774,8 @@ namespace Opc.Ua
     #region PublishedDataSetSourceDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetSourceDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataSetSourceDataType : IEncodeable, IJsonEncodeable
     {
@@ -10871,8 +10871,8 @@ namespace Opc.Ua
 
     #region PublishedDataSetSourceDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedDataSetSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetSourceDataType")]
     public partial class PublishedDataSetSourceDataTypeCollection : List<PublishedDataSetSourceDataType>, ICloneable
     {
@@ -10933,8 +10933,8 @@ namespace Opc.Ua
     #region PublishedVariableDataType Class
     #if (!OPCUA_EXCLUDE_PublishedVariableDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedVariableDataType : IEncodeable, IJsonEncodeable
     {
@@ -11146,8 +11146,8 @@ namespace Opc.Ua
 
     #region PublishedVariableDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedVariableDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedVariableDataType")]
     public partial class PublishedVariableDataTypeCollection : List<PublishedVariableDataType>, ICloneable
     {
@@ -11208,8 +11208,8 @@ namespace Opc.Ua
     #region PublishedDataItemsDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataItemsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataItemsDataType : Opc.Ua.PublishedDataSetSourceDataType
     {
@@ -11334,8 +11334,8 @@ namespace Opc.Ua
 
     #region PublishedDataItemsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedDataItemsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataItemsDataType")]
     public partial class PublishedDataItemsDataTypeCollection : List<PublishedDataItemsDataType>, ICloneable
     {
@@ -11396,8 +11396,8 @@ namespace Opc.Ua
     #region PublishedEventsDataType Class
     #if (!OPCUA_EXCLUDE_PublishedEventsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedEventsDataType : Opc.Ua.PublishedDataSetSourceDataType
     {
@@ -11561,8 +11561,8 @@ namespace Opc.Ua
 
     #region PublishedEventsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedEventsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedEventsDataType")]
     public partial class PublishedEventsDataTypeCollection : List<PublishedEventsDataType>, ICloneable
     {
@@ -11623,8 +11623,8 @@ namespace Opc.Ua
     #region PublishedDataSetCustomSourceDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetCustomSourceDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataSetCustomSourceDataType : Opc.Ua.PublishedDataSetSourceDataType
     {
@@ -11736,8 +11736,8 @@ namespace Opc.Ua
 
     #region PublishedDataSetCustomSourceDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedDataSetCustomSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetCustomSourceDataType")]
     public partial class PublishedDataSetCustomSourceDataTypeCollection : List<PublishedDataSetCustomSourceDataType>, ICloneable
     {
@@ -11798,8 +11798,8 @@ namespace Opc.Ua
     #region ActionTargetDataType Class
     #if (!OPCUA_EXCLUDE_ActionTargetDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActionTargetDataType : IEncodeable, IJsonEncodeable
     {
@@ -11933,8 +11933,8 @@ namespace Opc.Ua
 
     #region ActionTargetDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfActionTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionTargetDataType")]
     public partial class ActionTargetDataTypeCollection : List<ActionTargetDataType>, ICloneable
     {
@@ -11995,8 +11995,8 @@ namespace Opc.Ua
     #region PublishedActionDataType Class
     #if (!OPCUA_EXCLUDE_PublishedActionDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedActionDataType : Opc.Ua.PublishedDataSetSourceDataType
     {
@@ -12147,8 +12147,8 @@ namespace Opc.Ua
 
     #region PublishedActionDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedActionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionDataType")]
     public partial class PublishedActionDataTypeCollection : List<PublishedActionDataType>, ICloneable
     {
@@ -12209,7 +12209,7 @@ namespace Opc.Ua
     #region ActionState Enumeration
     #if (!OPCUA_EXCLUDE_ActionState)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ActionState
@@ -12226,8 +12226,8 @@ namespace Opc.Ua
 
     #region ActionStateCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfActionState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionState")]
     public partial class ActionStateCollection : List<ActionState>, ICloneable
     {
@@ -12288,8 +12288,8 @@ namespace Opc.Ua
     #region ActionMethodDataType Class
     #if (!OPCUA_EXCLUDE_ActionMethodDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActionMethodDataType : IEncodeable, IJsonEncodeable
     {
@@ -12410,8 +12410,8 @@ namespace Opc.Ua
 
     #region ActionMethodDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionMethodDataType")]
     public partial class ActionMethodDataTypeCollection : List<ActionMethodDataType>, ICloneable
     {
@@ -12472,8 +12472,8 @@ namespace Opc.Ua
     #region PublishedActionMethodDataType Class
     #if (!OPCUA_EXCLUDE_PublishedActionMethodDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedActionMethodDataType : Opc.Ua.PublishedActionDataType
     {
@@ -12598,8 +12598,8 @@ namespace Opc.Ua
 
     #region PublishedActionMethodDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPublishedActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionMethodDataType")]
     public partial class PublishedActionMethodDataTypeCollection : List<PublishedActionMethodDataType>, ICloneable
     {
@@ -12660,7 +12660,7 @@ namespace Opc.Ua
     #region DataSetFieldContentMask Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldContentMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum DataSetFieldContentMask : UInt32
@@ -12689,8 +12689,8 @@ namespace Opc.Ua
 
     #region DataSetFieldContentMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetFieldContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetFieldContentMask")]
     public partial class DataSetFieldContentMaskCollection : List<DataSetFieldContentMask>, ICloneable
     {
@@ -12751,8 +12751,8 @@ namespace Opc.Ua
     #region DataSetWriterDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterDataType : IEncodeable, IJsonEncodeable
     {
@@ -12977,8 +12977,8 @@ namespace Opc.Ua
 
     #region DataSetWriterDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetWriterDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterDataType")]
     public partial class DataSetWriterDataTypeCollection : List<DataSetWriterDataType>, ICloneable
     {
@@ -13039,8 +13039,8 @@ namespace Opc.Ua
     #region DataSetWriterTransportDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterTransportDataType : IEncodeable, IJsonEncodeable
     {
@@ -13136,8 +13136,8 @@ namespace Opc.Ua
 
     #region DataSetWriterTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterTransportDataType")]
     public partial class DataSetWriterTransportDataTypeCollection : List<DataSetWriterTransportDataType>, ICloneable
     {
@@ -13198,8 +13198,8 @@ namespace Opc.Ua
     #region DataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterMessageDataType : IEncodeable, IJsonEncodeable
     {
@@ -13295,8 +13295,8 @@ namespace Opc.Ua
 
     #region DataSetWriterMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterMessageDataType")]
     public partial class DataSetWriterMessageDataTypeCollection : List<DataSetWriterMessageDataType>, ICloneable
     {
@@ -13357,8 +13357,8 @@ namespace Opc.Ua
     #region PubSubGroupDataType Class
     #if (!OPCUA_EXCLUDE_PubSubGroupDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubGroupDataType : IEncodeable, IJsonEncodeable
     {
@@ -13570,8 +13570,8 @@ namespace Opc.Ua
 
     #region PubSubGroupDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubGroupDataType")]
     public partial class PubSubGroupDataTypeCollection : List<PubSubGroupDataType>, ICloneable
     {
@@ -13632,8 +13632,8 @@ namespace Opc.Ua
     #region WriterGroupDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupDataType : Opc.Ua.PubSubGroupDataType
     {
@@ -13875,8 +13875,8 @@ namespace Opc.Ua
 
     #region WriterGroupDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfWriterGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupDataType")]
     public partial class WriterGroupDataTypeCollection : List<WriterGroupDataType>, ICloneable
     {
@@ -13937,8 +13937,8 @@ namespace Opc.Ua
     #region WriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupTransportDataType : IEncodeable, IJsonEncodeable
     {
@@ -14034,8 +14034,8 @@ namespace Opc.Ua
 
     #region WriterGroupTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupTransportDataType")]
     public partial class WriterGroupTransportDataTypeCollection : List<WriterGroupTransportDataType>, ICloneable
     {
@@ -14096,8 +14096,8 @@ namespace Opc.Ua
     #region WriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupMessageDataType : IEncodeable, IJsonEncodeable
     {
@@ -14193,8 +14193,8 @@ namespace Opc.Ua
 
     #region WriterGroupMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupMessageDataType")]
     public partial class WriterGroupMessageDataTypeCollection : List<WriterGroupMessageDataType>, ICloneable
     {
@@ -14255,8 +14255,8 @@ namespace Opc.Ua
     #region PubSubConnectionDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConnectionDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConnectionDataType : IEncodeable, IJsonEncodeable
     {
@@ -14507,8 +14507,8 @@ namespace Opc.Ua
 
     #region PubSubConnectionDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConnectionDataType")]
     public partial class PubSubConnectionDataTypeCollection : List<PubSubConnectionDataType>, ICloneable
     {
@@ -14569,8 +14569,8 @@ namespace Opc.Ua
     #region ConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_ConnectionTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ConnectionTransportDataType : IEncodeable, IJsonEncodeable
     {
@@ -14666,8 +14666,8 @@ namespace Opc.Ua
 
     #region ConnectionTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConnectionTransportDataType")]
     public partial class ConnectionTransportDataTypeCollection : List<ConnectionTransportDataType>, ICloneable
     {
@@ -14728,8 +14728,8 @@ namespace Opc.Ua
     #region NetworkAddressDataType Class
     #if (!OPCUA_EXCLUDE_NetworkAddressDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkAddressDataType : IEncodeable, IJsonEncodeable
     {
@@ -14837,8 +14837,8 @@ namespace Opc.Ua
 
     #region NetworkAddressDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNetworkAddressDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressDataType")]
     public partial class NetworkAddressDataTypeCollection : List<NetworkAddressDataType>, ICloneable
     {
@@ -14899,8 +14899,8 @@ namespace Opc.Ua
     #region NetworkAddressUrlDataType Class
     #if (!OPCUA_EXCLUDE_NetworkAddressUrlDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkAddressUrlDataType : Opc.Ua.NetworkAddressDataType
     {
@@ -15012,8 +15012,8 @@ namespace Opc.Ua
 
     #region NetworkAddressUrlDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNetworkAddressUrlDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressUrlDataType")]
     public partial class NetworkAddressUrlDataTypeCollection : List<NetworkAddressUrlDataType>, ICloneable
     {
@@ -15074,8 +15074,8 @@ namespace Opc.Ua
     #region ReaderGroupDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupDataType : Opc.Ua.PubSubGroupDataType
     {
@@ -15226,8 +15226,8 @@ namespace Opc.Ua
 
     #region ReaderGroupDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReaderGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupDataType")]
     public partial class ReaderGroupDataTypeCollection : List<ReaderGroupDataType>, ICloneable
     {
@@ -15288,8 +15288,8 @@ namespace Opc.Ua
     #region ReaderGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupTransportDataType : IEncodeable, IJsonEncodeable
     {
@@ -15385,8 +15385,8 @@ namespace Opc.Ua
 
     #region ReaderGroupTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReaderGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupTransportDataType")]
     public partial class ReaderGroupTransportDataTypeCollection : List<ReaderGroupTransportDataType>, ICloneable
     {
@@ -15447,8 +15447,8 @@ namespace Opc.Ua
     #region ReaderGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupMessageDataType : IEncodeable, IJsonEncodeable
     {
@@ -15544,8 +15544,8 @@ namespace Opc.Ua
 
     #region ReaderGroupMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReaderGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupMessageDataType")]
     public partial class ReaderGroupMessageDataTypeCollection : List<ReaderGroupMessageDataType>, ICloneable
     {
@@ -15606,8 +15606,8 @@ namespace Opc.Ua
     #region DataSetReaderDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderDataType : IEncodeable, IJsonEncodeable
     {
@@ -15962,8 +15962,8 @@ namespace Opc.Ua
 
     #region DataSetReaderDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetReaderDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderDataType")]
     public partial class DataSetReaderDataTypeCollection : List<DataSetReaderDataType>, ICloneable
     {
@@ -16024,8 +16024,8 @@ namespace Opc.Ua
     #region DataSetReaderTransportDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderTransportDataType : IEncodeable, IJsonEncodeable
     {
@@ -16121,8 +16121,8 @@ namespace Opc.Ua
 
     #region DataSetReaderTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderTransportDataType")]
     public partial class DataSetReaderTransportDataTypeCollection : List<DataSetReaderTransportDataType>, ICloneable
     {
@@ -16183,8 +16183,8 @@ namespace Opc.Ua
     #region DataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderMessageDataType : IEncodeable, IJsonEncodeable
     {
@@ -16280,8 +16280,8 @@ namespace Opc.Ua
 
     #region DataSetReaderMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderMessageDataType")]
     public partial class DataSetReaderMessageDataTypeCollection : List<DataSetReaderMessageDataType>, ICloneable
     {
@@ -16342,8 +16342,8 @@ namespace Opc.Ua
     #region SubscribedDataSetDataType Class
     #if (!OPCUA_EXCLUDE_SubscribedDataSetDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscribedDataSetDataType : IEncodeable, IJsonEncodeable
     {
@@ -16439,8 +16439,8 @@ namespace Opc.Ua
 
     #region SubscribedDataSetDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetDataType")]
     public partial class SubscribedDataSetDataTypeCollection : List<SubscribedDataSetDataType>, ICloneable
     {
@@ -16501,8 +16501,8 @@ namespace Opc.Ua
     #region TargetVariablesDataType Class
     #if (!OPCUA_EXCLUDE_TargetVariablesDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TargetVariablesDataType : Opc.Ua.SubscribedDataSetDataType
     {
@@ -16627,8 +16627,8 @@ namespace Opc.Ua
 
     #region TargetVariablesDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTargetVariablesDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TargetVariablesDataType")]
     public partial class TargetVariablesDataTypeCollection : List<TargetVariablesDataType>, ICloneable
     {
@@ -16689,8 +16689,8 @@ namespace Opc.Ua
     #region FieldTargetDataType Class
     #if (!OPCUA_EXCLUDE_FieldTargetDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FieldTargetDataType : IEncodeable, IJsonEncodeable
     {
@@ -16876,8 +16876,8 @@ namespace Opc.Ua
 
     #region FieldTargetDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfFieldTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldTargetDataType")]
     public partial class FieldTargetDataTypeCollection : List<FieldTargetDataType>, ICloneable
     {
@@ -16938,7 +16938,7 @@ namespace Opc.Ua
     #region OverrideValueHandling Enumeration
     #if (!OPCUA_EXCLUDE_OverrideValueHandling)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum OverrideValueHandling
@@ -16955,8 +16955,8 @@ namespace Opc.Ua
 
     #region OverrideValueHandlingCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfOverrideValueHandling", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OverrideValueHandling")]
     public partial class OverrideValueHandlingCollection : List<OverrideValueHandling>, ICloneable
     {
@@ -17017,8 +17017,8 @@ namespace Opc.Ua
     #region SubscribedDataSetMirrorDataType Class
     #if (!OPCUA_EXCLUDE_SubscribedDataSetMirrorDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscribedDataSetMirrorDataType : Opc.Ua.SubscribedDataSetDataType
     {
@@ -17156,8 +17156,8 @@ namespace Opc.Ua
 
     #region SubscribedDataSetMirrorDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSubscribedDataSetMirrorDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetMirrorDataType")]
     public partial class SubscribedDataSetMirrorDataTypeCollection : List<SubscribedDataSetMirrorDataType>, ICloneable
     {
@@ -17218,8 +17218,8 @@ namespace Opc.Ua
     #region PubSubConfigurationDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConfigurationDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConfigurationDataType : IEncodeable, IJsonEncodeable
     {
@@ -17379,8 +17379,8 @@ namespace Opc.Ua
 
     #region PubSubConfigurationDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationDataType")]
     public partial class PubSubConfigurationDataTypeCollection : List<PubSubConfigurationDataType>, ICloneable
     {
@@ -17441,8 +17441,8 @@ namespace Opc.Ua
     #region StandaloneSubscribedDataSetRefDataType Class
     #if (!OPCUA_EXCLUDE_StandaloneSubscribedDataSetRefDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StandaloneSubscribedDataSetRefDataType : Opc.Ua.SubscribedDataSetDataType
     {
@@ -17554,8 +17554,8 @@ namespace Opc.Ua
 
     #region StandaloneSubscribedDataSetRefDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfStandaloneSubscribedDataSetRefDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StandaloneSubscribedDataSetRefDataType")]
     public partial class StandaloneSubscribedDataSetRefDataTypeCollection : List<StandaloneSubscribedDataSetRefDataType>, ICloneable
     {
@@ -17616,8 +17616,8 @@ namespace Opc.Ua
     #region StandaloneSubscribedDataSetDataType Class
     #if (!OPCUA_EXCLUDE_StandaloneSubscribedDataSetDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StandaloneSubscribedDataSetDataType : Opc.Ua.SubscribedDataSetDataType
     {
@@ -17794,8 +17794,8 @@ namespace Opc.Ua
 
     #region StandaloneSubscribedDataSetDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfStandaloneSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StandaloneSubscribedDataSetDataType")]
     public partial class StandaloneSubscribedDataSetDataTypeCollection : List<StandaloneSubscribedDataSetDataType>, ICloneable
     {
@@ -17856,8 +17856,8 @@ namespace Opc.Ua
     #region SecurityGroupDataType Class
     #if (!OPCUA_EXCLUDE_SecurityGroupDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SecurityGroupDataType : IEncodeable, IJsonEncodeable
     {
@@ -18108,8 +18108,8 @@ namespace Opc.Ua
 
     #region SecurityGroupDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSecurityGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SecurityGroupDataType")]
     public partial class SecurityGroupDataTypeCollection : List<SecurityGroupDataType>, ICloneable
     {
@@ -18170,8 +18170,8 @@ namespace Opc.Ua
     #region PubSubKeyPushTargetDataType Class
     #if (!OPCUA_EXCLUDE_PubSubKeyPushTargetDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubKeyPushTargetDataType : IEncodeable, IJsonEncodeable
     {
@@ -18435,8 +18435,8 @@ namespace Opc.Ua
 
     #region PubSubKeyPushTargetDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubKeyPushTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubKeyPushTargetDataType")]
     public partial class PubSubKeyPushTargetDataTypeCollection : List<PubSubKeyPushTargetDataType>, ICloneable
     {
@@ -18497,8 +18497,8 @@ namespace Opc.Ua
     #region PubSubConfiguration2DataType Class
     #if (!OPCUA_EXCLUDE_PubSubConfiguration2DataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConfiguration2DataType : Opc.Ua.PubSubConfigurationDataType
     {
@@ -18766,8 +18766,8 @@ namespace Opc.Ua
 
     #region PubSubConfiguration2DataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubConfiguration2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfiguration2DataType")]
     public partial class PubSubConfiguration2DataTypeCollection : List<PubSubConfiguration2DataType>, ICloneable
     {
@@ -18828,7 +18828,7 @@ namespace Opc.Ua
     #region DataSetOrderingType Enumeration
     #if (!OPCUA_EXCLUDE_DataSetOrderingType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum DataSetOrderingType
@@ -18845,8 +18845,8 @@ namespace Opc.Ua
 
     #region DataSetOrderingTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataSetOrderingType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetOrderingType")]
     public partial class DataSetOrderingTypeCollection : List<DataSetOrderingType>, ICloneable
     {
@@ -18907,7 +18907,7 @@ namespace Opc.Ua
     #region UadpNetworkMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_UadpNetworkMessageContentMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum UadpNetworkMessageContentMask : UInt32
@@ -18951,8 +18951,8 @@ namespace Opc.Ua
 
     #region UadpNetworkMessageContentMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUadpNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpNetworkMessageContentMask")]
     public partial class UadpNetworkMessageContentMaskCollection : List<UadpNetworkMessageContentMask>, ICloneable
     {
@@ -19013,8 +19013,8 @@ namespace Opc.Ua
     #region UadpWriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpWriterGroupMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpWriterGroupMessageDataType : Opc.Ua.WriterGroupMessageDataType
     {
@@ -19191,8 +19191,8 @@ namespace Opc.Ua
 
     #region UadpWriterGroupMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUadpWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpWriterGroupMessageDataType")]
     public partial class UadpWriterGroupMessageDataTypeCollection : List<UadpWriterGroupMessageDataType>, ICloneable
     {
@@ -19253,7 +19253,7 @@ namespace Opc.Ua
     #region UadpDataSetMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_UadpDataSetMessageContentMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum UadpDataSetMessageContentMask : UInt32
@@ -19282,8 +19282,8 @@ namespace Opc.Ua
 
     #region UadpDataSetMessageContentMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUadpDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetMessageContentMask")]
     public partial class UadpDataSetMessageContentMaskCollection : List<UadpDataSetMessageContentMask>, ICloneable
     {
@@ -19344,8 +19344,8 @@ namespace Opc.Ua
     #region UadpDataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpDataSetWriterMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpDataSetWriterMessageDataType : Opc.Ua.DataSetWriterMessageDataType
     {
@@ -19496,8 +19496,8 @@ namespace Opc.Ua
 
     #region UadpDataSetWriterMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUadpDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetWriterMessageDataType")]
     public partial class UadpDataSetWriterMessageDataTypeCollection : List<UadpDataSetWriterMessageDataType>, ICloneable
     {
@@ -19558,8 +19558,8 @@ namespace Opc.Ua
     #region UadpDataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpDataSetReaderMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpDataSetReaderMessageDataType : Opc.Ua.DataSetReaderMessageDataType
     {
@@ -19775,8 +19775,8 @@ namespace Opc.Ua
 
     #region UadpDataSetReaderMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUadpDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetReaderMessageDataType")]
     public partial class UadpDataSetReaderMessageDataTypeCollection : List<UadpDataSetReaderMessageDataType>, ICloneable
     {
@@ -19837,7 +19837,7 @@ namespace Opc.Ua
     #region JsonNetworkMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_JsonNetworkMessageContentMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum JsonNetworkMessageContentMask : UInt32
@@ -19869,8 +19869,8 @@ namespace Opc.Ua
 
     #region JsonNetworkMessageContentMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfJsonNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonNetworkMessageContentMask")]
     public partial class JsonNetworkMessageContentMaskCollection : List<JsonNetworkMessageContentMask>, ICloneable
     {
@@ -19931,8 +19931,8 @@ namespace Opc.Ua
     #region JsonWriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonWriterGroupMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonWriterGroupMessageDataType : Opc.Ua.WriterGroupMessageDataType
     {
@@ -20044,8 +20044,8 @@ namespace Opc.Ua
 
     #region JsonWriterGroupMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfJsonWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonWriterGroupMessageDataType")]
     public partial class JsonWriterGroupMessageDataTypeCollection : List<JsonWriterGroupMessageDataType>, ICloneable
     {
@@ -20106,7 +20106,7 @@ namespace Opc.Ua
     #region JsonDataSetMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_JsonDataSetMessageContentMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum JsonDataSetMessageContentMask : UInt32
@@ -20153,8 +20153,8 @@ namespace Opc.Ua
 
     #region JsonDataSetMessageContentMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfJsonDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetMessageContentMask")]
     public partial class JsonDataSetMessageContentMaskCollection : List<JsonDataSetMessageContentMask>, ICloneable
     {
@@ -20215,8 +20215,8 @@ namespace Opc.Ua
     #region JsonDataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonDataSetWriterMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetWriterMessageDataType : Opc.Ua.DataSetWriterMessageDataType
     {
@@ -20328,8 +20328,8 @@ namespace Opc.Ua
 
     #region JsonDataSetWriterMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfJsonDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetWriterMessageDataType")]
     public partial class JsonDataSetWriterMessageDataTypeCollection : List<JsonDataSetWriterMessageDataType>, ICloneable
     {
@@ -20390,8 +20390,8 @@ namespace Opc.Ua
     #region JsonDataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonDataSetReaderMessageDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetReaderMessageDataType : Opc.Ua.DataSetReaderMessageDataType
     {
@@ -20516,8 +20516,8 @@ namespace Opc.Ua
 
     #region JsonDataSetReaderMessageDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfJsonDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetReaderMessageDataType")]
     public partial class JsonDataSetReaderMessageDataTypeCollection : List<JsonDataSetReaderMessageDataType>, ICloneable
     {
@@ -20578,8 +20578,8 @@ namespace Opc.Ua
     #region QosDataType Class
     #if (!OPCUA_EXCLUDE_QosDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QosDataType : IEncodeable, IJsonEncodeable
     {
@@ -20675,8 +20675,8 @@ namespace Opc.Ua
 
     #region QosDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QosDataType")]
     public partial class QosDataTypeCollection : List<QosDataType>, ICloneable
     {
@@ -20737,8 +20737,8 @@ namespace Opc.Ua
     #region TransmitQosDataType Class
     #if (!OPCUA_EXCLUDE_TransmitQosDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransmitQosDataType : Opc.Ua.QosDataType
     {
@@ -20838,8 +20838,8 @@ namespace Opc.Ua
 
     #region TransmitQosDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTransmitQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosDataType")]
     public partial class TransmitQosDataTypeCollection : List<TransmitQosDataType>, ICloneable
     {
@@ -20900,8 +20900,8 @@ namespace Opc.Ua
     #region TransmitQosPriorityDataType Class
     #if (!OPCUA_EXCLUDE_TransmitQosPriorityDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransmitQosPriorityDataType : Opc.Ua.TransmitQosDataType
     {
@@ -21013,8 +21013,8 @@ namespace Opc.Ua
 
     #region TransmitQosPriorityDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTransmitQosPriorityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosPriorityDataType")]
     public partial class TransmitQosPriorityDataTypeCollection : List<TransmitQosPriorityDataType>, ICloneable
     {
@@ -21075,8 +21075,8 @@ namespace Opc.Ua
     #region ReceiveQosDataType Class
     #if (!OPCUA_EXCLUDE_ReceiveQosDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReceiveQosDataType : Opc.Ua.QosDataType
     {
@@ -21176,8 +21176,8 @@ namespace Opc.Ua
 
     #region ReceiveQosDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReceiveQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosDataType")]
     public partial class ReceiveQosDataTypeCollection : List<ReceiveQosDataType>, ICloneable
     {
@@ -21238,8 +21238,8 @@ namespace Opc.Ua
     #region ReceiveQosPriorityDataType Class
     #if (!OPCUA_EXCLUDE_ReceiveQosPriorityDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReceiveQosPriorityDataType : Opc.Ua.ReceiveQosDataType
     {
@@ -21351,8 +21351,8 @@ namespace Opc.Ua
 
     #region ReceiveQosPriorityDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReceiveQosPriorityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosPriorityDataType")]
     public partial class ReceiveQosPriorityDataTypeCollection : List<ReceiveQosPriorityDataType>, ICloneable
     {
@@ -21413,8 +21413,8 @@ namespace Opc.Ua
     #region DatagramConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramConnectionTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramConnectionTransportDataType : Opc.Ua.ConnectionTransportDataType
     {
@@ -21526,8 +21526,8 @@ namespace Opc.Ua
 
     #region DatagramConnectionTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDatagramConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransportDataType")]
     public partial class DatagramConnectionTransportDataTypeCollection : List<DatagramConnectionTransportDataType>, ICloneable
     {
@@ -21588,8 +21588,8 @@ namespace Opc.Ua
     #region DatagramConnectionTransport2DataType Class
     #if (!OPCUA_EXCLUDE_DatagramConnectionTransport2DataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramConnectionTransport2DataType : Opc.Ua.DatagramConnectionTransportDataType
     {
@@ -21740,8 +21740,8 @@ namespace Opc.Ua
 
     #region DatagramConnectionTransport2DataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDatagramConnectionTransport2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransport2DataType")]
     public partial class DatagramConnectionTransport2DataTypeCollection : List<DatagramConnectionTransport2DataType>, ICloneable
     {
@@ -21802,8 +21802,8 @@ namespace Opc.Ua
     #region DatagramWriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramWriterGroupTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramWriterGroupTransportDataType : Opc.Ua.WriterGroupTransportDataType
     {
@@ -21928,8 +21928,8 @@ namespace Opc.Ua
 
     #region DatagramWriterGroupTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransportDataType")]
     public partial class DatagramWriterGroupTransportDataTypeCollection : List<DatagramWriterGroupTransportDataType>, ICloneable
     {
@@ -21990,8 +21990,8 @@ namespace Opc.Ua
     #region DatagramWriterGroupTransport2DataType Class
     #if (!OPCUA_EXCLUDE_DatagramWriterGroupTransport2DataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramWriterGroupTransport2DataType : Opc.Ua.DatagramWriterGroupTransportDataType
     {
@@ -22155,8 +22155,8 @@ namespace Opc.Ua
 
     #region DatagramWriterGroupTransport2DataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransport2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransport2DataType")]
     public partial class DatagramWriterGroupTransport2DataTypeCollection : List<DatagramWriterGroupTransport2DataType>, ICloneable
     {
@@ -22217,8 +22217,8 @@ namespace Opc.Ua
     #region DatagramDataSetReaderTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramDataSetReaderTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramDataSetReaderTransportDataType : Opc.Ua.DataSetReaderTransportDataType
     {
@@ -22369,8 +22369,8 @@ namespace Opc.Ua
 
     #region DatagramDataSetReaderTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDatagramDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramDataSetReaderTransportDataType")]
     public partial class DatagramDataSetReaderTransportDataTypeCollection : List<DatagramDataSetReaderTransportDataType>, ICloneable
     {
@@ -22431,8 +22431,8 @@ namespace Opc.Ua
     #region DtlsPubSubConnectionDataType Class
     #if (!OPCUA_EXCLUDE_DtlsPubSubConnectionDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DtlsPubSubConnectionDataType : IEncodeable, IJsonEncodeable
     {
@@ -22605,8 +22605,8 @@ namespace Opc.Ua
 
     #region DtlsPubSubConnectionDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDtlsPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DtlsPubSubConnectionDataType")]
     public partial class DtlsPubSubConnectionDataTypeCollection : List<DtlsPubSubConnectionDataType>, ICloneable
     {
@@ -22667,8 +22667,8 @@ namespace Opc.Ua
     #region BrokerConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerConnectionTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerConnectionTransportDataType : Opc.Ua.ConnectionTransportDataType
     {
@@ -22793,8 +22793,8 @@ namespace Opc.Ua
 
     #region BrokerConnectionTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrokerConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerConnectionTransportDataType")]
     public partial class BrokerConnectionTransportDataTypeCollection : List<BrokerConnectionTransportDataType>, ICloneable
     {
@@ -22855,7 +22855,7 @@ namespace Opc.Ua
     #region BrokerTransportQualityOfService Enumeration
     #if (!OPCUA_EXCLUDE_BrokerTransportQualityOfService)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum BrokerTransportQualityOfService
@@ -22878,8 +22878,8 @@ namespace Opc.Ua
 
     #region BrokerTransportQualityOfServiceCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrokerTransportQualityOfService", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerTransportQualityOfService")]
     public partial class BrokerTransportQualityOfServiceCollection : List<BrokerTransportQualityOfService>, ICloneable
     {
@@ -22940,8 +22940,8 @@ namespace Opc.Ua
     #region BrokerWriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerWriterGroupTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerWriterGroupTransportDataType : Opc.Ua.WriterGroupTransportDataType
     {
@@ -23092,8 +23092,8 @@ namespace Opc.Ua
 
     #region BrokerWriterGroupTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrokerWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerWriterGroupTransportDataType")]
     public partial class BrokerWriterGroupTransportDataTypeCollection : List<BrokerWriterGroupTransportDataType>, ICloneable
     {
@@ -23154,8 +23154,8 @@ namespace Opc.Ua
     #region BrokerDataSetWriterTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerDataSetWriterTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerDataSetWriterTransportDataType : Opc.Ua.DataSetWriterTransportDataType
     {
@@ -23332,8 +23332,8 @@ namespace Opc.Ua
 
     #region BrokerDataSetWriterTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrokerDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetWriterTransportDataType")]
     public partial class BrokerDataSetWriterTransportDataTypeCollection : List<BrokerDataSetWriterTransportDataType>, ICloneable
     {
@@ -23394,8 +23394,8 @@ namespace Opc.Ua
     #region BrokerDataSetReaderTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerDataSetReaderTransportDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerDataSetReaderTransportDataType : Opc.Ua.DataSetReaderTransportDataType
     {
@@ -23559,8 +23559,8 @@ namespace Opc.Ua
 
     #region BrokerDataSetReaderTransportDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrokerDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetReaderTransportDataType")]
     public partial class BrokerDataSetReaderTransportDataTypeCollection : List<BrokerDataSetReaderTransportDataType>, ICloneable
     {
@@ -23621,7 +23621,7 @@ namespace Opc.Ua
     #region PubSubConfigurationRefMask Enumeration
     #if (!OPCUA_EXCLUDE_PubSubConfigurationRefMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum PubSubConfigurationRefMask : UInt32
@@ -23671,8 +23671,8 @@ namespace Opc.Ua
 
     #region PubSubConfigurationRefMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubConfigurationRefMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationRefMask")]
     public partial class PubSubConfigurationRefMaskCollection : List<PubSubConfigurationRefMask>, ICloneable
     {
@@ -23733,8 +23733,8 @@ namespace Opc.Ua
     #region PubSubConfigurationRefDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConfigurationRefDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConfigurationRefDataType : IEncodeable, IJsonEncodeable
     {
@@ -23881,8 +23881,8 @@ namespace Opc.Ua
 
     #region PubSubConfigurationRefDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubConfigurationRefDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationRefDataType")]
     public partial class PubSubConfigurationRefDataTypeCollection : List<PubSubConfigurationRefDataType>, ICloneable
     {
@@ -23943,8 +23943,8 @@ namespace Opc.Ua
     #region PubSubConfigurationValueDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConfigurationValueDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConfigurationValueDataType : IEncodeable, IJsonEncodeable
     {
@@ -24091,8 +24091,8 @@ namespace Opc.Ua
 
     #region PubSubConfigurationValueDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubConfigurationValueDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationValueDataType")]
     public partial class PubSubConfigurationValueDataTypeCollection : List<PubSubConfigurationValueDataType>, ICloneable
     {
@@ -24153,7 +24153,7 @@ namespace Opc.Ua
     #region DiagnosticsLevel Enumeration
     #if (!OPCUA_EXCLUDE_DiagnosticsLevel)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum DiagnosticsLevel
@@ -24176,8 +24176,8 @@ namespace Opc.Ua
 
     #region DiagnosticsLevelCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDiagnosticsLevel", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DiagnosticsLevel")]
     public partial class DiagnosticsLevelCollection : List<DiagnosticsLevel>, ICloneable
     {
@@ -24238,7 +24238,7 @@ namespace Opc.Ua
     #region PubSubDiagnosticsCounterClassification Enumeration
     #if (!OPCUA_EXCLUDE_PubSubDiagnosticsCounterClassification)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum PubSubDiagnosticsCounterClassification
@@ -24252,8 +24252,8 @@ namespace Opc.Ua
 
     #region PubSubDiagnosticsCounterClassificationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPubSubDiagnosticsCounterClassification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubDiagnosticsCounterClassification")]
     public partial class PubSubDiagnosticsCounterClassificationCollection : List<PubSubDiagnosticsCounterClassification>, ICloneable
     {
@@ -24314,8 +24314,8 @@ namespace Opc.Ua
     #region JsonNetworkMessage Class
     #if (!OPCUA_EXCLUDE_JsonNetworkMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonNetworkMessage : IEncodeable, IJsonEncodeable
     {
@@ -24491,8 +24491,8 @@ namespace Opc.Ua
     #region JsonDataSetMessage Class
     #if (!OPCUA_EXCLUDE_JsonDataSetMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetMessage : IEncodeable, IJsonEncodeable
     {
@@ -24746,8 +24746,8 @@ namespace Opc.Ua
     #region JsonDataSetMetaDataMessage Class
     #if (!OPCUA_EXCLUDE_JsonDataSetMetaDataMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetMetaDataMessage : IEncodeable, IJsonEncodeable
     {
@@ -24962,8 +24962,8 @@ namespace Opc.Ua
     #region JsonApplicationDescriptionMessage Class
     #if (!OPCUA_EXCLUDE_JsonApplicationDescriptionMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonApplicationDescriptionMessage : IEncodeable, IJsonEncodeable
     {
@@ -25165,8 +25165,8 @@ namespace Opc.Ua
     #region JsonServerEndpointsMessage Class
     #if (!OPCUA_EXCLUDE_JsonServerEndpointsMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonServerEndpointsMessage : IEncodeable, IJsonEncodeable
     {
@@ -25368,8 +25368,8 @@ namespace Opc.Ua
     #region JsonStatusMessage Class
     #if (!OPCUA_EXCLUDE_JsonStatusMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonStatusMessage : IEncodeable, IJsonEncodeable
     {
@@ -25558,8 +25558,8 @@ namespace Opc.Ua
     #region JsonPubSubConnectionMessage Class
     #if (!OPCUA_EXCLUDE_JsonPubSubConnectionMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonPubSubConnectionMessage : IEncodeable, IJsonEncodeable
     {
@@ -25735,8 +25735,8 @@ namespace Opc.Ua
     #region JsonActionMetaDataMessage Class
     #if (!OPCUA_EXCLUDE_JsonActionMetaDataMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonActionMetaDataMessage : IEncodeable, IJsonEncodeable
     {
@@ -26016,8 +26016,8 @@ namespace Opc.Ua
     #region JsonActionResponderMessage Class
     #if (!OPCUA_EXCLUDE_JsonActionResponderMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonActionResponderMessage : IEncodeable, IJsonEncodeable
     {
@@ -26193,8 +26193,8 @@ namespace Opc.Ua
     #region JsonActionNetworkMessage Class
     #if (!OPCUA_EXCLUDE_JsonActionNetworkMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonActionNetworkMessage : IEncodeable, IJsonEncodeable
     {
@@ -26409,8 +26409,8 @@ namespace Opc.Ua
     #region JsonActionRequestMessage Class
     #if (!OPCUA_EXCLUDE_JsonActionRequestMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonActionRequestMessage : IEncodeable, IJsonEncodeable
     {
@@ -26664,8 +26664,8 @@ namespace Opc.Ua
     #region JsonActionResponseMessage Class
     #if (!OPCUA_EXCLUDE_JsonActionResponseMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonActionResponseMessage : IEncodeable, IJsonEncodeable
     {
@@ -26932,8 +26932,8 @@ namespace Opc.Ua
     #region AliasNameDataType Class
     #if (!OPCUA_EXCLUDE_AliasNameDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AliasNameDataType : IEncodeable, IJsonEncodeable
     {
@@ -27067,8 +27067,8 @@ namespace Opc.Ua
 
     #region AliasNameDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAliasNameDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AliasNameDataType")]
     public partial class AliasNameDataTypeCollection : List<AliasNameDataType>, ICloneable
     {
@@ -27129,7 +27129,7 @@ namespace Opc.Ua
     #region PasswordOptionsMask Enumeration
     #if (!OPCUA_EXCLUDE_PasswordOptionsMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum PasswordOptionsMask : UInt32
@@ -27167,8 +27167,8 @@ namespace Opc.Ua
 
     #region PasswordOptionsMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPasswordOptionsMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PasswordOptionsMask")]
     public partial class PasswordOptionsMaskCollection : List<PasswordOptionsMask>, ICloneable
     {
@@ -27229,7 +27229,7 @@ namespace Opc.Ua
     #region UserConfigurationMask Enumeration
     #if (!OPCUA_EXCLUDE_UserConfigurationMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum UserConfigurationMask : UInt32
@@ -27252,8 +27252,8 @@ namespace Opc.Ua
 
     #region UserConfigurationMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUserConfigurationMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserConfigurationMask")]
     public partial class UserConfigurationMaskCollection : List<UserConfigurationMask>, ICloneable
     {
@@ -27314,8 +27314,8 @@ namespace Opc.Ua
     #region UserManagementDataType Class
     #if (!OPCUA_EXCLUDE_UserManagementDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserManagementDataType : IEncodeable, IJsonEncodeable
     {
@@ -27449,8 +27449,8 @@ namespace Opc.Ua
 
     #region UserManagementDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUserManagementDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserManagementDataType")]
     public partial class UserManagementDataTypeCollection : List<UserManagementDataType>, ICloneable
     {
@@ -27511,7 +27511,7 @@ namespace Opc.Ua
     #region Duplex Enumeration
     #if (!OPCUA_EXCLUDE_Duplex)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum Duplex
@@ -27528,8 +27528,8 @@ namespace Opc.Ua
 
     #region DuplexCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDuplex", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Duplex")]
     public partial class DuplexCollection : List<Duplex>, ICloneable
     {
@@ -27590,7 +27590,7 @@ namespace Opc.Ua
     #region InterfaceAdminStatus Enumeration
     #if (!OPCUA_EXCLUDE_InterfaceAdminStatus)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum InterfaceAdminStatus
@@ -27607,8 +27607,8 @@ namespace Opc.Ua
 
     #region InterfaceAdminStatusCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfInterfaceAdminStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceAdminStatus")]
     public partial class InterfaceAdminStatusCollection : List<InterfaceAdminStatus>, ICloneable
     {
@@ -27669,7 +27669,7 @@ namespace Opc.Ua
     #region InterfaceOperStatus Enumeration
     #if (!OPCUA_EXCLUDE_InterfaceOperStatus)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum InterfaceOperStatus
@@ -27698,8 +27698,8 @@ namespace Opc.Ua
 
     #region InterfaceOperStatusCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfInterfaceOperStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceOperStatus")]
     public partial class InterfaceOperStatusCollection : List<InterfaceOperStatus>, ICloneable
     {
@@ -27760,7 +27760,7 @@ namespace Opc.Ua
     #region NegotiationStatus Enumeration
     #if (!OPCUA_EXCLUDE_NegotiationStatus)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum NegotiationStatus
@@ -27783,8 +27783,8 @@ namespace Opc.Ua
 
     #region NegotiationStatusCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNegotiationStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NegotiationStatus")]
     public partial class NegotiationStatusCollection : List<NegotiationStatus>, ICloneable
     {
@@ -27845,7 +27845,7 @@ namespace Opc.Ua
     #region TsnFailureCode Enumeration
     #if (!OPCUA_EXCLUDE_TsnFailureCode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum TsnFailureCode
@@ -27931,8 +27931,8 @@ namespace Opc.Ua
 
     #region TsnFailureCodeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTsnFailureCode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnFailureCode")]
     public partial class TsnFailureCodeCollection : List<TsnFailureCode>, ICloneable
     {
@@ -27993,7 +27993,7 @@ namespace Opc.Ua
     #region TsnStreamState Enumeration
     #if (!OPCUA_EXCLUDE_TsnStreamState)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum TsnStreamState
@@ -28016,8 +28016,8 @@ namespace Opc.Ua
 
     #region TsnStreamStateCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTsnStreamState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnStreamState")]
     public partial class TsnStreamStateCollection : List<TsnStreamState>, ICloneable
     {
@@ -28078,7 +28078,7 @@ namespace Opc.Ua
     #region TsnTalkerStatus Enumeration
     #if (!OPCUA_EXCLUDE_TsnTalkerStatus)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum TsnTalkerStatus
@@ -28095,8 +28095,8 @@ namespace Opc.Ua
 
     #region TsnTalkerStatusCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTsnTalkerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnTalkerStatus")]
     public partial class TsnTalkerStatusCollection : List<TsnTalkerStatus>, ICloneable
     {
@@ -28157,7 +28157,7 @@ namespace Opc.Ua
     #region TsnListenerStatus Enumeration
     #if (!OPCUA_EXCLUDE_TsnListenerStatus)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum TsnListenerStatus
@@ -28177,8 +28177,8 @@ namespace Opc.Ua
 
     #region TsnListenerStatusCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTsnListenerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnListenerStatus")]
     public partial class TsnListenerStatusCollection : List<TsnListenerStatus>, ICloneable
     {
@@ -28239,7 +28239,7 @@ namespace Opc.Ua
     #region ChassisIdSubtype Enumeration
     #if (!OPCUA_EXCLUDE_ChassisIdSubtype)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ChassisIdSubtype
@@ -28268,8 +28268,8 @@ namespace Opc.Ua
 
     #region ChassisIdSubtypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfChassisIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ChassisIdSubtype")]
     public partial class ChassisIdSubtypeCollection : List<ChassisIdSubtype>, ICloneable
     {
@@ -28330,7 +28330,7 @@ namespace Opc.Ua
     #region PortIdSubtype Enumeration
     #if (!OPCUA_EXCLUDE_PortIdSubtype)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum PortIdSubtype
@@ -28359,8 +28359,8 @@ namespace Opc.Ua
 
     #region PortIdSubtypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPortIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortIdSubtype")]
     public partial class PortIdSubtypeCollection : List<PortIdSubtype>, ICloneable
     {
@@ -28421,7 +28421,7 @@ namespace Opc.Ua
     #region ManAddrIfSubtype Enumeration
     #if (!OPCUA_EXCLUDE_ManAddrIfSubtype)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ManAddrIfSubtype
@@ -28441,8 +28441,8 @@ namespace Opc.Ua
 
     #region ManAddrIfSubtypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfManAddrIfSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ManAddrIfSubtype")]
     public partial class ManAddrIfSubtypeCollection : List<ManAddrIfSubtype>, ICloneable
     {
@@ -28503,8 +28503,8 @@ namespace Opc.Ua
     #region PriorityMappingEntryType Class
     #if (!OPCUA_EXCLUDE_PriorityMappingEntryType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PriorityMappingEntryType : IEncodeable, IJsonEncodeable
     {
@@ -28651,8 +28651,8 @@ namespace Opc.Ua
 
     #region PriorityMappingEntryTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfPriorityMappingEntryType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PriorityMappingEntryType")]
     public partial class PriorityMappingEntryTypeCollection : List<PriorityMappingEntryType>, ICloneable
     {
@@ -28713,8 +28713,8 @@ namespace Opc.Ua
     #region LldpManagementAddressTxPortType Class
     #if (!OPCUA_EXCLUDE_LldpManagementAddressTxPortType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LldpManagementAddressTxPortType : IEncodeable, IJsonEncodeable
     {
@@ -28887,8 +28887,8 @@ namespace Opc.Ua
 
     #region LldpManagementAddressTxPortTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLldpManagementAddressTxPortType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressTxPortType")]
     public partial class LldpManagementAddressTxPortTypeCollection : List<LldpManagementAddressTxPortType>, ICloneable
     {
@@ -28949,8 +28949,8 @@ namespace Opc.Ua
     #region LldpManagementAddressType Class
     #if (!OPCUA_EXCLUDE_LldpManagementAddressType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LldpManagementAddressType : IEncodeable, IJsonEncodeable
     {
@@ -29097,8 +29097,8 @@ namespace Opc.Ua
 
     #region LldpManagementAddressTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLldpManagementAddressType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressType")]
     public partial class LldpManagementAddressTypeCollection : List<LldpManagementAddressType>, ICloneable
     {
@@ -29159,8 +29159,8 @@ namespace Opc.Ua
     #region LldpTlvType Class
     #if (!OPCUA_EXCLUDE_LldpTlvType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LldpTlvType : IEncodeable, IJsonEncodeable
     {
@@ -29281,8 +29281,8 @@ namespace Opc.Ua
 
     #region LldpTlvTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLldpTlvType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpTlvType")]
     public partial class LldpTlvTypeCollection : List<LldpTlvType>, ICloneable
     {
@@ -29343,7 +29343,7 @@ namespace Opc.Ua
     #region LldpSystemCapabilitiesMap Enumeration
     #if (!OPCUA_EXCLUDE_LldpSystemCapabilitiesMap)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum LldpSystemCapabilitiesMap : UInt32
@@ -29387,8 +29387,8 @@ namespace Opc.Ua
 
     #region LldpSystemCapabilitiesMapCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLldpSystemCapabilitiesMap", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpSystemCapabilitiesMap")]
     public partial class LldpSystemCapabilitiesMapCollection : List<LldpSystemCapabilitiesMap>, ICloneable
     {
@@ -29449,8 +29449,8 @@ namespace Opc.Ua
     #region ReferenceDescriptionDataType Class
     #if (!OPCUA_EXCLUDE_ReferenceDescriptionDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceDescriptionDataType : IEncodeable, IJsonEncodeable
     {
@@ -29597,8 +29597,8 @@ namespace Opc.Ua
 
     #region ReferenceDescriptionDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReferenceDescriptionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescriptionDataType")]
     public partial class ReferenceDescriptionDataTypeCollection : List<ReferenceDescriptionDataType>, ICloneable
     {
@@ -29659,8 +29659,8 @@ namespace Opc.Ua
     #region ReferenceListEntryDataType Class
     #if (!OPCUA_EXCLUDE_ReferenceListEntryDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceListEntryDataType : IEncodeable, IJsonEncodeable
     {
@@ -29794,8 +29794,8 @@ namespace Opc.Ua
 
     #region ReferenceListEntryDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReferenceListEntryDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceListEntryDataType")]
     public partial class ReferenceListEntryDataTypeCollection : List<ReferenceListEntryDataType>, ICloneable
     {
@@ -29868,8 +29868,8 @@ namespace Opc.Ua
     }
 
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LogRecord : IEncodeable, IJsonEncodeable
     {
@@ -30107,8 +30107,8 @@ namespace Opc.Ua
 
     #region LogRecordCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLogRecord", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LogRecord")]
     public partial class LogRecordCollection : List<LogRecord>, ICloneable
     {
@@ -30169,8 +30169,8 @@ namespace Opc.Ua
     #region LogRecordsDataType Class
     #if (!OPCUA_EXCLUDE_LogRecordsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LogRecordsDataType : IEncodeable, IJsonEncodeable
     {
@@ -30291,8 +30291,8 @@ namespace Opc.Ua
 
     #region LogRecordsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLogRecordsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LogRecordsDataType")]
     public partial class LogRecordsDataTypeCollection : List<LogRecordsDataType>, ICloneable
     {
@@ -30353,8 +30353,8 @@ namespace Opc.Ua
     #region SpanContextDataType Class
     #if (!OPCUA_EXCLUDE_SpanContextDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SpanContextDataType : IEncodeable, IJsonEncodeable
     {
@@ -30475,8 +30475,8 @@ namespace Opc.Ua
 
     #region SpanContextDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSpanContextDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SpanContextDataType")]
     public partial class SpanContextDataTypeCollection : List<SpanContextDataType>, ICloneable
     {
@@ -30537,8 +30537,8 @@ namespace Opc.Ua
     #region TraceContextDataType Class
     #if (!OPCUA_EXCLUDE_TraceContextDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TraceContextDataType : Opc.Ua.SpanContextDataType
     {
@@ -30663,8 +30663,8 @@ namespace Opc.Ua
 
     #region TraceContextDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTraceContextDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TraceContextDataType")]
     public partial class TraceContextDataTypeCollection : List<TraceContextDataType>, ICloneable
     {
@@ -30725,8 +30725,8 @@ namespace Opc.Ua
     #region NameValuePair Class
     #if (!OPCUA_EXCLUDE_NameValuePair)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NameValuePair : IEncodeable, IJsonEncodeable
     {
@@ -30847,8 +30847,8 @@ namespace Opc.Ua
 
     #region NameValuePairCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNameValuePair", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NameValuePair")]
     public partial class NameValuePairCollection : List<NameValuePair>, ICloneable
     {
@@ -30909,7 +30909,7 @@ namespace Opc.Ua
     #region LogRecordMask Enumeration
     #if (!OPCUA_EXCLUDE_LogRecordMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum LogRecordMask : UInt32
@@ -30935,8 +30935,8 @@ namespace Opc.Ua
 
     #region LogRecordMaskCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfLogRecordMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LogRecordMask")]
     public partial class LogRecordMaskCollection : List<LogRecordMask>, ICloneable
     {
@@ -30997,7 +30997,7 @@ namespace Opc.Ua
     #region IdType Enumeration
     #if (!OPCUA_EXCLUDE_IdType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum IdType
@@ -31017,8 +31017,8 @@ namespace Opc.Ua
 
     #region IdTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfIdType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdType")]
     public partial class IdTypeCollection : List<IdType>, ICloneable
     {
@@ -31079,7 +31079,7 @@ namespace Opc.Ua
     #region NodeClass Enumeration
     #if (!OPCUA_EXCLUDE_NodeClass)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum NodeClass
@@ -31117,7 +31117,7 @@ namespace Opc.Ua
     #region PermissionType Enumeration
     #if (!OPCUA_EXCLUDE_PermissionType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum PermissionType : UInt32
@@ -31182,7 +31182,7 @@ namespace Opc.Ua
     #region AccessLevelType Enumeration
     #if (!OPCUA_EXCLUDE_AccessLevelType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum AccessLevelType : Byte
@@ -31217,7 +31217,7 @@ namespace Opc.Ua
     #region AccessLevelExType Enumeration
     #if (!OPCUA_EXCLUDE_AccessLevelExType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum AccessLevelExType : UInt32
@@ -31270,7 +31270,7 @@ namespace Opc.Ua
     #region EventNotifierType Enumeration
     #if (!OPCUA_EXCLUDE_EventNotifierType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum EventNotifierType : Byte
@@ -31293,7 +31293,7 @@ namespace Opc.Ua
     #region AccessRestrictionType Enumeration
     #if (!OPCUA_EXCLUDE_AccessRestrictionType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum AccessRestrictionType : UInt16
@@ -31319,8 +31319,8 @@ namespace Opc.Ua
     #region RolePermissionType Class
     #if (!OPCUA_EXCLUDE_RolePermissionType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RolePermissionType : IEncodeable, IJsonEncodeable
     {
@@ -31441,8 +31441,8 @@ namespace Opc.Ua
 
     #region RolePermissionTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfRolePermissionType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RolePermissionType")]
     public partial class RolePermissionTypeCollection : List<RolePermissionType>, ICloneable
     {
@@ -31503,8 +31503,8 @@ namespace Opc.Ua
     #region DataTypeDefinition Class
     #if (!OPCUA_EXCLUDE_DataTypeDefinition)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeDefinition : IEncodeable, IJsonEncodeable
     {
@@ -31600,8 +31600,8 @@ namespace Opc.Ua
 
     #region DataTypeDefinitionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDataTypeDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDefinition")]
     public partial class DataTypeDefinitionCollection : List<DataTypeDefinition>, ICloneable
     {
@@ -31662,7 +31662,7 @@ namespace Opc.Ua
     #region StructureType Enumeration
     #if (!OPCUA_EXCLUDE_StructureType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum StructureType
@@ -31688,8 +31688,8 @@ namespace Opc.Ua
     #region StructureField Class
     #if (!OPCUA_EXCLUDE_StructureField)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureField : IEncodeable, IJsonEncodeable
     {
@@ -31888,8 +31888,8 @@ namespace Opc.Ua
 
     #region StructureFieldCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfStructureField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureField")]
     public partial class StructureFieldCollection : List<StructureField>, ICloneable
     {
@@ -31950,8 +31950,8 @@ namespace Opc.Ua
     #region StructureDefinition Class
     #if (!OPCUA_EXCLUDE_StructureDefinition)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureDefinition : Opc.Ua.DataTypeDefinition
     {
@@ -32115,8 +32115,8 @@ namespace Opc.Ua
 
     #region StructureDefinitionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfStructureDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDefinition")]
     public partial class StructureDefinitionCollection : List<StructureDefinition>, ICloneable
     {
@@ -32177,8 +32177,8 @@ namespace Opc.Ua
     #region EnumDefinition Class
     #if (!OPCUA_EXCLUDE_EnumDefinition)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumDefinition : Opc.Ua.DataTypeDefinition
     {
@@ -32303,8 +32303,8 @@ namespace Opc.Ua
 
     #region EnumDefinitionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEnumDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDefinition")]
     public partial class EnumDefinitionCollection : List<EnumDefinition>, ICloneable
     {
@@ -32365,8 +32365,8 @@ namespace Opc.Ua
     #region Node Class
     #if (!OPCUA_EXCLUDE_Node)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Node : IEncodeable, IJsonEncodeable
     {
@@ -32643,8 +32643,8 @@ namespace Opc.Ua
 
     #region NodeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Node")]
     public partial class NodeCollection : List<Node>, ICloneable
     {
@@ -32705,8 +32705,8 @@ namespace Opc.Ua
     #region InstanceNode Class
     #if (!OPCUA_EXCLUDE_InstanceNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class InstanceNode : Opc.Ua.Node
     {
@@ -32809,8 +32809,8 @@ namespace Opc.Ua
     #region TypeNode Class
     #if (!OPCUA_EXCLUDE_TypeNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TypeNode : Opc.Ua.Node
     {
@@ -32913,8 +32913,8 @@ namespace Opc.Ua
     #region ObjectNode Class
     #if (!OPCUA_EXCLUDE_ObjectNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectNode : Opc.Ua.InstanceNode
     {
@@ -33029,8 +33029,8 @@ namespace Opc.Ua
     #region ObjectTypeNode Class
     #if (!OPCUA_EXCLUDE_ObjectTypeNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectTypeNode : Opc.Ua.TypeNode
     {
@@ -33145,8 +33145,8 @@ namespace Opc.Ua
     #region VariableNode Class
     #if (!OPCUA_EXCLUDE_VariableNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableNode : Opc.Ua.InstanceNode
     {
@@ -33378,8 +33378,8 @@ namespace Opc.Ua
     #region VariableTypeNode Class
     #if (!OPCUA_EXCLUDE_VariableTypeNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableTypeNode : Opc.Ua.TypeNode
     {
@@ -33559,8 +33559,8 @@ namespace Opc.Ua
     #region ReferenceTypeNode Class
     #if (!OPCUA_EXCLUDE_ReferenceTypeNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceTypeNode : Opc.Ua.TypeNode
     {
@@ -33701,8 +33701,8 @@ namespace Opc.Ua
     #region MethodNode Class
     #if (!OPCUA_EXCLUDE_MethodNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MethodNode : Opc.Ua.InstanceNode
     {
@@ -33830,8 +33830,8 @@ namespace Opc.Ua
     #region ViewNode Class
     #if (!OPCUA_EXCLUDE_ViewNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewNode : Opc.Ua.InstanceNode
     {
@@ -33959,8 +33959,8 @@ namespace Opc.Ua
     #region DataTypeNode Class
     #if (!OPCUA_EXCLUDE_DataTypeNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeNode : Opc.Ua.TypeNode
     {
@@ -34088,8 +34088,8 @@ namespace Opc.Ua
     #region ReferenceNode Class
     #if (!OPCUA_EXCLUDE_ReferenceNode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceNode : IEncodeable, IJsonEncodeable
     {
@@ -34223,8 +34223,8 @@ namespace Opc.Ua
 
     #region ReferenceNodeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReferenceNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceNode")]
     public partial class ReferenceNodeCollection : List<ReferenceNode>, ICloneable
     {
@@ -34285,8 +34285,8 @@ namespace Opc.Ua
     #region Argument Class
     #if (!OPCUA_EXCLUDE_Argument)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Argument : IEncodeable, IJsonEncodeable
     {
@@ -34459,8 +34459,8 @@ namespace Opc.Ua
 
     #region ArgumentCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfArgument", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Argument")]
     public partial class ArgumentCollection : List<Argument>, ICloneable
     {
@@ -34521,8 +34521,8 @@ namespace Opc.Ua
     #region EnumValueType Class
     #if (!OPCUA_EXCLUDE_EnumValueType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumValueType : IEncodeable, IJsonEncodeable
     {
@@ -34656,8 +34656,8 @@ namespace Opc.Ua
 
     #region EnumValueTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEnumValueType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumValueType")]
     public partial class EnumValueTypeCollection : List<EnumValueType>, ICloneable
     {
@@ -34718,8 +34718,8 @@ namespace Opc.Ua
     #region EnumField Class
     #if (!OPCUA_EXCLUDE_EnumField)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumField : Opc.Ua.EnumValueType
     {
@@ -34831,8 +34831,8 @@ namespace Opc.Ua
 
     #region EnumFieldCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEnumField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumField")]
     public partial class EnumFieldCollection : List<EnumField>, ICloneable
     {
@@ -34893,8 +34893,8 @@ namespace Opc.Ua
     #region OptionSet Class
     #if (!OPCUA_EXCLUDE_OptionSet)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OptionSet : IEncodeable, IJsonEncodeable
     {
@@ -35015,8 +35015,8 @@ namespace Opc.Ua
 
     #region OptionSetCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfOptionSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OptionSet")]
     public partial class OptionSetCollection : List<OptionSet>, ICloneable
     {
@@ -35077,8 +35077,8 @@ namespace Opc.Ua
     #region TimeZoneDataType Class
     #if (!OPCUA_EXCLUDE_TimeZoneDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TimeZoneDataType : IEncodeable, IJsonEncodeable
     {
@@ -35199,8 +35199,8 @@ namespace Opc.Ua
 
     #region TimeZoneDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTimeZoneDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TimeZoneDataType")]
     public partial class TimeZoneDataTypeCollection : List<TimeZoneDataType>, ICloneable
     {
@@ -35261,7 +35261,7 @@ namespace Opc.Ua
     #region ApplicationType Enumeration
     #if (!OPCUA_EXCLUDE_ApplicationType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ApplicationType
@@ -35284,8 +35284,8 @@ namespace Opc.Ua
     #region ApplicationDescription Class
     #if (!OPCUA_EXCLUDE_ApplicationDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ApplicationDescription : IEncodeable, IJsonEncodeable
     {
@@ -35484,8 +35484,8 @@ namespace Opc.Ua
 
     #region ApplicationDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfApplicationDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationDescription")]
     public partial class ApplicationDescriptionCollection : List<ApplicationDescription>, ICloneable
     {
@@ -35546,8 +35546,8 @@ namespace Opc.Ua
     #region RequestHeader Class
     #if (!OPCUA_EXCLUDE_RequestHeader)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RequestHeader : IEncodeable, IJsonEncodeable
     {
@@ -35736,8 +35736,8 @@ namespace Opc.Ua
     #region ResponseHeader Class
     #if (!OPCUA_EXCLUDE_ResponseHeader)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ResponseHeader : IEncodeable, IJsonEncodeable
     {
@@ -35926,8 +35926,8 @@ namespace Opc.Ua
     #region ServiceFault Class
     #if (!OPCUA_EXCLUDE_ServiceFault)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServiceFault : IEncodeable, IJsonEncodeable
     {
@@ -36051,8 +36051,8 @@ namespace Opc.Ua
     #region SessionlessInvokeRequestType Class
     #if (!OPCUA_EXCLUDE_SessionlessInvokeRequestType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionlessInvokeRequestType : IEncodeable, IJsonEncodeable
     {
@@ -36254,8 +36254,8 @@ namespace Opc.Ua
     #region SessionlessInvokeResponseType Class
     #if (!OPCUA_EXCLUDE_SessionlessInvokeResponseType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionlessInvokeResponseType : IEncodeable, IJsonEncodeable
     {
@@ -36418,8 +36418,8 @@ namespace Opc.Ua
     #region FindServersRequest Class
     #if (!OPCUA_EXCLUDE_FindServersRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersRequest : IEncodeable, IJsonEncodeable
     {
@@ -36608,8 +36608,8 @@ namespace Opc.Ua
     #region FindServersResponse Class
     #if (!OPCUA_EXCLUDE_FindServersResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersResponse : IEncodeable, IJsonEncodeable
     {
@@ -36759,8 +36759,8 @@ namespace Opc.Ua
     #region ServerOnNetwork Class
     #if (!OPCUA_EXCLUDE_ServerOnNetwork)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerOnNetwork : IEncodeable, IJsonEncodeable
     {
@@ -36920,8 +36920,8 @@ namespace Opc.Ua
 
     #region ServerOnNetworkCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfServerOnNetwork", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerOnNetwork")]
     public partial class ServerOnNetworkCollection : List<ServerOnNetwork>, ICloneable
     {
@@ -36982,8 +36982,8 @@ namespace Opc.Ua
     #region FindServersOnNetworkRequest Class
     #if (!OPCUA_EXCLUDE_FindServersOnNetworkRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersOnNetworkRequest : IEncodeable, IJsonEncodeable
     {
@@ -37159,8 +37159,8 @@ namespace Opc.Ua
     #region FindServersOnNetworkResponse Class
     #if (!OPCUA_EXCLUDE_FindServersOnNetworkResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersOnNetworkResponse : IEncodeable, IJsonEncodeable
     {
@@ -37323,7 +37323,7 @@ namespace Opc.Ua
     #region MessageSecurityMode Enumeration
     #if (!OPCUA_EXCLUDE_MessageSecurityMode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum MessageSecurityMode
@@ -37343,8 +37343,8 @@ namespace Opc.Ua
 
     #region MessageSecurityModeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfMessageSecurityMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MessageSecurityMode")]
     public partial class MessageSecurityModeCollection : List<MessageSecurityMode>, ICloneable
     {
@@ -37405,7 +37405,7 @@ namespace Opc.Ua
     #region UserTokenType Enumeration
     #if (!OPCUA_EXCLUDE_UserTokenType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum UserTokenType
@@ -37428,8 +37428,8 @@ namespace Opc.Ua
     #region UserTokenPolicy Class
     #if (!OPCUA_EXCLUDE_UserTokenPolicy)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserTokenPolicy : IEncodeable, IJsonEncodeable
     {
@@ -37589,8 +37589,8 @@ namespace Opc.Ua
 
     #region UserTokenPolicyCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfUserTokenPolicy", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenPolicy")]
     public partial class UserTokenPolicyCollection : List<UserTokenPolicy>, ICloneable
     {
@@ -37651,8 +37651,8 @@ namespace Opc.Ua
     #region EndpointDescription Class
     #if (!OPCUA_EXCLUDE_EndpointDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointDescription : IEncodeable, IJsonEncodeable
     {
@@ -37877,8 +37877,8 @@ namespace Opc.Ua
 
     #region EndpointDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEndpointDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDescription")]
     public partial class EndpointDescriptionCollection : List<EndpointDescription>, ICloneable
     {
@@ -37939,8 +37939,8 @@ namespace Opc.Ua
     #region GetEndpointsRequest Class
     #if (!OPCUA_EXCLUDE_GetEndpointsRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GetEndpointsRequest : IEncodeable, IJsonEncodeable
     {
@@ -38129,8 +38129,8 @@ namespace Opc.Ua
     #region GetEndpointsResponse Class
     #if (!OPCUA_EXCLUDE_GetEndpointsResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GetEndpointsResponse : IEncodeable, IJsonEncodeable
     {
@@ -38280,8 +38280,8 @@ namespace Opc.Ua
     #region RegisteredServer Class
     #if (!OPCUA_EXCLUDE_RegisteredServer)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisteredServer : IEncodeable, IJsonEncodeable
     {
@@ -38506,8 +38506,8 @@ namespace Opc.Ua
 
     #region RegisteredServerCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfRegisteredServer", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RegisteredServer")]
     public partial class RegisteredServerCollection : List<RegisteredServer>, ICloneable
     {
@@ -38568,8 +38568,8 @@ namespace Opc.Ua
     #region RegisterServerRequest Class
     #if (!OPCUA_EXCLUDE_RegisterServerRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServerRequest : IEncodeable, IJsonEncodeable
     {
@@ -38719,8 +38719,8 @@ namespace Opc.Ua
     #region RegisterServerResponse Class
     #if (!OPCUA_EXCLUDE_RegisterServerResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServerResponse : IEncodeable, IJsonEncodeable
     {
@@ -38844,8 +38844,8 @@ namespace Opc.Ua
     #region DiscoveryConfiguration Class
     #if (!OPCUA_EXCLUDE_DiscoveryConfiguration)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DiscoveryConfiguration : IEncodeable, IJsonEncodeable
     {
@@ -38944,8 +38944,8 @@ namespace Opc.Ua
     #region MdnsDiscoveryConfiguration Class
     #if (!OPCUA_EXCLUDE_MdnsDiscoveryConfiguration)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MdnsDiscoveryConfiguration : Opc.Ua.DiscoveryConfiguration
     {
@@ -39086,8 +39086,8 @@ namespace Opc.Ua
     #region RegisterServer2Request Class
     #if (!OPCUA_EXCLUDE_RegisterServer2Request)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServer2Request : IEncodeable, IJsonEncodeable
     {
@@ -39263,8 +39263,8 @@ namespace Opc.Ua
     #region RegisterServer2Response Class
     #if (!OPCUA_EXCLUDE_RegisterServer2Response)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServer2Response : IEncodeable, IJsonEncodeable
     {
@@ -39440,7 +39440,7 @@ namespace Opc.Ua
     #region SecurityTokenRequestType Enumeration
     #if (!OPCUA_EXCLUDE_SecurityTokenRequestType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum SecurityTokenRequestType
@@ -39457,8 +39457,8 @@ namespace Opc.Ua
     #region ChannelSecurityToken Class
     #if (!OPCUA_EXCLUDE_ChannelSecurityToken)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ChannelSecurityToken : IEncodeable, IJsonEncodeable
     {
@@ -39608,8 +39608,8 @@ namespace Opc.Ua
     #region OpenSecureChannelRequest Class
     #if (!OPCUA_EXCLUDE_OpenSecureChannelRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OpenSecureChannelRequest : IEncodeable, IJsonEncodeable
     {
@@ -39798,8 +39798,8 @@ namespace Opc.Ua
     #region OpenSecureChannelResponse Class
     #if (!OPCUA_EXCLUDE_OpenSecureChannelResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OpenSecureChannelResponse : IEncodeable, IJsonEncodeable
     {
@@ -39975,8 +39975,8 @@ namespace Opc.Ua
     #region CloseSecureChannelRequest Class
     #if (!OPCUA_EXCLUDE_CloseSecureChannelRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSecureChannelRequest : IEncodeable, IJsonEncodeable
     {
@@ -40100,8 +40100,8 @@ namespace Opc.Ua
     #region CloseSecureChannelResponse Class
     #if (!OPCUA_EXCLUDE_CloseSecureChannelResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSecureChannelResponse : IEncodeable, IJsonEncodeable
     {
@@ -40225,8 +40225,8 @@ namespace Opc.Ua
     #region SignedSoftwareCertificate Class
     #if (!OPCUA_EXCLUDE_SignedSoftwareCertificate)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SignedSoftwareCertificate : IEncodeable, IJsonEncodeable
     {
@@ -40347,8 +40347,8 @@ namespace Opc.Ua
 
     #region SignedSoftwareCertificateCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSignedSoftwareCertificate", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SignedSoftwareCertificate")]
     public partial class SignedSoftwareCertificateCollection : List<SignedSoftwareCertificate>, ICloneable
     {
@@ -40409,8 +40409,8 @@ namespace Opc.Ua
     #region SignatureData Class
     #if (!OPCUA_EXCLUDE_SignatureData)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SignatureData : IEncodeable, IJsonEncodeable
     {
@@ -40534,8 +40534,8 @@ namespace Opc.Ua
     #region CreateSessionRequest Class
     #if (!OPCUA_EXCLUDE_CreateSessionRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSessionRequest : IEncodeable, IJsonEncodeable
     {
@@ -40776,8 +40776,8 @@ namespace Opc.Ua
     #region CreateSessionResponse Class
     #if (!OPCUA_EXCLUDE_CreateSessionResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSessionResponse : IEncodeable, IJsonEncodeable
     {
@@ -41057,8 +41057,8 @@ namespace Opc.Ua
     #region UserIdentityToken Class
     #if (!OPCUA_EXCLUDE_UserIdentityToken)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserIdentityToken : IEncodeable, IJsonEncodeable
     {
@@ -41169,8 +41169,8 @@ namespace Opc.Ua
     #region AnonymousIdentityToken Class
     #if (!OPCUA_EXCLUDE_AnonymousIdentityToken)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AnonymousIdentityToken : Opc.Ua.UserIdentityToken
     {
@@ -41273,8 +41273,8 @@ namespace Opc.Ua
     #region UserNameIdentityToken Class
     #if (!OPCUA_EXCLUDE_UserNameIdentityToken)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserNameIdentityToken : Opc.Ua.UserIdentityToken
     {
@@ -41415,8 +41415,8 @@ namespace Opc.Ua
     #region X509IdentityToken Class
     #if (!OPCUA_EXCLUDE_X509IdentityToken)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class X509IdentityToken : Opc.Ua.UserIdentityToken
     {
@@ -41531,8 +41531,8 @@ namespace Opc.Ua
     #region IssuedIdentityToken Class
     #if (!OPCUA_EXCLUDE_IssuedIdentityToken)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class IssuedIdentityToken : Opc.Ua.UserIdentityToken
     {
@@ -41660,8 +41660,8 @@ namespace Opc.Ua
     #region ActivateSessionRequest Class
     #if (!OPCUA_EXCLUDE_ActivateSessionRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActivateSessionRequest : IEncodeable, IJsonEncodeable
     {
@@ -41902,8 +41902,8 @@ namespace Opc.Ua
     #region ActivateSessionResponse Class
     #if (!OPCUA_EXCLUDE_ActivateSessionResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActivateSessionResponse : IEncodeable, IJsonEncodeable
     {
@@ -42092,8 +42092,8 @@ namespace Opc.Ua
     #region CloseSessionRequest Class
     #if (!OPCUA_EXCLUDE_CloseSessionRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSessionRequest : IEncodeable, IJsonEncodeable
     {
@@ -42230,8 +42230,8 @@ namespace Opc.Ua
     #region CloseSessionResponse Class
     #if (!OPCUA_EXCLUDE_CloseSessionResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSessionResponse : IEncodeable, IJsonEncodeable
     {
@@ -42355,8 +42355,8 @@ namespace Opc.Ua
     #region CancelRequest Class
     #if (!OPCUA_EXCLUDE_CancelRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CancelRequest : IEncodeable, IJsonEncodeable
     {
@@ -42493,8 +42493,8 @@ namespace Opc.Ua
     #region CancelResponse Class
     #if (!OPCUA_EXCLUDE_CancelResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CancelResponse : IEncodeable, IJsonEncodeable
     {
@@ -42631,7 +42631,7 @@ namespace Opc.Ua
     #region NodeAttributesMask Enumeration
     #if (!OPCUA_EXCLUDE_NodeAttributesMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum NodeAttributesMask
@@ -42747,8 +42747,8 @@ namespace Opc.Ua
     #region NodeAttributes Class
     #if (!OPCUA_EXCLUDE_NodeAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeAttributes : IEncodeable, IJsonEncodeable
     {
@@ -42911,8 +42911,8 @@ namespace Opc.Ua
     #region ObjectAttributes Class
     #if (!OPCUA_EXCLUDE_ObjectAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectAttributes : Opc.Ua.NodeAttributes
     {
@@ -43027,8 +43027,8 @@ namespace Opc.Ua
     #region VariableAttributes Class
     #if (!OPCUA_EXCLUDE_VariableAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableAttributes : Opc.Ua.NodeAttributes
     {
@@ -43247,8 +43247,8 @@ namespace Opc.Ua
     #region MethodAttributes Class
     #if (!OPCUA_EXCLUDE_MethodAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MethodAttributes : Opc.Ua.NodeAttributes
     {
@@ -43376,8 +43376,8 @@ namespace Opc.Ua
     #region ObjectTypeAttributes Class
     #if (!OPCUA_EXCLUDE_ObjectTypeAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectTypeAttributes : Opc.Ua.NodeAttributes
     {
@@ -43492,8 +43492,8 @@ namespace Opc.Ua
     #region VariableTypeAttributes Class
     #if (!OPCUA_EXCLUDE_VariableTypeAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableTypeAttributes : Opc.Ua.NodeAttributes
     {
@@ -43673,8 +43673,8 @@ namespace Opc.Ua
     #region ReferenceTypeAttributes Class
     #if (!OPCUA_EXCLUDE_ReferenceTypeAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceTypeAttributes : Opc.Ua.NodeAttributes
     {
@@ -43815,8 +43815,8 @@ namespace Opc.Ua
     #region DataTypeAttributes Class
     #if (!OPCUA_EXCLUDE_DataTypeAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeAttributes : Opc.Ua.NodeAttributes
     {
@@ -43931,8 +43931,8 @@ namespace Opc.Ua
     #region ViewAttributes Class
     #if (!OPCUA_EXCLUDE_ViewAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewAttributes : Opc.Ua.NodeAttributes
     {
@@ -44060,8 +44060,8 @@ namespace Opc.Ua
     #region GenericAttributeValue Class
     #if (!OPCUA_EXCLUDE_GenericAttributeValue)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GenericAttributeValue : IEncodeable, IJsonEncodeable
     {
@@ -44182,8 +44182,8 @@ namespace Opc.Ua
 
     #region GenericAttributeValueCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfGenericAttributeValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "GenericAttributeValue")]
     public partial class GenericAttributeValueCollection : List<GenericAttributeValue>, ICloneable
     {
@@ -44244,8 +44244,8 @@ namespace Opc.Ua
     #region GenericAttributes Class
     #if (!OPCUA_EXCLUDE_GenericAttributes)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GenericAttributes : Opc.Ua.NodeAttributes
     {
@@ -44373,8 +44373,8 @@ namespace Opc.Ua
     #region AddNodesItem Class
     #if (!OPCUA_EXCLUDE_AddNodesItem)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesItem : IEncodeable, IJsonEncodeable
     {
@@ -44560,8 +44560,8 @@ namespace Opc.Ua
 
     #region AddNodesItemCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAddNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesItem")]
     public partial class AddNodesItemCollection : List<AddNodesItem>, ICloneable
     {
@@ -44622,8 +44622,8 @@ namespace Opc.Ua
     #region AddNodesResult Class
     #if (!OPCUA_EXCLUDE_AddNodesResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesResult : IEncodeable, IJsonEncodeable
     {
@@ -44744,8 +44744,8 @@ namespace Opc.Ua
 
     #region AddNodesResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAddNodesResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesResult")]
     public partial class AddNodesResultCollection : List<AddNodesResult>, ICloneable
     {
@@ -44806,8 +44806,8 @@ namespace Opc.Ua
     #region AddNodesRequest Class
     #if (!OPCUA_EXCLUDE_AddNodesRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesRequest : IEncodeable, IJsonEncodeable
     {
@@ -44957,8 +44957,8 @@ namespace Opc.Ua
     #region AddNodesResponse Class
     #if (!OPCUA_EXCLUDE_AddNodesResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesResponse : IEncodeable, IJsonEncodeable
     {
@@ -45134,8 +45134,8 @@ namespace Opc.Ua
     #region AddReferencesItem Class
     #if (!OPCUA_EXCLUDE_AddReferencesItem)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesItem : IEncodeable, IJsonEncodeable
     {
@@ -45308,8 +45308,8 @@ namespace Opc.Ua
 
     #region AddReferencesItemCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAddReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddReferencesItem")]
     public partial class AddReferencesItemCollection : List<AddReferencesItem>, ICloneable
     {
@@ -45370,8 +45370,8 @@ namespace Opc.Ua
     #region AddReferencesRequest Class
     #if (!OPCUA_EXCLUDE_AddReferencesRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesRequest : IEncodeable, IJsonEncodeable
     {
@@ -45521,8 +45521,8 @@ namespace Opc.Ua
     #region AddReferencesResponse Class
     #if (!OPCUA_EXCLUDE_AddReferencesResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesResponse : IEncodeable, IJsonEncodeable
     {
@@ -45698,8 +45698,8 @@ namespace Opc.Ua
     #region DeleteNodesItem Class
     #if (!OPCUA_EXCLUDE_DeleteNodesItem)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesItem : IEncodeable, IJsonEncodeable
     {
@@ -45820,8 +45820,8 @@ namespace Opc.Ua
 
     #region DeleteNodesItemCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDeleteNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteNodesItem")]
     public partial class DeleteNodesItemCollection : List<DeleteNodesItem>, ICloneable
     {
@@ -45882,8 +45882,8 @@ namespace Opc.Ua
     #region DeleteNodesRequest Class
     #if (!OPCUA_EXCLUDE_DeleteNodesRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesRequest : IEncodeable, IJsonEncodeable
     {
@@ -46033,8 +46033,8 @@ namespace Opc.Ua
     #region DeleteNodesResponse Class
     #if (!OPCUA_EXCLUDE_DeleteNodesResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesResponse : IEncodeable, IJsonEncodeable
     {
@@ -46210,8 +46210,8 @@ namespace Opc.Ua
     #region DeleteReferencesItem Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesItem)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesItem : IEncodeable, IJsonEncodeable
     {
@@ -46371,8 +46371,8 @@ namespace Opc.Ua
 
     #region DeleteReferencesItemCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDeleteReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteReferencesItem")]
     public partial class DeleteReferencesItemCollection : List<DeleteReferencesItem>, ICloneable
     {
@@ -46433,8 +46433,8 @@ namespace Opc.Ua
     #region DeleteReferencesRequest Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesRequest : IEncodeable, IJsonEncodeable
     {
@@ -46584,8 +46584,8 @@ namespace Opc.Ua
     #region DeleteReferencesResponse Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesResponse : IEncodeable, IJsonEncodeable
     {
@@ -46761,7 +46761,7 @@ namespace Opc.Ua
     #region AttributeWriteMask Enumeration
     #if (!OPCUA_EXCLUDE_AttributeWriteMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     [Flags]
     public enum AttributeWriteMask : UInt32
@@ -46853,7 +46853,7 @@ namespace Opc.Ua
     #region BrowseDirection Enumeration
     #if (!OPCUA_EXCLUDE_BrowseDirection)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum BrowseDirection
@@ -46876,8 +46876,8 @@ namespace Opc.Ua
     #region ViewDescription Class
     #if (!OPCUA_EXCLUDE_ViewDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewDescription : IEncodeable, IJsonEncodeable
     {
@@ -47014,8 +47014,8 @@ namespace Opc.Ua
     #region BrowseDescription Class
     #if (!OPCUA_EXCLUDE_BrowseDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseDescription : IEncodeable, IJsonEncodeable
     {
@@ -47188,8 +47188,8 @@ namespace Opc.Ua
 
     #region BrowseDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrowseDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseDescription")]
     public partial class BrowseDescriptionCollection : List<BrowseDescription>, ICloneable
     {
@@ -47250,7 +47250,7 @@ namespace Opc.Ua
     #region BrowseResultMask Enumeration
     #if (!OPCUA_EXCLUDE_BrowseResultMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum BrowseResultMask
@@ -47291,8 +47291,8 @@ namespace Opc.Ua
     #region ReferenceDescription Class
     #if (!OPCUA_EXCLUDE_ReferenceDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceDescription : IEncodeable, IJsonEncodeable
     {
@@ -47478,8 +47478,8 @@ namespace Opc.Ua
 
     #region ReferenceDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReferenceDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescription")]
     public partial class ReferenceDescriptionCollection : List<ReferenceDescription>, ICloneable
     {
@@ -47540,8 +47540,8 @@ namespace Opc.Ua
     #region BrowseResult Class
     #if (!OPCUA_EXCLUDE_BrowseResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseResult : IEncodeable, IJsonEncodeable
     {
@@ -47688,8 +47688,8 @@ namespace Opc.Ua
 
     #region BrowseResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrowseResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseResult")]
     public partial class BrowseResultCollection : List<BrowseResult>, ICloneable
     {
@@ -47750,8 +47750,8 @@ namespace Opc.Ua
     #region BrowseRequest Class
     #if (!OPCUA_EXCLUDE_BrowseRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseRequest : IEncodeable, IJsonEncodeable
     {
@@ -47940,8 +47940,8 @@ namespace Opc.Ua
     #region BrowseResponse Class
     #if (!OPCUA_EXCLUDE_BrowseResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseResponse : IEncodeable, IJsonEncodeable
     {
@@ -48117,8 +48117,8 @@ namespace Opc.Ua
     #region BrowseNextRequest Class
     #if (!OPCUA_EXCLUDE_BrowseNextRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseNextRequest : IEncodeable, IJsonEncodeable
     {
@@ -48281,8 +48281,8 @@ namespace Opc.Ua
     #region BrowseNextResponse Class
     #if (!OPCUA_EXCLUDE_BrowseNextResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseNextResponse : IEncodeable, IJsonEncodeable
     {
@@ -48458,8 +48458,8 @@ namespace Opc.Ua
     #region RelativePathElement Class
     #if (!OPCUA_EXCLUDE_RelativePathElement)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RelativePathElement : IEncodeable, IJsonEncodeable
     {
@@ -48606,8 +48606,8 @@ namespace Opc.Ua
 
     #region RelativePathElementCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfRelativePathElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RelativePathElement")]
     public partial class RelativePathElementCollection : List<RelativePathElement>, ICloneable
     {
@@ -48668,8 +48668,8 @@ namespace Opc.Ua
     #region RelativePath Class
     #if (!OPCUA_EXCLUDE_RelativePath)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RelativePath : IEncodeable, IJsonEncodeable
     {
@@ -48793,8 +48793,8 @@ namespace Opc.Ua
     #region BrowsePath Class
     #if (!OPCUA_EXCLUDE_BrowsePath)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePath : IEncodeable, IJsonEncodeable
     {
@@ -48928,8 +48928,8 @@ namespace Opc.Ua
 
     #region BrowsePathCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrowsePath", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePath")]
     public partial class BrowsePathCollection : List<BrowsePath>, ICloneable
     {
@@ -48990,8 +48990,8 @@ namespace Opc.Ua
     #region BrowsePathTarget Class
     #if (!OPCUA_EXCLUDE_BrowsePathTarget)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePathTarget : IEncodeable, IJsonEncodeable
     {
@@ -49112,8 +49112,8 @@ namespace Opc.Ua
 
     #region BrowsePathTargetCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrowsePathTarget", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathTarget")]
     public partial class BrowsePathTargetCollection : List<BrowsePathTarget>, ICloneable
     {
@@ -49174,8 +49174,8 @@ namespace Opc.Ua
     #region BrowsePathResult Class
     #if (!OPCUA_EXCLUDE_BrowsePathResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePathResult : IEncodeable, IJsonEncodeable
     {
@@ -49309,8 +49309,8 @@ namespace Opc.Ua
 
     #region BrowsePathResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfBrowsePathResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathResult")]
     public partial class BrowsePathResultCollection : List<BrowsePathResult>, ICloneable
     {
@@ -49371,8 +49371,8 @@ namespace Opc.Ua
     #region TranslateBrowsePathsToNodeIdsRequest Class
     #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIdsRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TranslateBrowsePathsToNodeIdsRequest : IEncodeable, IJsonEncodeable
     {
@@ -49522,8 +49522,8 @@ namespace Opc.Ua
     #region TranslateBrowsePathsToNodeIdsResponse Class
     #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIdsResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TranslateBrowsePathsToNodeIdsResponse : IEncodeable, IJsonEncodeable
     {
@@ -49699,8 +49699,8 @@ namespace Opc.Ua
     #region RegisterNodesRequest Class
     #if (!OPCUA_EXCLUDE_RegisterNodesRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterNodesRequest : IEncodeable, IJsonEncodeable
     {
@@ -49850,8 +49850,8 @@ namespace Opc.Ua
     #region RegisterNodesResponse Class
     #if (!OPCUA_EXCLUDE_RegisterNodesResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterNodesResponse : IEncodeable, IJsonEncodeable
     {
@@ -50001,8 +50001,8 @@ namespace Opc.Ua
     #region UnregisterNodesRequest Class
     #if (!OPCUA_EXCLUDE_UnregisterNodesRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnregisterNodesRequest : IEncodeable, IJsonEncodeable
     {
@@ -50152,8 +50152,8 @@ namespace Opc.Ua
     #region UnregisterNodesResponse Class
     #if (!OPCUA_EXCLUDE_UnregisterNodesResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnregisterNodesResponse : IEncodeable, IJsonEncodeable
     {
@@ -50277,8 +50277,8 @@ namespace Opc.Ua
     #region EndpointConfiguration Class
     #if (!OPCUA_EXCLUDE_EndpointConfiguration)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointConfiguration : IEncodeable, IJsonEncodeable
     {
@@ -50490,8 +50490,8 @@ namespace Opc.Ua
 
     #region EndpointConfigurationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEndpointConfiguration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointConfiguration")]
     public partial class EndpointConfigurationCollection : List<EndpointConfiguration>, ICloneable
     {
@@ -50552,8 +50552,8 @@ namespace Opc.Ua
     #region QueryDataDescription Class
     #if (!OPCUA_EXCLUDE_QueryDataDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryDataDescription : IEncodeable, IJsonEncodeable
     {
@@ -50700,8 +50700,8 @@ namespace Opc.Ua
 
     #region QueryDataDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfQueryDataDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataDescription")]
     public partial class QueryDataDescriptionCollection : List<QueryDataDescription>, ICloneable
     {
@@ -50762,8 +50762,8 @@ namespace Opc.Ua
     #region NodeTypeDescription Class
     #if (!OPCUA_EXCLUDE_NodeTypeDescription)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeTypeDescription : IEncodeable, IJsonEncodeable
     {
@@ -50910,8 +50910,8 @@ namespace Opc.Ua
 
     #region NodeTypeDescriptionCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNodeTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeTypeDescription")]
     public partial class NodeTypeDescriptionCollection : List<NodeTypeDescription>, ICloneable
     {
@@ -50972,7 +50972,7 @@ namespace Opc.Ua
     #region FilterOperator Enumeration
     #if (!OPCUA_EXCLUDE_FilterOperator)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum FilterOperator
@@ -51037,8 +51037,8 @@ namespace Opc.Ua
     #region QueryDataSet Class
     #if (!OPCUA_EXCLUDE_QueryDataSet)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryDataSet : IEncodeable, IJsonEncodeable
     {
@@ -51185,8 +51185,8 @@ namespace Opc.Ua
 
     #region QueryDataSetCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfQueryDataSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataSet")]
     public partial class QueryDataSetCollection : List<QueryDataSet>, ICloneable
     {
@@ -51247,8 +51247,8 @@ namespace Opc.Ua
     #region NodeReference Class
     #if (!OPCUA_EXCLUDE_NodeReference)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeReference : IEncodeable, IJsonEncodeable
     {
@@ -51408,8 +51408,8 @@ namespace Opc.Ua
 
     #region NodeReferenceCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNodeReference", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeReference")]
     public partial class NodeReferenceCollection : List<NodeReference>, ICloneable
     {
@@ -51470,8 +51470,8 @@ namespace Opc.Ua
     #region ContentFilterElement Class
     #if (!OPCUA_EXCLUDE_ContentFilterElement)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterElement : IEncodeable, IJsonEncodeable
     {
@@ -51605,8 +51605,8 @@ namespace Opc.Ua
 
     #region ContentFilterElementCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfContentFilterElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElement")]
     public partial class ContentFilterElementCollection : List<ContentFilterElement>, ICloneable
     {
@@ -51667,8 +51667,8 @@ namespace Opc.Ua
     #region ContentFilter Class
     #if (!OPCUA_EXCLUDE_ContentFilter)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilter : IEncodeable, IJsonEncodeable
     {
@@ -51789,8 +51789,8 @@ namespace Opc.Ua
 
     #region ContentFilterCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfContentFilter", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilter")]
     public partial class ContentFilterCollection : List<ContentFilter>, ICloneable
     {
@@ -51851,8 +51851,8 @@ namespace Opc.Ua
     #region FilterOperand Class
     #if (!OPCUA_EXCLUDE_FilterOperand)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FilterOperand : IEncodeable, IJsonEncodeable
     {
@@ -51951,8 +51951,8 @@ namespace Opc.Ua
     #region ElementOperand Class
     #if (!OPCUA_EXCLUDE_ElementOperand)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ElementOperand : Opc.Ua.FilterOperand
     {
@@ -52067,8 +52067,8 @@ namespace Opc.Ua
     #region LiteralOperand Class
     #if (!OPCUA_EXCLUDE_LiteralOperand)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LiteralOperand : Opc.Ua.FilterOperand
     {
@@ -52183,8 +52183,8 @@ namespace Opc.Ua
     #region AttributeOperand Class
     #if (!OPCUA_EXCLUDE_AttributeOperand)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AttributeOperand : Opc.Ua.FilterOperand
     {
@@ -52364,8 +52364,8 @@ namespace Opc.Ua
     #region SimpleAttributeOperand Class
     #if (!OPCUA_EXCLUDE_SimpleAttributeOperand)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SimpleAttributeOperand : Opc.Ua.FilterOperand
     {
@@ -52529,8 +52529,8 @@ namespace Opc.Ua
 
     #region SimpleAttributeOperandCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSimpleAttributeOperand", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleAttributeOperand")]
     public partial class SimpleAttributeOperandCollection : List<SimpleAttributeOperand>, ICloneable
     {
@@ -52591,8 +52591,8 @@ namespace Opc.Ua
     #region ContentFilterElementResult Class
     #if (!OPCUA_EXCLUDE_ContentFilterElementResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterElementResult : IEncodeable, IJsonEncodeable
     {
@@ -52752,8 +52752,8 @@ namespace Opc.Ua
 
     #region ContentFilterElementResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfContentFilterElementResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElementResult")]
     public partial class ContentFilterElementResultCollection : List<ContentFilterElementResult>, ICloneable
     {
@@ -52814,8 +52814,8 @@ namespace Opc.Ua
     #region ContentFilterResult Class
     #if (!OPCUA_EXCLUDE_ContentFilterResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterResult : IEncodeable, IJsonEncodeable
     {
@@ -52965,8 +52965,8 @@ namespace Opc.Ua
     #region ParsingResult Class
     #if (!OPCUA_EXCLUDE_ParsingResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ParsingResult : IEncodeable, IJsonEncodeable
     {
@@ -53126,8 +53126,8 @@ namespace Opc.Ua
 
     #region ParsingResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfParsingResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ParsingResult")]
     public partial class ParsingResultCollection : List<ParsingResult>, ICloneable
     {
@@ -53188,8 +53188,8 @@ namespace Opc.Ua
     #region QueryFirstRequest Class
     #if (!OPCUA_EXCLUDE_QueryFirstRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryFirstRequest : IEncodeable, IJsonEncodeable
     {
@@ -53417,8 +53417,8 @@ namespace Opc.Ua
     #region QueryFirstResponse Class
     #if (!OPCUA_EXCLUDE_QueryFirstResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryFirstResponse : IEncodeable, IJsonEncodeable
     {
@@ -53659,8 +53659,8 @@ namespace Opc.Ua
     #region QueryNextRequest Class
     #if (!OPCUA_EXCLUDE_QueryNextRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryNextRequest : IEncodeable, IJsonEncodeable
     {
@@ -53810,8 +53810,8 @@ namespace Opc.Ua
     #region QueryNextResponse Class
     #if (!OPCUA_EXCLUDE_QueryNextResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryNextResponse : IEncodeable, IJsonEncodeable
     {
@@ -53974,7 +53974,7 @@ namespace Opc.Ua
     #region TimestampsToReturn Enumeration
     #if (!OPCUA_EXCLUDE_TimestampsToReturn)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum TimestampsToReturn
@@ -54000,8 +54000,8 @@ namespace Opc.Ua
     #region ReadValueId Class
     #if (!OPCUA_EXCLUDE_ReadValueId)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadValueId : IEncodeable, IJsonEncodeable
     {
@@ -54148,8 +54148,8 @@ namespace Opc.Ua
 
     #region ReadValueIdCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReadValueId")]
     public partial class ReadValueIdCollection : List<ReadValueId>, ICloneable
     {
@@ -54210,8 +54210,8 @@ namespace Opc.Ua
     #region ReadRequest Class
     #if (!OPCUA_EXCLUDE_ReadRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadRequest : IEncodeable, IJsonEncodeable
     {
@@ -54387,8 +54387,8 @@ namespace Opc.Ua
     #region ReadResponse Class
     #if (!OPCUA_EXCLUDE_ReadResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadResponse : IEncodeable, IJsonEncodeable
     {
@@ -54564,8 +54564,8 @@ namespace Opc.Ua
     #region HistoryReadValueId Class
     #if (!OPCUA_EXCLUDE_HistoryReadValueId)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadValueId : IEncodeable, IJsonEncodeable
     {
@@ -54712,8 +54712,8 @@ namespace Opc.Ua
 
     #region HistoryReadValueIdCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfHistoryReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadValueId")]
     public partial class HistoryReadValueIdCollection : List<HistoryReadValueId>, ICloneable
     {
@@ -54774,8 +54774,8 @@ namespace Opc.Ua
     #region HistoryReadResult Class
     #if (!OPCUA_EXCLUDE_HistoryReadResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadResult : IEncodeable, IJsonEncodeable
     {
@@ -54909,8 +54909,8 @@ namespace Opc.Ua
 
     #region HistoryReadResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfHistoryReadResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadResult")]
     public partial class HistoryReadResultCollection : List<HistoryReadResult>, ICloneable
     {
@@ -54971,8 +54971,8 @@ namespace Opc.Ua
     #region HistoryReadDetails Class
     #if (!OPCUA_EXCLUDE_HistoryReadDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadDetails : IEncodeable, IJsonEncodeable
     {
@@ -55071,8 +55071,8 @@ namespace Opc.Ua
     #region ReadEventDetails Class
     #if (!OPCUA_EXCLUDE_ReadEventDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadEventDetails : Opc.Ua.HistoryReadDetails
     {
@@ -55239,8 +55239,8 @@ namespace Opc.Ua
     #region ReadEventDetails2 Class
     #if (!OPCUA_EXCLUDE_ReadEventDetails2)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadEventDetails2 : Opc.Ua.ReadEventDetails
     {
@@ -55355,7 +55355,7 @@ namespace Opc.Ua
     #region SortOrderType Enumeration
     #if (!OPCUA_EXCLUDE_SortOrderType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum SortOrderType
@@ -55372,8 +55372,8 @@ namespace Opc.Ua
     #region SortRuleElement Class
     #if (!OPCUA_EXCLUDE_SortRuleElement)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SortRuleElement : IEncodeable, IJsonEncodeable
     {
@@ -55507,8 +55507,8 @@ namespace Opc.Ua
 
     #region SortRuleElementCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSortRuleElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SortRuleElement")]
     public partial class SortRuleElementCollection : List<SortRuleElement>, ICloneable
     {
@@ -55569,8 +55569,8 @@ namespace Opc.Ua
     #region ReadEventDetailsSorted Class
     #if (!OPCUA_EXCLUDE_ReadEventDetailsSorted)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadEventDetailsSorted : Opc.Ua.ReadEventDetails
     {
@@ -55698,8 +55698,8 @@ namespace Opc.Ua
     #region ReadRawModifiedDetails Class
     #if (!OPCUA_EXCLUDE_ReadRawModifiedDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadRawModifiedDetails : Opc.Ua.HistoryReadDetails
     {
@@ -55866,8 +55866,8 @@ namespace Opc.Ua
     #region ReadProcessedDetails Class
     #if (!OPCUA_EXCLUDE_ReadProcessedDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadProcessedDetails : Opc.Ua.HistoryReadDetails
     {
@@ -56060,8 +56060,8 @@ namespace Opc.Ua
     #region ReadAtTimeDetails Class
     #if (!OPCUA_EXCLUDE_ReadAtTimeDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadAtTimeDetails : Opc.Ua.HistoryReadDetails
     {
@@ -56202,8 +56202,8 @@ namespace Opc.Ua
     #region ReadAnnotationDataDetails Class
     #if (!OPCUA_EXCLUDE_ReadAnnotationDataDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadAnnotationDataDetails : Opc.Ua.HistoryReadDetails
     {
@@ -56331,8 +56331,8 @@ namespace Opc.Ua
     #region HistoryData Class
     #if (!OPCUA_EXCLUDE_HistoryData)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryData : IEncodeable, IJsonEncodeable
     {
@@ -56456,8 +56456,8 @@ namespace Opc.Ua
     #region ModificationInfo Class
     #if (!OPCUA_EXCLUDE_ModificationInfo)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModificationInfo : IEncodeable, IJsonEncodeable
     {
@@ -56591,8 +56591,8 @@ namespace Opc.Ua
 
     #region ModificationInfoCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfModificationInfo", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModificationInfo")]
     public partial class ModificationInfoCollection : List<ModificationInfo>, ICloneable
     {
@@ -56653,8 +56653,8 @@ namespace Opc.Ua
     #region HistoryModifiedData Class
     #if (!OPCUA_EXCLUDE_HistoryModifiedData)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryModifiedData : Opc.Ua.HistoryData
     {
@@ -56782,8 +56782,8 @@ namespace Opc.Ua
     #region HistoryEvent Class
     #if (!OPCUA_EXCLUDE_HistoryEvent)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryEvent : IEncodeable, IJsonEncodeable
     {
@@ -56907,8 +56907,8 @@ namespace Opc.Ua
     #region HistoryModifiedEvent Class
     #if (!OPCUA_EXCLUDE_HistoryModifiedEvent)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryModifiedEvent : Opc.Ua.HistoryEvent
     {
@@ -57036,8 +57036,8 @@ namespace Opc.Ua
     #region HistoryReadRequest Class
     #if (!OPCUA_EXCLUDE_HistoryReadRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadRequest : IEncodeable, IJsonEncodeable
     {
@@ -57226,8 +57226,8 @@ namespace Opc.Ua
     #region HistoryReadResponse Class
     #if (!OPCUA_EXCLUDE_HistoryReadResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadResponse : IEncodeable, IJsonEncodeable
     {
@@ -57403,8 +57403,8 @@ namespace Opc.Ua
     #region WriteValue Class
     #if (!OPCUA_EXCLUDE_WriteValue)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteValue : IEncodeable, IJsonEncodeable
     {
@@ -57551,8 +57551,8 @@ namespace Opc.Ua
 
     #region WriteValueCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfWriteValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriteValue")]
     public partial class WriteValueCollection : List<WriteValue>, ICloneable
     {
@@ -57613,8 +57613,8 @@ namespace Opc.Ua
     #region WriteRequest Class
     #if (!OPCUA_EXCLUDE_WriteRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteRequest : IEncodeable, IJsonEncodeable
     {
@@ -57764,8 +57764,8 @@ namespace Opc.Ua
     #region WriteResponse Class
     #if (!OPCUA_EXCLUDE_WriteResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteResponse : IEncodeable, IJsonEncodeable
     {
@@ -57941,8 +57941,8 @@ namespace Opc.Ua
     #region HistoryUpdateDetails Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateDetails : IEncodeable, IJsonEncodeable
     {
@@ -58041,7 +58041,7 @@ namespace Opc.Ua
     #region HistoryUpdateType Enumeration
     #if (!OPCUA_EXCLUDE_HistoryUpdateType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum HistoryUpdateType
@@ -58064,7 +58064,7 @@ namespace Opc.Ua
     #region PerformUpdateType Enumeration
     #if (!OPCUA_EXCLUDE_PerformUpdateType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum PerformUpdateType
@@ -58087,8 +58087,8 @@ namespace Opc.Ua
     #region UpdateDataDetails Class
     #if (!OPCUA_EXCLUDE_UpdateDataDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateDataDetails : Opc.Ua.HistoryUpdateDetails
     {
@@ -58242,8 +58242,8 @@ namespace Opc.Ua
     #region UpdateStructureDataDetails Class
     #if (!OPCUA_EXCLUDE_UpdateStructureDataDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateStructureDataDetails : Opc.Ua.HistoryUpdateDetails
     {
@@ -58397,8 +58397,8 @@ namespace Opc.Ua
     #region UpdateEventDetails Class
     #if (!OPCUA_EXCLUDE_UpdateEventDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateEventDetails : Opc.Ua.HistoryUpdateDetails
     {
@@ -58578,8 +58578,8 @@ namespace Opc.Ua
     #region DeleteRawModifiedDetails Class
     #if (!OPCUA_EXCLUDE_DeleteRawModifiedDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteRawModifiedDetails : Opc.Ua.HistoryUpdateDetails
     {
@@ -58733,8 +58733,8 @@ namespace Opc.Ua
     #region DeleteAtTimeDetails Class
     #if (!OPCUA_EXCLUDE_DeleteAtTimeDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteAtTimeDetails : Opc.Ua.HistoryUpdateDetails
     {
@@ -58875,8 +58875,8 @@ namespace Opc.Ua
     #region DeleteEventDetails Class
     #if (!OPCUA_EXCLUDE_DeleteEventDetails)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteEventDetails : Opc.Ua.HistoryUpdateDetails
     {
@@ -59017,8 +59017,8 @@ namespace Opc.Ua
     #region HistoryUpdateResult Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateResult : IEncodeable, IJsonEncodeable
     {
@@ -59178,8 +59178,8 @@ namespace Opc.Ua
 
     #region HistoryUpdateResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfHistoryUpdateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryUpdateResult")]
     public partial class HistoryUpdateResultCollection : List<HistoryUpdateResult>, ICloneable
     {
@@ -59240,8 +59240,8 @@ namespace Opc.Ua
     #region HistoryUpdateRequest Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateRequest : IEncodeable, IJsonEncodeable
     {
@@ -59391,8 +59391,8 @@ namespace Opc.Ua
     #region HistoryUpdateResponse Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateResponse : IEncodeable, IJsonEncodeable
     {
@@ -59568,8 +59568,8 @@ namespace Opc.Ua
     #region CallMethodRequest Class
     #if (!OPCUA_EXCLUDE_CallMethodRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallMethodRequest : IEncodeable, IJsonEncodeable
     {
@@ -59716,8 +59716,8 @@ namespace Opc.Ua
 
     #region CallMethodRequestCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfCallMethodRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodRequest")]
     public partial class CallMethodRequestCollection : List<CallMethodRequest>, ICloneable
     {
@@ -59778,8 +59778,8 @@ namespace Opc.Ua
     #region CallMethodResult Class
     #if (!OPCUA_EXCLUDE_CallMethodResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallMethodResult : IEncodeable, IJsonEncodeable
     {
@@ -59965,8 +59965,8 @@ namespace Opc.Ua
 
     #region CallMethodResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfCallMethodResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodResult")]
     public partial class CallMethodResultCollection : List<CallMethodResult>, ICloneable
     {
@@ -60027,8 +60027,8 @@ namespace Opc.Ua
     #region CallRequest Class
     #if (!OPCUA_EXCLUDE_CallRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallRequest : IEncodeable, IJsonEncodeable
     {
@@ -60178,8 +60178,8 @@ namespace Opc.Ua
     #region CallResponse Class
     #if (!OPCUA_EXCLUDE_CallResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallResponse : IEncodeable, IJsonEncodeable
     {
@@ -60355,7 +60355,7 @@ namespace Opc.Ua
     #region MonitoringMode Enumeration
     #if (!OPCUA_EXCLUDE_MonitoringMode)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum MonitoringMode
@@ -60375,7 +60375,7 @@ namespace Opc.Ua
     #region DataChangeTrigger Enumeration
     #if (!OPCUA_EXCLUDE_DataChangeTrigger)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum DataChangeTrigger
@@ -60395,7 +60395,7 @@ namespace Opc.Ua
     #region DeadbandType Enumeration
     #if (!OPCUA_EXCLUDE_DeadbandType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum DeadbandType
@@ -60415,8 +60415,8 @@ namespace Opc.Ua
     #region MonitoringFilter Class
     #if (!OPCUA_EXCLUDE_MonitoringFilter)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringFilter : IEncodeable, IJsonEncodeable
     {
@@ -60515,8 +60515,8 @@ namespace Opc.Ua
     #region DataChangeFilter Class
     #if (!OPCUA_EXCLUDE_DataChangeFilter)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataChangeFilter : Opc.Ua.MonitoringFilter
     {
@@ -60657,8 +60657,8 @@ namespace Opc.Ua
     #region EventFilter Class
     #if (!OPCUA_EXCLUDE_EventFilter)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFilter : Opc.Ua.MonitoringFilter
     {
@@ -60812,8 +60812,8 @@ namespace Opc.Ua
     #region AggregateConfiguration Class
     #if (!OPCUA_EXCLUDE_AggregateConfiguration)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateConfiguration : IEncodeable, IJsonEncodeable
     {
@@ -60976,8 +60976,8 @@ namespace Opc.Ua
     #region AggregateFilter Class
     #if (!OPCUA_EXCLUDE_AggregateFilter)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateFilter : Opc.Ua.MonitoringFilter
     {
@@ -61144,8 +61144,8 @@ namespace Opc.Ua
     #region MonitoringFilterResult Class
     #if (!OPCUA_EXCLUDE_MonitoringFilterResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringFilterResult : IEncodeable, IJsonEncodeable
     {
@@ -61244,8 +61244,8 @@ namespace Opc.Ua
     #region EventFilterResult Class
     #if (!OPCUA_EXCLUDE_EventFilterResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFilterResult : Opc.Ua.MonitoringFilterResult
     {
@@ -61425,8 +61425,8 @@ namespace Opc.Ua
     #region AggregateFilterResult Class
     #if (!OPCUA_EXCLUDE_AggregateFilterResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateFilterResult : Opc.Ua.MonitoringFilterResult
     {
@@ -61580,8 +61580,8 @@ namespace Opc.Ua
     #region MonitoringParameters Class
     #if (!OPCUA_EXCLUDE_MonitoringParameters)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringParameters : IEncodeable, IJsonEncodeable
     {
@@ -61744,8 +61744,8 @@ namespace Opc.Ua
     #region MonitoredItemCreateRequest Class
     #if (!OPCUA_EXCLUDE_MonitoredItemCreateRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemCreateRequest : IEncodeable, IJsonEncodeable
     {
@@ -61905,8 +61905,8 @@ namespace Opc.Ua
 
     #region MonitoredItemCreateRequestCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateRequest")]
     public partial class MonitoredItemCreateRequestCollection : List<MonitoredItemCreateRequest>, ICloneable
     {
@@ -61967,8 +61967,8 @@ namespace Opc.Ua
     #region MonitoredItemCreateResult Class
     #if (!OPCUA_EXCLUDE_MonitoredItemCreateResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemCreateResult : IEncodeable, IJsonEncodeable
     {
@@ -62128,8 +62128,8 @@ namespace Opc.Ua
 
     #region MonitoredItemCreateResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateResult")]
     public partial class MonitoredItemCreateResultCollection : List<MonitoredItemCreateResult>, ICloneable
     {
@@ -62190,8 +62190,8 @@ namespace Opc.Ua
     #region CreateMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_CreateMonitoredItemsRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateMonitoredItemsRequest : IEncodeable, IJsonEncodeable
     {
@@ -62367,8 +62367,8 @@ namespace Opc.Ua
     #region CreateMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_CreateMonitoredItemsResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateMonitoredItemsResponse : IEncodeable, IJsonEncodeable
     {
@@ -62544,8 +62544,8 @@ namespace Opc.Ua
     #region MonitoredItemModifyRequest Class
     #if (!OPCUA_EXCLUDE_MonitoredItemModifyRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemModifyRequest : IEncodeable, IJsonEncodeable
     {
@@ -62679,8 +62679,8 @@ namespace Opc.Ua
 
     #region MonitoredItemModifyRequestCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyRequest")]
     public partial class MonitoredItemModifyRequestCollection : List<MonitoredItemModifyRequest>, ICloneable
     {
@@ -62741,8 +62741,8 @@ namespace Opc.Ua
     #region MonitoredItemModifyResult Class
     #if (!OPCUA_EXCLUDE_MonitoredItemModifyResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemModifyResult : IEncodeable, IJsonEncodeable
     {
@@ -62889,8 +62889,8 @@ namespace Opc.Ua
 
     #region MonitoredItemModifyResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyResult")]
     public partial class MonitoredItemModifyResultCollection : List<MonitoredItemModifyResult>, ICloneable
     {
@@ -62951,8 +62951,8 @@ namespace Opc.Ua
     #region ModifyMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_ModifyMonitoredItemsRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifyMonitoredItemsRequest : IEncodeable, IJsonEncodeable
     {
@@ -63128,8 +63128,8 @@ namespace Opc.Ua
     #region ModifyMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_ModifyMonitoredItemsResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifyMonitoredItemsResponse : IEncodeable, IJsonEncodeable
     {
@@ -63305,8 +63305,8 @@ namespace Opc.Ua
     #region SetMonitoringModeRequest Class
     #if (!OPCUA_EXCLUDE_SetMonitoringModeRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetMonitoringModeRequest : IEncodeable, IJsonEncodeable
     {
@@ -63482,8 +63482,8 @@ namespace Opc.Ua
     #region SetMonitoringModeResponse Class
     #if (!OPCUA_EXCLUDE_SetMonitoringModeResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetMonitoringModeResponse : IEncodeable, IJsonEncodeable
     {
@@ -63659,8 +63659,8 @@ namespace Opc.Ua
     #region SetTriggeringRequest Class
     #if (!OPCUA_EXCLUDE_SetTriggeringRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetTriggeringRequest : IEncodeable, IJsonEncodeable
     {
@@ -63862,8 +63862,8 @@ namespace Opc.Ua
     #region SetTriggeringResponse Class
     #if (!OPCUA_EXCLUDE_SetTriggeringResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetTriggeringResponse : IEncodeable, IJsonEncodeable
     {
@@ -64091,8 +64091,8 @@ namespace Opc.Ua
     #region DeleteMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_DeleteMonitoredItemsRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteMonitoredItemsRequest : IEncodeable, IJsonEncodeable
     {
@@ -64255,8 +64255,8 @@ namespace Opc.Ua
     #region DeleteMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_DeleteMonitoredItemsResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteMonitoredItemsResponse : IEncodeable, IJsonEncodeable
     {
@@ -64432,8 +64432,8 @@ namespace Opc.Ua
     #region CreateSubscriptionRequest Class
     #if (!OPCUA_EXCLUDE_CreateSubscriptionRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSubscriptionRequest : IEncodeable, IJsonEncodeable
     {
@@ -64635,8 +64635,8 @@ namespace Opc.Ua
     #region CreateSubscriptionResponse Class
     #if (!OPCUA_EXCLUDE_CreateSubscriptionResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSubscriptionResponse : IEncodeable, IJsonEncodeable
     {
@@ -64812,8 +64812,8 @@ namespace Opc.Ua
     #region ModifySubscriptionRequest Class
     #if (!OPCUA_EXCLUDE_ModifySubscriptionRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifySubscriptionRequest : IEncodeable, IJsonEncodeable
     {
@@ -65015,8 +65015,8 @@ namespace Opc.Ua
     #region ModifySubscriptionResponse Class
     #if (!OPCUA_EXCLUDE_ModifySubscriptionResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifySubscriptionResponse : IEncodeable, IJsonEncodeable
     {
@@ -65179,8 +65179,8 @@ namespace Opc.Ua
     #region SetPublishingModeRequest Class
     #if (!OPCUA_EXCLUDE_SetPublishingModeRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetPublishingModeRequest : IEncodeable, IJsonEncodeable
     {
@@ -65343,8 +65343,8 @@ namespace Opc.Ua
     #region SetPublishingModeResponse Class
     #if (!OPCUA_EXCLUDE_SetPublishingModeResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetPublishingModeResponse : IEncodeable, IJsonEncodeable
     {
@@ -65520,8 +65520,8 @@ namespace Opc.Ua
     #region NotificationMessage Class
     #if (!OPCUA_EXCLUDE_NotificationMessage)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NotificationMessage : IEncodeable, IJsonEncodeable
     {
@@ -65671,8 +65671,8 @@ namespace Opc.Ua
     #region NotificationData Class
     #if (!OPCUA_EXCLUDE_NotificationData)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NotificationData : IEncodeable, IJsonEncodeable
     {
@@ -65771,8 +65771,8 @@ namespace Opc.Ua
     #region DataChangeNotification Class
     #if (!OPCUA_EXCLUDE_DataChangeNotification)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataChangeNotification : Opc.Ua.NotificationData
     {
@@ -65926,8 +65926,8 @@ namespace Opc.Ua
     #region MonitoredItemNotification Class
     #if (!OPCUA_EXCLUDE_MonitoredItemNotification)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemNotification : IEncodeable, IJsonEncodeable
     {
@@ -66048,8 +66048,8 @@ namespace Opc.Ua
 
     #region MonitoredItemNotificationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfMonitoredItemNotification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemNotification")]
     public partial class MonitoredItemNotificationCollection : List<MonitoredItemNotification>, ICloneable
     {
@@ -66110,8 +66110,8 @@ namespace Opc.Ua
     #region EventNotificationList Class
     #if (!OPCUA_EXCLUDE_EventNotificationList)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventNotificationList : Opc.Ua.NotificationData
     {
@@ -66239,8 +66239,8 @@ namespace Opc.Ua
     #region EventFieldList Class
     #if (!OPCUA_EXCLUDE_EventFieldList)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFieldList : IEncodeable, IJsonEncodeable
     {
@@ -66374,8 +66374,8 @@ namespace Opc.Ua
 
     #region EventFieldListCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EventFieldList")]
     public partial class EventFieldListCollection : List<EventFieldList>, ICloneable
     {
@@ -66436,8 +66436,8 @@ namespace Opc.Ua
     #region HistoryEventFieldList Class
     #if (!OPCUA_EXCLUDE_HistoryEventFieldList)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryEventFieldList : IEncodeable, IJsonEncodeable
     {
@@ -66558,8 +66558,8 @@ namespace Opc.Ua
 
     #region HistoryEventFieldListCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfHistoryEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryEventFieldList")]
     public partial class HistoryEventFieldListCollection : List<HistoryEventFieldList>, ICloneable
     {
@@ -66620,8 +66620,8 @@ namespace Opc.Ua
     #region StatusChangeNotification Class
     #if (!OPCUA_EXCLUDE_StatusChangeNotification)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StatusChangeNotification : Opc.Ua.NotificationData
     {
@@ -66749,8 +66749,8 @@ namespace Opc.Ua
     #region SubscriptionAcknowledgement Class
     #if (!OPCUA_EXCLUDE_SubscriptionAcknowledgement)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscriptionAcknowledgement : IEncodeable, IJsonEncodeable
     {
@@ -66871,8 +66871,8 @@ namespace Opc.Ua
 
     #region SubscriptionAcknowledgementCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSubscriptionAcknowledgement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionAcknowledgement")]
     public partial class SubscriptionAcknowledgementCollection : List<SubscriptionAcknowledgement>, ICloneable
     {
@@ -66933,8 +66933,8 @@ namespace Opc.Ua
     #region PublishRequest Class
     #if (!OPCUA_EXCLUDE_PublishRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishRequest : IEncodeable, IJsonEncodeable
     {
@@ -67084,8 +67084,8 @@ namespace Opc.Ua
     #region PublishResponse Class
     #if (!OPCUA_EXCLUDE_PublishResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishResponse : IEncodeable, IJsonEncodeable
     {
@@ -67339,8 +67339,8 @@ namespace Opc.Ua
     #region RepublishRequest Class
     #if (!OPCUA_EXCLUDE_RepublishRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RepublishRequest : IEncodeable, IJsonEncodeable
     {
@@ -67490,8 +67490,8 @@ namespace Opc.Ua
     #region RepublishResponse Class
     #if (!OPCUA_EXCLUDE_RepublishResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RepublishResponse : IEncodeable, IJsonEncodeable
     {
@@ -67641,8 +67641,8 @@ namespace Opc.Ua
     #region TransferResult Class
     #if (!OPCUA_EXCLUDE_TransferResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferResult : IEncodeable, IJsonEncodeable
     {
@@ -67776,8 +67776,8 @@ namespace Opc.Ua
 
     #region TransferResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfTransferResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransferResult")]
     public partial class TransferResultCollection : List<TransferResult>, ICloneable
     {
@@ -67838,8 +67838,8 @@ namespace Opc.Ua
     #region TransferSubscriptionsRequest Class
     #if (!OPCUA_EXCLUDE_TransferSubscriptionsRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferSubscriptionsRequest : IEncodeable, IJsonEncodeable
     {
@@ -68002,8 +68002,8 @@ namespace Opc.Ua
     #region TransferSubscriptionsResponse Class
     #if (!OPCUA_EXCLUDE_TransferSubscriptionsResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferSubscriptionsResponse : IEncodeable, IJsonEncodeable
     {
@@ -68179,8 +68179,8 @@ namespace Opc.Ua
     #region DeleteSubscriptionsRequest Class
     #if (!OPCUA_EXCLUDE_DeleteSubscriptionsRequest)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteSubscriptionsRequest : IEncodeable, IJsonEncodeable
     {
@@ -68330,8 +68330,8 @@ namespace Opc.Ua
     #region DeleteSubscriptionsResponse Class
     #if (!OPCUA_EXCLUDE_DeleteSubscriptionsResponse)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteSubscriptionsResponse : IEncodeable, IJsonEncodeable
     {
@@ -68507,8 +68507,8 @@ namespace Opc.Ua
     #region BuildInfo Class
     #if (!OPCUA_EXCLUDE_BuildInfo)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BuildInfo : IEncodeable, IJsonEncodeable
     {
@@ -68684,7 +68684,7 @@ namespace Opc.Ua
     #region RedundancySupport Enumeration
     #if (!OPCUA_EXCLUDE_RedundancySupport)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum RedundancySupport
@@ -68713,7 +68713,7 @@ namespace Opc.Ua
     #region ServerState Enumeration
     #if (!OPCUA_EXCLUDE_ServerState)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ServerState
@@ -68748,8 +68748,8 @@ namespace Opc.Ua
     #region RedundantServerDataType Class
     #if (!OPCUA_EXCLUDE_RedundantServerDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RedundantServerDataType : IEncodeable, IJsonEncodeable
     {
@@ -68883,8 +68883,8 @@ namespace Opc.Ua
 
     #region RedundantServerDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfRedundantServerDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RedundantServerDataType")]
     public partial class RedundantServerDataTypeCollection : List<RedundantServerDataType>, ICloneable
     {
@@ -68945,8 +68945,8 @@ namespace Opc.Ua
     #region EndpointUrlListDataType Class
     #if (!OPCUA_EXCLUDE_EndpointUrlListDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointUrlListDataType : IEncodeable, IJsonEncodeable
     {
@@ -69067,8 +69067,8 @@ namespace Opc.Ua
 
     #region EndpointUrlListDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEndpointUrlListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointUrlListDataType")]
     public partial class EndpointUrlListDataTypeCollection : List<EndpointUrlListDataType>, ICloneable
     {
@@ -69129,8 +69129,8 @@ namespace Opc.Ua
     #region NetworkGroupDataType Class
     #if (!OPCUA_EXCLUDE_NetworkGroupDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkGroupDataType : IEncodeable, IJsonEncodeable
     {
@@ -69264,8 +69264,8 @@ namespace Opc.Ua
 
     #region NetworkGroupDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfNetworkGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkGroupDataType")]
     public partial class NetworkGroupDataTypeCollection : List<NetworkGroupDataType>, ICloneable
     {
@@ -69326,8 +69326,8 @@ namespace Opc.Ua
     #region SamplingIntervalDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SamplingIntervalDiagnosticsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SamplingIntervalDiagnosticsDataType : IEncodeable, IJsonEncodeable
     {
@@ -69474,8 +69474,8 @@ namespace Opc.Ua
 
     #region SamplingIntervalDiagnosticsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSamplingIntervalDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SamplingIntervalDiagnosticsDataType")]
     public partial class SamplingIntervalDiagnosticsDataTypeCollection : List<SamplingIntervalDiagnosticsDataType>, ICloneable
     {
@@ -69536,8 +69536,8 @@ namespace Opc.Ua
     #region ServerDiagnosticsSummaryDataType Class
     #if (!OPCUA_EXCLUDE_ServerDiagnosticsSummaryDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerDiagnosticsSummaryDataType : IEncodeable, IJsonEncodeable
     {
@@ -69791,8 +69791,8 @@ namespace Opc.Ua
     #region ServerStatusDataType Class
     #if (!OPCUA_EXCLUDE_ServerStatusDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerStatusDataType : IEncodeable, IJsonEncodeable
     {
@@ -69981,8 +69981,8 @@ namespace Opc.Ua
     #region SessionDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SessionDiagnosticsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionDiagnosticsDataType : IEncodeable, IJsonEncodeable
     {
@@ -71039,8 +71039,8 @@ namespace Opc.Ua
 
     #region SessionDiagnosticsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSessionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionDiagnosticsDataType")]
     public partial class SessionDiagnosticsDataTypeCollection : List<SessionDiagnosticsDataType>, ICloneable
     {
@@ -71101,8 +71101,8 @@ namespace Opc.Ua
     #region SessionSecurityDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SessionSecurityDiagnosticsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionSecurityDiagnosticsDataType : IEncodeable, IJsonEncodeable
     {
@@ -71327,8 +71327,8 @@ namespace Opc.Ua
 
     #region SessionSecurityDiagnosticsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSessionSecurityDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionSecurityDiagnosticsDataType")]
     public partial class SessionSecurityDiagnosticsDataTypeCollection : List<SessionSecurityDiagnosticsDataType>, ICloneable
     {
@@ -71389,8 +71389,8 @@ namespace Opc.Ua
     #region ServiceCounterDataType Class
     #if (!OPCUA_EXCLUDE_ServiceCounterDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServiceCounterDataType : IEncodeable, IJsonEncodeable
     {
@@ -71514,8 +71514,8 @@ namespace Opc.Ua
     #region StatusResult Class
     #if (!OPCUA_EXCLUDE_StatusResult)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StatusResult : IEncodeable, IJsonEncodeable
     {
@@ -71636,8 +71636,8 @@ namespace Opc.Ua
 
     #region StatusResultCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfStatusResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StatusResult")]
     public partial class StatusResultCollection : List<StatusResult>, ICloneable
     {
@@ -71698,8 +71698,8 @@ namespace Opc.Ua
     #region SubscriptionDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SubscriptionDiagnosticsDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscriptionDiagnosticsDataType : IEncodeable, IJsonEncodeable
     {
@@ -72197,8 +72197,8 @@ namespace Opc.Ua
 
     #region SubscriptionDiagnosticsDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSubscriptionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionDiagnosticsDataType")]
     public partial class SubscriptionDiagnosticsDataTypeCollection : List<SubscriptionDiagnosticsDataType>, ICloneable
     {
@@ -72259,7 +72259,7 @@ namespace Opc.Ua
     #region ModelChangeStructureVerbMask Enumeration
     #if (!OPCUA_EXCLUDE_ModelChangeStructureVerbMask)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ModelChangeStructureVerbMask
@@ -72285,8 +72285,8 @@ namespace Opc.Ua
     #region ModelChangeStructureDataType Class
     #if (!OPCUA_EXCLUDE_ModelChangeStructureDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModelChangeStructureDataType : IEncodeable, IJsonEncodeable
     {
@@ -72420,8 +72420,8 @@ namespace Opc.Ua
 
     #region ModelChangeStructureDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfModelChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModelChangeStructureDataType")]
     public partial class ModelChangeStructureDataTypeCollection : List<ModelChangeStructureDataType>, ICloneable
     {
@@ -72482,8 +72482,8 @@ namespace Opc.Ua
     #region SemanticChangeStructureDataType Class
     #if (!OPCUA_EXCLUDE_SemanticChangeStructureDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SemanticChangeStructureDataType : IEncodeable, IJsonEncodeable
     {
@@ -72604,8 +72604,8 @@ namespace Opc.Ua
 
     #region SemanticChangeStructureDataTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfSemanticChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SemanticChangeStructureDataType")]
     public partial class SemanticChangeStructureDataTypeCollection : List<SemanticChangeStructureDataType>, ICloneable
     {
@@ -72666,8 +72666,8 @@ namespace Opc.Ua
     #region Range Class
     #if (!OPCUA_EXCLUDE_Range)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Range : IEncodeable, IJsonEncodeable
     {
@@ -72788,8 +72788,8 @@ namespace Opc.Ua
 
     #region RangeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfRange", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Range")]
     public partial class RangeCollection : List<Range>, ICloneable
     {
@@ -72850,8 +72850,8 @@ namespace Opc.Ua
     #region EUInformation Class
     #if (!OPCUA_EXCLUDE_EUInformation)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EUInformation : IEncodeable, IJsonEncodeable
     {
@@ -72998,8 +72998,8 @@ namespace Opc.Ua
 
     #region EUInformationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfEUInformation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EUInformation")]
     public partial class EUInformationCollection : List<EUInformation>, ICloneable
     {
@@ -73060,7 +73060,7 @@ namespace Opc.Ua
     #region AxisScaleEnumeration Enumeration
     #if (!OPCUA_EXCLUDE_AxisScaleEnumeration)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum AxisScaleEnumeration
@@ -73077,8 +73077,8 @@ namespace Opc.Ua
 
     #region AxisScaleEnumerationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAxisScaleEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AxisScaleEnumeration")]
     public partial class AxisScaleEnumerationCollection : List<AxisScaleEnumeration>, ICloneable
     {
@@ -73139,8 +73139,8 @@ namespace Opc.Ua
     #region ComplexNumberType Class
     #if (!OPCUA_EXCLUDE_ComplexNumberType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ComplexNumberType : IEncodeable, IJsonEncodeable
     {
@@ -73261,8 +73261,8 @@ namespace Opc.Ua
 
     #region ComplexNumberTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfComplexNumberType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ComplexNumberType")]
     public partial class ComplexNumberTypeCollection : List<ComplexNumberType>, ICloneable
     {
@@ -73323,8 +73323,8 @@ namespace Opc.Ua
     #region DoubleComplexNumberType Class
     #if (!OPCUA_EXCLUDE_DoubleComplexNumberType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DoubleComplexNumberType : IEncodeable, IJsonEncodeable
     {
@@ -73445,8 +73445,8 @@ namespace Opc.Ua
 
     #region DoubleComplexNumberTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfDoubleComplexNumberType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DoubleComplexNumberType")]
     public partial class DoubleComplexNumberTypeCollection : List<DoubleComplexNumberType>, ICloneable
     {
@@ -73507,8 +73507,8 @@ namespace Opc.Ua
     #region AxisInformation Class
     #if (!OPCUA_EXCLUDE_AxisInformation)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AxisInformation : IEncodeable, IJsonEncodeable
     {
@@ -73707,8 +73707,8 @@ namespace Opc.Ua
 
     #region AxisInformationCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfAxisInformation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AxisInformation")]
     public partial class AxisInformationCollection : List<AxisInformation>, ICloneable
     {
@@ -73769,8 +73769,8 @@ namespace Opc.Ua
     #region XVType Class
     #if (!OPCUA_EXCLUDE_XVType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class XVType : IEncodeable, IJsonEncodeable
     {
@@ -73891,8 +73891,8 @@ namespace Opc.Ua
 
     #region XVTypeCollection Class
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [CollectionDataContract(Name = "ListOfXVType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "XVType")]
     public partial class XVTypeCollection : List<XVType>, ICloneable
     {
@@ -73953,8 +73953,8 @@ namespace Opc.Ua
     #region ProgramDiagnosticDataType Class
     #if (!OPCUA_EXCLUDE_ProgramDiagnosticDataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ProgramDiagnosticDataType : IEncodeable, IJsonEncodeable
     {
@@ -74221,8 +74221,8 @@ namespace Opc.Ua
     #region ProgramDiagnostic2DataType Class
     #if (!OPCUA_EXCLUDE_ProgramDiagnostic2DataType)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ProgramDiagnostic2DataType : IEncodeable, IJsonEncodeable
     {
@@ -74528,8 +74528,8 @@ namespace Opc.Ua
     #region Annotation Class
     #if (!OPCUA_EXCLUDE_Annotation)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Annotation : IEncodeable, IJsonEncodeable
     {
@@ -74666,7 +74666,7 @@ namespace Opc.Ua
     #region ExceptionDeviationFormat Enumeration
     #if (!OPCUA_EXCLUDE_ExceptionDeviationFormat)
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
 
     public enum ExceptionDeviationFormat

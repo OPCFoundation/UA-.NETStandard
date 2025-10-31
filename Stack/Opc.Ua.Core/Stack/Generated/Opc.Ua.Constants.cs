@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,8 +40,8 @@ namespace Opc.Ua
 {
     #region DataType Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class DataTypes
     {
         public const uint BaseDataType = 24;
@@ -1034,8 +1034,8 @@ namespace Opc.Ua
 
     #region Method Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class Methods
     {
         public const uint OPCUANamespaceMetadata_NamespaceFile_Open = 15971;
@@ -2620,8 +2620,8 @@ namespace Opc.Ua
 
     #region Object Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class Objects
     {
         public const uint DefaultBinary = 3062;
@@ -5464,8 +5464,8 @@ namespace Opc.Ua
 
     #region ObjectType Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class ObjectTypes
     {
         public const uint BaseObjectType = 58;
@@ -6034,8 +6034,8 @@ namespace Opc.Ua
 
     #region ReferenceType Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class ReferenceTypes
     {
         public const uint References = 31;
@@ -6202,8 +6202,8 @@ namespace Opc.Ua
 
     #region Variable Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class Variables
     {
         public const uint DataTypeDescriptionType_DataTypeVersion = 104;
@@ -18006,8 +18006,8 @@ namespace Opc.Ua
 
     #region VariableType Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class VariableTypes
     {
         public const uint BaseVariableType = 62;
@@ -18138,8 +18138,8 @@ namespace Opc.Ua
 
     #region DataType Node Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class DataTypeIds
     {
         public static readonly NodeId BaseDataType = new NodeId(Opc.Ua.DataTypes.BaseDataType);
@@ -19132,8 +19132,8 @@ namespace Opc.Ua
 
     #region Method Node Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class MethodIds
     {
         public static readonly NodeId OPCUANamespaceMetadata_NamespaceFile_Open = new NodeId(Opc.Ua.Methods.OPCUANamespaceMetadata_NamespaceFile_Open);
@@ -20718,8 +20718,8 @@ namespace Opc.Ua
 
     #region Object Node Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class ObjectIds
     {
         public static readonly NodeId DefaultBinary = new NodeId(Opc.Ua.Objects.DefaultBinary);
@@ -23562,8 +23562,8 @@ namespace Opc.Ua
 
     #region ObjectType Node Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class ObjectTypeIds
     {
         public static readonly NodeId BaseObjectType = new NodeId(Opc.Ua.ObjectTypes.BaseObjectType);
@@ -24132,8 +24132,8 @@ namespace Opc.Ua
 
     #region ReferenceType Node Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class ReferenceTypeIds
     {
         public static readonly NodeId References = new NodeId(Opc.Ua.ReferenceTypes.References);
@@ -24300,8 +24300,8 @@ namespace Opc.Ua
 
     #region Variable Node Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class VariableIds
     {
         public static readonly NodeId DataTypeDescriptionType_DataTypeVersion = new NodeId(Opc.Ua.Variables.DataTypeDescriptionType_DataTypeVersion);
@@ -36104,8 +36104,8 @@ namespace Opc.Ua
 
     #region VariableType Node Identifiers
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class VariableTypeIds
     {
         public static readonly NodeId BaseVariableType = new NodeId(Opc.Ua.VariableTypes.BaseVariableType);
@@ -36235,8 +36235,8 @@ namespace Opc.Ua
     #endregion
 
     #region BrowseName Declarations
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class BrowseNames
     {
         public const string A = "A";
@@ -40130,8 +40130,8 @@ namespace Opc.Ua
     #endregion
 
     #region Namespace Declarations
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+
+
     public static partial class Namespaces
     {
         /// <summary>
