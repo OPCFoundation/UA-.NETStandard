@@ -302,9 +302,10 @@ namespace Opc.Ua.Client
         {
             if (sessionTemplate is not Session template)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(sessionTemplate),
-                    "The ISession provided is not of a supported type.");
+                throw new ArgumentException(
+                    "The ISession provided is not of a supported type.",
+
+                    nameof(sessionTemplate));
             }
 
             template.ReturnDiagnostics = ReturnDiagnostics;
@@ -319,9 +320,10 @@ namespace Opc.Ua.Client
         {
             if (sessionTemplate is not Session template)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(sessionTemplate),
-                    "The ISession provided is not of a supported type");
+                throw new ArgumentException(
+                    "The ISession provided is not of a supported type.",
+
+                    nameof(sessionTemplate));
             }
 
             template.ReturnDiagnostics = ReturnDiagnostics;
@@ -336,9 +338,10 @@ namespace Opc.Ua.Client
         {
             if (sessionTemplate is not Session template)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(sessionTemplate),
-                    "The ISession provided is not of a supported type");
+                throw new ArgumentException(
+                    "The ISession provided is not of a supported type.",
+
+                    nameof(sessionTemplate));
             }
             template.ReturnDiagnostics = ReturnDiagnostics;
             return await template.RecreateAsync(transportChannel, ct)

@@ -58,25 +58,25 @@ namespace Opc.Ua.Client
         /// The session name used by the client.
         /// </summary>
         [DataMember(IsRequired = true, Order = 20)]
-        public string? SessionName { get; set; }
+        public string? SessionName { get; init; }
 
         /// <summary>
         /// The identity used to create the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 50)]
-        public IUserIdentity? Identity { get; set; }
+        public IUserIdentity? Identity { get; init; }
 
         /// <summary>
         /// The configured endpoint for the secure channel.
         /// </summary>
         [DataMember(IsRequired = true, Order = 60)]
-        public ConfiguredEndpoint? ConfiguredEndpoint { get; set; }
+        public ConfiguredEndpoint? ConfiguredEndpoint { get; init; }
 
         /// <summary>
         /// If the client is configured to check the certificate domain.
         /// </summary>
         [DataMember(IsRequired = false, Order = 70)]
-        public bool CheckDomain { get; set; }
+        public bool CheckDomain { get; init; }
     }
 
     /// <summary>
@@ -110,37 +110,37 @@ namespace Opc.Ua.Client
         /// When the session configuration was created.
         /// </summary>
         [DataMember(IsRequired = true, Order = 10)]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 
         /// <summary>
         /// The session id assigned by the server.
         /// </summary>
         [DataMember(IsRequired = true, Order = 30)]
-        public NodeId SessionId { get; set; } = NodeId.Null;
+        public NodeId SessionId { get; init; } = NodeId.Null;
 
         /// <summary>
         /// The authentication token used by the server to identify the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 40)]
-        public NodeId AuthenticationToken { get; set; } = NodeId.Null;
+        public NodeId AuthenticationToken { get; init; } = NodeId.Null;
 
         /// <summary>
         /// The last server nonce received.
         /// </summary>
         [DataMember(IsRequired = true, Order = 80)]
-        public Nonce? ServerNonce { get; set; }
+        public Nonce? ServerNonce { get; init; }
 
         /// <summary>
         /// The user identity token policy which was used to create the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 90)]
-        public string? UserIdentityTokenPolicy { get; set; }
+        public string? UserIdentityTokenPolicy { get; init; }
 
         /// <summary>
         /// The last server ecc ephemeral key received.
         /// </summary>
         [DataMember(IsRequired = false, Order = 100)]
-        public Nonce? ServerEccEphemeralKey { get; set; }
+        public Nonce? ServerEccEphemeralKey { get; init; }
 
         /// <summary>
         /// Allows the list of subscriptions to be saved/restored
