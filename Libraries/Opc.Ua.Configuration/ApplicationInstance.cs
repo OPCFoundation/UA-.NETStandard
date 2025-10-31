@@ -447,8 +447,8 @@ namespace Opc.Ua.Configuration
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "Cannot access certificate private key. Subject={0}",
-                        certificate.Subject);
+                        "Cannot access private key for certificate with thumbprint={0}",
+                        certificate.Thumbprint);
                 }
 
                 // check for missing thumbprint.

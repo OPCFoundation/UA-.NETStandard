@@ -39,7 +39,7 @@ namespace Opc.Ua.Client
     public interface ILruNodeCache
     {
         /// <summary>
-        /// The session used by the node cache
+        /// The namespaces used in the server
         /// </summary>
         NamespaceTable NamespaceUris { get; }
 

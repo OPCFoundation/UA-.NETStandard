@@ -2513,7 +2513,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Recreate the subscriptions in a reconnected session.
+        /// Recreate the subscriptions in a recreated session.
         /// </summary>
         /// <param name="transferSbscriptionTemplates">Uses Transfer service
         /// if set to <c>true</c>.</param>
@@ -2971,7 +2971,7 @@ namespace Opc.Ua.Client
 
                 if (state != null)
                 {
-                    // mark any old requests as default (i.e. the should have returned before this request).
+                    // mark any old requests as defunct (i.e. the should have returned before this request).
                     const int maxAge = 1000;
 
                     for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
@@ -4552,9 +4552,8 @@ namespace Opc.Ua.Client
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
-                    m_instanceCertificate.Subject,
-                    m_instanceCertificate.Thumbprint);
+                    "Client certificate configured for security policy {0} is missing a private key.",
+                    m_endpoint.Description.SecurityPolicyUri);
             }
 
             // load certificate chain.
