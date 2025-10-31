@@ -65,30 +65,6 @@ namespace Opc.Ua
         bool Remove(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId);
 
         /// <summary>
-        /// Removes all of the specified references.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type identifier.</param>
-        /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
-        /// <returns>The result of removal.</returns>
-        bool RemoveAll(NodeId referenceTypeId, bool isInverse);
-
-        /// <summary>
-        /// Checks whether any references which meet the specified critia exist.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type identifier.</param>
-        /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
-        /// <param name="targetId">The target identifier.</param>
-        /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
-        /// <param name="typeTree">The type tree.</param>
-        /// <returns>True if reference exists.</returns>
-        bool Exists(
-            NodeId referenceTypeId,
-            bool isInverse,
-            ExpandedNodeId targetId,
-            bool includeSubtypes,
-            ITypeTable typeTree);
-
-        /// <summary>
         /// Returns a list of references which match the specified criteria.
         /// </summary>
         /// <param name="referenceTypeId">The reference type identifier.</param>
@@ -117,13 +93,6 @@ namespace Opc.Ua
             bool includeSubtypes,
             ITypeTable typeTree,
             int index);
-
-        /// <summary>
-        /// Returns a list of references to the specified target.
-        /// </summary>
-        /// <param name="targetId">The target identifier.</param>
-        /// <returns>A list of references to the specified target.</returns>
-        IList<IReference> FindReferencesToTarget(ExpandedNodeId targetId);
     }
 
     /// <summary>
@@ -197,51 +166,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Removes all of the specified references.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type identifier.</param>
-        /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
-        /// <returns>The result of removal.</returns>
-        public bool RemoveAll(NodeId referenceTypeId, bool isInverse)
-        {
-            return m_references.RemoveAll(referenceTypeId, isInverse);
-        }
-
-        /// <summary>
-        /// Checks whether any references which meet the specified critia exist.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type identifier.</param>
-        /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
-        /// <param name="targetId">The target identifier.</param>
-        /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
-        /// <param name="typeTree">The type tree.</param>
-        /// <returns>True if reference exists.</returns>
-        public bool Exists(
-            NodeId referenceTypeId,
-            bool isInverse,
-            ExpandedNodeId targetId,
-            bool includeSubtypes,
-            ITypeTable typeTree)
-        {
-            var reference = new ReferenceNode(referenceTypeId, isInverse, targetId);
-
-            // check for trivial case.
-            if (m_references.ContainsKey(reference))
-            {
-                return true;
-            }
-
-            // can't search subtypes without a type tree.
-            if (!includeSubtypes || typeTree == null)
-            {
-                return false;
-            }
-
-            // check for subtypes.
-            return m_references.ContainsKey(reference, typeTree);
-        }
-
-        /// <summary>
         /// Returns a list of references which match the specified criteria.
         /// </summary>
         /// <param name="referenceTypeId">The reference type identifier.</param>
@@ -300,16 +224,6 @@ namespace Opc.Ua
 
             // not found.
             return null;
-        }
-
-        /// <summary>
-        /// Returns a list of references to the specified target.
-        /// </summary>
-        /// <param name="targetId">The target identifier.</param>
-        /// <returns>A list of references to the specified target.</returns>
-        public IList<IReference> FindReferencesToTarget(ExpandedNodeId targetId)
-        {
-            return m_references.FindReferencesToTarget(targetId);
         }
 
         /// <inheritdoc/>
@@ -403,39 +317,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns true if the dictionary contains a reference that matches any subtype of the reference type.
-        /// </summary>
-        /// <param name="reference">The reference.</param>
-        /// <param name="typeTree">The type tree.</param>
-        /// <returns>
-        /// 	<c>true</c> if the dictionary contains key; otherwise, <c>false</c>.
-        /// </returns>
-        /// <exception cref="ArgumentNullException"><paramref name="typeTree"/> is <c>null</c>.</exception>
-        public bool ContainsKey(IReference reference, ITypeTable typeTree)
-        {
-            if (typeTree == null)
-            {
-                throw new ArgumentNullException(nameof(typeTree));
-            }
-
-            if (!ValidateReference(reference, false))
-            {
-                return false;
-            }
-
-            foreach (KeyValuePair<NodeId, ReferenceTypeEntry> entry in m_references)
-            {
-                if (typeTree.IsTypeOf(entry.Key, reference.ReferenceTypeId) &&
-                    ContainsKey(entry.Value, reference))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
         /// Returns a list of references that match the direction and reference type.
         /// </summary>
         /// <param name="referenceTypeId">The reference type identifier.</param>
@@ -495,129 +376,6 @@ namespace Opc.Ua
             }
 
             return hits;
-        }
-
-        /// <summary>
-        /// Returns a list of references to the specified target.
-        /// </summary>
-        /// <param name="targetId">The target identifier.</param>
-        /// <returns>A list of references to the specified target.</returns>
-        public IList<IReference> FindReferencesToTarget(ExpandedNodeId targetId)
-        {
-            var hits = new List<IReference>();
-
-            // check for null.
-            if (NodeId.IsNull(targetId))
-            {
-                return hits;
-            }
-
-            // go through list of references.
-            for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First;
-                node != null;
-                node = node.Next)
-            {
-                if (node.Value.Key.TargetId == targetId)
-                {
-                    hits.Add(node.Value.Key);
-                }
-            }
-
-            return hits;
-        }
-
-        /// <summary>
-        /// Removes all of the references of the specified type and direction.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type identifier.</param>
-        /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
-        /// <returns>The result of removal.</returns>
-        public bool RemoveAll(NodeId referenceTypeId, bool isInverse)
-        {
-            // check for null.
-            if (NodeId.IsNull(referenceTypeId))
-            {
-                return false;
-            }
-
-            // look up the reference type.
-            if (!m_references.TryGetValue(referenceTypeId, out ReferenceTypeEntry entry))
-            {
-                return false;
-            }
-
-            if (isInverse)
-            {
-                if (entry.InverseTargets != null)
-                {
-                    foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry
-                        .InverseTargets
-                        .Values)
-                    {
-                        if (ReferenceEquals(m_list, node.List))
-                        {
-                            m_list.Remove(node);
-                        }
-
-                        entry.InverseTargets = null;
-                    }
-                }
-
-                if (entry.InverseExternalTargets != null)
-                {
-                    foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry
-                        .InverseExternalTargets
-                        .Values)
-                    {
-                        if (ReferenceEquals(m_list, node.List))
-                        {
-                            m_list.Remove(node);
-                        }
-                    }
-
-                    entry.InverseExternalTargets = null;
-                }
-            }
-            else
-            {
-                if (entry.ForwardTargets != null)
-                {
-                    foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry
-                        .ForwardTargets
-                        .Values)
-                    {
-                        if (ReferenceEquals(m_list, node.List))
-                        {
-                            m_list.Remove(node);
-                        }
-                    }
-
-                    entry.ForwardTargets = null;
-                }
-
-                if (entry.ForwardExternalTargets != null)
-                {
-                    foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry
-                        .ForwardExternalTargets
-                        .Values)
-                    {
-                        if (ReferenceEquals(m_list, node.List))
-                        {
-                            m_list.Remove(node);
-                        }
-                    }
-
-                    entry.ForwardExternalTargets = null;
-                }
-            }
-
-            // check for empty set.
-            if (entry.IsEmpty)
-            {
-                m_references.Remove(referenceTypeId);
-            }
-
-            return true;
         }
 
         /// <inheritdoc/>
@@ -1118,58 +876,6 @@ namespace Opc.Ua
                 }
 
                 targets[targetId] = node;
-            }
-        }
-
-        /// <summary>
-        /// Checks the isInverse flag are returns true if a specified target exists.
-        /// </summary>
-        /// <param name="entry">The entry.</param>
-        /// <param name="reference">The reference.</param>
-        /// <returns>
-        /// 	<c>true</c> if the specified entry contains key; otherwise, <c>false</c>.
-        /// </returns>
-        private static bool ContainsKey(ReferenceTypeEntry entry, IReference reference)
-        {
-            // handle reference to external targets.
-            if (reference.TargetId.IsAbsolute)
-            {
-                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets;
-                if (reference.IsInverse)
-                {
-                    targets = entry.InverseExternalTargets;
-                }
-                else
-                {
-                    targets = entry.ForwardExternalTargets;
-                }
-
-                if (targets == null)
-                {
-                    return false;
-                }
-
-                return targets.ContainsKey(reference.TargetId);
-            }
-            // handle reference to internal target.
-            else
-            {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets;
-                if (reference.IsInverse)
-                {
-                    targets = entry.InverseTargets;
-                }
-                else
-                {
-                    targets = entry.ForwardTargets;
-                }
-
-                if (targets == null)
-                {
-                    return false;
-                }
-
-                return targets.ContainsKey((NodeId)reference.TargetId);
             }
         }
 

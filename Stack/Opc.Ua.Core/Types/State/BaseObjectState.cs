@@ -34,16 +34,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new BaseObjectState(parent);
-        }
-
-        /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
@@ -313,44 +303,5 @@ namespace Opc.Ua
         }
 
         private byte m_eventNotifier;
-    }
-
-    /// <summary>
-    /// The base class for all folder nodes.
-    /// </summary>
-    public class FolderState : BaseObjectState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public FolderState(NodeState parent)
-            : base(parent)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.FolderType);
-            NodeId = null;
-            BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = ObjectTypes.FolderType;
-            EventNotifier = EventNotifiers.None;
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return ObjectTypeIds.FolderType;
-        }
     }
 }

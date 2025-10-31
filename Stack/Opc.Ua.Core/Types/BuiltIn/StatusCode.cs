@@ -145,38 +145,12 @@ namespace Opc.Ua
         public readonly uint CodeBits => Code & 0xFFFF0000;
 
         /// <summary>
-        /// Returns a copy of the status code with the Code bits set.
-        /// </summary>
-        /// <param name="bits">The value for the Code bits.</param>
-        /// <returns>The status code with the Code bits set to the specified values.</returns>
-        public StatusCode SetCodeBits(uint bits)
-        {
-            Code &= 0x0000FFFF;
-            Code |= bits & 0xFFFF0000;
-
-            return this;
-        }
-
-        /// <summary>
         /// The 16 flag bits of the status code.
         /// </summary>
         /// <remarks>
         /// The 16 flag bits of the status code.
         /// </remarks>
         public readonly uint FlagBits => Code & 0x0000FFFF;
-
-        /// <summary>
-        /// Returns a copy of the status code with the Flag bits set.
-        /// </summary>
-        /// <param name="bits">The value for the Flag bits.</param>
-        /// <returns>The status code with the Flag bits set to the specified values.</returns>
-        public StatusCode SetFlagBits(uint bits)
-        {
-            Code &= 0xFFFF0000;
-            Code |= bits & 0x0000FFFF;
-
-            return this;
-        }
 
         /// <summary>
         /// The sub-code portion of the status code.
@@ -214,17 +188,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a copy of the status code with the StructureChanged bit set.
-        /// </summary>
-        /// <param name="structureChanged">The value for the StructureChanged bit.</param>
-        /// <returns>The status code with the StructureChanged bit set to the specified value.</returns>
-        public StatusCode SetStructureChanged(bool structureChanged)
-        {
-            StructureChanged = structureChanged;
-            return this;
-        }
-
-        /// <summary>
         /// Set to indicate that the semantics associated with the data value have changed.
         /// </summary>
         /// <remarks>
@@ -245,17 +208,6 @@ namespace Opc.Ua
                     Code &= ~kSemanticsChangedBit;
                 }
             }
-        }
-
-        /// <summary>
-        /// Returns a copy of the status code with the SemanticsChanged bit set.
-        /// </summary>
-        /// <param name="semanticsChanged">The value for the SemanticsChanged bit.</param>
-        /// <returns>The status code with the SemanticsChanged bit set to the specified value.</returns>
-        public StatusCode SetSemanticsChanged(bool semanticsChanged)
-        {
-            SemanticsChanged = semanticsChanged;
-            return this;
         }
 
         /// <summary>
@@ -299,17 +251,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a copy of the status code with the limit bits set.
-        /// </summary>
-        /// <param name="bits">The value for the limits bits</param>
-        /// <returns>The status code with the limit bits set to the specified values.</returns>
-        public StatusCode SetLimitBits(LimitBits bits)
-        {
-            LimitBits = bits;
-            return this;
-        }
-
-        /// <summary>
         /// The overflow bit.
         /// </summary>
         /// <remarks>
@@ -335,17 +276,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a copy of the status code with the overflow bit set.
-        /// </summary>
-        /// <param name="overflow">The value for the overflow bit.</param>
-        /// <returns>The status code with the overflow bit set to the specified value.</returns>
-        public StatusCode SetOverflow(bool overflow)
-        {
-            Overflow = overflow;
-            return this;
-        }
-
-        /// <summary>
         /// The historian bits.
         /// </summary>
         /// <seealso cref="AggregateBits"/>
@@ -359,17 +289,6 @@ namespace Opc.Ua
                 Code &= ~kAggregateBits;
                 Code |= (uint)value & kAggregateBits;
             }
-        }
-
-        /// <summary>
-        /// Returns a copy of the status code with the aggregate bits set.
-        /// </summary>
-        /// <param name="bits">The bits to set.</param>
-        /// <returns>The status code with the aggregate bits set to the specified values.</returns>
-        public StatusCode SetAggregateBits(AggregateBits bits)
-        {
-            AggregateBits = bits;
-            return this;
         }
 
         /// <summary>
@@ -593,48 +512,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns true if the status is bad or uncertain.
-        /// </summary>
-        /// <param name="code">The code to check</param>
-        public static bool IsNotGood(StatusCode code)
-        {
-            return (code.Code & 0xC0000000) != 0;
-        }
-
-        /// <summary>
-        /// Returns true if the status code is uncertain.
-        /// </summary>
-        /// <param name="code">The code to check</param>
-        public static bool IsUncertain(StatusCode code)
-        {
-            return (code.Code & 0x40000000) == 0x40000000;
-        }
-
-        /// <summary>
-        /// Returns true if the status is good or uncertain.
-        /// </summary>
-        /// <param name="code">The code to check</param>
-        public static bool IsNotUncertain(StatusCode code)
-        {
-            return (code.Code & 0x40000000) != 0x40000000;
-        }
-
-        /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
         /// <param name="code">The code to check</param>
         public static bool IsBad(StatusCode code)
         {
             return (code.Code & 0x80000000) != 0;
-        }
-
-        /// <summary>
-        /// Returns true if the status is good or uncertain.
-        /// </summary>
-        /// <param name="code">The code to check</param>
-        public static bool IsNotBad(StatusCode code)
-        {
-            return (code.Code & 0x80000000) == 0;
         }
 
         private const uint kAggregateBits = 0x001F;

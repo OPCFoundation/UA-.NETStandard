@@ -66,14 +66,6 @@ namespace Opc.Ua.Redaction
         }
 
         /// <summary>
-        /// Resets the fallback strategy to the default (empty) implementation.
-        /// </summary>
-        public static void ResetStrategy()
-        {
-            CurrentStrategy = s_fallbackStrategy;
-        }
-
-        /// <summary>
         /// Fallback for when no other strategy was set. It returns the string representation of the value.
         /// </summary>
         private class FallbackRedactionStrategy : IRedactionStrategy

@@ -928,23 +928,6 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the NodeId as a string and appends it to the buffer.
         /// </summary>
-        public static void Format(
-            StringBuilder buffer,
-            object identifier,
-            IdType identifierType,
-            ushort namespaceIndex)
-        {
-            Format(
-                CultureInfo.InvariantCulture,
-                buffer,
-                identifier,
-                identifierType,
-                namespaceIndex);
-        }
-
-        /// <summary>
-        /// Formats the NodeId as a string and appends it to the buffer.
-        /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static void Format(
             IFormatProvider formatProvider,
@@ -1053,17 +1036,6 @@ namespace Opc.Ua
                 _ => throw ServiceResultException.Unexpected(
                     $"Unexpected IdType value {idType}.")
             };
-        }
-
-        /// <summary>
-        /// Updates the identifier.
-        /// </summary>
-        internal void SetIdentifier(string value, IdType idType)
-        {
-            ValidateImmutableNodeIdIsNotModified();
-
-            IdType = idType;
-            SetIdentifier(IdType.String, value);
         }
 
         /// <summary>

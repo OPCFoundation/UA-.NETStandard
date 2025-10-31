@@ -85,15 +85,6 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
-        /// <exception cref="FormatException"></exception>
-        protected static Exception Exception(string format)
-        {
-            throw new FormatException(format);
-        }
-
-        /// <summary>
-        /// Formats a string and throws an exception.
-        /// </summary>
         protected static Exception Exception(string format, object arg1)
         {
             return new InvalidOperationException(Utils.Format(format, arg1));
@@ -283,14 +274,6 @@ namespace Opc.Ua.Schema
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Returns the schema for the specified type (returns the entire schema if null).
-        /// </summary>
-        public virtual string GetSchema(string typeName)
-        {
-            return null;
         }
     }
 }

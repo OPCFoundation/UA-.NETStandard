@@ -54,16 +54,6 @@ namespace Opc.Ua
             IsAbstract = false;
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new BaseObjectTypeState();
-        }
-
         /// <inheritdoc/>
         public override object Clone()
         {
@@ -80,43 +70,6 @@ namespace Opc.Ua
         {
             var clone = (BaseObjectTypeState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
-        }
-    }
-
-    /// <summary>
-    /// The base class for all object type nodes.
-    /// </summary>
-    public class FolderTypeState : BaseObjectTypeState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public FolderTypeState()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SuperTypeId = NodeId.Create(
-                ObjectTypes.FolderType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            NodeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = QualifiedName.Create(
-                BrowseNames.FolderType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            DisplayName = new LocalizedText(
-                BrowseNames.FolderType,
-                string.Empty,
-                BrowseNames.FolderType);
-            Description = null;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            IsAbstract = false;
         }
     }
 }

@@ -188,19 +188,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new instance of a ServiceResultException
-        /// </summary>
-        public static ServiceResultException Create(
-            StatusCode code,
-            int index,
-            DiagnosticInfoCollection diagnosticInfos,
-            IList<string> stringTable)
-        {
-            return new ServiceResultException(
-                new ServiceResult(code, index, diagnosticInfos, stringTable));
-        }
-
-        /// <summary>
         /// Unexpected error occurred
         /// </summary>
         /// <param name="format"></param>

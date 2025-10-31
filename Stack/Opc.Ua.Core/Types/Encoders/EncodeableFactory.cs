@@ -43,11 +43,6 @@ namespace Opc.Ua
     /// </remarks>
     public sealed class EncodeableFactory : IEncodeableFactory
     {
-        /// <summary>
-        /// The default factory for the process.
-        /// </summary>
-        [Obsolete("Obtain a factory from a context or use EncodeableFactory.Create()")]
-        public static EncodeableFactory GlobalFactory { get; } = new();
 
         /// <summary>
         /// Create single instance of the encodeable factory.
@@ -86,9 +81,6 @@ namespace Opc.Ua
         public IEncodeableFactoryBuilder Builder => new EncodeableFactoryBuilder(this);
 
         /// <inheritdoc/>
-        public IEnumerable<ExpandedNodeId> KnownTypeIds => m_encodeableTypes.Keys;
-
-        /// <inheritdoc/>
         public bool TryGetEncodeableType(
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEncodeableType? systemType)
@@ -102,35 +94,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             return new EncodeableFactory(m_encodeableTypes);
-        }
-
-        /// <summary>
-        /// Returns the xml qualified name for the specified system type id.
-        /// </summary>
-        [Obsolete("Use TypeInfo.GetXmlName(Type) instead.")]
-        public static XmlQualifiedName GetXmlName(Type systemType)
-        {
-            return TypeInfo.GetXmlName(systemType);
-        }
-
-        /// <summary>
-        /// Returns the xml qualified name for the specified object.
-        /// </summary>
-        [Obsolete("Use TypeInfo.GetXmlName(object, IServiceMessageContext) instead.")]
-        public static XmlQualifiedName GetXmlName(
-            object value,
-            IServiceMessageContext context)
-        {
-            return TypeInfo.GetXmlName(value, context);
         }
 
         /// <summary>
@@ -144,55 +110,6 @@ namespace Opc.Ua
             public EncodeableFactoryBuilder(EncodeableFactory factory)
             {
                 m_factory = factory;
-            }
-
-            /// <inheritdoc/>
-            public IEncodeableFactoryBuilder AddEncodeableType(
-                Type systemType)
-            {
-                AddEncodeableType(systemType, null);
-                return this;
-            }
-
-            /// <inheritdoc/>
-            public IEncodeableFactoryBuilder AddEncodeableType(
-                ExpandedNodeId encodingId,
-                Type systemType)
-            {
-                if (!NodeId.IsNull(encodingId))
-                {
-                    IEncodeableType? type = ReflectionBasedType.From(systemType);
-                    if (type != null)
-                    {
-                        m_encodeableTypes[encodingId] = type;
-                    }
-                }
-                return this;
-            }
-
-            /// <inheritdoc/>
-            public IEncodeableFactoryBuilder AddEncodeableType(IEncodeableType type)
-            {
-                if (type == null)
-                {
-                    throw new ArgumentNullException(nameof(type));
-                }
-                AddEncodeableType(type, null);
-                return this;
-            }
-
-            /// <inheritdoc/>
-            public IEncodeableFactoryBuilder AddEncodeableType(
-                ExpandedNodeId encodingId,
-                IEncodeableType type)
-            {
-                if (NodeId.IsNull(encodingId))
-                {
-                    throw new ArgumentNullException(nameof(encodingId));
-                }
-                m_encodeableTypes[encodingId] = type ??
-                    throw new ArgumentNullException(nameof(type));
-                return this;
             }
 
             /// <inheritdoc/>

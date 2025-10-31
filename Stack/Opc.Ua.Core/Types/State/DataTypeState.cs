@@ -27,16 +27,6 @@ namespace Opc.Ua
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new DataTypeState();
-        }
-
         /// <inheritdoc/>
         public override object Clone()
         {

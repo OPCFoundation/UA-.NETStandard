@@ -110,36 +110,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// When overridden in a derived class, initializes the any option children defined for the instance.
-        /// </summary>
-        /// <param name="context">The object that describes how access the system containing the data.</param>
-        protected virtual void InitializeOptionalChildren(ISystemContext context)
-        {
-            // defined by subclass.
-        }
-
-        /// <summary>
-        /// Initializes the instance with the XML or binary (array of bytes) representation contained in the string.
-        /// </summary>
-        /// <param name="context">The object that describes how access the system containing the data.</param>
-        /// <param name="initializationString">The initialization string that is used to initializes the node.</param>
-        public virtual void Initialize(ISystemContext context, string initializationString)
-        {
-            if (initializationString.StartsWith('<'))
-            {
-                using var reader = new StringReader(initializationString);
-                LoadFromXml(context, reader);
-            }
-            else
-            {
-                byte[] bytes = Convert.FromBase64String(initializationString);
-
-                using var istrm = new MemoryStream(bytes);
-                LoadAsBinary(context, istrm);
-            }
-        }
-
-        /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
@@ -386,24 +356,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Specifies a list of permissions for the node assigned to roles for the current user.
-        /// </summary>
-        /// <value>The Permissions that apply to the node for the current user.</value>
-        public RolePermissionTypeCollection UserRolePermissions
-        {
-            get => m_userRolePermissions;
-            set
-            {
-                if (m_userRolePermissions != value)
-                {
-                    m_changeMasks |= NodeStateChangeMasks.NonValue;
-                }
-
-                m_userRolePermissions = value;
-            }
-        }
-
-        /// <summary>
         /// Specifies  a mask indicating any access restrictions that apply to the node.
         /// </summary>
         /// <value>The server specific access restrictions of the node.</value>
@@ -592,52 +544,6 @@ namespace Opc.Ua
             Save(context, encoder, attributesToSave);
             SaveReferences(context, encoder);
             SaveChildren(context, encoder);
-        }
-
-        /// <summary>
-        /// Loads the node from a binary stream.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="istrm">The stream to read.</param>
-        public void LoadAsBinary(ISystemContext context, Stream istrm)
-        {
-            var messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
-
-            using var decoder = new BinaryDecoder(istrm, messageContext, true);
-            // check if a namespace table was provided.
-            var namespaceUris = new NamespaceTable();
-
-            if (!decoder.LoadStringTable(namespaceUris))
-            {
-                namespaceUris = null;
-            }
-
-            // check if a server uri table was provided.
-            var serverUris = new StringTable();
-
-            if (namespaceUris != null && namespaceUris.Count > 1)
-            {
-                serverUris.Append(namespaceUris.GetString(1));
-            }
-
-            if (!decoder.LoadStringTable(serverUris))
-            {
-                serverUris = null;
-            }
-
-            // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
-            // update the node and children.
-            var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-            Update(context, decoder, attributesToLoad);
-            UpdateReferences(context, decoder);
-            UpdateChildren(context, decoder);
         }
 
         /// <summary>
@@ -1099,48 +1005,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a node and initializes it from the stream.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="decoder">The decoder.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState LoadNode(ISystemContext context, BinaryDecoder decoder)
-        {
-            var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-            string symbolicName = null;
-            QualifiedName browseName = null;
-
-            var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
-            attributesToLoad &= ~AttributesToSave.NodeClass;
-
-            if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
-            {
-                symbolicName = decoder.ReadString(null);
-                attributesToLoad &= ~AttributesToSave.SymbolicName;
-            }
-
-            if ((attributesToLoad & AttributesToSave.BrowseName) != 0)
-            {
-                browseName = decoder.ReadQualifiedName(null);
-                attributesToLoad &= ~AttributesToSave.BrowseName;
-            }
-
-            if (string.IsNullOrEmpty(symbolicName) && browseName != null)
-            {
-                symbolicName = browseName.Name;
-            }
-
-            // read the node from the stream.
-            return LoadUnknownNode(
-                context,
-                decoder,
-                attributesToLoad,
-                nodeClass,
-                symbolicName,
-                browseName);
-        }
-
-        /// <summary>
         /// Saves the reference table in a binary stream.
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
@@ -1209,129 +1073,6 @@ namespace Opc.Ua
             SaveChildren(context, encoder);
 
             encoder.Pop();
-        }
-
-        /// <summary>
-        /// Initializes the node from XML in a stream.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="input">The stream to read.</param>
-        public void LoadFromXml(ISystemContext context, TextReader input)
-        {
-            using var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings());
-            LoadFromXml(context, reader);
-        }
-
-        /// <summary>
-        /// Initializes the node from XML in a stream.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="input">The stream to read.</param>
-        public void LoadFromXml(ISystemContext context, Stream input)
-        {
-            using var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings());
-            LoadFromXml(context, reader);
-        }
-
-        /// <summary>
-        /// Initializes the node from XML in a stream.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="reader">The stream to read.</param>
-        /// <exception cref="ServiceResultException"></exception>
-        public void LoadFromXml(ISystemContext context, XmlReader reader)
-        {
-            var messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
-
-            reader.MoveToContent();
-
-            // get the root of the child element.
-            var symbolicName = new XmlQualifiedName(reader.LocalName, reader.NamespaceURI);
-
-            // map to a namespace index.
-            int namespaceIndex = context.NamespaceUris.GetIndex(symbolicName.Namespace);
-
-            if (namespaceIndex < 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Could not resolve namespace uri: {0}",
-                    symbolicName.Namespace);
-            }
-
-            // initialize browse name.
-            SymbolicName = symbolicName.Name;
-            BrowseName = new QualifiedName(symbolicName.Name, (ushort)namespaceIndex);
-
-            using var decoder = new XmlDecoder(null, reader, messageContext);
-            // check if a namespace table was provided.
-            var namespaceUris = new NamespaceTable();
-
-            if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
-            {
-                namespaceUris = null;
-            }
-
-            // check if a server uri table was provided.
-            var serverUris = new StringTable();
-
-            if (!decoder.LoadStringTable("ServerUris", "ServerUri", serverUris))
-            {
-                serverUris = null;
-            }
-
-            // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
-            // update the node and children.
-            Update(context, decoder);
-            UpdateReferences(context, decoder);
-            UpdateChildren(context, decoder);
-        }
-
-        /// <summary>
-        /// Initializes the node from XML in a stream.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="decoder">The decoder wrapping the stream to read.</param>
-        /// <exception cref="ServiceResultException"></exception>
-        public void LoadFromXml(ISystemContext context, XmlDecoder decoder)
-        {
-            // get the name of the child element.
-            XmlQualifiedName symbolicName =
-                decoder.Peek(XmlNodeType.Element)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Expecting an XML start element in stream.");
-
-            // map to a namespace index.
-            int namespaceIndex = context.NamespaceUris.GetIndex(symbolicName.Namespace);
-
-            if (namespaceIndex < 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Could not resolve namespace uri: {0}",
-                    symbolicName.Namespace);
-            }
-
-            // initialize browse name.
-            SymbolicName = symbolicName.Name;
-            BrowseName = new QualifiedName(symbolicName.Name, (ushort)namespaceIndex);
-
-            // initialize the node.
-            decoder.ReadStartElement();
-
-            Update(context, decoder);
-            UpdateReferences(context, decoder);
-            UpdateChildren(context, decoder);
-
-            decoder.Skip(symbolicName);
         }
 
         /// <summary>
@@ -1870,71 +1611,6 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static NodeState LoadUnknownNode(
             ISystemContext context,
-            BinaryDecoder decoder,
-            AttributesToSave attributesToLoad,
-            NodeClass nodeClass,
-            string symbolicName,
-            QualifiedName browseName)
-        {
-            // create the appropriate node.
-            switch (nodeClass)
-            {
-                case NodeClass.Variable:
-                case NodeClass.Object:
-                case NodeClass.Method:
-                    return UpdateUnknownChild(
-                        context,
-                        decoder,
-                        null,
-                        attributesToLoad,
-                        nodeClass,
-                        symbolicName,
-                        browseName);
-                case NodeClass.Unspecified:
-                case NodeClass.ObjectType:
-                case NodeClass.VariableType:
-                case NodeClass.ReferenceType:
-                case NodeClass.DataType:
-                case NodeClass.View:
-                    // get the node factory.
-                    NodeStateFactory factory = context.NodeStateFactory
-                        ?? new NodeStateFactory();
-
-                    // create the appropriate node.
-                    NodeState child =
-                        factory.CreateInstance(context, null, nodeClass, browseName, null, null)
-                        ?? throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Could not load node '{0}', with NodeClass {1}",
-                            browseName,
-                            nodeClass);
-
-                    // update symbolic name.
-                    child.SymbolicName = symbolicName;
-                    child.BrowseName = browseName;
-
-                    // update attributes.
-                    child.Update(context, decoder, attributesToLoad);
-
-                    // update any references.
-                    child.UpdateReferences(context, decoder);
-
-                    // update any children.
-                    child.UpdateChildren(context, decoder);
-
-                    return child;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected NodeClass {nodeClass}");
-            }
-        }
-
-        /// <summary>
-        /// Reads an unknown node from a stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private static NodeState LoadUnknownNode(
-            ISystemContext context,
             XmlDecoder decoder,
             XmlQualifiedName childName,
             QualifiedName browseName)
@@ -2106,11 +1782,6 @@ namespace Opc.Ua
         public event NodeStateChangedHandler StateChanged;
 
         /// <summary>
-        /// Called when the Validate method is called
-        /// </summary>
-        public NodeStateValidateHandler OnValidate;
-
-        /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
         /// </summary>
         public NodeStateChangedHandler OnStateChanged;
@@ -2119,11 +1790,6 @@ namespace Opc.Ua
         /// Called when a reference gets added to the node
         /// </summary>
         public NodeStateReferenceAdded OnReferenceAdded;
-
-        /// <summary>
-        /// Called when a reference gets removed from the node
-        /// </summary>
-        public NodeStateReferenceRemoved OnReferenceRemoved;
 
         /// <summary>
         /// Called after the CreateBrowser method is called.
@@ -2221,11 +1887,6 @@ namespace Opc.Ua
         public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadUserRolePermissions;
 
         /// <summary>
-        /// Called when the UserRolePermissions attribute is written.
-        /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteUserRolePermissions;
-
-        /// <summary>
         /// Called when the AccessRestrictions attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<AccessRestrictionType?> OnReadAccessRestrictions;
@@ -2236,49 +1897,9 @@ namespace Opc.Ua
         public NodeAttributeEventHandler<AccessRestrictionType?> OnWriteAccessRestrictions;
 
         /// <summary>
-        /// Returns the root node if the node is part of an instance hierarchy.
-        /// </summary>
-        public NodeState GetHierarchyRoot()
-        {
-            // only instance nodes can be part of a hierarchy.
-
-            if ((this is not BaseInstanceState instance) || instance.Parent == null)
-            {
-                return this;
-            }
-
-            // find the root.
-            NodeState root = instance.Parent;
-
-            while (root != null)
-            {
-                instance = root as BaseInstanceState;
-
-                if (instance == null || instance.Parent == null)
-                {
-                    return root;
-                }
-
-                root = instance.Parent;
-            }
-
-            return root;
-        }
-
-        /// <summary>
-        /// True if events produced by the instance are being monitored.
-        /// </summary>
-        public bool AreEventsMonitored => m_areEventsMonitored > 0;
-
-        /// <summary>
         /// True if the node and its children have been initialized.
         /// </summary>
         public bool Initialized { get; set; }
-
-        /// <summary>
-        /// True if the node must be validated with the underlying system before use.
-        /// </summary>
-        public bool ValidationRequired => OnValidate != null;
 
         /// <summary>
         /// Sets the flag which indicates whether event are being monitored for the instance and its children.
@@ -2339,59 +1960,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds a notifier relationship to the node.
-        /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="referenceTypeId">The type of reference (HasEventSource is used if null specified).</param>
-        /// <param name="isInverse">True for an inverse reference.</param>
-        /// <param name="target">The target of the reference.</param>
-        public virtual void AddNotifier(
-            ISystemContext context,
-            NodeId referenceTypeId,
-            bool isInverse,
-            NodeState target)
-        {
-            if (NodeId.IsNull(referenceTypeId))
-            {
-                referenceTypeId = ReferenceTypeIds.HasEventSource;
-            }
-
-            // ensure duplicate references are not left over from the model design.
-            if (!NodeId.IsNull(target.NodeId))
-            {
-                RemoveReference(referenceTypeId, isInverse, target.NodeId);
-            }
-
-            lock (m_notifiersLock)
-            {
-                m_notifiers ??= [];
-
-                // check for existing reference.
-                Notifier entry = null;
-
-                for (int ii = 0; ii < m_notifiers.Count; ii++)
-                {
-                    if (ReferenceEquals(m_notifiers[ii].Node, target))
-                    {
-                        entry = m_notifiers[ii];
-                        break;
-                    }
-                }
-
-                if (entry == null)
-                {
-                    entry = new Notifier();
-                    m_notifiers.Add(entry);
-                }
-
-                // save the notifier.
-                entry.ReferenceTypeId = referenceTypeId;
-                entry.IsInverse = isInverse;
-                entry.Node = target;
-            }
-        }
-
-        /// <summary>
         /// Removes a notifier relationship from the node.
         /// </summary>
         /// <param name="context">The system context.</param>
@@ -2431,83 +1999,6 @@ namespace Opc.Ua
             {
                 nodeState.RemoveNotifier(context, this, false);
             }
-        }
-
-        /// <summary>
-        /// Populates a list with the notifiers that belong to the node.
-        /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="notifiers">The list of notifiers to populate.</param>
-        public virtual void GetNotifiers(ISystemContext context, IList<Notifier> notifiers)
-        {
-            lock (m_notifiersLock)
-            {
-                if (m_notifiers != null)
-                {
-                    foreach (Notifier notifier in m_notifiers)
-                    {
-                        notifiers.Add(notifier);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Returns any notifiers with the specified notifier type (NodeId) and direction.
-        /// </summary>
-        public virtual void GetNotifiers(
-            ISystemContext context,
-            IList<Notifier> notifiers,
-            NodeId notifierTypeId,
-            bool isInverse)
-        {
-            lock (m_notifiersLock)
-            {
-                if (m_notifiers != null)
-                {
-                    foreach (Notifier notifier in m_notifiers)
-                    {
-                        if (isInverse == notifier.IsInverse &&
-                            notifier.ReferenceTypeId == notifierTypeId)
-                        {
-                            notifiers.Add(notifier);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Returns the method with the specified NodeId or MethodDeclarationId.
-        /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="methodId">The identifier for the method to find.</param>
-        /// <returns>Returns the method. Null if no method found.</returns>
-        public virtual MethodState FindMethod(ISystemContext context, NodeId methodId)
-        {
-            var children = new List<BaseInstanceState>();
-            GetChildren(context, children);
-
-            for (int ii = 0; ii < children.Count; ii++)
-            {
-                if (children[ii] is MethodState method)
-                {
-                    if (method.NodeId == methodId || method.MethodDeclarationId == methodId)
-                    {
-                        return method;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Sets the specified bits in the change masks (ORs with the current bits).
-        /// </summary>
-        public void UpdateChangeMasks(NodeStateChangeMasks changeMasks)
-        {
-            m_changeMasks |= changeMasks;
         }
 
         /// <summary>
@@ -2599,64 +2090,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a node with default values and assigns new node ids to it and all children.
-        /// </summary>
-        public virtual void Create(
-            ISystemContext context,
-            NodeId nodeId,
-            QualifiedName browseName,
-            LocalizedText displayName,
-            bool assignNodeIds)
-        {
-            Initialize(context);
-
-            // Call OnBeforeCreate on all children.
-            CallOnBeforeCreate(context);
-
-            // override node id.
-            if (nodeId != null)
-            {
-                NodeId = nodeId;
-            }
-
-            // set defaults for names.
-            if (!QualifiedName.IsNull(browseName))
-            {
-                SymbolicName = browseName.Name;
-                BrowseName = browseName;
-                DisplayName = browseName.Name;
-            }
-
-            // override display name.
-            if (displayName != null)
-            {
-                DisplayName = displayName;
-            }
-
-            // get all children.
-            var children = new List<BaseInstanceState>();
-            GetChildren(context, children);
-
-            if (assignNodeIds)
-            {
-                // Call CallOnAssignNodeIds on all children.
-                CallOnBeforeAssignNodeIds(context, children);
-
-                // assign the node ids.
-                var mappingTable = new Dictionary<NodeId, NodeId>();
-                AssignNodeIds(context, children, mappingTable);
-
-                // update the reference targets.
-                UpdateReferenceTargets(context, children, mappingTable);
-            }
-
-            // Call OnAfterCreate on all children.
-            CallOnAfterCreate(context, children);
-
-            ClearChangeMasks(context, true);
-        }
-
-        /// <summary>
         /// Recusivesly calls OnBeforeCreate for the node and its children.
         /// </summary>
         private void CallOnBeforeCreate(ISystemContext context)
@@ -2710,20 +2143,6 @@ namespace Opc.Ua
             }
 
             OnAfterCreate(context, this);
-        }
-
-        /// <summary>
-        /// Create an instance by copying another node.
-        /// </summary>
-        public virtual void Create(ISystemContext context, NodeState source)
-        {
-            Initialize(context, source);
-
-            CallOnBeforeCreate(context);
-
-            CallOnAfterCreate(context, null);
-
-            ClearChangeMasks(context, true);
         }
 
         /// <summary>
@@ -2790,23 +2209,6 @@ namespace Opc.Ua
             {
                 children[ii].AssignNodeIds(context, mappingTable);
             }
-        }
-
-        /// <summary>
-        /// Verifies that the node represents a valid node.
-        /// </summary>
-        /// <param name="context">The context for the current operation.</param>
-        /// <returns>True if the node is currently valid.</returns>
-        public virtual bool Validate(ISystemContext context)
-        {
-            NodeStateValidateHandler onValidate = OnValidate;
-
-            if (onValidate != null)
-            {
-                return onValidate(context, this);
-            }
-
-            return true;
         }
 
         /// <summary>
@@ -3180,82 +2582,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Updates the node with the values from an event notification.
-        /// </summary>
-        public virtual void UpdateValues(
-            ISystemContext context,
-            SimpleAttributeOperandCollection attributes,
-            EventFieldList values)
-        {
-            for (int ii = 0; ii < attributes.Count; ii++)
-            {
-                NodeState child = FindChild(context, attributes[ii].BrowsePath, 0);
-
-                if (child == null || values.EventFields.Count >= ii)
-                {
-                    continue;
-                }
-
-                if (child is BaseVariableState variableInstance)
-                {
-                    variableInstance.Value = values.EventFields[ii].Value;
-                    continue;
-                }
-
-                if (child is BaseObjectState objectInstance)
-                {
-                    var nodeId = values.EventFields[ii].Value as NodeId;
-
-                    if (nodeId != null)
-                    {
-                        objectInstance.NodeId = nodeId;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reads the values for a set of attributes.
-        /// </summary>
-        /// <param name="context">The context for the current operation.</param>
-        /// <param name="attributeIds">The attributes to read.</param>
-        /// <returns>
-        /// A list of values.
-        /// If any error occurs for an attribute the value will be null.
-        /// </returns>
-        public virtual List<object> ReadAttributes(
-            ISystemContext context,
-            params uint[] attributeIds)
-        {
-            var values = new List<object>();
-
-            if (attributeIds != null)
-            {
-                for (int ii = 0; ii < attributeIds.Length; ii++)
-                {
-                    var value = new DataValue();
-
-                    ServiceResult result = ReadAttribute(
-                        context,
-                        attributeIds[ii],
-                        NumericRange.Empty,
-                        null,
-                        value);
-
-                    if (ServiceResult.IsBad(result))
-                    {
-                        values.Add(null);
-                        continue;
-                    }
-
-                    values.Add(value.Value);
-                }
-            }
-
-            return values;
-        }
-
-        /// <summary>
         /// Reads the value of an attribute.
         /// </summary>
         /// <param name="context">The context for the current operation.</param>
@@ -3515,7 +2841,7 @@ namespace Opc.Ua
 
                     break;
                 case Attributes.UserRolePermissions:
-                    RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
+                    RolePermissionTypeCollection userRolePermissions = null; // TODO
 
                     NodeAttributeEventHandler<RolePermissionTypeCollection> onReadUserRolePermissions =
                         OnReadUserRolePermissions;
@@ -4065,17 +3391,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Finds the child with the specified browse name
-        /// </summary>
-        /// <param name="context">The context to use.</param>
-        /// <param name="browseName">The browse name.</param>
-        /// <returns>The target if found. Null otherwise.</returns>
-        public virtual BaseInstanceState FindChild(ISystemContext context, QualifiedName browseName)
-        {
-            return FindChild(context, browseName, false, null);
-        }
-
-        /// <summary>
         /// Finds the child with the specified browse path.
         /// </summary>
         /// <param name="context">The context to use.</param>
@@ -4127,22 +3442,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates or replaces the child with the same browse name.
-        /// </summary>
-        /// <param name="context">The context to use.</param>
-        /// <param name="child">The child to add or replace.</param>
-        /// <exception cref="ArgumentException"></exception>
-        public virtual void ReplaceChild(ISystemContext context, BaseInstanceState child)
-        {
-            if (child == null || QualifiedName.IsNull(child.BrowseName))
-            {
-                throw new ArgumentException("Cannot replace child without a browse name.");
-            }
-
-            FindChild(context, child.BrowseName, true, child);
-        }
-
-        /// <summary>
         /// Adds a child to the node.
         /// </summary>
         public void AddChild(BaseInstanceState child)
@@ -4163,39 +3462,6 @@ namespace Opc.Ua
             }
 
             m_changeMasks |= NodeStateChangeMasks.Children;
-        }
-
-        /// <summary>
-        /// Creates a property and adds it to the node.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public PropertyState AddProperty<T>(string propertyName, NodeId dataTypeId, int valueRank)
-        {
-            PropertyState property = new PropertyState<T>(this)
-            {
-                ReferenceTypeId = ReferenceTypeIds.HasProperty,
-                ModellingRuleId = null,
-                TypeDefinitionId = VariableTypeIds.PropertyType,
-                SymbolicName = propertyName,
-                NodeId = null,
-                BrowseName = propertyName,
-                DisplayName = propertyName,
-                Description = null,
-                WriteMask = 0,
-                UserWriteMask = 0,
-                Value = default,
-                DataType = dataTypeId,
-                ValueRank = valueRank,
-                ArrayDimensions = null,
-                AccessLevel = AccessLevels.CurrentRead,
-                UserAccessLevel = AccessLevels.CurrentRead,
-                MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate,
-                Historizing = false
-            };
-
-            AddChild(property);
-
-            return property;
         }
 
         /// <summary>
@@ -4270,34 +3536,6 @@ namespace Opc.Ua
             for (int ii = 0; ii < children.Count; ii++)
             {
                 child.SetChildValue(context, children[ii].BrowseName, children[ii], copy);
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Finds the child variable with the specified browse and assigns the value to it.
-        /// </summary>
-        /// <returns>False if the child does not exist or is not a variable.</returns>
-        /// <remarks>Creates the child if does not already exist.</remarks>
-        public bool SetChildValue(
-            ISystemContext context,
-            QualifiedName browseName,
-            object value,
-            bool copy)
-        {
-            if (CreateChild(context, browseName) is not BaseVariableState child)
-            {
-                return false;
-            }
-
-            if (copy)
-            {
-                child.Value = Utils.Clone(value);
-            }
-            else
-            {
-                child.Value = value;
             }
 
             return true;
@@ -4459,116 +3697,6 @@ namespace Opc.Ua
             m_changeMasks |= NodeStateChangeMasks.References;
 
             OnReferenceAdded?.Invoke(this, referenceTypeId, isInverse, targetId);
-        }
-
-        /// <summary>
-        /// Removes a reference.
-        /// </summary>
-        /// <param name="referenceTypeId">Type of the reference.</param>
-        /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
-        /// <param name="targetId">The target of the reference.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public bool RemoveReference(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
-        {
-            if (NodeId.IsNull(referenceTypeId))
-            {
-                throw new ArgumentNullException(nameof(referenceTypeId));
-            }
-
-            if (NodeId.IsNull(targetId))
-            {
-                throw new ArgumentNullException(nameof(targetId));
-            }
-
-            lock (m_referencesLock)
-            {
-                if (m_references != null &&
-                    m_references.Remove(
-                        new NodeStateReference(referenceTypeId, isInverse, targetId)))
-                {
-                    m_changeMasks |= NodeStateChangeMasks.References;
-                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Adds a list of references (ignores duplicates).
-        /// </summary>
-        /// <param name="references">The list of references to add.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="references"/> is <c>null</c>.</exception>
-        public void AddReferences(IList<IReference> references)
-        {
-            if (references == null)
-            {
-                throw new ArgumentNullException(nameof(references));
-            }
-
-            var addedReferences = new List<IReference>();
-
-            lock (m_referencesLock)
-            {
-                m_references ??= [];
-
-                for (int ii = 0; ii < references.Count; ii++)
-                {
-                    if (!m_references.ContainsKey(references[ii]))
-                    {
-                        m_references.Add(references[ii], null);
-                        addedReferences.Add(references[ii]);
-                    }
-                }
-            }
-
-            foreach (IReference addedReference in addedReferences)
-            {
-                OnReferenceAdded?.Invoke(
-                    this,
-                    addedReference.ReferenceTypeId,
-                    addedReference.IsInverse,
-                    addedReference.TargetId);
-            }
-
-            m_changeMasks |= NodeStateChangeMasks.References;
-        }
-
-        /// <summary>
-        /// Removes all references of the specified type.
-        /// </summary>
-        /// <param name="referenceTypeId">Type of the reference.</param>
-        /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public bool RemoveReferences(NodeId referenceTypeId, bool isInverse)
-        {
-            if (NodeId.IsNull(referenceTypeId))
-            {
-                throw new ArgumentNullException(nameof(referenceTypeId));
-            }
-
-            List<IReference> refsToRemove = null;
-
-            lock (m_referencesLock)
-            {
-                if (m_references == null)
-                {
-                    return false;
-                }
-
-                refsToRemove =
-                [
-                    .. m_references
-                        .Select(r => r.Key)
-                        .Where(
-                            r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
-                ];
-            }
-
-            refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
-
-            return refsToRemove.Count != 0;
         }
 
         /// <summary>
@@ -4738,7 +3866,6 @@ namespace Opc.Ua
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
         private RolePermissionTypeCollection m_rolePermissions;
-        private RolePermissionTypeCollection m_userRolePermissions;
         private AccessRestrictionType? m_accessRestrictions;
         private ReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;
@@ -4783,11 +3910,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Used to validate a node.
-    /// </summary>
-    public delegate bool NodeStateValidateHandler(ISystemContext context, NodeState node);
-
-    /// <summary>
     /// Used to receive notifications when a non-value attribute is read or written.
     /// </summary>
     public delegate void NodeStateChangedHandler(
@@ -4799,15 +3921,6 @@ namespace Opc.Ua
     /// Used to receive notifications when a reference get added to the node
     /// </summary>
     public delegate void NodeStateReferenceAdded(
-        NodeState node,
-        NodeId referenceTypeId,
-        bool isInverse,
-        ExpandedNodeId targetId);
-
-    /// <summary>
-    /// Used to receive notifications when a reference get removed to the node
-    /// </summary>
-    public delegate void NodeStateReferenceRemoved(
         NodeState node,
         NodeId referenceTypeId,
         bool isInverse,
@@ -4934,11 +4047,4 @@ namespace Opc.Ua
         /// <remarks>Only one of TargetId or TargetPath is specified.</remarks>
         public string TargetPath { get; }
     }
-
-    /// <summary>
-    /// A delegate which creates a new node.
-    /// </summary>
-    /// <param name="parent">The parent of the node.</param>
-    /// <returns>The new node.</returns>
-    public delegate NodeState NodeStateConstructDelegate(NodeState parent);
 }

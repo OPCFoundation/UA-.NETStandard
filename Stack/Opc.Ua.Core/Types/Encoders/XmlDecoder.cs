@@ -607,11 +607,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The type of encoding being used.
-        /// </summary>
-        public EncodingType EncodingType => EncodingType.Xml;
-
-        /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
         public IServiceMessageContext Context { get; }
@@ -652,38 +647,6 @@ namespace Opc.Ua
             {
                 m_serverMappings = Context.ServerUris.CreateMapping(serverUris, false);
             }
-        }
-
-        /// <summary>
-        /// Decodes an object from a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="expectedType"/> is <c>null</c>.</exception>
-        public IEncodeable DecodeMessage(Type expectedType)
-        {
-            if (expectedType == null)
-            {
-                throw new ArgumentNullException(nameof(expectedType));
-            }
-
-            XmlQualifiedName typeName = TypeInfo.GetXmlName(expectedType);
-            string ns = typeName.Namespace;
-            string name = typeName.Name;
-
-            int index = name.IndexOf(':', StringComparison.Ordinal);
-
-            if (index != -1)
-            {
-                name = name[(index + 1)..];
-            }
-
-            PushNamespace(ns);
-
-            // read the message.
-            IEncodeable encodeable = ReadEncodeable(name, expectedType);
-
-            PopNamespace();
-
-            return encodeable;
         }
 
         /// <summary>
@@ -2503,13 +2466,6 @@ namespace Opc.Ua
                 StatusCodes.BadDecodingError,
                 "Invalid ValueRank {0} for Array",
                 valueRank);
-        }
-
-        /// <inheritdoc/>
-        public uint ReadSwitchField(IList<string> switches, out string fieldName)
-        {
-            fieldName = null;
-            return ReadUInt32("SwitchField");
         }
 
         /// <inheritdoc/>

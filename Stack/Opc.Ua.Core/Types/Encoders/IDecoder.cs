@@ -21,10 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public interface IDecoder : IDisposable
     {
-        /// <summary>
-        /// The type of encoding being used.
-        /// </summary>
-        EncodingType EncodingType { get; }
 
         /// <summary>
         /// The message context associated with the decoder.
@@ -42,11 +38,6 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespaces URIs referenced by the data being decoded.</param>
         /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
         void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
-
-        /// <summary>
-        /// Decodes an object from a buffer.
-        /// </summary>
-        IEncodeable DecodeMessage(Type expectedType);
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -357,13 +348,6 @@ namespace Opc.Ua
             BuiltInType builtInType,
             Type systemType = null,
             ExpandedNodeId encodeableTypeId = null);
-
-        /// <summary>
-        /// Decode the switch field for a union.
-        /// </summary>
-        /// <param name="switches">The list of field names in the order of the union selector.</param>
-        /// <param name="fieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</param>
-        uint ReadSwitchField(IList<string> switches, out string fieldName);
 
         /// <summary>
         /// Decode the encoding mask for a structure with optional fields.

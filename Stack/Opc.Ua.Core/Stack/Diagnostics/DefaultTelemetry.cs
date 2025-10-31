@@ -63,16 +63,6 @@ namespace Opc.Ua
                 .Create(configure);
         }
 
-        /// <summary>
-        /// Create default telemetry
-        /// </summary>
-        /// <param name="configure"></param>
-        /// <returns></returns>
-        public ITelemetryContext Create(Action<ILoggingBuilder> configure)
-        {
-            return new DefaultTelemetry(configure);
-        }
-
         /// <inheritdoc/>
         public Meter CreateMeter()
         {

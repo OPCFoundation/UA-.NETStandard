@@ -60,18 +60,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Typed null logger
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public sealed class Null<T> : Null, ILogger<T>
-        {
-            /// <summary>
-            /// Get instance to a typed null logger
-            /// </summary>
-            public static new ILogger<T> Logger { get; } = new Null<T>();
-        }
-
-        /// <summary>
         /// Null logger. In debug builds it will assert if used. In retail
         /// it will ensure that no null reference exception occurrs in classes
         /// that initialize a logger field.

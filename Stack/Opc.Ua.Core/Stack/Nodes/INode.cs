@@ -55,17 +55,6 @@ namespace Opc.Ua
     /// </summary>
     public interface ILocalNode : INode
     {
-        /// <summary>
-        /// A synchronization object that can be used to safely access the node.
-        /// </summary>
-        /// <value>The data lock.</value>
-        object DataLock { get; }
-
-        /// <summary>
-        /// A handle assigned to the node.
-        /// </summary>
-        /// <value>The handle.</value>
-        object Handle { get; set; }
 
         /// <summary>
         /// The node identifier.
@@ -104,23 +93,10 @@ namespace Opc.Ua
         AttributeWriteMask UserWriteMask { get; set; }
 
         /// <summary>
-        /// The identifier for the ModellingRule node.
-        /// </summary>
-        /// <value>The modelling rule.</value>
-        NodeId ModellingRule { get; }
-
-        /// <summary>
         /// The collection of references for the node.
         /// </summary>
         /// <value>The references.</value>
         IReferenceCollection References { get; }
-
-        /// <summary>
-        /// Creates a copy of the node.
-        /// </summary>
-        /// <param name="nodeId">The node identifier.</param>
-        /// <returns>Copy of the node.</returns>
-        ILocalNode CreateCopy(NodeId nodeId);
 
         /// <summary>
         /// Returns true if the node supports the attribute.

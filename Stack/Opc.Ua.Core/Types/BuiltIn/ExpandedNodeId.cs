@@ -515,27 +515,6 @@ namespace Opc.Ua
         /// Formats the node ids as string and adds it to the buffer.
         /// </summary>
         public static void Format(
-            StringBuilder buffer,
-            object identifier,
-            IdType identifierType,
-            ushort namespaceIndex,
-            string namespaceUri,
-            uint serverIndex)
-        {
-            Format(
-                CultureInfo.InvariantCulture,
-                buffer,
-                identifier,
-                identifierType,
-                namespaceIndex,
-                namespaceUri,
-                serverIndex);
-        }
-
-        /// <summary>
-        /// Formats the node ids as string and adds it to the buffer.
-        /// </summary>
-        public static void Format(
             IFormatProvider formatProvider,
             StringBuilder buffer,
             object identifier,
@@ -557,59 +536,6 @@ namespace Opc.Ua
             }
 
             NodeId.Format(formatProvider, buffer, identifier, identifierType, namespaceIndex);
-        }
-
-        /// <summary>
-        /// Parses a expanded node id string, translated any namespace indexes and returns the result.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public static ExpandedNodeId Parse(
-            string text,
-            NamespaceTable currentNamespaces,
-            NamespaceTable targetNamespaces)
-        {
-            // parse the string.
-            ExpandedNodeId nodeId = Parse(text);
-
-            // lookup the namespace uri.
-            string uri = nodeId.NamespaceUri;
-
-            if (nodeId.InnerNodeId.NamespaceIndex != 0)
-            {
-                uri = currentNamespaces.GetString(nodeId.InnerNodeId.NamespaceIndex);
-            }
-
-            // translate the namespace uri.
-            ushort namespaceIndex = 0;
-
-            if (!string.IsNullOrEmpty(uri))
-            {
-                int index = targetNamespaces.GetIndex(uri);
-
-                if (index == -1)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Cannot map namespace URI onto an index in the target namespace table: {0}",
-                        uri);
-                }
-
-                namespaceIndex = (ushort)index;
-            }
-
-            // check for absolute node id.
-            if (nodeId.ServerIndex != 0)
-            {
-                nodeId.InnerNodeId = new NodeId(nodeId.InnerNodeId.Identifier, 0);
-                nodeId.NamespaceUri = uri;
-                return nodeId;
-            }
-
-            // local node id.
-            nodeId.InnerNodeId = new NodeId(nodeId.InnerNodeId.Identifier, namespaceIndex);
-            nodeId.NamespaceUri = null;
-
-            return nodeId;
         }
 
         /// <summary>
@@ -1144,29 +1070,6 @@ namespace Opc.Ua
             buffer.Append(id);
 
             return buffer.ToString();
-        }
-
-        /// <summary>
-        /// Parses an absolute NodeId formatted as a string and converts it a local NodeId.
-        /// </summary>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="namespaceUris">The current namespace table.</param>
-        /// <returns>The local identifier.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
-        public static NodeId Parse(string text, NamespaceTable namespaceUris)
-        {
-            ExpandedNodeId nodeId = Parse(text);
-
-            if (!nodeId.IsAbsolute)
-            {
-                return nodeId.InnerNodeId;
-            }
-
-            return ToNodeId(nodeId, namespaceUris)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "NamespaceUri ({0}) is not in the namespace table.",
-                    nodeId.NamespaceUri);
         }
 
         /// <summary>

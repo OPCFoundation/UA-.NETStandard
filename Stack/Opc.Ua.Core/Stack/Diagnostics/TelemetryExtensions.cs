@@ -66,64 +66,6 @@ namespace Opc.Ua
             return telemetry.GetLoggerFactory().CreateLogger<TContext>();
         }
 
-        /// <summary>
-        /// Create a logger from a logger factory
-        /// </summary>
-        /// <typeparam name="TContext"></typeparam>
-        /// <param name="telemetry">The telemetry context to use</param>
-        /// <param name="context">A context to infer the category name from</param>
-        /// <returns></returns>
-        public static ILogger CreateLogger<TContext>(this ITelemetryContext? telemetry, TContext context)
-        {
-            return telemetry.CreateLogger(context?.GetType().FullName ?? typeof(TContext).FullName!);
-        }
-
-        /// <summary>
-        /// Create a logger from a logger factory
-        /// </summary>
-        /// <param name="telemetry">The telemetry context to use</param>
-        /// <param name="categoryName">The category to create the logger for</param>
-        /// <returns></returns>
-        public static ILogger CreateLogger(this ITelemetryContext? telemetry, string categoryName)
-        {
-            return telemetry.GetLoggerFactory().CreateLogger(categoryName);
-        }
-
-        /// <summary>
-        /// Get meter instance or a default one.
-        /// </summary>
-        /// <param name="telemetry">The telemetry context to use</param>
-        /// <returns></returns>
-        public static Meter CreateMeter(this ITelemetryContext? telemetry)
-        {
-            DebugCheck(telemetry);
-            return telemetry?.CreateMeter() ?? s_default.Value.CreateMeter();
-        }
-
-        /// <summary>
-        /// Get activity source
-        /// </summary>
-        /// <param name="telemetry">The telemetry context to use</param>
-        /// <returns></returns>
-        public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
-        {
-            DebugCheck(telemetry);
-            return telemetry?.ActivitySource ?? s_default.Value.ActivitySource;
-        }
-
-        /// <summary>
-        /// Start activity
-        /// </summary>
-        /// <param name="telemetry">The telemetry context to use</param>
-        /// <param name="name">The name of the caller</param>
-        /// <param name="kind">The activity kind</param>
-        /// <returns></returns>
-        public static Activity? StartActivity(this ITelemetryContext? telemetry,
-            [CallerMemberName] string name = "", ActivityKind kind = ActivityKind.Internal)
-        {
-            return telemetry.GetActivitySource().StartActivity(name, kind);
-        }
-
         private static readonly Lazy<DefaultTelemetry> s_default =
             new(() => new DefaultTelemetry(), true);
 

@@ -58,26 +58,6 @@ namespace Opc.Ua.Schema.Binary
         public TypeDictionary Dictionary { get; private set; }
 
         /// <summary>
-        /// The types defined in the dictionary.
-        /// </summary>
-        public IList<TypeDescription> ValidatedDescriptions => m_validatedDescriptions;
-
-        /// <summary>
-        /// Any warnings during validation.
-        /// </summary>
-        public ICollection<string> Warnings => m_warnings;
-
-        /// <summary>
-        /// Generates the code from the contents of the address space.
-        /// </summary>
-        public void Validate(Stream stream)
-        {
-            // read and parse the file.
-            Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), stream);
-            Validate();
-        }
-
-        /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
         public void Validate(string inputPath)
@@ -90,7 +70,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
-        public override string GetSchema(string typeName)
+        public string GetSchema(string typeName)
         {
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 

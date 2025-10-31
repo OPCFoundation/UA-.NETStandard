@@ -56,31 +56,6 @@ namespace Opc.Ua
         /// Pop the structure from the encoder stack.
         /// </summary>
         void PopStructure();
-
-        /// <summary>
-        /// Call an IEncoder action where the reversible encoding is applied
-        /// before the call to the Action and restored before return.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        [Obsolete(
-            "Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types."
-        )]
-        void UsingReversibleEncoding<T>(
-            Action<string, T> action,
-            string fieldName,
-            T value,
-            bool useReversibleEncoding);
-
-        /// <summary>
-        /// Call an IEncoder action where the alternate encoding type is applied
-        /// before the call to the Action and restored before return.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        void UsingAlternateEncoding<T>(
-            Action<string, T> action,
-            string fieldName,
-            T value,
-            JsonEncodingType useEncodingType);
     }
 
     /// <summary>

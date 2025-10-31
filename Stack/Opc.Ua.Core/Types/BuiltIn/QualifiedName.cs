@@ -365,28 +365,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns true if the QualifiedName is valid.
-        /// </summary>
-        /// <param name="value">The name to be validated.</param>
-        /// <param name="namespaceUris">The table namespaces known to the server.</param>
-        /// <returns>True if the name is value.</returns>
-        public static bool IsValid(QualifiedName value, NamespaceTable namespaceUris)
-        {
-            if (value == null || string.IsNullOrEmpty(value.XmlEncodedName))
-            {
-                return false;
-            }
-
-            if (namespaceUris != null &&
-                namespaceUris.GetString(value.XmlEncodedNamespaceIndex) == null)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <summary>
         /// Parses a string containing a QualifiedName with the syntax n:qname
         /// </summary>
         /// <param name="text">The QualifiedName value as a string.</param>
@@ -560,15 +538,6 @@ namespace Opc.Ua
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Converts a string to a qualified name.
-        /// </summary>
-        /// <param name="value">The string to turn into a fully qualified name</param>
-        public static QualifiedName ToQualifiedName(string value)
-        {
-            return new QualifiedName(value);
         }
 
         /// <summary>

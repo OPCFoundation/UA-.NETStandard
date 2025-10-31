@@ -253,18 +253,6 @@ namespace Opc.Ua
         IReferenceCollection ILocalNode.References => ReferenceTable;
 
         /// <summary>
-        /// Creates a copy of the node.
-        /// </summary>
-        /// <param name="nodeId">The node identifier.</param>
-        /// <returns>Copy of the node</returns>
-        public ILocalNode CreateCopy(NodeId nodeId)
-        {
-            Node node = Copy(this);
-            node.NodeId = nodeId;
-            return node;
-        }
-
-        /// <summary>
         /// Returns true if the node supports the attribute.
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
@@ -291,98 +279,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of write operation.</returns>
-        public ServiceResult Write(uint attributeId, DataValue value)
-        {
-            if (!SupportsAttribute(attributeId))
-            {
-                return StatusCodes.BadAttributeIdInvalid;
-            }
-
-            // check for read only attributes.
-            switch (attributeId)
-            {
-                case Attributes.NodeId:
-                case Attributes.NodeClass:
-                    return StatusCodes.BadNotWritable;
-                default:
-                    // check data type.
-                    if (attributeId != Attributes.Value &&
-                        Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
-                    {
-                        return StatusCodes.BadTypeMismatch;
-                    }
-                    return Write(attributeId, value.Value);
-            }
-        }
-
-        /// <summary>
         /// A searchable table of references for the node.
         /// </summary>
         /// <value>The reference table.</value>
         public ReferenceCollection ReferenceTable => m_referenceTable ??= [];
-
-        /// <summary>
-        /// Returns true if the reference exist.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="isInverse">if set to <c>true</c> [is inverse].</param>
-        /// <param name="targetId">The target id.</param>
-        /// <returns>True if the reference exist.</returns>
-        public bool ReferenceExists(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
-        {
-            return ReferenceTable.Exists(referenceTypeId, isInverse, targetId, false, null);
-        }
-
-        /// <summary>
-        /// Returns all targets of the specified reference type.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="isInverse">if set to <c>true</c> [is inverse].</param>
-        /// <returns>All targets of the specified reference type.</returns>
-        public IList<IReference> Find(NodeId referenceTypeId, bool isInverse)
-        {
-            return ReferenceTable.Find(referenceTypeId, isInverse, false, null);
-        }
-
-        /// <summary>
-        /// Returns a target of the specified reference type.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="isInverse">if set to <c>true</c> [is inverse].</param>
-        /// <param name="index">The index.</param>
-        /// <returns>A target of the specified reference type.</returns>
-        public ExpandedNodeId FindTarget(NodeId referenceTypeId, bool isInverse, int index)
-        {
-            return ReferenceTable.FindTarget(referenceTypeId, isInverse, false, null, index);
-        }
-
-        /// <summary>
-        /// Returns the supertype for the Node if one exists.
-        /// </summary>
-        /// <param name="typeTree">The type tree.</param>
-        /// <returns>The supertype for the Node if one exists.</returns>
-        /// <remarks>
-        /// Includes subtypes of HasSubtype if typeTree != null.
-        /// </remarks>
-        public ExpandedNodeId GetSuperType(ITypeTable typeTree)
-        {
-            if (m_referenceTable != null)
-            {
-                return m_referenceTable.FindTarget(
-                    ReferenceTypeIds.HasSubtype,
-                    true,
-                    typeTree != null,
-                    typeTree,
-                    0);
-            }
-
-            return null;
-        }
 
         /// <inheritdoc/>
         public override int GetHashCode()

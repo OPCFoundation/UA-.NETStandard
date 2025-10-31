@@ -432,15 +432,6 @@ namespace Opc.Ua
         /// Converts a string to a localized text.
         /// </summary>
         /// <param name="value">The string to store as localized text</param>
-        public static LocalizedText ToLocalizedText(string value)
-        {
-            return new LocalizedText(value);
-        }
-
-        /// <summary>
-        /// Converts a string to a localized text.
-        /// </summary>
-        /// <param name="value">The string to store as localized text</param>
         public static implicit operator LocalizedText(string value)
         {
             return new LocalizedText(value);
@@ -462,69 +453,6 @@ namespace Opc.Ua
             }
 
             return string.IsNullOrEmpty(value.XmlEncodedText);
-        }
-
-        /// <summary>
-        /// Returns a LocalizedText filtered by the preferred locales according to OPC UA Part 4 rules for 'mul' and 'qst'. (https://reference.opcfoundation.org/Core/Part4/v105/docs/5.4)
-        /// </summary>
-        /// <param name="preferredLocales">The list of preferred locales, possibly including 'mul' or 'qst' as the first entry.</param>
-        /// <returns>A LocalizedText containing translations as specified by the rules.</returns>
-        public LocalizedText FilterByPreferredLocales(IList<string> preferredLocales)
-        {
-            if (preferredLocales == null || preferredLocales.Count == 0 || XmlEncodedLocale == null)
-            {
-                return this;
-            }
-
-            KeyValuePair<string, string> defaultKVP;
-            bool isMultilanguageRequested = preferredLocales[0]
-                .ToLowerInvariant() is "mul" or "qst";
-
-            // If not a multi-language request, return the best match or fallback
-            if (!isMultilanguageRequested)
-            {
-                if (!IsMultiLanguage)
-                {
-                    // nothing to do for single locale text
-                    return this;
-                }
-
-                // Try to find the first matching locale
-                foreach (string locale in preferredLocales)
-                {
-                    if (Translations.TryGetValue(locale, out string text))
-                    {
-                        return new LocalizedText(locale, text);
-                    }
-                }
-                // return the first available locale
-                defaultKVP = Translations.First();
-                return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
-            }
-
-            // Multi-language request: 'mul' or 'qst'
-            if (preferredLocales.Count == 1)
-            {
-                return this;
-            }
-            if (!IsMultiLanguage)
-            {
-                // nothing to do for single locale text
-                return this;
-            }
-
-            var translations = new ReadOnlyDictionary<string, string>(
-                Translations.Where(t => preferredLocales.Contains(t.Key))
-                    .ToDictionary(s => s.Key, s => s.Value));
-
-            // If matching locales are found return those
-            if (translations.Count > 0)
-            {
-                return new LocalizedText(translations);
-            }
-            defaultKVP = Translations.First();
-
-            return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
         }
 
         /// <summary>

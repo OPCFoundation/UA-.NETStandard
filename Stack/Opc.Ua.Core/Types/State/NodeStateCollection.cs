@@ -156,38 +156,6 @@ namespace Opc.Ua
         ];
 
         /// <summary>
-        /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
-        /// </summary>
-        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm)
-        {
-            SaveAsNodeSet2(context, ostrm, null);
-        }
-
-        /// <summary>
-        /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
-        /// </summary>
-        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
-        {
-            var nodeSet = new Export.UANodeSet
-            {
-                LastModified = DateTime.UtcNow,
-                LastModifiedSpecified = true
-            };
-
-            for (int ii = 0; ii < s_aliasesToUse.Length; ii++)
-            {
-                nodeSet.AddAlias(context, s_aliasesToUse[ii].Alias, s_aliasesToUse[ii].NodeId);
-            }
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                nodeSet.Export(context, this[ii], true);
-            }
-
-            nodeSet.Write(ostrm);
-        }
-
-        /// <summary>
         /// Writes the schema information to a static XML export file.
         /// </summary>
         public void SaveAsXml(ISystemContext context, Stream ostrm)
@@ -251,76 +219,6 @@ namespace Opc.Ua
             }
 
             encoder.Close();
-        }
-
-        /// <summary>
-        /// Reads the schema information from a XML document.
-        /// </summary>
-        public void LoadFromBinary(ISystemContext context, Stream istrm, bool updateTables)
-        {
-            var messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
-
-            using var decoder = new BinaryDecoder(istrm, messageContext);
-            // check if a namespace table was provided.
-            var namespaceUris = new NamespaceTable();
-
-            if (!decoder.LoadStringTable(namespaceUris))
-            {
-                namespaceUris = null;
-            }
-
-            // update namespace table.
-            if (updateTables)
-            {
-                if (namespaceUris != null && context.NamespaceUris != null)
-                {
-                    for (int ii = 0; ii < namespaceUris.Count; ii++)
-                    {
-                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
-                    }
-                }
-            }
-
-            // check if a server uri table was provided.
-            var serverUris = new StringTable();
-
-            if (namespaceUris != null && namespaceUris.Count > 1)
-            {
-                serverUris.Append(namespaceUris.GetString(1));
-            }
-
-            if (!decoder.LoadStringTable(serverUris))
-            {
-                serverUris = null;
-            }
-
-            // update server table.
-            if (updateTables)
-            {
-                if (serverUris != null && context.ServerUris != null)
-                {
-                    for (int ii = 0; ii < serverUris.Count; ii++)
-                    {
-                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
-                    }
-                }
-            }
-
-            // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
-            int count = decoder.ReadInt32(null);
-
-            for (int ii = 0; ii < count; ii++)
-            {
-                var state = NodeState.LoadNode(context, decoder);
-                Add(state);
-            }
         }
 
         /// <summary>
@@ -391,92 +289,6 @@ namespace Opc.Ua
 
             decoder.Close();
         }
-
-        /// <summary>
-        /// Loads the nodes from an embedded resource.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="resourcePath">The resource path.</param>
-        /// <param name="assembly">The assembly containing the resource.</param>
-        /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="resourcePath"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public void LoadFromResource(
-            ISystemContext context,
-            string resourcePath,
-            Assembly assembly,
-            bool updateTables)
-        {
-            if (resourcePath == null)
-            {
-                throw new ArgumentNullException(nameof(resourcePath));
-            }
-
-            if (assembly == null)
-            {
-                throw new ArgumentNullException(nameof(assembly));
-            }
-
-            Stream istrm = assembly.GetManifestResourceStream(resourcePath);
-            if (istrm == null)
-            {
-                // try to load from app directory
-                var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead();
-                if (istrm == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Could not load nodes from resource: {0}",
-                        resourcePath);
-                }
-            }
-
-            LoadFromXml(context, istrm, updateTables);
-        }
-
-        /// <summary>
-        /// Loads the nodes from an embedded resource.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="resourcePath">The resource path.</param>
-        /// <param name="assembly">The assembly containing the resource.</param>
-        /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="resourcePath"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public void LoadFromBinaryResource(
-            ISystemContext context,
-            string resourcePath,
-            Assembly assembly,
-            bool updateTables)
-        {
-            if (resourcePath == null)
-            {
-                throw new ArgumentNullException(nameof(resourcePath));
-            }
-
-            if (assembly == null)
-            {
-                throw new ArgumentNullException(nameof(assembly));
-            }
-
-            Stream istrm = assembly.GetManifestResourceStream(resourcePath);
-            if (istrm == null)
-            {
-                // try to load from app directory
-                var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead();
-                if (istrm == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Could not load nodes from resource: {0}",
-                        resourcePath);
-                }
-            }
-
-            LoadFromBinary(context, istrm, updateTables);
-        }
     }
 
     /// <summary>
@@ -504,13 +316,7 @@ namespace Opc.Ua
             NodeId typeDefinitionId)
         {
             NodeState child;
-            if (m_types != null &&
-                !NodeId.IsNull(typeDefinitionId) &&
-                m_types.TryGetValue(typeDefinitionId, out Type type))
-            {
-                child = Activator.CreateInstance(type, parent) as NodeState;
-            }
-            else
+
             {
                 switch (nodeClass)
                 {
@@ -555,40 +361,5 @@ namespace Opc.Ua
             }
             return child;
         }
-
-        /// <summary>
-        /// Registers a type with the factory.
-        /// </summary>
-        /// <param name="typeDefinitionId">The type definition.</param>
-        /// <param name="type">The system type.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void RegisterType(NodeId typeDefinitionId, Type type)
-        {
-            if (NodeId.IsNull(typeDefinitionId))
-            {
-                throw new ArgumentNullException(nameof(typeDefinitionId));
-            }
-
-            m_types ??= [];
-
-            m_types[typeDefinitionId] = type ?? throw new ArgumentNullException(nameof(type));
-        }
-
-        /// <summary>
-        /// Unregisters a type with the factory.
-        /// </summary>
-        /// <param name="typeDefinitionId">The type definition.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void UnRegisterType(NodeId typeDefinitionId)
-        {
-            if (NodeId.IsNull(typeDefinitionId))
-            {
-                throw new ArgumentNullException(nameof(typeDefinitionId));
-            }
-
-            m_types?.Remove(typeDefinitionId);
-        }
-
-        private NodeIdDictionary<Type> m_types;
     }
 }

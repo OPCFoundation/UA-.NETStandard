@@ -20,37 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public interface ISystemContext
     {
-        /// <summary>
-        /// An application defined handle for the system.
-        /// </summary>
-        /// <value>The system handle.</value>
-        object SystemHandle { get; }
-
-        /// <summary>
-        /// The identifier for the session (null if multiple sessions are associated with the operation).
-        /// </summary>
-        /// <value>The session identifier.</value>
-        NodeId SessionId { get; }
-
-#if MOVE
-        /// <summary>
-        /// The identity of the user (null if not available).
-        /// </summary>
-        /// <value>The user identity.</value>
-        IUserIdentity UserIdentity { get; }
-#endif
-
-        /// <summary>
-        /// The locales to use if available.
-        /// </summary>
-        /// <value>The preferred locales.</value>
-        IList<string> PreferredLocales { get; }
-
-        /// <summary>
-        /// The audit log entry associated with the operation (null if not available).
-        /// </summary>
-        /// <value>The audit entry identifier.</value>
-        string AuditEntryId { get; }
 
         /// <summary>
         /// The table of namespace uris to use when accessing the system.
@@ -113,51 +82,6 @@ namespace Opc.Ua
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>
-        /// An application defined handle for the system.
-        /// </summary>
-        /// <value>The system handle.</value>
-        public object SystemHandle { get; set; }
-
-        /// <summary>
-        /// The identifier for the session (null if multiple sessions are associated with the operation).
-        /// </summary>
-        /// <value>The session identifier.</value>
-        public NodeId SessionId
-        {
-            get
-            {
-                return m_sessionId;
-            }
-            set => m_sessionId = value;
-        }
-
-        /// <summary>
-        /// The locales to use if available.
-        /// </summary>
-        /// <value>The preferred locales.</value>
-        public IList<string> PreferredLocales
-        {
-            get
-            {
-                return m_preferredLocales;
-            }
-            set => m_preferredLocales = value;
-        }
-
-        /// <summary>
-        /// The audit log entry associated with the operation (null if not available).
-        /// </summary>
-        /// <value>The audit entry identifier.</value>
-        public string AuditEntryId
-        {
-            get
-            {
-                return m_auditEntryId;
-            }
-            set => m_auditEntryId = value;
-        }
-
-        /// <summary>
         /// The table of namespace uris to use when accessing the system.
         /// </summary>
         /// <value>The namespace URIs.</value>
@@ -192,57 +116,5 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The node identifiers factory.</value>
         public INodeIdFactory NodeIdFactory { get; set; }
-
-        /// <summary>
-        /// The diagnostics mask associated with the operation.
-        /// </summary>
-        /// <value>The diagnostics mask.</value>
-        public DiagnosticsMasks DiagnosticsMask
-        {
-            get
-            {
-                return DiagnosticsMasks.None;
-            }
-        }
-
-        /// <summary>
-        /// The table of strings associated with the operation.
-        /// </summary>
-        /// <value>The string table.</value>
-        public StringTable StringTable
-        {
-            get
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// When the operation will be abandoned if it has not completed.
-        /// </summary>
-        /// <value>The operation deadline.</value>
-        public DateTime OperationDeadline
-        {
-            get
-            {
-                return DateTime.MaxValue;
-            }
-        }
-
-        /// <summary>
-        /// The current status of the operation.
-        /// </summary>
-        /// <value>The operation status.</value>
-        public StatusCode OperationStatus
-        {
-            get
-            {
-                return StatusCodes.Good;
-            }
-        }
-
-        private NodeId m_sessionId;
-        private IList<string> m_preferredLocales;
-        private string m_auditEntryId;
     }
 }

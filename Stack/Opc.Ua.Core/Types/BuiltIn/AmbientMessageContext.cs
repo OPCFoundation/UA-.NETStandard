@@ -68,56 +68,6 @@ namespace Opc.Ua
         /// </summary>
         public IServiceMessageContext MessageContext { get; }
 
-        /// <summary>
-        /// Set the context for a specific using scope
-        /// </summary>
-        public static IDisposable SetScopedContext(IServiceMessageContext messageContext)
-        {
-            AmbientMessageContext previousContext = s_current.Value;
-
-            s_current.Value = new AmbientMessageContext(messageContext);
-
-            // If no root context, use the message context passed as root
-            return new Restore(previousContext);
-        }
-
-        /// <summary>
-        /// Clone the current context as a new scope
-        /// </summary>
-        public static IDisposable SetScopedContext(ITelemetryContext telemetry)
-        {
-            AmbientMessageContext previousContext = s_current.Value;
-
-            s_current.Value = new AmbientMessageContext(
-                previousContext == null ?
-                    new ServiceMessageContext(telemetry) :
-                    new ServiceMessageContext(previousContext.MessageContext, telemetry));
-
-            return new Restore(previousContext);
-        }
-
-        /// <summary>
-        /// Disposable wrapper for reseting the context to
-        /// the previous value on exiting the using scope
-        /// </summary>
-        private sealed class Restore : IDisposable
-        {
-            private readonly AmbientMessageContext m_context;
-
-            public Restore(AmbientMessageContext context)
-            {
-                m_context = context;
-            }
-
-            public void Dispose()
-            {
-                if (m_context != null)
-                {
-                    s_current.Value = m_context;
-                }
-            }
-        }
-
         private static readonly AsyncLocal<AmbientMessageContext> s_current = new();
     }
 }

@@ -60,10 +60,6 @@ namespace Opc.Ua
     /// </remarks>
     public static partial class Utils
     {
-        /// <summary>
-        /// The high performance EventSource log interface.
-        /// </summary>
-        internal static OpcUaCoreEventSource EventLog { get; } = new();
 
         /// <summary>
         /// Global default logger provider
@@ -96,10 +92,6 @@ namespace Opc.Ua
         /// </summary>
         public static class TraceMasks
         {
-            /// <summary>
-            /// Do not output any messages.
-            /// </summary>
-            public const int None = 0x0;
 
             /// <summary>
             /// Output error messages.
@@ -117,74 +109,14 @@ namespace Opc.Ua
             public const int StackTrace = 0x4;
 
             /// <summary>
-            /// Output basic messages for service calls.
-            /// </summary>
-            public const int Service = 0x8;
-
-            /// <summary>
-            /// Output detailed messages for service calls.
-            /// </summary>
-            public const int ServiceDetail = 0x10;
-
-            /// <summary>
             /// Output basic messages for each operation.
             /// </summary>
             public const int Operation = 0x20;
 
             /// <summary>
-            /// Output detailed messages for each operation.
-            /// </summary>
-            public const int OperationDetail = 0x40;
-
-            /// <summary>
-            /// Output messages related to application initialization or shutdown
-            /// </summary>
-            public const int StartStop = 0x80;
-
-            /// <summary>
-            /// Output messages related to a call to an external system.
-            /// </summary>
-            public const int ExternalSystem = 0x100;
-
-            /// <summary>
-            /// Output messages related to security
-            /// </summary>
-            public const int Security = 0x200;
-
-            /// <summary>
             /// Output all messages.
             /// </summary>
             public const int All = 0x3FF;
-        }
-
-        /// <summary>
-        /// Format a log string of the certificate
-        /// </summary>
-        /// <param name="certificate"></param>
-        /// <returns></returns>
-        public static string AsLogSafeString(this X509Certificate2 certificate)
-        {
-            if (certificate == null)
-            {
-                return "(none)";
-            }
-            var buffer = new StringBuilder();
-            buffer
-                .Append('[')
-                .Append(Redact.Create(certificate.Subject))
-                .Append("], [")
-                .Append(Redact.Create(certificate.Thumbprint))
-                .Append(']');
-
-            if (certificate.Handle == IntPtr.Zero)
-            {
-                buffer.Append(" !!DISPOSED!!");
-            }
-            else if (certificate.HasPrivateKey)
-            {
-                buffer.Append(" (with Private Key)");
-            }
-            return buffer.ToString();
         }
 
         /// <summary>
