@@ -1083,8 +1083,6 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    // validation skipped until IOP issues are resolved.
-                    // ValidateServerCertificateApplicationUri(serverCertificate);
                     if (checkDomain)
                     {
                         await m_configuration
@@ -1210,6 +1208,8 @@ namespace Opc.Ua.Client
                 ValidateServerCertificateData(serverCertificateData);
 
                 ValidateServerEndpoints(serverEndpoints);
+
+                ValidateServerCertificateApplicationUri(serverCertificate, m_endpoint);
 
                 ValidateServerSignature(
                     serverCertificate,
@@ -3790,31 +3790,6 @@ namespace Opc.Ua.Client
             }
         }
 
-#if UNUSED
-        /// <summary>
-        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint
-        /// for an open call (Spec Part 4 5.4.1)
-        /// </summary>
-        private void ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate)
-        {
-            string applicationUri = m_endpoint?.Description?.Server?.ApplicationUri;
-            //check is only neccessary if the ApplicatioUri is specified for the Endpoint
-            if (string.IsNullOrEmpty(applicationUri))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "No ApplicationUri is specified for the server in the EndpointDescription.");
-            }
-            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
-            if (!string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
-            }
-        }
-#endif
-
         private void BuildCertificateData(
             out byte[] clientCertificateData,
             out byte[] clientCertificateChainData)
@@ -3924,6 +3899,20 @@ namespace Opc.Ua.Client
                         StatusCodes.BadApplicationSignatureInvalid,
                         "Server did not provide a correct signature for the nonce data provided by the client.");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri
+        /// of the Endpoint (Spec Part 4 5.4.1) returned by the CreateSessionResponse.
+        /// Ensure the endpoint was matched in <see cref="ValidateServerEndpoints"/>
+        /// with the applicationUri of the server description before the validation.
+        /// </summary>
+        private void ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        {
+            if (serverCertificate != null)
+            {
+                m_configuration.CertificateValidator.ValidateApplicationUri(serverCertificate, endpoint);
             }
         }
 
