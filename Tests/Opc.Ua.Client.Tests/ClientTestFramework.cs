@@ -75,6 +75,7 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
+        public ExpandedNodeId[] TestSetStaticMassNumeric { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
         public ExpandedNodeId[] TestSetDataSimulation { get; }
         public ExpandedNodeId[] TestSetHistory { get; }
@@ -88,6 +89,7 @@ namespace Opc.Ua.Client.Tests
             m_logger = Telemetry.CreateLogger<ClientTestFramework>();
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
+            TestSetStaticMassNumeric = CommonTestWorkers.NodeIdTestSetStaticMassNumeric;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
             TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
             TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
@@ -136,8 +138,8 @@ namespace Opc.Ua.Client.Tests
                     m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
 
                     // load custom test sets
-                    TestSetStatic = ReadCustomTestSet("TestSetStatic");
-                    TestSetSimulation = ReadCustomTestSet("TestSetSimulation");
+                    //TestSetStatic = ReadCustomTestSet("TestSetStatic");
+                    //TestSetSimulation = ReadCustomTestSet("TestSetSimulation");
                 }
                 else
                 {
@@ -389,6 +391,18 @@ namespace Opc.Ua.Client.Tests
         public IList<NodeId> GetTestSetStatic(NamespaceTable namespaceUris)
         {
             return [.. TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)];
+        }
+
+        /// <summary>
+        /// Return a test set of nodes with static character.
+        /// 100 of each numeric data type.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of static test nodes.</returns>
+        public IList<NodeId> GetTestSetStaticMassNumeric(NamespaceTable namespaceUris)
+        {
+            return [.. TestSetStaticMassNumeric.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
                 .Where(n => n != null)];
         }
 
