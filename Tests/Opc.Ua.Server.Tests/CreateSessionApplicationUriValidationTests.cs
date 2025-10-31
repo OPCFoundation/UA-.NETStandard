@@ -323,7 +323,7 @@ namespace Opc.Ua.Server.Tests
                 // Create and open session with retry logic for transient errors
                 var sessionFactory = new DefaultSessionFactory(telemetry);
                 const int maxAttempts = 5;
-                const int delayMs = 1000;
+                const int delayMs = 10000;
                 for (int attempt = 0; ; attempt++)
                 {
                     try
