@@ -942,7 +942,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         /// <summary>
         /// Verify that decoding of a Matrix DataValue which has invalid array dimensions.
-        /// </summary
+        /// </summary>
         [Theory]
         [Category("Matrix")]
         public void MatrixOverflow(
@@ -1038,7 +1038,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         /// <summary>
         /// Verify that decoding of a Matrix DataValue which has statical provided invalid array dimensions.
-        /// </summary
+        /// </summary>
         [Theory]
         [Category("Matrix")]
         public void MatrixOverflowStaticDimensions(

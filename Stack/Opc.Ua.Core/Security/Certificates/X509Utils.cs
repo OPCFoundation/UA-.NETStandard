@@ -153,6 +153,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The application URI.</returns>
+        [Obsolete("Use GetApplicationUrisFromCertificate instead. The certificate may contain more than one Uri.")]
         public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
@@ -166,6 +167,69 @@ namespace Opc.Ua
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Extracts the application URIs specified in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>The application URIs.</returns>
+        public static IReadOnlyList<string> GetApplicationUrisFromCertificate(X509Certificate2 certificate)
+        {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = certificate
+                .FindExtension<X509SubjectAltNameExtension>();
+
+            // get the application uris.
+            if (alternateName != null && alternateName.Uris != null)
+            {
+                return alternateName.Uris;
+            }
+
+            return new List<string>();
+        }
+
+        /// <summary>
+        /// Checks if the specified application URI matches any of the URIs in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate to check.</param>
+        /// <param name="applicationUri">The application URI to match.</param>
+        /// <returns>True if the application URI matches any URI in the certificate; otherwise, false.</returns>
+        public static bool CompareApplicationUriWithCertificate(X509Certificate2 certificate, string applicationUri)
+        {
+            return CompareApplicationUriWithCertificate(certificate, applicationUri, out _);
+        }
+
+        /// <summary>
+        /// Checks if the specified application URI matches any of the URIs in the certificate.
+        /// Returns the list of application URIs found in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate to check.</param>
+        /// <param name="applicationUri">The application URI to match.</param>
+        /// <param name="certificateApplicationUris">The list of application URIs found in the certificate.</param>
+        /// <returns>True if the application URI matches any URI in the certificate; otherwise, false.</returns>
+        public static bool CompareApplicationUriWithCertificate(
+            X509Certificate2 certificate, 
+            string applicationUri, 
+            out IReadOnlyList<string> certificateApplicationUris)
+        {
+            certificateApplicationUris = GetApplicationUrisFromCertificate(certificate);
+
+            if (string.IsNullOrEmpty(applicationUri))
+            {
+                return false;
+            }
+
+            foreach (var certificateApplicationUri in certificateApplicationUris)
+            {
+                if (!string.IsNullOrEmpty(certificateApplicationUri) &&
+                    string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

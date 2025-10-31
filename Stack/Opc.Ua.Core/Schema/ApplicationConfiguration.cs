@@ -722,33 +722,58 @@ namespace Opc.Ua
             get => m_applicationCertificates;
             set
             {
-                m_applicationCertificates = value ?? [];
-
-                IsDeprecatedConfiguration = false;
-
-                // Remove any unsupported certificate types.
-                for (int i = m_applicationCertificates.Count - 1; i >= 0; i--)
+                if (value == null || value.Count == 0)
                 {
-                    if (!Utils.IsSupportedCertificateType(
-                        m_applicationCertificates[i].CertificateType))
+                    m_applicationCertificates = new CertificateIdentifierCollection();
+                    return;
+                }
+
+                var newCertificates = new CertificateIdentifierCollection(value);
+
+                // Remove unsupported certificate types
+                for (int i = newCertificates.Count - 1; i >= 0; i--)
+                {
+                    if (!Utils.IsSupportedCertificateType(newCertificates[i].CertificateType))
                     {
-                        m_applicationCertificates.RemoveAt(i);
+                        // TODO: Log when ITelemetry instance is available
+                        newCertificates.RemoveAt(i);
                     }
                 }
 
-                // Remove any duplicates
-                for (int i = 0; i < m_applicationCertificates.Count; i++)
+                // Remove any duplicates based on thumbprint
+                // Only perform duplicate detection if we have actual loaded certificates
+                for (int i = 0; i < newCertificates.Count; i++)
                 {
-                    for (int j = m_applicationCertificates.Count - 1; j > i; j--)
+                    for (int j = newCertificates.Count - 1; j > i; j--)
                     {
-                        if (m_applicationCertificates[i]
-                                .CertificateType == m_applicationCertificates[j].CertificateType)
+                        bool isDuplicate = false;
+
+                        // Only check for duplicates if both certificates are actually loaded
+                        if (newCertificates[i].Certificate != null && newCertificates[j].Certificate != null)
                         {
-                            m_applicationCertificates.RemoveAt(j);
+                            // Compare by actual certificate thumbprint
+                            isDuplicate = newCertificates[i].Certificate.Thumbprint.Equals(
+                                newCertificates[j].Certificate.Thumbprint,
+                                StringComparison.OrdinalIgnoreCase);
+                        }
+                        // If certificates aren't loaded yet, compare by explicit thumbprint configuration
+                        else if (!string.IsNullOrEmpty(newCertificates[i].Thumbprint) &&
+                                 !string.IsNullOrEmpty(newCertificates[j].Thumbprint))
+                        {
+                            isDuplicate = newCertificates[i].Thumbprint.Equals(
+                                newCertificates[j].Thumbprint,
+                                StringComparison.OrdinalIgnoreCase);
+                        }
+
+                        if (isDuplicate)
+                        {
+                            newCertificates.RemoveAt(j);
                         }
                     }
                 }
 
+                m_applicationCertificates = newCertificates;
+                
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
             }
         }
