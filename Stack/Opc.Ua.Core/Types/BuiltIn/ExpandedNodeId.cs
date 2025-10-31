@@ -657,23 +657,70 @@ namespace Opc.Ua
             errorMessage = null;
             value = Null;
 
+            if (string.IsNullOrEmpty(text))
+            {
+                value = Null;
+                return true;
+            }
+
+            uint serverIndex = 0;
+            string namespaceUri = null;
+
             try
             {
-                if (string.IsNullOrEmpty(text))
+                // parse the server index if present.
+                if (text.StartsWith("svr=", StringComparison.Ordinal))
                 {
-                    value = Null;
-                    return true;
+                    int index = text.IndexOf(';', StringComparison.Ordinal);
+
+                    if (index == -1)
+                    {
+                        errorMessage = "Invalid server index.";
+                        return false;
+                    }
+
+                    if (!uint.TryParse(text.Substring(4, index - 4), NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
+                    {
+                        errorMessage = "Invalid server index format.";
+                        return false;
+                    }
+
+                    text = text[(index + 1)..];
                 }
 
-                value = new ExpandedNodeId(text);
-                return true;
+                // parse the namespace uri if present.
+                if (text.StartsWith("nsu=", StringComparison.Ordinal))
+                {
+                    int index = text.IndexOf(';', StringComparison.Ordinal);
+
+                    if (index == -1)
+                    {
+                        errorMessage = "Invalid namespace uri.";
+                        return false;
+                    }
+
+                    var buffer = new StringBuilder();
+                    UnescapeUri(text, 4, index, buffer);
+                    namespaceUri = buffer.ToString();
+                    text = text[(index + 1)..];
+                }
             }
             catch (Exception e)
             {
                 errorMessage = Utils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
-                value = Null;
                 return false;
             }
+
+            // parse the node id.
+            if (!NodeId.InternalTryParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri), out NodeId innerNodeId, out errorMessage))
+            {
+                return false;
+            }
+
+            // Create the result using the constructor
+            value = new ExpandedNodeId(innerNodeId, namespaceUri, serverIndex);
+
+            return true;
         }
 
         /// <summary>
@@ -1325,8 +1372,33 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void InternalParse(string text)
         {
+            if (!InternalTryParseInstance(text, out string errorMessage))
+            {
+                // Check if this should be an ArgumentException based on the error message
+                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
+                    errorMessage.Contains("Missing valid identifier prefix")))
+                {
+                    throw new ArgumentException(errorMessage);
+                }
+                
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid,
+                    errorMessage ?? Utils.Format("Cannot parse expanded node id text: '{0}'", text));
+            }
+        }
+
+        /// <summary>
+        /// Tries to parse a expanded node id string and sets the properties on this instance.
+        /// </summary>
+        /// <param name="text">The ExpandedNodeId value as a string.</param>
+        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <returns>True if parsing was successful, false otherwise.</returns>
+        private bool InternalTryParseInstance(string text, out string errorMessage)
+        {
+            errorMessage = null;
             uint serverIndex = 0;
             string namespaceUri = null;
+
             try
             {
                 // parse the server index if present.
@@ -1336,12 +1408,15 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadNodeIdInvalid,
-                            "Invalid server index.");
+                        errorMessage = "Invalid server index.";
+                        return false;
                     }
 
-                    serverIndex = Convert.ToUInt32(text[4..index], CultureInfo.InvariantCulture);
+                    if (!uint.TryParse(text.Substring(4, index - 4), NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
+                    {
+                        errorMessage = "Invalid server index format.";
+                        return false;
+                    }
 
                     text = text[(index + 1)..];
                 }
@@ -1353,13 +1428,11 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadNodeIdInvalid,
-                            "Invalid namespace uri.");
+                        errorMessage = "Invalid namespace uri.";
+                        return false;
                     }
 
                     var buffer = new StringBuilder();
-
                     UnescapeUri(text, 4, index, buffer);
                     namespaceUri = buffer.ToString();
                     text = text[(index + 1)..];
@@ -1367,20 +1440,22 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdInvalid,
-                    Utils.Format("Cannot parse expanded node id text: '{0}'", text),
-                    e);
+                errorMessage = Utils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
+                return false;
             }
 
             // parse the node id.
+            if (!NodeId.InternalTryParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri), out NodeId innerNodeId, out errorMessage))
+            {
+                return false;
+            }
 
             // set the properties.
-            InnerNodeId = NodeId.InternalParse(
-                text,
-                serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
+            InnerNodeId = innerNodeId;
             NamespaceUri = namespaceUri;
-            ServerIndex = serverIndex;
+            SetServerIndex(serverIndex);
+
+            return true;
         }
     }
 
