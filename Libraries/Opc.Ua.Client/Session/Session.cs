@@ -1707,8 +1707,6 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    // validation skipped until IOP isses are resolved.
-                    // ValidateServerCertificateApplicationUri(serverCertificate);
                     if (checkDomain)
                     {
                         await m_configuration
@@ -6353,31 +6351,6 @@ namespace Opc.Ua.Client
                     !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
         }
-
-#if UNUSED
-        /// <summary>
-        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint
-        /// for an open call (Spec Part 4 5.4.1)
-        /// </summary>
-        private void ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate)
-        {
-            string applicationUri = m_endpoint?.Description?.Server?.ApplicationUri;
-            //check is only neccessary if the ApplicatioUri is specified for the Endpoint
-            if (string.IsNullOrEmpty(applicationUri))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "No ApplicationUri is specified for the server in the EndpointDescription.");
-            }
-            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
-            if (!string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
-            }
-        }
-#endif
 
         private void BuildCertificateData(
             out byte[] clientCertificateData,
