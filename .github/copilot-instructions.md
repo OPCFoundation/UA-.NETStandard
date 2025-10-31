@@ -176,5 +176,8 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - OPC UA Specification: https://opcfoundation.org/developer-tools/specifications-unified-architecture
 - Documentation: See `Docs/` directory
 - Samples Repository: https://github.com/OPCFoundation/UA-.NETStandard-Samples
-- NuGet Packages: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/
-- Preview Feed: https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging
+- NuGet Packages: 
+  - Core: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/
+  - Client: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/
+  - Server: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/
+- Preview Feed: https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local
