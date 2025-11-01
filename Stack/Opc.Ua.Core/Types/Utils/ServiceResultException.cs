@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Text;
 
 namespace Opc.Ua
@@ -20,7 +19,6 @@ namespace Opc.Ua
     /// <summary>
     /// An exception thrown when a UA defined error occurs.
     /// </summary>
-    [DataContract]
     [Serializable]
     public class ServiceResultException : Exception
     {

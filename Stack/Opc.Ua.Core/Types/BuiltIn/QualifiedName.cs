@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
 {
@@ -548,7 +549,7 @@ namespace Opc.Ua
         /// Returns true if the value is null.
         /// </summary>
         /// <param name="value">The qualified name to check</param>
-        public static bool IsNull(QualifiedName value)
+        public static bool IsNull([NotNullWhen(false)] QualifiedName value)
         {
             if (value != null)
             {

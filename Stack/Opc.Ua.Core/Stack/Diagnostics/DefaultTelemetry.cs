@@ -61,6 +61,10 @@ namespace Opc.Ua
         {
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
                 .Create(configure);
+
+            // Set the default Id format to W3C
+            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+            Activity.ForceDefaultIdFormat = true;
         }
 
         /// <summary>

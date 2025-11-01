@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
@@ -54,7 +55,8 @@ namespace Opc.Ua.Bindings
                 endpoint != null ? endpoint.SecurityPolicyUri : SecurityPolicies.None,
                 telemetry)
         {
-            m_logger = telemetry.CreateLogger<UaSCUaBinaryClientChannel>();
+            m_telemetry = telemetry;
+            m_logger = m_telemetry.CreateLogger<UaSCUaBinaryClientChannel>();
 
             if (endpoint == null)
             {
@@ -125,6 +127,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
         {
+            using Activity? activity = m_telemetry.StartActivity();
             if (url == null)
             {
                 throw new ArgumentNullException(nameof(url));
@@ -211,6 +214,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task CloseAsync(int timeout, CancellationToken ct = default)
         {
+            using Activity? activity = m_telemetry.StartActivity();
             WriteOperation? operation = InternalClose(timeout);
 
             // wait for the close to succeed.
@@ -255,6 +259,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
             }
 
+            using Activity? activity = m_telemetry.StartActivity();
             WriteOperation? operation = null;
             lock (DataLock)
             {
@@ -1683,6 +1688,7 @@ namespace Opc.Ua.Bindings
         private List<QueuedOperation>? m_queuedOperations;
         private readonly Random m_random;
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
 
         private static readonly string s_implementationString =
             "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();

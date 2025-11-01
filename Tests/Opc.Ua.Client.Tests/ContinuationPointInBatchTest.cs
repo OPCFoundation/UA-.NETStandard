@@ -240,7 +240,7 @@ namespace Opc.Ua.Client.Tests
         [Order(100)]
         public async Task MBNodeCacheBrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
         {
-            var theSession = (Session)((TraceableSession)Session).Session;
+            ISession theSession = Session;
             theSession.NodeCache.Clear();
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
@@ -327,8 +327,8 @@ namespace Opc.Ua.Client.Tests
         public async Task ManagedBrowseWithManyContinuationPointsAsync(
             ManagedBrowseTestDataProvider testData)
         {
-            var theSession = (Session)((TraceableSession)Session).Session;
-            await theSession.FetchOperationLimitsAsync().ConfigureAwait(false);
+            var theSession = (Session)Session;
+            await theSession.FetchOperationLimitsAsync(default).ConfigureAwait(false);
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
@@ -353,7 +353,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
                 pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass1ExpectedResults
+            theSession.ServerCapabilities.MaxBrowseContinuationPoints = (ushort)pass1ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
             List<NodeId> nodeIds = GetMassFolderNodesToBrowse();
@@ -379,7 +379,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
                 pass2ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass2ExpectedResults
+            theSession.ServerCapabilities.MaxBrowseContinuationPoints = (ushort)pass2ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
             IList<ReferenceDescriptionCollection> referenceDescriptionsPass2;
@@ -470,7 +470,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BalancedManagedBrowseWithManyContinuationPointsAsync(
             ManagedBrowseTestDataProvider testData)
         {
-            var theSession = (Session)((TraceableSession)Session).Session;
+            var theSession = (Session)Session;
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Balanced;
 
@@ -495,7 +495,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
                 pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass1ExpectedResults
+            theSession.ServerCapabilities.MaxBrowseContinuationPoints = (ushort)pass1ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
             List<NodeId> nodeIds = GetMassFolderNodesToBrowse();
@@ -521,7 +521,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
                 pass2ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass2ExpectedResults
+            theSession.ServerCapabilities.MaxBrowseContinuationPoints = (ushort)pass2ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Balanced;
@@ -611,7 +611,7 @@ namespace Opc.Ua.Client.Tests
             ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy)
         {
-            var theSession = (Session)((TraceableSession)Session).Session;
+            var theSession = (Session)Session;
 
             theSession.ContinuationPointPolicy = policy;
 
@@ -636,7 +636,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
                 pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass1ExpectedResults
+            theSession.ServerCapabilities.MaxBrowseContinuationPoints = (ushort)pass1ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
             List<NodeId> nodeIds = GetMassFolderNodesToBrowse();
@@ -689,7 +689,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
                 pass2ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass2ExpectedResults
+            theSession.ServerCapabilities.MaxBrowseContinuationPoints = (ushort)pass2ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
             ByteStringCollection continuationPoints2ndBrowse;
@@ -751,7 +751,7 @@ namespace Opc.Ua.Client.Tests
             ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy)
         {
-            var theSession = (Session)((TraceableSession)Session).Session;
+            var theSession = (Session)Session;
             theSession.NodeCache.Clear();
 
             theSession.ContinuationPointPolicy = policy;
@@ -770,7 +770,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
                 pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass1ExpectedResults
+            theSession.ServerCapabilities.MaxBrowseContinuationPoints = (ushort)pass1ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
             var result = new List<INode>();

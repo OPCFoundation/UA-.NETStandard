@@ -1094,8 +1094,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEntryExists,
-                        "A certificate with the specified thumbprint already exists. Subject={0}, Thumbprint={1}",
-                        certificate.SubjectName,
+                        "A certificate with the specified thumbprint {0} already exists.",
                         certificate.Thumbprint);
                 }
             }

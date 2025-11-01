@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,39 +27,24 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
-
-namespace Opc.Ua.Client
+namespace Opc.Ua.Configuration
 {
     /// <summary>
-    /// Object that creates an instance of a Session object.
-    /// It can be used to subclass enhanced Session
-    /// classes which survive reconnect handling etc.
+    /// Snapshot and restore interface
     /// </summary>
-    public interface ISessionInstantiator
+    /// <typeparam name="T"></typeparam>
+    public interface ISnapshotRestore<T>
     {
         /// <summary>
-        /// Telemetry configuration to use when creating sessions.
+        /// Restore
         /// </summary>
-        ITelemetryContext Telemetry { get; }
+        /// <param name="state"></param>
+        void Restore(T state);
 
         /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// Get state to serialize
         /// </summary>
-        Session Create(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint);
-
-        /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        Session Create(
-            ITransportChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null);
+        /// <returns></returns>
+        T Snapshot();
     }
 }

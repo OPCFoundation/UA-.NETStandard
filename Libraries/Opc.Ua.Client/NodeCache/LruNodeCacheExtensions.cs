@@ -48,7 +48,7 @@ namespace Opc.Ua
             ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
+            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.NamespaceUris);
             return cache.GetNodeAsync(nodeId, ct);
         }
 
@@ -63,7 +63,7 @@ namespace Opc.Ua
             var nodeIds = expandedNodeIds
                 .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.Session.NamespaceUris))
+                    cache.NamespaceUris))
                 .ToList();
             return cache.GetNodesAsync(nodeIds, ct);
         }
@@ -76,7 +76,7 @@ namespace Opc.Ua
             ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
+            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.NamespaceUris);
             return cache.GetValueAsync(nodeId, ct);
         }
 
@@ -91,7 +91,7 @@ namespace Opc.Ua
             var nodeIds = expandedNodeIds
                 .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.Session.NamespaceUris))
+                    cache.NamespaceUris))
                 .ToList();
             return cache.GetValuesAsync(nodeIds, ct);
         }
@@ -107,7 +107,7 @@ namespace Opc.Ua
             bool includeSubtypes = true,
             CancellationToken ct = default)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
+            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.NamespaceUris);
             return cache.GetReferencesAsync(
                 nodeId,
                 referenceTypeId,
@@ -130,7 +130,7 @@ namespace Opc.Ua
             var nodeIds = expandedNodeIds
                 .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.Session.NamespaceUris))
+                    cache.NamespaceUris))
                 .ToList();
             return cache.GetReferencesAsync(
                 nodeIds,
@@ -154,7 +154,7 @@ namespace Opc.Ua
             var nodeIds = expandedNodeIds
                 .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.Session.NamespaceUris))
+                    cache.NamespaceUris))
                 .ToList();
             return cache.GetReferencesAsync(
                 nodeIds,
@@ -172,7 +172,7 @@ namespace Opc.Ua
             ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
+            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.NamespaceUris);
             return cache.GetSuperTypeAsync(nodeId, ct);
         }
 
@@ -184,7 +184,7 @@ namespace Opc.Ua
             ExpandedNodeId subTypeId,
             NodeId superTypeId)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(subTypeId, cache.Session.NamespaceUris);
+            var nodeId = ExpandedNodeId.ToNodeId(subTypeId, cache.NamespaceUris);
             return cache.IsTypeOf(nodeId, superTypeId);
         }
 
@@ -199,7 +199,7 @@ namespace Opc.Ua
             NodeId typeId = datatypeId;
             while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
+                if (typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
                     if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)

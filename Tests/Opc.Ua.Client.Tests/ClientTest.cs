@@ -808,7 +808,7 @@ namespace Opc.Ua.Client.Tests
                 NUnit.Framework.Assert.ThrowsAsync<ObjectDisposedException>(
                     () => channel1.CloseAsync(default).AsTask());
                 // Calling dispose twice will not throw.
-                NUnit.Framework.Assert.DoesNotThrow(() => channel1.Dispose());
+                NUnit.Framework.Assert.DoesNotThrow(channel1.Dispose);
             }
 
             // test by reading a value
@@ -1014,8 +1014,8 @@ namespace Opc.Ua.Client.Tests
             // hook callback to renew the user identity
             session1.RenewUserIdentity += (_, _) => userIdentityPW;
 
-            Session session2 = await Client
-                .Session.RecreateAsync((Session)((TraceableSession)session1).Session)
+            ISession session2 = await session1.SessionFactory
+                .RecreateAsync(session1)
                 .ConfigureAwait(false);
 
             // create new channel
@@ -1024,8 +1024,8 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             Assert.NotNull(channel2);
 
-            Session session3 = await Client
-                .Session.RecreateAsync((Session)((TraceableSession)session1).Session, channel2)
+            ISession session3 = await session1.SessionFactory
+                .RecreateAsync(session1, channel2)
                 .ConfigureAwait(false);
 
             // validate new Session Ids are used and also UserName PW identity token is
@@ -1668,11 +1668,10 @@ namespace Opc.Ua.Client.Tests
         public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
         {
             public TestableTraceableRequestHeaderClientSession(
-                ISessionChannel channel,
+                ITransportChannel channel,
                 ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint,
-                ITelemetryContext telemetry)
-                : base(channel, configuration, endpoint)
+                ConfiguredEndpoint endpoint)
+                : base(channel, configuration, endpoint, null)
             {
             }
 
@@ -1758,14 +1757,14 @@ namespace Opc.Ua.Client.Tests
 
                     // Mock the channel and session
                     var channelMock = new Mock<ITransportChannel>();
-                    Mock<ISessionChannel> sessionChannelMock = channelMock.As<ISessionChannel>();
+                    var messageContext = new ServiceMessageContext(telemetry);
+                    channelMock.Setup(mock => mock.MessageContext).Returns(messageContext);
 
                     var testableTraceableRequestHeaderClientSession
                         = new TestableTraceableRequestHeaderClientSession(
-                        sessionChannelMock.Object,
-                        ClientFixture.Config,
-                        endpoint,
-                        telemetry);
+                            channelMock.Object,
+                            ClientFixture.Config,
+                            endpoint);
                     var request = new CreateSessionRequest { RequestHeader = new RequestHeader() };
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update
@@ -2049,12 +2048,10 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
@@ -2082,12 +2079,10 @@ namespace Opc.Ua.Client.Tests
             var sessionMock = new Mock<ISession>();
 
             sessionMock
-                .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<uint>()))
+                 .Setup(mock => mock.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
@@ -2112,13 +2107,11 @@ namespace Opc.Ua.Client.Tests
             var sessionMock = new Mock<ISession>();
 
             sessionMock
-                .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                 .Setup(mock => mock.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
@@ -2143,12 +2136,10 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
@@ -2175,12 +2166,10 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
@@ -2198,19 +2187,20 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var outputParameters = new List<object> {
+            var outputParameters = new List<object>
+            {
                 new uint[] { 1, 2, 3, 4, 5 },
-                new uint[] { 6, 7, 8, 9, 10 } };
+                new uint[] { 6, 7, 8, 9, 10 }
+            };
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
@@ -2236,10 +2226,9 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>()))
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
@@ -2267,11 +2256,10 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
@@ -2298,11 +2286,10 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
@@ -2333,12 +2320,11 @@ namespace Opc.Ua.Client.Tests
             var sessionMock = new Mock<ISession>();
 
             sessionMock
-                .Setup(mock => mock.CallAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>(),
-                    It.IsAny<uint>()))
-                .ReturnsAsync(outputParameters);
+                 .Setup(mock => mock.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 

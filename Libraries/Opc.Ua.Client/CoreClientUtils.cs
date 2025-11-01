@@ -129,7 +129,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        public static async ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
@@ -187,7 +187,7 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
-        public static async ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
@@ -234,24 +234,26 @@ namespace Opc.Ua.Client
             var url = new Uri(client.Endpoint.EndpointUrl);
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
-            EndpointDescription selectedEndpoint = SelectEndpoint(
+            EndpointDescription? selectedEndpoint = SelectEndpoint(
                 application,
                 url,
                 endpoints,
                 useSecurity,
                 telemetry);
 
-            Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
-            if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
+            if (selectedEndpoint != null)
             {
-                var builder = new UriBuilder(endpointUrl)
+                Uri? endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
+                if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
                 {
-                    Host = uri.IdnHost,
-                    Port = uri.Port
-                };
-                selectedEndpoint.EndpointUrl = builder.ToString();
+                    var builder = new UriBuilder(endpointUrl)
+                    {
+                        Host = uri.IdnHost,
+                        Port = uri.Port
+                    };
+                    selectedEndpoint.EndpointUrl = builder.ToString();
+                }
             }
-
             return selectedEndpoint;
         }
 
@@ -259,14 +261,14 @@ namespace Opc.Ua.Client
         /// Select the best supported endpoint from an
         /// EndpointDescriptionCollection, with or without security.
         /// </summary>
-        public static EndpointDescription SelectEndpoint(
+        public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
             EndpointDescriptionCollection endpoints,
             bool useSecurity,
             ITelemetryContext telemetry)
         {
-            EndpointDescription selectedEndpoint = null;
+            EndpointDescription? selectedEndpoint = null;
 
             // select the best endpoint to use based on the selected URL and the UseSecurity checkbox.
             for (int ii = 0; ii < endpoints.Count; ii++)

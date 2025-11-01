@@ -332,7 +332,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<bool> CheckApplicationInstanceCertificatesAsync(
             bool silent,
@@ -456,8 +456,8 @@ namespace Opc.Ua.Configuration
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "Cannot access certificate private key. Subject={0}",
-                        certificate.Subject);
+                        "Cannot access private key for certificate with thumbprint={0}",
+                        certificate.Thumbprint);
                 }
 
                 // check for missing thumbprint.
@@ -882,7 +882,7 @@ namespace Opc.Ua.Configuration
         /// <param name="configuration">The configuration.</param>
         /// <param name="id">The certificate identifier.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The new certificate</returns>
         /// <exception cref="ServiceResultException"></exception>
         private async Task<X509Certificate2> CreateApplicationInstanceCertificateAsync(
@@ -997,7 +997,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
         /// <param name="id">The certificate identifier.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         private async Task DeleteApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,

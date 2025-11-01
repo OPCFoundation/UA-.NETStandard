@@ -16,6 +16,7 @@ using System.IO;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Serialization;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Schema
 {
@@ -77,7 +78,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Returns true if the QName is null.
         /// </summary>
-        protected static bool IsNull(XmlQualifiedName name)
+        protected static bool IsNull([NotNullWhen(false)] XmlQualifiedName name)
         {
             return name == null || string.IsNullOrEmpty(name.Name);
         }

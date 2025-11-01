@@ -39,9 +39,9 @@ namespace Opc.Ua.Client
     public interface ILruNodeCache
     {
         /// <summary>
-        /// The session used by the node cache
+        /// The namespaces used in the server
         /// </summary>
-        ISession Session { get; }
+        NamespaceTable NamespaceUris { get; }
 
         /// <summary>
         /// Get node from cache
@@ -58,7 +58,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get node using browse path
         /// </summary>
-        ValueTask<INode> GetNodeWithBrowsePathAsync(
+        ValueTask<INode?> GetNodeWithBrowsePathAsync(
             NodeId nodeId,
             QualifiedNameCollection browsePath,
             CancellationToken ct = default);

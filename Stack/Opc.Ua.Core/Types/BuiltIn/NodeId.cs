@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
 {
@@ -769,7 +770,7 @@ namespace Opc.Ua
         /// Returns a true/false value to indicate if the specified NodeId is null.
         /// </remarks>
         /// <param name="nodeId">The NodeId to validate</param>
-        public static bool IsNull(NodeId nodeId)
+        public static bool IsNull([NotNullWhen(false)] NodeId nodeId)
         {
             if (nodeId == null)
             {
@@ -786,7 +787,7 @@ namespace Opc.Ua
         /// Returns a true/false to indicate if the specified <see cref="ExpandedNodeId"/> is null.
         /// </remarks>
         /// <param name="nodeId">The ExpandedNodeId to validate</param>
-        public static bool IsNull(ExpandedNodeId nodeId)
+        public static bool IsNull([NotNullWhen(false)]ExpandedNodeId nodeId)
         {
             if (nodeId == null)
             {
