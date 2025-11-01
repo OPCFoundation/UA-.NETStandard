@@ -92,7 +92,7 @@ namespace Opc.Ua.Client
         public ITypeTable TypeTree => this.AsTypeTable();
 
         /// <inheritdoc/>
-        public async ValueTask<INode> FindAsync(
+        public async ValueTask<INode?> FindAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
@@ -140,7 +140,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<INode>> FindAsync(
+        public async Task<IList<INode?>> FindAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct = default)
         {
@@ -151,7 +151,7 @@ namespace Opc.Ua.Client
             }
 
             int count = nodeIds.Count;
-            var nodes = new List<INode>(count);
+            var nodes = new List<INode?>(count);
             var fetchNodeIds = new ExpandedNodeIdCollection();
 
             int ii;
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do not return temporary nodes created after a Browse().
-                if (node != null && node?.GetType() != typeof(Node))
+                if (node != null && node.GetType() != typeof(Node))
                 {
                     nodes.Add(node);
                 }
@@ -188,7 +188,7 @@ namespace Opc.Ua.Client
             }
 
             // fetch missing nodes from server.
-            IList<Node> fetchedNodes;
+            IList<Node?> fetchedNodes;
             try
             {
                 fetchedNodes = await FetchNodesAsync(fetchNodeIds, ct).ConfigureAwait(false);
@@ -201,7 +201,7 @@ namespace Opc.Ua.Client
             }
 
             ii = 0;
-            foreach (Node fetchedNode in fetchedNodes)
+            foreach (Node? fetchedNode in fetchedNodes)
             {
                 while (ii < count && nodes[ii] != null)
                 {
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<INode> FindAsync(
+        public async ValueTask<INode?> FindAsync(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -254,7 +254,7 @@ namespace Opc.Ua.Client
 
             foreach (IReference reference in references)
             {
-                INode target = await FindAsync(reference.TargetId, ct)
+                INode? target = await FindAsync(reference.TargetId, ct)
                     .ConfigureAwait(false);
 
                 if (target == null)
@@ -277,11 +277,11 @@ namespace Opc.Ua.Client
             ExpandedNodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
-                return null;
+                return NodeId.Null;
             }
 
             m_cacheLock.EnterReadLock();
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client
 
             foreach (IReference reference in references)
             {
-                INode target =
+                INode? target =
                     await FindAsync(reference.TargetId, ct).ConfigureAwait(false);
 
                 if (target == null)
@@ -346,11 +346,11 @@ namespace Opc.Ua.Client
             NodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
-                return null;
+                return NodeId.Null;
             }
 
             m_cacheLock.EnterReadLock();
@@ -365,7 +365,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<Node> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        public async Task<Node?> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
             var localId = ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris);
 
@@ -429,7 +429,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<Node>> FetchNodesAsync(
+        public async Task<IList<Node?>> FetchNodesAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct)
         {
@@ -532,9 +532,9 @@ namespace Opc.Ua.Client
             var targetIds = new ExpandedNodeIdCollection(
                 references.Select(reference => reference.TargetId));
 
-            IList<INode> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
+            IList<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
 
-            foreach (INode target in result)
+            foreach (INode? target in result)
             {
                 if (target != null)
                 {
@@ -558,8 +558,8 @@ namespace Opc.Ua.Client
                 return targets;
             }
             var targetIds = new ExpandedNodeIdCollection();
-            IList<INode> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
-            foreach (INode source in sources)
+            IList<INode?> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
+            foreach (INode? source in sources)
             {
                 if (source is not Node node)
                 {
@@ -585,8 +585,8 @@ namespace Opc.Ua.Client
                 }
             }
 
-            IList<INode> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
-            foreach (INode target in result)
+            IList<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
+            foreach (INode? target in result)
             {
                 if (target != null)
                 {
@@ -607,11 +607,11 @@ namespace Opc.Ua.Client
             }
 
             // follow the tree.
-            ILocalNode subType = source;
+            ILocalNode? subType = source;
 
             while (subType != null)
             {
-                ILocalNode superType = null;
+                ILocalNode? superType = null;
 
                 // Get super type (should be 1 or none)
                 IList<INode> references = await FindReferencesAsync(
@@ -643,7 +643,7 @@ namespace Opc.Ua.Client
             ExpandedNodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
@@ -666,7 +666,7 @@ namespace Opc.Ua.Client
             NodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
@@ -738,7 +738,7 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            ILocalNode supertype = subtype;
+            ILocalNode? supertype = subtype;
 
             while (supertype != null)
             {
@@ -783,7 +783,7 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            ILocalNode supertype = subtype;
+            ILocalNode? supertype = subtype;
 
             while (supertype != null)
             {
@@ -813,11 +813,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask<QualifiedName> FindReferenceTypeNameAsync(
+        public ValueTask<QualifiedName?> FindReferenceTypeNameAsync(
             NodeId referenceTypeId,
             CancellationToken ct = default)
         {
-            QualifiedName typeName;
+            QualifiedName? typeName;
             m_cacheLock.EnterReadLock();
             try
             {
@@ -827,7 +827,7 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-            return new ValueTask<QualifiedName>(typeName);
+            return new ValueTask<QualifiedName?>(typeName);
         }
 
         /// <inheritdoc/>
@@ -1124,7 +1124,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<string> GetDisplayTextAsync(
+        public async ValueTask<string?> GetDisplayTextAsync(
             INode node,
             CancellationToken ct = default)
         {
@@ -1140,7 +1140,7 @@ namespace Opc.Ua.Client
                 return node.ToString();
             }
 
-            string displayText = null;
+            string? displayText = null;
 
             // use the modelling rule to determine which parent to follow.
             NodeId modellingRule = target.ModellingRule;
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.Client
                 // use the first parent if modelling rule is new.
                 if (modellingRule == Objects.ModellingRule_Mandatory)
                 {
-                    displayText = await GetDisplayTextAsync(
+                    displayText = parent == null ? null : await GetDisplayTextAsync(
                         parent,
                         ct).ConfigureAwait(false);
                     break;
@@ -1194,7 +1194,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<string> GetDisplayTextAsync(
+        public async ValueTask<string?> GetDisplayTextAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
@@ -1203,7 +1203,7 @@ namespace Opc.Ua.Client
                 return string.Empty;
             }
 
-            INode node = await FindAsync(
+            INode? node = await FindAsync(
                 nodeId,
                 ct).ConfigureAwait(false);
 
@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<string> GetDisplayTextAsync(
+        public async ValueTask<string?> GetDisplayTextAsync(
             ReferenceDescription reference,
             CancellationToken ct = default)
         {
@@ -1227,7 +1227,7 @@ namespace Opc.Ua.Client
                 return string.Empty;
             }
 
-            INode node = await FindAsync(
+            INode? node = await FindAsync(
                 reference.NodeId,
                 ct).ConfigureAwait(false);
 
@@ -1239,18 +1239,6 @@ namespace Opc.Ua.Client
             }
 
             return reference.ToString();
-        }
-
-        /// <inheritdoc/>
-        public NodeId BuildBrowsePath(
-            ILocalNode node,
-            IList<QualifiedName> browsePath)
-        {
-            NodeId typeId = null;
-
-            browsePath.Add(node.BrowseName);
-
-            return typeId;
         }
 
         private void InternalWriteLockedAttach(ILocalNode node)

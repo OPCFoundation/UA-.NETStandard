@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Schema.Binary
 {
@@ -234,7 +235,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Returns true if the documentation element is empty.
         /// </summary>
-        private static bool IsNull(Documentation documentation)
+        private static bool IsNull([NotNullWhen(false)] Documentation documentation)
         {
             if (documentation == null)
             {

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -1057,7 +1055,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            IList<string>? preferredLocales,
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct)
@@ -1184,7 +1182,7 @@ namespace Opc.Ua.Client
                     (uint)MessageContext.MaxMessageSize,
                     ct).ConfigureAwait(false);
             }
-            if (response == null || NodeId.IsNull(response.SessionId)) // TODO: Annotate IsNull checks
+            if (NodeId.IsNull(response?.SessionId))
             {
                 throw ServiceResultException.Unexpected(
                     "Create response returned null session id");
@@ -2235,8 +2233,8 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public async Task ReconnectAsync(
-            ITransportWaitingConnection connection,
-            ITransportChannel transportChannel,
+            ITransportWaitingConnection? connection,
+            ITransportChannel? transportChannel,
             CancellationToken ct)
         {
             ThrowIfDisposed();
@@ -4732,7 +4730,7 @@ namespace Opc.Ua.Client
             {
                 foreach (Subscription subscription in subscriptions)
                 {
-                    if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
+                    if (subscription.Created && SessionId.Equals(subscription.Session?.SessionId))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadInvalidState,

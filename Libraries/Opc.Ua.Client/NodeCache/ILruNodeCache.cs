@@ -58,7 +58,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get node using browse path
         /// </summary>
-        ValueTask<INode> GetNodeWithBrowsePathAsync(
+        ValueTask<INode?> GetNodeWithBrowsePathAsync(
             NodeId nodeId,
             QualifiedNameCollection browsePath,
             CancellationToken ct = default);

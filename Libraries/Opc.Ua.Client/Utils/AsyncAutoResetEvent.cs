@@ -112,11 +112,11 @@ namespace Opc.Ua.Client
         {
             lock (m_mutex)
             {
-                for (LinkedListNode<TaskCompletionSource<object>> i = m_queue.First;
+                for (LinkedListNode<TaskCompletionSource<object?>>? i = m_queue.First;
                     i != null;
                     i = i.Next)
                 {
-                    TaskCompletionSource<object> cur = i.Value;
+                    TaskCompletionSource<object?> cur = i.Value;
                     if (cur.Task == task)
                     {
                         cur.TrySetCanceled(cancellationToken);
@@ -128,13 +128,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        private Task<object> Enqueue(CancellationToken token)
+        private Task<object?> Enqueue(CancellationToken token)
         {
             if (token.IsCancellationRequested)
             {
-                return Task.FromCanceled<object>(token);
+                return Task.FromCanceled<object?>(token);
             }
-            var tcs = new TaskCompletionSource<object>(
+            var tcs = new TaskCompletionSource<object?>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             m_queue.AddLast(tcs);
             if (!token.CanBeCanceled)
@@ -154,12 +154,15 @@ namespace Opc.Ua.Client
 
         private void Dequeue()
         {
-            TaskCompletionSource<object> head = m_queue.First.Value;
-            m_queue.RemoveFirst();
-            head.TrySetResult(null);
+            TaskCompletionSource<object?>? head = m_queue.First?.Value;
+            if (head != null)
+            {
+                m_queue.RemoveFirst();
+                head.TrySetResult(null);
+            }
         }
 
-        private readonly LinkedList<TaskCompletionSource<object>> m_queue = new();
+        private readonly LinkedList<TaskCompletionSource<object?>> m_queue = new();
         private readonly Lock m_mutex = new();
         private bool m_set;
     }

@@ -17,6 +17,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
 {
@@ -583,7 +584,7 @@ namespace Opc.Ua
         /// <c>true</c> if the specified <paramref name="extension"/> is null
         /// of the embedded object is null; otherwise, <c>false</c>.
         /// </returns>
-        public static bool IsNull(ExtensionObject extension)
+        public static bool IsNull([NotNullWhen(false)] ExtensionObject extension)
         {
             return extension == null || extension.m_body == null;
         }

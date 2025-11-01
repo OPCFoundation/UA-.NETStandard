@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -654,7 +652,7 @@ namespace Opc.Ua.Client
                 ResolvedNodeId = NodeId.Null;
 
                 // update the node id.
-                if (result.Targets.Count > 0 && Subscription != null)
+                if (result.Targets.Count > 0 && Subscription?.Session != null)
                 {
                     ResolvedNodeId = ExpandedNodeId.ToNodeId(
                         result.Targets[0].TargetId,
@@ -733,8 +731,8 @@ namespace Opc.Ua.Client
         protected internal void SetDeleteResult(
             StatusCode result,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
-            ResponseHeader responseHeader)
+            DiagnosticInfoCollection? diagnosticInfos,
+            ResponseHeader? responseHeader)
         {
             ServiceResult? error = null;
 

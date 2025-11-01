@@ -55,7 +55,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="nodeIds">The node identifier collection.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<IList<INode>> FindAsync(
+        Task<IList<INode?>> FindAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct = default);
 
@@ -64,7 +64,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="nodeId">Node id to fetch.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<Node> FetchNodeAsync(
+        Task<Node?> FetchNodeAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default);
 
@@ -73,7 +73,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="nodeIds">The node identifier collection.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<IList<Node>> FetchNodesAsync(
+        Task<IList<Node?>> FetchNodesAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct = default);
 
@@ -111,29 +111,22 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Returns a display name for a node.
         /// </summary>
-        ValueTask<string> GetDisplayTextAsync(
+        ValueTask<string?> GetDisplayTextAsync(
             INode node,
             CancellationToken ct = default);
 
         /// <summary>
         /// Returns a display name for a node.
         /// </summary>
-        ValueTask<string> GetDisplayTextAsync(
+        ValueTask<string?> GetDisplayTextAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default);
 
         /// <summary>
         /// Returns a display name for the target of a reference.
         /// </summary>
-        ValueTask<string> GetDisplayTextAsync(
+        ValueTask<string?> GetDisplayTextAsync(
             ReferenceDescription reference,
             CancellationToken ct = default);
-
-        /// <summary>
-        /// Builds the relative path from a type to a node.
-        /// </summary>
-        NodeId BuildBrowsePath(
-            ILocalNode node,
-            IList<QualifiedName> browsePath);
     }
 }

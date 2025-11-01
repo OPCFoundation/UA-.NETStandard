@@ -153,7 +153,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the local handle assigned to the session.
         /// </summary>
-        object Handle { get; }
+        object? Handle { get; }
 
         /// <summary>
         /// Gets the user identity currently used for the session.
@@ -342,8 +342,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         Task ReconnectAsync(
-            ITransportWaitingConnection connection,
-            ITransportChannel channel,
+            ITransportWaitingConnection? connection,
+            ITransportChannel? channel,
             CancellationToken ct = default);
 
         /// <summary>
@@ -360,7 +360,7 @@ namespace Opc.Ua.Client
         void Save(
             Stream stream,
             IEnumerable<Subscription> subscriptions,
-            IEnumerable<Type> knownTypes = null);
+            IEnumerable<Type>? knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a stream.
@@ -374,12 +374,12 @@ namespace Opc.Ua.Client
         IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null);
+            IEnumerable<Type>? knownTypes = null);
 
         /// <summary>
         /// Returns the active session configuration and writes it to a stream.
         /// </summary>
-        SessionConfiguration SaveSessionConfiguration(Stream stream = null);
+        SessionConfiguration SaveSessionConfiguration(Stream? stream = null);
 
         /// <summary>
         /// Applies a session configuration.
@@ -425,7 +425,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            IList<string>? preferredLocales,
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct = default);

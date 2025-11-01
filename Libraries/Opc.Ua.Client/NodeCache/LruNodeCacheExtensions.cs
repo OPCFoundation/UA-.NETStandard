@@ -199,7 +199,7 @@ namespace Opc.Ua
             NodeId typeId = datatypeId;
             while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
+                if (typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
                     if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)
