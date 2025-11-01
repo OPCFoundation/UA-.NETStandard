@@ -173,7 +173,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 
 ## Resources
 
-- OPC UA Specification: https://opcfoundation.org/developer-tools/specifications-unified-architecture
+- OPC UA Specification: https://reference.opcfoundation.org/
 - Documentation: See `Docs/` directory
 - Samples Repository: https://github.com/OPCFoundation/UA-.NETStandard-Samples
 - NuGet Packages: 
