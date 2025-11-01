@@ -750,7 +750,7 @@ namespace Opc.Ua.Client
         public async Task CreateAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(false);
+            VerifySessionAndSubscriptionState(false);
 
             // create the subscription.
             uint revisedMaxKeepAliveCount = KeepAliveCount;
@@ -797,15 +797,11 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             if (!silent)
             {
-                VerifySubscriptionState(true);
-            }
-            else
-            {
-                VerifySubscriptionState(null);
+                VerifySessionAndSubscriptionState(true);
             }
 
             // nothing to do if not created.
-            if (!Created)
+            if (!Created || Session == null)
             {
                 return;
             }
@@ -862,7 +858,7 @@ namespace Opc.Ua.Client
         public async Task ModifyAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             // modify the subscription.
             uint revisedKeepAliveCount = KeepAliveCount;
@@ -898,7 +894,7 @@ namespace Opc.Ua.Client
         public async Task SetPublishingModeAsync(bool enabled, CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             // modify the subscription.
             UInt32Collection subscriptionIds = new uint[] { Id };
@@ -936,7 +932,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             RepublishResponse response = await Session
                 .RepublishAsync(null, Id, sequenceNumber, ct)
@@ -962,7 +958,7 @@ namespace Opc.Ua.Client
         public async Task ResolveItemNodeIdsAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             // collect list of browse paths.
             var browsePaths = new BrowsePathCollection();
@@ -1006,7 +1002,7 @@ namespace Opc.Ua.Client
         {
             MonitoredItemCreateRequestCollection requestItems;
             List<MonitoredItem> itemsToCreate;
-            VerifySubscriptionState(null);
+            VerifySession();
 
             (requestItems, itemsToCreate) = await PrepareItemsToCreateAsync(ct)
                 .ConfigureAwait(false);
@@ -1050,7 +1046,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task<IList<MonitoredItem>> ModifyItemsAsync(CancellationToken ct = default)
         {
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             var requestItems = new MonitoredItemModifyRequestCollection();
             var itemsToModify = new List<MonitoredItem>();
@@ -1097,7 +1093,7 @@ namespace Opc.Ua.Client
         public async Task<IList<MonitoredItem>> DeleteItemsAsync(
             CancellationToken ct = default)
         {
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             if (m_deletedItems.Count == 0)
             {
@@ -1156,7 +1152,7 @@ namespace Opc.Ua.Client
             }
 
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             if (monitoredItems.Count == 0)
             {
@@ -1207,7 +1203,7 @@ namespace Opc.Ua.Client
         public async Task<bool> ConditionRefreshAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             var methodsToCall = new CallMethodRequestCollection
             {
@@ -1239,7 +1235,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             var methodsToCall = new CallMethodRequestCollection
             {
@@ -1630,7 +1626,7 @@ namespace Opc.Ua.Client
         public async Task<bool> ResendDataAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
             try
             {
                 await Session.CallAsync(ObjectIds.Server, MethodIds.Server_ResendData, ct, Id)
@@ -1654,7 +1650,7 @@ namespace Opc.Ua.Client
             )> GetMonitoredItemsAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            VerifySubscriptionState(null);
+            VerifySession();
             var serverHandles = new UInt32Collection();
             var clientHandles = new UInt32Collection();
             try
@@ -1690,7 +1686,7 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             uint revisedLifetimeInHours = lifetimeInHours;
-            VerifySubscriptionState(true);
+            VerifySession();
 
             try
             {
@@ -2497,22 +2493,32 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         [MemberNotNull(nameof(Session))]
-        private void VerifySubscriptionState(bool? created)
+        private void VerifySessionAndSubscriptionState(bool verifyCreated)
         {
-            if (created == true && Id == 0)
+            if (verifyCreated && Id == 0)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
                     "Subscription has not been created.");
             }
 
-            if (created == false && Id != 0)
+            if (!verifyCreated && Id != 0)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
                     "Subscription has already been created.");
             }
 
+            VerifySession();
+        }
+
+        /// <summary>
+        /// Verify session is assigned.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        [MemberNotNull(nameof(Session))]
+        private void VerifySession()
+        {
             if (Session is null) // Occurs only on Create() and CreateAsync()
             {
                 throw new ServiceResultException(
@@ -2578,7 +2584,7 @@ namespace Opc.Ua.Client
             List<MonitoredItem>
             )> PrepareItemsToCreateAsync(CancellationToken ct = default)
         {
-            VerifySubscriptionState(true);
+            VerifySessionAndSubscriptionState(true);
 
             await ResolveItemNodeIdsAsync(ct).ConfigureAwait(false);
 
