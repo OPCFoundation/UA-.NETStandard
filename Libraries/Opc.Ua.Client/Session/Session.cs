@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -68,7 +70,9 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
             : this(
-                  channel as ITransportChannel,
+                  channel is ITransportChannel transportChannel ?
+                    transportChannel :
+                    throw new ArgumentException("not a transport channel"),
                   configuration,
                   endpoint)
         {
@@ -100,10 +104,10 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate = null,
-            X509Certificate2Collection clientCertificateChain = null,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            X509Certificate2? clientCertificate = null,
+            X509Certificate2Collection? clientCertificateChain = null,
+            EndpointDescriptionCollection? availableEndpoints = null,
+            StringCollection? discoveryProfileUris = null)
             : this(
                   channel,
                   configuration,
@@ -215,6 +219,7 @@ namespace Opc.Ua.Client
             // save configuration information.
             m_configuration = configuration;
             m_effectiveEndpoint = m_endpoint = endpoint;
+            m_identity = new UserIdentity();
 
             // update the default subscription.
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
@@ -287,9 +292,9 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerNonce(
             IUserIdentity identity,
-            byte[] serverNonce,
+            byte[]? serverNonce,
             string securityPolicyUri,
-            byte[] previousServerNonce,
+            byte[]? previousServerNonce,
             MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
         {
             // skip validation if server nonce is not used for encryption.
@@ -360,12 +365,9 @@ namespace Opc.Ua.Client
                 StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
 
                 Utils.SilentDispose(m_defaultSubscription);
-                m_defaultSubscription = null;
-
                 Utils.SilentDispose(m_nodeCache);
-                m_nodeCache = null;
 
-                List<Subscription> subscriptions = null;
+                List<Subscription>? subscriptions = null;
                 lock (SyncRoot)
                 {
                     subscriptions = [.. m_subscriptions];
@@ -508,7 +510,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the local handle assigned to the session.
         /// </summary>
-        public object Handle { get; set; }
+        public object? Handle { get; set; }
 
         /// <summary>
         /// Gets the user identity currently used for the session.
@@ -729,7 +731,7 @@ namespace Opc.Ua.Client
                 {
                     int count = 0;
 
-                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                    for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                         ii != null;
                         ii = ii.Next)
                     {
@@ -755,7 +757,7 @@ namespace Opc.Ua.Client
                 {
                     int count = 0;
 
-                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                    for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                         ii != null;
                         ii = ii.Next)
                     {
@@ -834,12 +836,12 @@ namespace Opc.Ua.Client
             remove => m_RenewUserIdentity -= value;
         }
 
-        private event RenewUserIdentityEventHandler m_RenewUserIdentity;
+        private event RenewUserIdentityEventHandler? m_RenewUserIdentity;
 
         /// <inheritdoc/>
         public virtual void Snapshot(out SessionState state)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             Snapshot(out SessionConfiguration configuration);
 
             // Snapshot subscription state
@@ -858,9 +860,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public virtual void Restore(SessionState state)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             ThrowIfDisposed();
             Restore((SessionConfiguration)state);
+            if (state.Subscriptions == null)
+            {
+                return;
+            }
             foreach (SubscriptionState subscriptionState in state.Subscriptions)
             {
                 // Restore subscription from state
@@ -894,15 +900,15 @@ namespace Opc.Ua.Client
         public void Restore(SessionConfiguration sessionConfiguration)
         {
             ThrowIfDisposed();
-            byte[] serverCertificate = m_endpoint.Description?.ServerCertificate;
-            m_sessionName = sessionConfiguration.SessionName;
+            byte[]? serverCertificate = m_endpoint.Description?.ServerCertificate;
+            m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
             m_serverCertificate =
                 serverCertificate != null
                     ? CertificateFactory.Create(serverCertificate)
                     : null;
-            m_identity = sessionConfiguration.Identity;
+            m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
-            m_serverNonce = sessionConfiguration.ServerNonce.Data;
+            m_serverNonce = sessionConfiguration.ServerNonce?.Data;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
             m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
 
@@ -924,7 +930,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
+        public SessionConfiguration SaveSessionConfiguration(Stream? stream = null)
         {
             Snapshot(out SessionConfiguration sessionConfiguration);
             if (stream != null)
@@ -942,9 +948,9 @@ namespace Opc.Ua.Client
         public virtual void Save(
             Stream stream,
             IEnumerable<Subscription> subscriptions,
-            IEnumerable<Type> knownTypes = null)
+            IEnumerable<Type>? knownTypes = null)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             // Snapshot subscription state
             var subscriptionStateCollection = new SubscriptionStateCollection(SubscriptionCount);
             foreach (Subscription subscription in Subscriptions)
@@ -964,9 +970,9 @@ namespace Opc.Ua.Client
         public virtual IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null)
+            IEnumerable<Type>? knownTypes = null)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             settings.CloseInput = true;
@@ -974,8 +980,11 @@ namespace Opc.Ua.Client
             using var reader = XmlReader.Create(stream, settings);
             var serializer = new DataContractSerializer(typeof(SubscriptionStateCollection), knownTypes);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-            var stateCollection = (SubscriptionStateCollection)serializer.ReadObject(reader);
-
+            var stateCollection = (SubscriptionStateCollection?)serializer.ReadObject(reader);
+            if (stateCollection == null)
+            {
+                return Enumerable.Empty<Subscription>();
+            }
             var subscriptions = new SubscriptionCollection(stateCollection.Count);
             foreach (SubscriptionState state in stateCollection)
             {
@@ -998,7 +1007,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
             {
@@ -1054,7 +1063,7 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             ThrowIfDisposed();
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
 
             // Load certificate and chain if not already loaded.
             await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
@@ -1067,7 +1076,7 @@ namespace Opc.Ua.Client
                 out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
-            X509Certificate2 serverCertificate = null;
+            X509Certificate2? serverCertificate = null;
             byte[] certificateData = m_endpoint.Description.ServerCertificate;
 
             if (certificateData != null && certificateData.Length > 0)
@@ -1109,8 +1118,8 @@ namespace Opc.Ua.Client
 
             // send the application instance certificate for the client.
             BuildCertificateData(
-                out byte[] clientCertificateData,
-                out byte[] clientCertificateChainData);
+                out byte[]? clientCertificateData,
+                out byte[]? clientCertificateChainData);
 
             var clientDescription = new ApplicationDescription
             {
@@ -1131,7 +1140,7 @@ namespace Opc.Ua.Client
                 m_endpoint.Description.SecurityPolicyUri);
 
             bool successCreateSession = false;
-            CreateSessionResponse response = null;
+            CreateSessionResponse? response = null;
 
             //if security none, first try to connect without certificate
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
@@ -1175,7 +1184,11 @@ namespace Opc.Ua.Client
                     (uint)MessageContext.MaxMessageSize,
                     ct).ConfigureAwait(false);
             }
-
+            if (response == null || NodeId.IsNull(response.SessionId)) // TODO: Annotate IsNull checks
+            {
+                throw ServiceResultException.Unexpected(
+                    "Create response returned null session id");
+            }
             NodeId sessionId = response.SessionId;
             NodeId sessionCookie = response.AuthenticationToken;
             byte[] serverNonce = response.ServerNonce;
@@ -1239,7 +1252,7 @@ namespace Opc.Ua.Client
                 }
 
                 // save previous nonce
-                byte[] previousServerNonce = GetCurrentTokenServerNonce();
+                byte[]? previousServerNonce = GetCurrentTokenServerNonce();
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
@@ -1379,13 +1392,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public async Task UpdateSessionAsync(
-            IUserIdentity identity,
+            IUserIdentity? identity,
             StringCollection preferredLocales,
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity activity = m_telemetry.StartActivity();
-            byte[] serverNonce = null;
+            using Activity? activity = m_telemetry.StartActivity();
+            byte[]? serverNonce = null;
 
             lock (SyncRoot)
             {
@@ -1517,7 +1530,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             if (subscription == null)
             {
                 throw new ArgumentNullException(nameof(subscription));
@@ -1538,7 +1551,7 @@ namespace Opc.Ua.Client
                 subscription.Session = null;
             }
 
-            m_SubscriptionsChanged?.Invoke(this, null);
+            m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
 
             return true;
         }
@@ -1549,7 +1562,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             if (subscriptions == null)
             {
                 throw new ArgumentNullException(nameof(subscriptions));
@@ -1566,7 +1579,7 @@ namespace Opc.Ua.Client
 
             if (removed)
             {
-                m_SubscriptionsChanged?.Invoke(this, null);
+                m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
             }
 
             return removed;
@@ -1579,7 +1592,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
@@ -1656,7 +1669,7 @@ namespace Opc.Ua.Client
             bool sendInitialValues,
             CancellationToken ct)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
@@ -1765,7 +1778,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             ReadValueIdCollection nodesToRead = PrepareNamespaceTableNodesToRead();
 
             // read from server.
@@ -1790,7 +1803,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is Node node)
             {
                 var subTypes = new ExpandedNodeIdCollection();
@@ -1810,7 +1823,7 @@ namespace Opc.Ua.Client
             ExpandedNodeIdCollection typeIds,
             CancellationToken ct = default)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             var referenceTypeIds = new NodeIdCollection { ReferenceTypeIds.HasSubtype };
             IList<INode> nodes = await NodeCache
                 .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
@@ -1838,7 +1851,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchOperationLimitsAsync(CancellationToken ct)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             // First we read the node read max to optimize the second read.
             var nodeIds = new List<NodeId>
             {
@@ -1968,7 +1981,7 @@ namespace Opc.Ua.Client
                     .OpenAsync(
                         SessionName,
                         (uint)SessionTimeout,
-                        session.Identity,
+                        session.Identity ?? new UserIdentity(),
                         PreferredLocales,
                         m_checkDomain,
                         ct)
@@ -2025,7 +2038,7 @@ namespace Opc.Ua.Client
                     .OpenAsync(
                         SessionName,
                         (uint)SessionTimeout,
-                        session.Identity,
+                        session.Identity ?? new UserIdentity(),
                         PreferredLocales,
                         CheckDomain,
                         ct)
@@ -2071,7 +2084,7 @@ namespace Opc.Ua.Client
                     .OpenAsync(
                         SessionName,
                         (uint)SessionTimeout,
-                        session.Identity,
+                        session.Identity ?? new UserIdentity(),
                         PreferredLocales,
                         CheckDomain,
                         false,
@@ -2115,7 +2128,7 @@ namespace Opc.Ua.Client
 
             Closing = true;
 
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             try
             {
                 // stop the keep alive timer.
@@ -2129,7 +2142,7 @@ namespace Opc.Ua.Client
                 {
                     try
                     {
-                        m_SessionClosing(this, null);
+                        m_SessionClosing(this, EventArgs.Empty);
                     }
                     catch (Exception e)
                     {
@@ -2206,7 +2219,7 @@ namespace Opc.Ua.Client
         public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -2227,7 +2240,7 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             ThrowIfDisposed();
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             bool resetReconnect = false;
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -2465,7 +2478,7 @@ namespace Opc.Ua.Client
             uint sequenceNumber,
             CancellationToken ct)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             // send republish request.
             var requestHeader = new RequestHeader
             {
@@ -2525,7 +2538,7 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptionsTemplate,
             CancellationToken ct)
         {
-            using Activity activity = m_telemetry.StartActivity();
+            using Activity? activity = m_telemetry.StartActivity();
             bool transferred = false;
             if (transferSbscriptionTemplates)
             {
@@ -2590,7 +2603,7 @@ namespace Opc.Ua.Client
                 m_subscriptions.Add(subscription);
             }
 
-            m_SubscriptionsChanged?.Invoke(this, null);
+            m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
 
             return true;
         }
@@ -2619,7 +2632,7 @@ namespace Opc.Ua.Client
                 subscription.Session = null;
             }
 
-            m_SubscriptionsChanged?.Invoke(this, null);
+            m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
 
             return true;
         }
@@ -2733,8 +2746,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private async ValueTask StopKeepAliveTimerAsync()
         {
-            Task keepAliveWorker;
-            CancellationTokenSource keepAliveCancellation;
+            Task? keepAliveWorker;
+            CancellationTokenSource? keepAliveCancellation;
 
             lock (SyncRoot)
             {
@@ -2754,9 +2767,10 @@ namespace Opc.Ua.Client
                 Debug.Assert(keepAliveCancellation == null);
                 return;
             }
+            Debug.Assert(keepAliveCancellation != null);
             try
             {
-                keepAliveCancellation.Cancel();
+                keepAliveCancellation!.Cancel();
                 await keepAliveWorker.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -2768,7 +2782,7 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                keepAliveCancellation.Dispose();
+                keepAliveCancellation!.Dispose();
             }
         }
 
@@ -2907,11 +2921,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Removes a completed async request.
         /// </summary>
-        private AsyncRequestState RemoveRequest(Task result, uint requestId, uint typeId)
+        private AsyncRequestState? RemoveRequest(Task result, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {
-                for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                     ii != null;
                     ii = ii.Next)
                 {
@@ -2931,12 +2945,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds a new async request.
         /// </summary>
-        private void AsyncRequestStarted(Task result, Activity activity, uint requestId, uint typeId)
+        private void AsyncRequestStarted(Task result, Activity? activity, uint requestId, uint typeId)
         {
             lock (m_outstandingRequests)
             {
                 // check if the request completed asynchronously.
-                AsyncRequestState state = RemoveRequest(result, requestId, typeId);
+                AsyncRequestState? state = RemoveRequest(result, requestId, typeId);
 
                 // add a new request.
                 if (state == null)
@@ -2968,14 +2982,14 @@ namespace Opc.Ua.Client
             lock (m_outstandingRequests)
             {
                 // remove the request.
-                AsyncRequestState state = RemoveRequest(result, requestId, typeId);
+                AsyncRequestState? state = RemoveRequest(result, requestId, typeId);
 
                 if (state != null)
                 {
                     // mark any old requests as defunct (i.e. the should have returned before this request).
                     const int maxAge = 1000;
 
-                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                    for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                         ii != null;
                         ii = ii.Next)
                     {
@@ -3127,7 +3141,7 @@ namespace Opc.Ua.Client
 
                 lock (m_outstandingRequests)
                 {
-                    for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First;
+                    for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                         ii != null;
                         ii = ii.Next)
                     {
@@ -3150,7 +3164,7 @@ namespace Opc.Ua.Client
             // save server state.
             m_serverState = currentState;
 
-            KeepAliveEventHandler callback = m_KeepAlive;
+            KeepAliveEventHandler? callback = m_KeepAlive;
 
             if (callback != null)
             {
@@ -3183,7 +3197,7 @@ namespace Opc.Ua.Client
                     OutstandingRequestCount);
             }
 
-            KeepAliveEventHandler callback = m_KeepAlive;
+            KeepAliveEventHandler? callback = m_KeepAlive;
 
             if (callback != null)
             {
@@ -3349,11 +3363,11 @@ namespace Opc.Ua.Client
             }
 
             // get event handler to modify ack list
-            PublishSequenceNumbersToAcknowledgeEventHandler callback
+            PublishSequenceNumbersToAcknowledgeEventHandler? callback
                 = m_PublishSequenceNumbersToAcknowledge;
 
             // collect the current set if acknowledgements.
-            SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
+            SubscriptionAcknowledgementCollection? acknowledgementsToSend = null;
             lock (m_acknowledgementsToSendLock)
             {
                 if (callback != null)
@@ -3409,7 +3423,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Activity activity = m_telemetry.StartActivity();
+                Activity? activity = m_telemetry.StartActivity();
                 Task<PublishResponse> task = PublishAsync(
                     requestHeader,
                     acknowledgementsToSend,
@@ -3564,7 +3578,7 @@ namespace Opc.Ua.Client
 
                 if (error.Code != StatusCodes.BadNoSubscription)
                 {
-                    PublishErrorEventHandler callback = m_PublishError;
+                    PublishErrorEventHandler? callback = m_PublishError;
 
                     if (callback != null)
                     {
@@ -3792,8 +3806,8 @@ namespace Opc.Ua.Client
         }
 
         private void BuildCertificateData(
-            out byte[] clientCertificateData,
-            out byte[] clientCertificateChainData)
+            out byte[]? clientCertificateData,
+            out byte[]? clientCertificateChainData)
         {
             // send the application instance certificate for the client.
             clientCertificateData = (m_instanceCertificate?.RawData);
@@ -3854,10 +3868,10 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerSignature(
-            X509Certificate2 serverCertificate,
+            X509Certificate2? serverCertificate,
             SignatureData serverSignature,
-            byte[] clientCertificateData,
-            byte[] clientCertificateChainData,
+            byte[]? clientCertificateData,
+            byte[]? clientCertificateChainData,
             byte[] clientNonce)
         {
             if (serverSignature == null || serverSignature.Signature == null)
@@ -3909,7 +3923,9 @@ namespace Opc.Ua.Client
         /// Ensure the endpoint was matched in <see cref="ValidateServerEndpoints"/>
         /// with the applicationUri of the server description before the validation.
         /// </summary>
-        private void ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        private void ValidateServerCertificateApplicationUri(
+            X509Certificate2? serverCertificate,
+            ConfiguredEndpoint endpoint)
         {
             if (serverCertificate != null)
             {
@@ -3926,7 +3942,7 @@ namespace Opc.Ua.Client
             if (m_discoveryServerEndpoints != null && m_discoveryServerEndpoints.Count > 0)
             {
                 // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
-                EndpointDescriptionCollection expectedServerEndpoints;
+                EndpointDescriptionCollection? expectedServerEndpoints;
                 if (serverEndpoints != null &&
                     m_discoveryProfileUris != null &&
                     m_discoveryProfileUris.Count > 0)
@@ -3999,7 +4015,7 @@ namespace Opc.Ua.Client
             // find the matching description (TBD - check domains against certificate).
             bool found = false;
 
-            EndpointDescription foundDescription = FindMatchingDescription(
+            EndpointDescription? foundDescription = FindMatchingDescription(
                 serverEndpoints,
                 m_endpoint.Description,
                 true);
@@ -4039,11 +4055,15 @@ namespace Opc.Ua.Client
         /// <param name="match">The description to match</param>
         /// <param name="matchPort">Match criteria includes port</param>
         /// <returns>Matching description or null if no description is matching</returns>
-        private EndpointDescription FindMatchingDescription(
-            EndpointDescriptionCollection endpointDescriptions,
+        private EndpointDescription? FindMatchingDescription(
+            EndpointDescriptionCollection? endpointDescriptions,
             EndpointDescription match,
             bool matchPort)
         {
+            if (endpointDescriptions == null)
+            {
+                return null;
+            }
             Uri expectedUrl = Utils.ParseUri(match.EndpointUrl);
             for (int ii = 0; ii < endpointDescriptions.Count; ii++)
             {
@@ -4123,7 +4143,7 @@ namespace Opc.Ua.Client
                     break;
             }
 
-            PublishErrorEventHandler callback = m_PublishError;
+            PublishErrorEventHandler? callback = m_PublishError;
 
             // raise an error event.
             if (callback != null)
@@ -4146,9 +4166,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// If available, returns the current nonce or null.
         /// </summary>
-        private byte[] GetCurrentTokenServerNonce()
+        private byte[]? GetCurrentTokenServerNonce()
         {
-            ChannelToken currentToken = (NullableTransportChannel as ISecureChannel)?.CurrentToken;
+            ChannelToken? currentToken = (NullableTransportChannel as ISecureChannel)?.CurrentToken;
             return currentToken?.ServerNonce;
         }
 
@@ -4190,11 +4210,11 @@ namespace Opc.Ua.Client
         private void ProcessPublishResponse(
             ResponseHeader responseHeader,
             uint subscriptionId,
-            UInt32Collection availableSequenceNumbers,
+            UInt32Collection? availableSequenceNumbers,
             bool moreNotifications,
             NotificationMessage notificationMessage)
         {
-            Subscription subscription = null;
+            Subscription? subscription = null;
 
             // send notification that the server is alive.
             OnKeepAlive(m_serverState, responseHeader.Timestamp);
@@ -4395,7 +4415,7 @@ namespace Opc.Ua.Client
                 subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
 
                 // raise the notification.
-                NotificationEventHandler publishEventHandler = m_Publish;
+                NotificationEventHandler? publishEventHandler = m_Publish;
                 if (publishEventHandler != null)
                 {
                     var args = new NotificationEventArgs(
@@ -4577,12 +4597,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        internal static async Task<X509Certificate2Collection> LoadCertificateChainAsync(
+        internal static async Task<X509Certificate2Collection?> LoadCertificateChainAsync(
             ApplicationConfiguration configuration,
             X509Certificate2 clientCertificate,
             CancellationToken ct = default)
         {
-            X509Certificate2Collection clientCertificateChain = null;
+            X509Certificate2Collection? clientCertificateChain = null;
             // load certificate chain.
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
@@ -4798,7 +4818,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a subscription the provided item options
         /// </summary>
-        protected virtual Subscription CreateSubscription(SubscriptionOptions options = null)
+        protected virtual Subscription CreateSubscription(SubscriptionOptions? options = null)
         {
             return new Subscription(m_telemetry, options);
         }
@@ -4809,7 +4829,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void ProcessResponseAdditionalHeader(
             ResponseHeader responseHeader,
-            X509Certificate2 serverCertificate)
+            X509Certificate2? serverCertificate)
         {
             if (ExtensionObject.ToEncodeable(
                 responseHeader?.AdditionalHeader) is AdditionalParametersType parameters)
@@ -4882,12 +4902,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The Instance Certificate.
         /// </summary>
-        protected X509Certificate2 m_instanceCertificate;
+        protected X509Certificate2? m_instanceCertificate;
 
         /// <summary>
         /// The Instance Certificate Chain.
         /// </summary>
-        protected X509Certificate2Collection m_instanceCertificateChain;
+        protected X509Certificate2Collection? m_instanceCertificateChain;
 
         /// <summary>
         /// The session telemetry context
@@ -4914,7 +4934,7 @@ namespace Opc.Ua.Client
         /// </summary>
         protected int m_keepAliveIntervalFactor = 1;
 
-        /// <summary>
+        /// <summary>m
         /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
@@ -4928,9 +4948,9 @@ namespace Opc.Ua.Client
         private readonly SystemContext m_systemContext;
         private NodeCache m_nodeCache;
         private readonly List<IUserIdentity> m_identityHistory = [];
-        private byte[] m_serverNonce;
-        private byte[] m_previousServerNonce;
-        private X509Certificate2 m_serverCertificate;
+        private byte[]? m_serverNonce;
+        private byte[]? m_previousServerNonce;
+        private X509Certificate2? m_serverCertificate;
         private uint m_publishCounter;
         private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;
@@ -4940,26 +4960,26 @@ namespace Opc.Ua.Client
         private readonly Timer m_keepAliveTimer;
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
-        private Task m_keepAliveWorker;
-        private CancellationTokenSource m_keepAliveCancellation;
+        private Task? m_keepAliveWorker;
+        private CancellationTokenSource? m_keepAliveCancellation;
         private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
         private readonly LinkedList<AsyncRequestState> m_outstandingRequests = [];
-        private string m_userTokenSecurityPolicyUri;
-        private Nonce m_eccServerEphemeralKey;
-        private Subscription m_defaultSubscription;
-        private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
-        private readonly StringCollection m_discoveryProfileUris;
+        private string? m_userTokenSecurityPolicyUri;
+        private Nonce? m_eccServerEphemeralKey;
+        private Subscription? m_defaultSubscription;
+        private readonly EndpointDescriptionCollection? m_discoveryServerEndpoints;
+        private readonly StringCollection? m_discoveryProfileUris;
 
         private sealed class AsyncRequestState : IDisposable
         {
             public uint RequestTypeId { get; init; }
             public uint RequestId { get; init; }
             public int TickCount { get; init; }
-            public Task Result { get; set; }
+            public required Task Result { get; set; }
             public bool Defunct { get; set; }
-            public required Activity Activity { get; init; }
+            public required Activity? Activity { get; init; }
 
             public void Dispose()
             {
@@ -4968,13 +4988,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        private event KeepAliveEventHandler m_KeepAlive;
-        private event NotificationEventHandler m_Publish;
-        private event PublishErrorEventHandler m_PublishError;
-        private event PublishSequenceNumbersToAcknowledgeEventHandler m_PublishSequenceNumbersToAcknowledge;
-        private event EventHandler m_SubscriptionsChanged;
-        private event EventHandler m_SessionClosing;
-        private event EventHandler m_SessionConfigurationChanged;
+        private event KeepAliveEventHandler? m_KeepAlive;
+        private event NotificationEventHandler? m_Publish;
+        private event PublishErrorEventHandler? m_PublishError;
+        private event PublishSequenceNumbersToAcknowledgeEventHandler? m_PublishSequenceNumbersToAcknowledge;
+        private event EventHandler? m_SubscriptionsChanged;
+        private event EventHandler? m_SessionClosing;
+        private event EventHandler? m_SessionConfigurationChanged;
     }
 
     /// <summary>
@@ -4986,7 +5006,7 @@ namespace Opc.Ua.Client
         /// Creates a new instance.
         /// </summary>
         public KeepAliveEventArgs(
-            ServiceResult status,
+            ServiceResult? status,
             ServerState currentState,
             DateTime currentTime)
         {
@@ -4998,7 +5018,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
-        public ServiceResult Status { get; }
+        public ServiceResult? Status { get; }
 
         /// <summary>
         /// Gets the current server state.
