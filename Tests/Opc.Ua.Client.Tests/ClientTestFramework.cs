@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
-        public ExpandedNodeId[] TestSetStaticMassNumeric { get; private set; }
+        public (Type Type, ExpandedNodeId[] NodeIds)[] TestSetStaticMassNumeric { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
         public ExpandedNodeId[] TestSetDataSimulation { get; }
         public ExpandedNodeId[] TestSetHistory { get; }
@@ -400,10 +400,22 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <param name="namespaceUris">The namesapce table used in the session.</param>
         /// <returns>The list of static test nodes.</returns>
-        public IList<NodeId> GetTestSetStaticMassNumeric(NamespaceTable namespaceUris)
+        public IDictionary<NodeId, Type> GetTestSetStaticMassNumeric(NamespaceTable namespaceUris)
         {
-            return [.. TestSetStaticMassNumeric.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                .Where(n => n != null)];
+            var result = new Dictionary<NodeId, Type>();
+            foreach ((Type Type, ExpandedNodeId[] NodeIds) entry in TestSetStaticMassNumeric)
+            {
+                Type type = entry.Type;
+                foreach (ExpandedNodeId expandedNodeId in entry.NodeIds)
+                {
+                    var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
+                    if (nodeId != null)
+                    {
+                        result[nodeId] = type;
+                    }
+                }
+            }
+            return result;
         }
 
         /// <summary>

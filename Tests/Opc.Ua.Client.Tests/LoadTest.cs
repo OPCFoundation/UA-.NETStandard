@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,7 +104,7 @@ namespace Opc.Ua.Client.Tests
             const int subscriptionsPerSession = 2;
             const int publishingInterval = 100;
             const int writerInterval = 150;
-            const int testDurationSeconds = 30;
+            const int testDurationSeconds = 300;
 
             var sessions = new List<ISession>();
             var subscriptions = new List<Subscription>();
@@ -114,7 +115,7 @@ namespace Opc.Ua.Client.Tests
             try
             {
                 // Get nodes for subscription
-                IList<NodeId> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
+                IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
                     Assert.Ignore("No nodes for simulation found, ignoring test.");
@@ -135,7 +136,7 @@ namespace Opc.Ua.Client.Tests
                             PublishingInterval = publishingInterval
                         };
 
-                        foreach (NodeId nodeId in nodeIds)
+                        foreach (NodeId nodeId in nodeIds.Keys)
                         {
 
                             var item = new MonitoredItem(subscription.DefaultItem)
@@ -203,13 +204,17 @@ namespace Opc.Ua.Client.Tests
                     {
                         writeCount++;
                         var nodesToWrite = new WriteValueCollection();
-                        foreach (var nodeId in nodeIds)
+                        foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
                             nodesToWrite.Add(new WriteValue
                             {
-                                NodeId = nodeId,
+                                NodeId = node.Key,
                                 AttributeId = Attributes.Value,
-                                Value = new DataValue(new Variant(writeCount))
+                                Value = new DataValue(
+                                    new Variant(
+                                        Convert.ChangeType(writeCount, node.Value, CultureInfo.InvariantCulture)
+                                    )
+                                )
                             });
                         }
                         try
@@ -249,7 +254,7 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine($"Total received notifications: {receivedNotifications}");
 
                 bool allNodesReceivedChanges = true;
-                foreach (var nodeId in nodeIds)
+                foreach (NodeId nodeId in nodeIds.Keys)
                 {
                     if (valueChanges.TryGetValue(nodeId, out int changes))
                     {
