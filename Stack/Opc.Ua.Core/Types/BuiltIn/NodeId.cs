@@ -305,9 +305,38 @@ namespace Opc.Ua
             string text,
             NodeIdParsingOptions options = null)
         {
+            if (!InternalTryParseWithContext(context, text, options, out NodeId value, out string errorMessage))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Internal try parse method with context that returns error message on failure.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing a NodeId.</param>
+        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
+        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <returns>True if parsing was successful, false otherwise.</returns>
+        internal static bool InternalTryParseWithContext(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options,
+            out NodeId value,
+            out string errorMessage)
+        {
+            errorMessage = null;
+            value = Null;
+
             if (string.IsNullOrEmpty(text))
             {
-                return Null;
+                value = Null;
+                return true;
             }
 
             string originalText = text;
@@ -319,10 +348,8 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Invalid NodeId ({0}).",
-                        originalText);
+                    errorMessage = Utils.Format("Invalid NodeId ({0}).", originalText);
+                    return false;
                 }
 
                 string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
@@ -333,10 +360,8 @@ namespace Opc.Ua
 
                 if (namespaceIndex < 0)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "No mapping to NamespaceIndex for NamespaceUri ({0}).",
-                        namespaceUri);
+                    errorMessage = Utils.Format("No mapping to NamespaceIndex for NamespaceUri ({0}).", namespaceUri);
+                    return false;
                 }
 
                 text = text[(index + 1)..];
@@ -348,10 +373,8 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Invalid ExpandedNodeId ({0}).",
-                        originalText);
+                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    return false;
                 }
 
                 if (ushort.TryParse(text[3..index], out ushort ns))
@@ -378,14 +401,16 @@ namespace Opc.Ua
                     case 'i':
                         if (uint.TryParse(text, out uint number))
                         {
-                            return new NodeId(number, (ushort)namespaceIndex);
+                            value = new NodeId(number, (ushort)namespaceIndex);
+                            return true;
                         }
 
                         break;
                     case 's':
                         if (!string.IsNullOrWhiteSpace(text))
                         {
-                            return new NodeId(text, (ushort)namespaceIndex);
+                            value = new NodeId(text, (ushort)namespaceIndex);
+                            return true;
                         }
 
                         break;
@@ -393,7 +418,8 @@ namespace Opc.Ua
                         try
                         {
                             byte[] bytes = Convert.FromBase64String(text);
-                            return new NodeId(bytes, (ushort)namespaceIndex);
+                            value = new NodeId(bytes, (ushort)namespaceIndex);
+                            return true;
                         }
                         catch
                         {
@@ -404,20 +430,19 @@ namespace Opc.Ua
                     case 'g':
                         if (Guid.TryParse(text, out Guid guid))
                         {
-                            return new NodeId(guid, (ushort)namespaceIndex);
+                            value = new NodeId(guid, (ushort)namespaceIndex);
+                            return true;
                         }
 
                         break;
                     default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected IdType value {idType}.");
+                        errorMessage = Utils.Format("Unexpected IdType value {0}.", idType);
+                        return false;
                 }
             }
 
-            throw ServiceResultException.Create(
-                StatusCodes.BadNodeIdInvalid,
-                "Invalid NodeId Identifier ({0}).",
-                originalText);
+            errorMessage = Utils.Format("Invalid NodeId Identifier ({0}).", originalText);
+            return false;
         }
 
         /// <summary>
@@ -788,7 +813,56 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException">Thrown due to invalid text, each time with a specific message.</exception>
         public static NodeId Parse(string text)
         {
-            return InternalParse(text, false);
+            if (!InternalTryParse(text, false, out NodeId value, out string errorMessage))
+            {
+                // Check if this should be an ArgumentException based on the error message
+                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
+                    errorMessage.Contains("Missing valid identifier prefix")))
+                {
+                    throw new ArgumentException(errorMessage);
+                }
+                
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid,
+                    errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Tries to parse a node id string and returns true if successful.
+        /// </summary>
+        /// <remarks>
+        /// Tries to parse a NodeId String and returns a NodeId object if successful.
+        /// Valid NodeId strings are of the form:
+        ///     "i=1234", "s=HelloWorld", "g=AF469096-F02A-4563-940B-603958363B81", "b=01020304",
+        ///     "ns=2;s=HelloWorld", "ns=2;i=1234", "ns=2;g=AF469096-F02A-4563-940B-603958363B81", "ns=2;b=01020304"
+        /// Invalid NodeId strings will return false and set value to NodeId.Null, e.g.
+        ///     "HelloWorld", "nsu=http://opcfoundation.org/UA/;i=1234"
+        /// </remarks>
+        /// <param name="text">The NodeId value as a string.</param>
+        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(string text, out NodeId value)
+        {
+            return InternalTryParse(text, false, out value, out _);
+        }
+
+        /// <summary>
+        /// Tries to parse a NodeId formatted as a string and converts it to a NodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
+        /// <param name="options">The options to use when parsing a NodeId.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            out NodeId value,
+            NodeIdParsingOptions options = null)
+        {
+            return InternalTryParseWithContext(context, text, options, out value, out _);
         }
 
         /// <summary>
@@ -800,12 +874,41 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         internal static NodeId InternalParse(string text, bool namespaceSet)
         {
-            ArgumentException argumentException;
+            if (!InternalTryParse(text, namespaceSet, out NodeId value, out string errorMessage))
+            {
+                // Check if this should be an ArgumentException based on the error message
+                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
+                    errorMessage.Contains("Missing valid identifier prefix")))
+                {
+                    throw new ArgumentException(errorMessage);
+                }
+                
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid,
+                    errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Internal try parse method that returns error message on failure.
+        /// </summary>
+        /// <param name="text">The NodeId value as string.</param>
+        /// <param name="namespaceSet">If the namespaceUri was already set.</param>
+        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
+        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <returns>True if parsing was successful, false otherwise.</returns>
+        internal static bool InternalTryParse(string text, bool namespaceSet, out NodeId value, out string errorMessage)
+        {
+            errorMessage = null;
+            value = Null;
+
             try
             {
                 if (string.IsNullOrEmpty(text))
                 {
-                    return Null;
+                    value = Null;
+                    return true;
                 }
 
                 ushort namespaceIndex = 0;
@@ -818,13 +921,15 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadNodeIdInvalid,
-                            "Invalid namespace index.");
+                        errorMessage = "Invalid namespace index.";
+                        return false;
                     }
 
-                    namespaceIndex = Convert.ToUInt16(text[3..index], CultureInfo.InvariantCulture);
-                    // Don't set namespaceSet = true here, only ns= was parsed, not nsu=
+                    if (!ushort.TryParse(text.Substring(3, index - 3), NumberStyles.None, CultureInfo.InvariantCulture, out namespaceIndex))
+                    {
+                        errorMessage = "Invalid namespace index format.";
+                        return false;
+                    }
 
                     text = text[(index + 1)..];
                 }
@@ -832,57 +937,73 @@ namespace Opc.Ua
                 // parse numeric node identifier.
                 if (text.StartsWith("i=", StringComparison.Ordinal))
                 {
-                    return new NodeId(
-                        Convert.ToUInt32(text[2..], CultureInfo.InvariantCulture),
-                        namespaceIndex);
+                    if (uint.TryParse(text.Substring(2), NumberStyles.None, CultureInfo.InvariantCulture, out uint numericId))
+                    {
+                        value = new NodeId(numericId, namespaceIndex);
+                        return true;
+                    }
+                    errorMessage = Utils.Format("Invalid numeric identifier: '{0}'", text);
+                    return false;
                 }
 
                 // parse string node identifier.
                 if (text.StartsWith("s=", StringComparison.Ordinal))
                 {
-                    return new NodeId(text[2..], namespaceIndex);
+                    value = new NodeId(text[2..], namespaceIndex);
+                    return true;
                 }
 
                 // parse guid node identifier.
                 if (text.StartsWith("g=", StringComparison.Ordinal))
                 {
-                    return new NodeId(new Guid(text[2..]), namespaceIndex);
+                    if (Guid.TryParse(text.Substring(2), out Guid guidId))
+                    {
+                        value = new NodeId(guidId, namespaceIndex);
+                        return true;
+                    }
+                    errorMessage = Utils.Format("Invalid GUID identifier: '{0}'", text);
+                    return false;
                 }
 
                 // parse opaque node identifier.
                 if (text.StartsWith("b=", StringComparison.Ordinal))
                 {
-                    return new NodeId(Convert.FromBase64String(text[2..]), namespaceIndex);
+                    try
+                    {
+                        byte[] bytes = Convert.FromBase64String(text[2..]);
+                        value = new NodeId(bytes, namespaceIndex);
+                        return true;
+                    }
+                    catch
+                    {
+                        errorMessage = Utils.Format("Invalid base64 identifier: '{0}'", text);
+                        return false;
+                    }
                 }
 
                 // parse the namespace index if present.
                 if (text.StartsWith("nsu=", StringComparison.Ordinal))
                 {
-                    argumentException = new ArgumentException(
-                        "Invalid namespace Uri ('nsu=') for a NodeId.");
+                    errorMessage = "Invalid namespace Uri ('nsu=') for a NodeId.";
+                    return false;
                 }
-                else
-                {
-                    // Allow implicit string identifier only if namespace URI was specified (from ExpandedNodeId)
-                    // Do not allow it if only namespace index (ns=) was specified
-                    if (namespaceUriSpecified)
-                    {
-                        return new NodeId(text, namespaceIndex);
-                    }
 
-                    argumentException = new ArgumentException(
-                        Utils.Format("Invalid NodeId identifier. Missing valid identifier prefix ('i=', 's=', 'g=', 'b='): '{0}'", text));
+                // Allow implicit string identifier only if namespace URI was specified (from ExpandedNodeId)
+                // Do not allow it if only namespace index (ns=) was specified
+                if (namespaceUriSpecified)
+                {
+                    value = new NodeId(text, namespaceIndex);
+                    return true;
                 }
+
+                errorMessage = Utils.Format("Invalid NodeId identifier. Missing valid identifier prefix ('i=', 's=', 'g=', 'b='): '{0}'", text);
+                return false;
             }
             catch (Exception e)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdInvalid,
-                    Utils.Format("Cannot parse node id text: '{0}'", text),
-                    e);
+                errorMessage = Utils.Format("Cannot parse node id text: '{0}': {1}", text, e.Message);
+                return false;
             }
-
-            throw argumentException;
         }
 
         /// <summary>
