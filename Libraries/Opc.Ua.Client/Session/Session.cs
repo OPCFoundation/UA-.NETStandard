@@ -2372,8 +2372,7 @@ namespace Opc.Ua.Client
                 }
                 else if (transportChannel != null)
                 {
-                    // don't dispose existing channel, just attach the new one.
-                    base.AttachChannel(transportChannel);
+                    TransportChannel = transportChannel;
                 }
                 else
                 {
