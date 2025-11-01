@@ -367,11 +367,16 @@ namespace Opc.Ua.Configuration
                     "Need at least one Application Certificate.");
             }
 
+            // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
+            // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
+            // doesn't match ApplicationConfiguration.ApplicationUri, however each certificate is validated individually
+            // in CheckApplicationInstanceCertificateAsync (called via CheckOrCreateCertificateAsync) to ensure it contains 
+            // the configuration's ApplicationUri.
             bool result = true;
             foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
             {
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
-                bool nextResult = await CheckCertificateTypeAsync(
+                bool nextResult = await CheckOrCreateCertificateAsync(
                         certId,
                         silent,
                         minimumKeySize,
@@ -385,10 +390,14 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Check certificate type
+        /// Checks, validates, and optionally creates an application certificate.
+        /// Loads the certificate, validates it against configured requirements (ApplicationUri, key size, domains),
+        /// and creates a new certificate if none exists and auto-creation is enabled.
+        /// Note: FindAsync searches certificates in order: thumbprint, subjectName, applicationUri.
+        /// The applicationUri parameter is only used if thumbprint and subjectName don't find a match.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task<bool> CheckCertificateTypeAsync(
+        private async Task<bool> CheckOrCreateCertificateAsync(
             CertificateIdentifier id,
             bool silent,
             ushort minimumKeySize,
@@ -411,7 +420,7 @@ namespace Opc.Ua.Configuration
             await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri, m_telemetry, ct)
                 .ConfigureAwait(false);
 
-            // load the certificate
+            // load the certificate 
             X509Certificate2 certificate = await id.FindAsync(
                 true,
                 configuration.ApplicationUri,
@@ -747,28 +756,37 @@ namespace Opc.Ua.Configuration
                 return false;
             }
 
-            // check uri.
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
-
-            if (string.IsNullOrEmpty(applicationUri))
+            // Validate that the certificate contains the configuration's ApplicationUri
+            if (!X509Utils.CompareApplicationUriWithCertificate(certificate, configuration.ApplicationUri, out var certificateUris))
             {
-                const string message =
-                    "The Application URI could not be read from the certificate. Use certificate anyway?";
-                if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
+                if (certificateUris.Count == 0)
                 {
-                    return false;
+                    const string message =
+                        "The Application URI could not be found in the certificate. Use certificate anyway?";
+                    if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    string message = Utils.Format(
+                        "The certificate with subject '{0}' does not contain the ApplicationUri '{1}' from the configuration. Certificate contains: {2}. Use certificate anyway?",
+                        certificate.Subject,
+                        configuration.ApplicationUri,
+                        string.Join(", ", certificateUris));
+
+                    if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
                 }
             }
-            else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.Ordinal))
-            {
-                m_logger.LogInformation(
-                    "Updated the ApplicationUri: {PreviousApplicationUri} --> {NewApplicationUri}",
-                    configuration.ApplicationUri,
-                    applicationUri);
-                configuration.ApplicationUri = applicationUri;
-            }
 
-            m_logger.LogInformation("Using the ApplicationUri: {ApplicationUri}", applicationUri);
+            m_logger.LogInformation(
+                "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}",
+                certificate.AsLogSafeString(),
+                configuration.ApplicationUri);
 
             // update configuration.
             id.Certificate = certificate;

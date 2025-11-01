@@ -124,6 +124,7 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(ResourceManager);
                 Utils.SilentDispose(RequestManager);
                 Utils.SilentDispose(AggregateManager);
+                Utils.SilentDispose(ModellingRulesManager);
                 Utils.SilentDispose(NodeManager);
                 Utils.SilentDispose(SessionManager);
                 Utils.SilentDispose(SubscriptionManager);
@@ -215,6 +216,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Stores the ModellingRulesManager in the datastore.
+        /// </summary>
+        /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
+        public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
+        {
+            ModellingRulesManager = modellingRulesManager;
+        }
+
+        /// <summary>
         /// The endpoint addresses used by the server.
         /// </summary>
         /// <value>The endpoint addresses.</value>
@@ -302,6 +312,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The aggregate manager.</value>
         public AggregateManager AggregateManager { get; private set; }
+
+        /// <summary>
+        /// A manager for modelling rules supported by the server.
+        /// </summary>
+        /// <value>The modelling rules manager.</value>
+        public ModellingRulesManager ModellingRulesManager { get; private set; }
 
         /// <summary>
         /// The manager for active sessions.

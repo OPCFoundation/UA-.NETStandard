@@ -37,7 +37,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.05" PublicationDate="2025-06-30T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.06" PublicationDate="2025-10-31T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   
@@ -1208,12 +1208,29 @@
   </xs:complexType>
   <xs:element name="ListOfUserTokenSettingsDataType" type="tns:ListOfUserTokenSettingsDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="ServiceCertificateDataType">
+    <xs:sequence>
+      <xs:element name="Certificate" type="xs:base64Binary" minOccurs="0" nillable="true" />
+      <xs:element name="Issuers" type="ua:ListOfByteString" minOccurs="0" nillable="true" />
+      <xs:element name="ValidFrom" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="ValidTo" type="xs:dateTime" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ServiceCertificateDataType" type="tns:ServiceCertificateDataType" />
+
+  <xs:complexType name="ListOfServiceCertificateDataType">
+    <xs:sequence>
+      <xs:element name="ServiceCertificateDataType" type="tns:ServiceCertificateDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfServiceCertificateDataType" type="tns:ListOfServiceCertificateDataType" nillable="true"></xs:element>
+
   <xs:complexType name="AuthorizationServiceConfigurationDataType">
     <xs:complexContent mixed="false">
       <xs:extension base="tns:BaseConfigurationRecordDataType">
         <xs:sequence>
           <xs:element name="ServiceUri" type="xs:string" minOccurs="0" nillable="true" />
-          <xs:element name="ServiceCertificate" type="ua:ListOfByteString" minOccurs="0" nillable="true" />
+          <xs:element name="ServiceCertificates" type="tns:ListOfServiceCertificateDataType" minOccurs="0" nillable="true" />
           <xs:element name="IssuerEndpointSettings" type="xs:string" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>

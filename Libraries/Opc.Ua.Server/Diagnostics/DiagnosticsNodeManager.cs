@@ -1226,6 +1226,42 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Adds a modelling rule to the server capabilities object.
+        /// </summary>
+        public void AddModellingRule(
+            NodeId modellingRuleId,
+            string modellingRuleName)
+        {
+            lock (Lock)
+            {
+                var state = new FolderState(null)
+                {
+                    SymbolicName = modellingRuleName,
+                    ReferenceTypeId = ReferenceTypes.HasComponent,
+                    TypeDefinitionId = ObjectTypeIds.ModellingRuleType,
+                    NodeId = modellingRuleId,
+                    BrowseName = new QualifiedName(modellingRuleName, modellingRuleId.NamespaceIndex)
+                };
+                state.DisplayName = state.BrowseName.Name;
+                state.WriteMask = AttributeWriteMask.None;
+                state.UserWriteMask = AttributeWriteMask.None;
+                state.EventNotifier = EventNotifiers.None;
+
+                NodeState folder = FindPredefinedNode(
+                    ObjectIds.Server_ServerCapabilities_ModellingRules,
+                    typeof(BaseObjectState));
+
+                if (folder != null)
+                {
+                    folder.AddReference(ReferenceTypes.Organizes, false, state.NodeId);
+                    state.AddReference(ReferenceTypes.Organizes, true, folder.NodeId);
+                }
+
+                AddPredefinedNode(SystemContext, state);
+            }
+        }
+
+        /// <summary>
         /// Updates the server diagnostics summary structure.
         /// </summary>
         private bool UpdateServerDiagnosticsSummary()

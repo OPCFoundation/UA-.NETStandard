@@ -129,6 +129,12 @@ namespace Opc.Ua.Server
         AggregateManager AggregateManager { get; }
 
         /// <summary>
+        /// A manager for modelling rules supported by the server.
+        /// </summary>
+        /// <value>The modelling rules manager.</value>
+        ModellingRulesManager ModellingRulesManager { get; }
+
+        /// <summary>
         /// The manager for active sessions.
         /// </summary>
         /// <value>The session manager.</value>
@@ -307,6 +313,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="aggregateManager">The AggregateManager.</param>
         void SetAggregateManager(AggregateManager aggregateManager);
+
+        /// <summary>
+        /// Stores the ModellingRulesManager in the datastore.
+        /// </summary>
+        /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
+        void SetModellingRulesManager(ModellingRulesManager modellingRulesManager);
 
         /// <summary>
         /// Updates the server status safely.
