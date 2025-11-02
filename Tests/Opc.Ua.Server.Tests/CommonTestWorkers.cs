@@ -185,16 +185,35 @@ namespace Opc.Ua.Server.Tests
         ];
 
         /// <summary>
+        /// Mass numeric static nodes for performance tests.
+        /// </summary>
+        public static readonly (Type Type, ExpandedNodeId[] NodeIds)[] NodeIdTestSetStaticMassNumeric =
+        [
+            (typeof(short), Enumerable.Range(0, 100).Select(i =>
+                new ExpandedNodeId($"Scalar_Static_Mass_Int16_Int16_{i:D2}", Quickstarts.ReferenceServer.Namespaces.ReferenceServer)).ToArray()),
+            (typeof(int), Enumerable.Range(0, 100).Select(i =>
+                new ExpandedNodeId($"Scalar_Static_Mass_Int32_Int32_{i:D2}", Quickstarts.ReferenceServer.Namespaces.ReferenceServer)).ToArray()),
+            (typeof(long), Enumerable.Range(0, 100).Select(i =>
+                new ExpandedNodeId($"Scalar_Static_Mass_Int64_Int64_{i:D2}", Quickstarts.ReferenceServer.Namespaces.ReferenceServer)).ToArray()),
+            (typeof(ushort), Enumerable.Range(0, 100).Select(i =>
+                new ExpandedNodeId($"Scalar_Static_Mass_UInt16_UInt16_{i:D2}", Quickstarts.ReferenceServer.Namespaces.ReferenceServer)).ToArray()),
+            (typeof(uint), Enumerable.Range(0, 100).Select(i =>
+                new ExpandedNodeId($"Scalar_Static_Mass_UInt32_UInt32_{i:D2}", Quickstarts.ReferenceServer.Namespaces.ReferenceServer)).ToArray()),
+            (typeof(ulong), Enumerable.Range(0, 100).Select(i =>
+                new ExpandedNodeId($"Scalar_Static_Mass_UInt64_UInt64_{i:D2}", Quickstarts.ReferenceServer.Namespaces.ReferenceServer)).ToArray())
+        ];
+
+        /// <summary>
         /// Worker function to browse the full address space of a server.
         /// </summary>
         /// <param name="services">The service interface.</param>
         /// <param name="operationLimits">The operation limits.</param>
         public static ReferenceDescriptionCollection BrowseFullAddressSpaceWorker(
-            IServerTestServices services,
-            RequestHeader requestHeader,
-            OperationLimits operationLimits = null,
-            BrowseDescription browseDescription = null,
-            bool outputResult = false)
+                    IServerTestServices services,
+                    RequestHeader requestHeader,
+                    OperationLimits operationLimits = null,
+                    BrowseDescription browseDescription = null,
+                    bool outputResult = false)
         {
             operationLimits ??= new OperationLimits();
             requestHeader.Timestamp = DateTime.UtcNow;
