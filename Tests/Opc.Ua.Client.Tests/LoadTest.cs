@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.Tests
 
                 Assert.IsTrue(allNodesReceivedChanges, "Not all nodes received all value changes.");
                 // Looser verification to allow for network delays
-                double receiveRatio = (double)receivedNotifications / (expectedNotifications * nodeIds.Count);
+                double receiveRatio = (double)receivedNotifications / expectedNotifications;
                 TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
                 Assert.Greater(receiveRatio, 0.99, "The overall notification receive ratio is too low.");
             }

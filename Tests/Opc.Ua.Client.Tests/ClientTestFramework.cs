@@ -138,8 +138,8 @@ namespace Opc.Ua.Client.Tests
                     m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
 
                     // load custom test sets
-                    //TestSetStatic = ReadCustomTestSet("TestSetStatic");
-                    //TestSetSimulation = ReadCustomTestSet("TestSetSimulation");
+                    TestSetStatic = ReadCustomTestSet("TestSetStatic");
+                    TestSetSimulation = ReadCustomTestSet("TestSetSimulation");
                 }
                 else
                 {
@@ -398,7 +398,7 @@ namespace Opc.Ua.Client.Tests
         /// Return a test set of nodes with static character.
         /// 100 of each numeric data type.
         /// </summary>
-        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <param name="namespaceUris">The namespace table used in the session.</param>
         /// <returns>The list of static test nodes.</returns>
         public IDictionary<NodeId, Type> GetTestSetStaticMassNumeric(NamespaceTable namespaceUris)
         {
