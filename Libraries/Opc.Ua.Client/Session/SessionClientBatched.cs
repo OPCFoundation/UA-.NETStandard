@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -61,17 +59,17 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public override async Task<AddNodesResponse> AddNodesAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             AddNodesItemCollection nodesToAdd,
             CancellationToken ct)
         {
-            AddNodesResponse response = null;
+            AddNodesResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out AddNodesResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out AddNodesResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 nodesToAdd.Count,
                 operationLimit);
 
@@ -103,26 +101,28 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<AddReferencesResponse> AddReferencesAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             AddReferencesItemCollection referencesToAdd,
             CancellationToken ct)
         {
-            AddReferencesResponse response = null;
+            AddReferencesResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out StatusCodeCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 referencesToAdd.Count,
                 operationLimit);
 
@@ -155,26 +155,28 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<DeleteNodesResponse> DeleteNodesAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             CancellationToken ct)
         {
-            DeleteNodesResponse response = null;
+            DeleteNodesResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out StatusCodeCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 nodesToDelete.Count,
                 operationLimit);
 
@@ -207,26 +209,28 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<DeleteReferencesResponse> DeleteReferencesAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             CancellationToken ct)
         {
-            DeleteReferencesResponse response = null;
+            DeleteReferencesResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out StatusCodeCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 referencesToDelete.Count,
                 operationLimit);
 
@@ -262,28 +266,30 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<BrowseResponse> BrowseAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct)
         {
-            BrowseResponse response = null;
+            BrowseResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerBrowse;
             InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out BrowseResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 nodesToBrowse.Count,
                 operationLimit);
 
@@ -321,26 +327,28 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             BrowsePathCollection browsePaths,
             CancellationToken ct)
         {
-            TranslateBrowsePathsToNodeIdsResponse response = null;
+            TranslateBrowsePathsToNodeIdsResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
             InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
-                out BrowsePathResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out BrowsePathResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 browsePaths.Count,
                 operationLimit);
 
@@ -375,20 +383,22 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<RegisterNodesResponse> RegisterNodesAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             NodeIdCollection nodesToRegister,
             CancellationToken ct)
         {
-            RegisterNodesResponse response = null;
+            RegisterNodesResponse? response = null;
             var registeredNodeIds = new NodeIdCollection();
 
             foreach (
@@ -411,18 +421,20 @@ namespace Opc.Ua
                 registeredNodeIds.AddRange(batchRegisteredNodeIds);
             }
 
-            response.RegisteredNodeIds = registeredNodeIds;
-
-            return response;
+            if (response != null)
+            {
+                response.RegisteredNodeIds = registeredNodeIds;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<UnregisterNodesResponse> UnregisterNodesAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             NodeIdCollection nodesToUnregister,
             CancellationToken ct)
         {
-            UnregisterNodesResponse response = null;
+            UnregisterNodesResponse? response = null;
 
             foreach (
                 NodeIdCollection batchNodesToUnregister in nodesToUnregister
@@ -441,24 +453,24 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
             }
 
-            return response;
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<ReadResponse> ReadAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            ReadResponse response = null;
+            ReadResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerRead;
             InitResponseCollections<DataValue, DataValueCollection>(
-                out DataValueCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out DataValueCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 nodesToRead.Count,
                 operationLimit);
 
@@ -495,23 +507,25 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<HistoryReadResponse> HistoryReadAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            HistoryReadResponse response = null;
+            HistoryReadResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
             if (historyReadDetails?.Body is ReadEventDetails)
@@ -520,9 +534,9 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
-                out HistoryReadResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out HistoryReadResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 nodesToRead.Count,
                 operationLimit);
 
@@ -561,26 +575,28 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<WriteResponse> WriteAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            WriteResponse response = null;
+            WriteResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerWrite;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out StatusCodeCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 nodesToWrite.Count,
                 operationLimit);
 
@@ -612,20 +628,22 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             CancellationToken ct)
         {
-            HistoryUpdateResponse response = null;
+            HistoryUpdateResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
@@ -635,9 +653,9 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                out HistoryUpdateResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out HistoryUpdateResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 historyUpdateDetails.Count,
                 operationLimit);
 
@@ -672,26 +690,28 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<CallResponse> CallAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            CallResponse response = null;
+            CallResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
             InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                out CallMethodResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out CallMethodResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 methodsToCall.Count,
                 operationLimit);
 
@@ -724,28 +744,30 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             CancellationToken ct)
         {
-            CreateMonitoredItemsResponse response = null;
+            CreateMonitoredItemsResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                out MonitoredItemCreateResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out MonitoredItemCreateResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 itemsToCreate.Count,
                 operationLimit);
 
@@ -783,28 +805,30 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             CancellationToken ct)
         {
-            ModifyMonitoredItemsResponse response = null;
+            ModifyMonitoredItemsResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                out MonitoredItemModifyResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out MonitoredItemModifyResultCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 itemsToModify.Count,
                 operationLimit);
 
@@ -842,28 +866,30 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             CancellationToken ct)
         {
-            SetMonitoringModeResponse response = null;
+            SetMonitoringModeResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out StatusCodeCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 monitoredItemIds.Count,
                 operationLimit);
 
@@ -899,35 +925,37 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<SetTriggeringResponse> SetTriggeringAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
             UInt32Collection linksToAdd,
             UInt32Collection linksToRemove,
             CancellationToken ct)
         {
-            SetTriggeringResponse response = null;
+            SetTriggeringResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection addResults,
-                out DiagnosticInfoCollection addDiagnosticInfos,
-                out StringCollection stringTable,
+                out StatusCodeCollection? addResults,
+                out DiagnosticInfoCollection? addDiagnosticInfos,
+                out StringCollection? stringTable,
                 linksToAdd.Count,
                 operationLimit);
 
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection removeResults,
-                out DiagnosticInfoCollection removeDiagnosticInfos,
+                out StatusCodeCollection? removeResults,
+                out DiagnosticInfoCollection? removeDiagnosticInfos,
                 out _,
                 linksToRemove.Count,
                 operationLimit);
@@ -1044,29 +1072,31 @@ namespace Opc.Ua
                 }
             }
 
-            response.AddResults = addResults;
-            response.AddDiagnosticInfos = addDiagnosticInfos;
-            response.RemoveResults = removeResults;
-            response.RemoveDiagnosticInfos = removeDiagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.AddResults = addResults;
+                response.AddDiagnosticInfos = addDiagnosticInfos;
+                response.RemoveResults = removeResults;
+                response.RemoveDiagnosticInfos = removeDiagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <inheritdoc/>
         public override async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
             CancellationToken ct)
         {
-            DeleteMonitoredItemsResponse response = null;
+            DeleteMonitoredItemsResponse? response = null;
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos,
-                out StringCollection stringTable,
+                out StatusCodeCollection? results,
+                out DiagnosticInfoCollection? diagnosticInfos,
+                out StringCollection? stringTable,
                 monitoredItemIds.Count,
                 operationLimit);
 
@@ -1100,11 +1130,13 @@ namespace Opc.Ua
                     response.ResponseHeader.StringTable);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-            response.ResponseHeader.StringTable = stringTable;
-
-            return response;
+            if (response != null)
+            {
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
+                response.ResponseHeader.StringTable = stringTable;
+            }
+            return Validate(response);
         }
 
         /// <summary>
@@ -1117,9 +1149,9 @@ namespace Opc.Ua
         /// is sufficient or with the final size if batching is necessary.
         /// </remarks>
         private static void InitResponseCollections<T, C>(
-            out C results,
-            out DiagnosticInfoCollection diagnosticInfos,
-            out StringCollection stringTable,
+            out C? results,
+            out DiagnosticInfoCollection? diagnosticInfos,
+            out StringCollection? stringTable,
             int count,
             uint operationLimit)
             where C : List<T>, new()
@@ -1150,9 +1182,9 @@ namespace Opc.Ua
         /// The string table indexes are updated in the diagnostic infos if necessary.
         /// </remarks>
         private static void AddResponses<T, C>(
-            ref C results,
-            ref DiagnosticInfoCollection diagnosticInfos,
-            ref StringCollection stringTable,
+            ref C? results,
+            ref DiagnosticInfoCollection? diagnosticInfos,
+            ref StringCollection? stringTable,
             C batchedResults,
             DiagnosticInfoCollection batchedDiagnosticInfos,
             StringCollection batchedStringTable)
@@ -1166,8 +1198,8 @@ namespace Opc.Ua
             }
             else
             {
-                bool hasDiagnosticInfos = diagnosticInfos.Count > 0;
-                bool hasEmptyDiagnosticInfos = diagnosticInfos.Count == 0 && results.Count > 0;
+                bool hasDiagnosticInfos = diagnosticInfos?.Count > 0;
+                bool hasEmptyDiagnosticInfos = diagnosticInfos?.Count == 0 && results.Count > 0;
                 bool hasBatchDiagnosticInfos = batchedDiagnosticInfos.Count > 0;
                 int correctionCount = 0;
                 if (hasBatchDiagnosticInfos && hasEmptyDiagnosticInfos)
@@ -1178,7 +1210,7 @@ namespace Opc.Ua
                 {
                     correctionCount = batchedResults.Count;
                 }
-                if (correctionCount > 0)
+                if (correctionCount > 0 && diagnosticInfos != null)
                 {
                     // fill missing diagnostics infos with null entries
                     for (int i = 0; i < correctionCount; i++)
@@ -1186,7 +1218,7 @@ namespace Opc.Ua
                         diagnosticInfos.Add(null);
                     }
                 }
-                else if (batchedStringTable.Count > 0)
+                else if (batchedStringTable.Count > 0 && stringTable != null)
                 {
                     // correct indexes in the string table
                     int stringTableOffset = stringTable.Count;
@@ -1196,8 +1228,8 @@ namespace Opc.Ua
                     }
                 }
                 results.AddRange(batchedResults);
-                diagnosticInfos.AddRange(batchedDiagnosticInfos);
-                stringTable.AddRange(batchedStringTable);
+                diagnosticInfos?.AddRange(batchedDiagnosticInfos);
+                stringTable?.AddRange(batchedStringTable);
             }
         }
 
@@ -1226,6 +1258,16 @@ namespace Opc.Ua
                 }
                 diagnosticInfo = diagnosticInfo.InnerDiagnosticInfo;
             }
+        }
+
+        private T Validate<T>(T? response) where T : IServiceResponse
+        {
+            if (response is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadUnknownResponse,
+                    "The service response is unexpectedly null.");
+            }
+            return response;
         }
 
         private OperationLimits m_operationLimits;
