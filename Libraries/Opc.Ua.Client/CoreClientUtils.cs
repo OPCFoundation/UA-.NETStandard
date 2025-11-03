@@ -166,7 +166,8 @@ namespace Opc.Ua.Client
                 connection,
                 endpointConfiguration,
                 ct: ct).ConfigureAwait(false);
-            var url = new Uri(client.Endpoint.EndpointUrl);
+            var url = new Uri(client.Endpoint?.EndpointUrl ??
+                throw ServiceResultException.Unexpected("Endpoint missing"));
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
             return SelectEndpoint(
@@ -230,8 +231,10 @@ namespace Opc.Ua.Client
                 uri,
                 endpointConfiguration,
                 ct: ct).ConfigureAwait(false);
+
             // Connect to the server's discovery endpoint and find the available configuration.
-            var url = new Uri(client.Endpoint.EndpointUrl);
+            var url = new Uri(client.Endpoint?.EndpointUrl ??
+                throw ServiceResultException.Unexpected("Endpoint missing"));
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
             EndpointDescription? selectedEndpoint = SelectEndpoint(

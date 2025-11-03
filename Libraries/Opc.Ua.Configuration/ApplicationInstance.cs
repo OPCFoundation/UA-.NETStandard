@@ -361,7 +361,7 @@ namespace Opc.Ua.Configuration
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
             // doesn't match ApplicationConfiguration.ApplicationUri, however each certificate is validated individually
-            // in CheckApplicationInstanceCertificateAsync (called via CheckOrCreateCertificateAsync) to ensure it contains 
+            // in CheckApplicationInstanceCertificateAsync (called via CheckOrCreateCertificateAsync) to ensure it contains
             // the configuration's ApplicationUri.
             bool result = true;
             foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
@@ -411,7 +411,7 @@ namespace Opc.Ua.Configuration
             await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri, m_telemetry, ct)
                 .ConfigureAwait(false);
 
-            // load the certificate 
+            // load the certificate
             X509Certificate2 certificate = await id.FindAsync(
                 true,
                 configuration.ApplicationUri,
@@ -748,7 +748,10 @@ namespace Opc.Ua.Configuration
             }
 
             // Validate that the certificate contains the configuration's ApplicationUri
-            if (!X509Utils.CompareApplicationUriWithCertificate(certificate, configuration.ApplicationUri, out var certificateUris))
+            if (!X509Utils.CompareApplicationUriWithCertificate(
+                certificate,
+                configuration.ApplicationUri,
+                out IReadOnlyList<string> certificateUris))
             {
                 if (certificateUris.Count == 0)
                 {
@@ -762,7 +765,8 @@ namespace Opc.Ua.Configuration
                 else
                 {
                     string message = Utils.Format(
-                        "The certificate with subject '{0}' does not contain the ApplicationUri '{1}' from the configuration. Certificate contains: {2}. Use certificate anyway?",
+                        "The certificate with subject '{0}' does not contain the ApplicationUri '{1}' " +
+                        "from the configuration. Certificate contains: {2}. Use certificate anyway?",
                         certificate.Subject,
                         configuration.ApplicationUri,
                         string.Join(", ", certificateUris));

@@ -116,7 +116,7 @@ namespace Opc.Ua.Security.Certificates
         {
             Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
             Critical = false;
-            Initialize(new string[] { applicationUri }, domainNames);
+            Initialize([applicationUri], domainNames);
             RawData = Encode();
             m_decoded = true;
         }
@@ -431,10 +431,7 @@ namespace Opc.Ua.Security.Certificates
             var uris = new List<string>();
             var domainNames = new List<string>();
             var ipAddresses = new List<string>();
-            foreach (string applicationUri in applicationUris)
-            {
-                uris.Add(applicationUri);
-            }
+            uris.AddRange(applicationUris);
             foreach (string generalName in generalNames)
             {
                 switch (Uri.CheckHostName(generalName))

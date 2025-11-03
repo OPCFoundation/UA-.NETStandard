@@ -166,37 +166,32 @@ namespace Opc.Ua
 
             foreach (KeyValuePair item in parameters.Parameters)
             {
-                if (item.Key == "traceparent")
+                if (item.Key != "SpanContext")
                 {
-                    string traceparent = item.Value.ToString();
-                    int firstDash = traceparent.IndexOf('-', StringComparison.Ordinal);
-                    int secondDash = traceparent.IndexOf('-', firstDash + 1);
-                    int thirdDash = traceparent.IndexOf('-', secondDash + 1);
-
-                    if (firstDash != -1 && secondDash != -1)
-                    {
-                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(
-                            firstDash + 1,
-                            secondDash - firstDash - 1);
-                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(
-                            secondDash + 1,
-                            thirdDash - secondDash - 1);
-                        ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
-
-                        var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
-                        var spanId = ActivitySpanId.CreateFromString(spanIdSpan);
-                        ActivityTraceFlags traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan())
-                            ? ActivityTraceFlags.Recorded
-                            : ActivityTraceFlags.None;
-                        activityContext = new ActivityContext(traceId, spanId, traceFlags);
-                        return true;
-                    }
-                    activityContext = default;
-                    return false;
+                    continue;
                 }
+                if (item.Value.Value is ExtensionObject eo &&
+                    eo.Body is SpanContextDataType spanContext)
+                {
+#if NET8_0_OR_GREATER
+                    Span<byte> spanIdBytes = stackalloc byte[8];
+                    Span<byte> traceIdBytes = stackalloc byte[16];
+                    ((Guid)spanContext.TraceId).TryWriteBytes(traceIdBytes);
+                    BitConverter.TryWriteBytes(spanIdBytes, spanContext.SpanId);
+#else
+                    byte[] spanIdBytes = BitConverter.GetBytes(spanContext.SpanId);
+                    byte[] traceIdBytes = ((Guid)spanContext.TraceId).ToByteArray();
+#endif
+                    var traceId = ActivityTraceId.CreateFromBytes(traceIdBytes);
+                    var spanId = ActivitySpanId.CreateFromBytes(spanIdBytes);
+                    // TODO: should also come from header
+                    const ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
+                    activityContext = new ActivityContext(traceId, spanId, traceFlags);
+                    return true;
+                }
+                break;
             }
 
-            // no traceparent header found
             activityContext = default;
             return false;
         }

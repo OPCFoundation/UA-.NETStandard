@@ -365,8 +365,8 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_defaultSubscription);
                 Utils.SilentDispose(m_nodeCache);
 
-                List<Subscription>? subscriptions = null;
-                lock (SyncRoot)
+                List<Subscription>? subscriptions;
+                lock (m_lock)
                 {
                     subscriptions = [.. m_subscriptions];
                     m_subscriptions.Clear();
@@ -568,7 +568,7 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (SyncRoot)
+                lock (m_lock)
                 {
                     return [.. m_subscriptions];
                 }
@@ -582,7 +582,7 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (SyncRoot)
+                lock (m_lock)
                 {
                     return m_subscriptions.Count;
                 }
@@ -779,7 +779,7 @@ namespace Opc.Ua.Client
             get => m_minPublishRequestCount;
             set
             {
-                lock (SyncRoot)
+                lock (m_lock)
                 {
                     if (value is >= kDefaultPublishRequestCount and <= kMinPublishRequestCountMax)
                     {
@@ -804,7 +804,7 @@ namespace Opc.Ua.Client
             get => Math.Max(m_minPublishRequestCount, m_maxPublishRequestCount);
             set
             {
-                lock (SyncRoot)
+                lock (m_lock)
                 {
                     if (value is >= kDefaultPublishRequestCount and <= kMaxPublishRequestCountMax)
                     {
@@ -819,9 +819,6 @@ namespace Opc.Ua.Client
                 }
             }
         }
-
-        /// <inheritdoc/>
-        public ServerCapabilities ServerCapabilities { get; } = new();
 
         /// <inheritdoc/>
         public ContinuationPointPolicy ContinuationPointPolicy { get; set; }
@@ -910,9 +907,12 @@ namespace Opc.Ua.Client
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
             m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
 
-            SessionCreated(
-                sessionConfiguration.SessionId,
-                sessionConfiguration.AuthenticationToken);
+            lock (m_lock)
+            {
+                SessionCreated(
+                    sessionConfiguration.SessionId,
+                    sessionConfiguration.AuthenticationToken);
+            }
         }
 
         /// <inheritdoc/>
@@ -981,7 +981,7 @@ namespace Opc.Ua.Client
             var stateCollection = (SubscriptionStateCollection?)serializer.ReadObject(reader);
             if (stateCollection == null)
             {
-                return Enumerable.Empty<Subscription>();
+                return [];
             }
             var subscriptions = new SubscriptionCollection(stateCollection.Count);
             foreach (SubscriptionState state in stateCollection)
@@ -1062,6 +1062,10 @@ namespace Opc.Ua.Client
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
+
+            uint maxMessageSize = (uint?)MessageContext?.MaxMessageSize ??
+                throw ServiceResultException.Unexpected(
+                    "Transport channel is null or does not have a message context");
 
             // Load certificate and chain if not already loaded.
             await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
@@ -1147,17 +1151,16 @@ namespace Opc.Ua.Client
                 try
                 {
                     response = await base.CreateSessionAsync(
-                            null,
-                            clientDescription,
-                            m_endpoint.Description.Server.ApplicationUri,
-                            m_endpoint.EndpointUrl.ToString(),
-                            sessionName,
-                            clientNonce,
-                            null,
-                            sessionTimeout,
-                            (uint)MessageContext.MaxMessageSize,
-                            ct)
-                        .ConfigureAwait(false);
+                        null,
+                        clientDescription,
+                        m_endpoint.Description.Server.ApplicationUri,
+                        m_endpoint.EndpointUrl.ToString(),
+                        sessionName,
+                        clientNonce,
+                        null,
+                        sessionTimeout,
+                        maxMessageSize,
+                        ct).ConfigureAwait(false);
 
                     successCreateSession = true;
                 }
@@ -1179,7 +1182,7 @@ namespace Opc.Ua.Client
                     clientNonce,
                     clientCertificateChainData ?? clientCertificateData,
                     sessionTimeout,
-                    (uint)MessageContext.MaxMessageSize,
+                    maxMessageSize,
                     ct).ConfigureAwait(false);
             }
             if (NodeId.IsNull(response?.SessionId))
@@ -1200,7 +1203,7 @@ namespace Opc.Ua.Client
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
 
             // save session id.
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 // save session id and cookie in base
                 base.SessionCreated(sessionId, sessionCookie);
@@ -1209,10 +1212,10 @@ namespace Opc.Ua.Client
             m_logger.LogInformation("Revised session timeout value: {SessionTimeout}.", m_sessionTimeout);
             m_logger.LogInformation(
                 "Max response message size value: {MaxMessageSize}. Max request message size: {MaxRequestSize}",
-                MessageContext.MaxMessageSize,
+                maxMessageSize,
                 m_maxRequestMessageSize);
 
-            //we need to call CloseSession if CreateSession was successful but some other exception is thrown
+            // we need to call CloseSession if CreateSession was successful but some other exception is thrown
             try
             {
                 // verify that the server returned the same instance certificate.
@@ -1326,7 +1329,7 @@ namespace Opc.Ua.Client
                 // fetch namespaces.
                 await FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
-                lock (SyncRoot)
+                lock (m_lock)
                 {
                     // save nonces.
                     m_sessionName = sessionName;
@@ -1349,9 +1352,6 @@ namespace Opc.Ua.Client
 
                 // raise event that session configuration changed.
                 IndicateSessionConfigurationChanged();
-
-                // call session created callback, which was already set in base class only.
-                SessionCreated(sessionId, sessionCookie);
             }
             catch (Exception ex)
             {
@@ -1370,7 +1370,10 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
-                    SessionCreated(null, null);
+                    lock (m_lock)
+                    {
+                        SessionCreated(null, null);
+                    }
                 }
                 if (closeChannel)
                 {
@@ -1398,7 +1401,7 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             byte[]? serverNonce = null;
 
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 // check connection state.
                 if (!Connected)
@@ -1502,7 +1505,7 @@ namespace Opc.Ua.Client
             ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
 
             // save nonce and new values.
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 if (identity != null)
                 {
@@ -1539,7 +1542,7 @@ namespace Opc.Ua.Client
                 await subscription.DeleteAsync(false, ct).ConfigureAwait(false);
             }
 
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 if (!m_subscriptions.Remove(subscription))
                 {
@@ -2195,7 +2198,10 @@ namespace Opc.Ua.Client
                         }
 
                         // raised notification indicating the session is closed.
-                        SessionCreated(null, null);
+                        lock (m_lock)
+                        {
+                            SessionCreated(null, null);
+                        }
                     }
                 }
 
@@ -2341,7 +2347,7 @@ namespace Opc.Ua.Client
 
                 if (connection != null)
                 {
-                    ITransportChannel channel = NullableTransportChannel;
+                    ITransportChannel? channel = NullableTransportChannel;
 
                     // check if the channel supports reconnect.
                     if (channel != null &&
@@ -2374,7 +2380,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    ITransportChannel channel = NullableTransportChannel;
+                    ITransportChannel? channel = NullableTransportChannel;
 
                     // check if the channel supports reconnect.
                     if (channel != null &&
@@ -2425,7 +2431,7 @@ namespace Opc.Ua.Client
 
                     m_logger.LogInformation("Session RECONNECT {SessionId} completed successfully.", SessionId);
 
-                    lock (SyncRoot)
+                    lock (m_lock)
                     {
                         m_previousServerNonce = m_serverNonce;
                         m_serverNonce = serverNonce;
@@ -2588,7 +2594,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(subscription));
             }
 
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 if (m_subscriptions.Contains(subscription))
                 {
@@ -2619,7 +2625,7 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 if (!m_subscriptions.Remove(subscription))
                 {
@@ -2700,7 +2706,7 @@ namespace Opc.Ua.Client
 
             await StopKeepAliveTimerAsync().ConfigureAwait(false);
 
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 ThrowIfDisposed();
 
@@ -2729,7 +2735,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void ResetKeepAliveTimer()
         {
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 if (m_keepAliveWorker != null)
                 {
@@ -2746,7 +2752,7 @@ namespace Opc.Ua.Client
             Task? keepAliveWorker;
             CancellationTokenSource? keepAliveCancellation;
 
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 ThrowIfDisposed();
 
@@ -3221,7 +3227,7 @@ namespace Opc.Ua.Client
             List<Subscription> subscriptionsToDelete)
         {
             bool removed = false;
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 foreach (Subscription subscription in subscriptions)
                 {
@@ -3744,7 +3750,7 @@ namespace Opc.Ua.Client
             out bool requireEncryption)
         {
             // check connection state.
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 if (Connected)
                 {
@@ -4358,7 +4364,7 @@ namespace Opc.Ua.Client
 
             bool subscriptionCreationInProgress = false;
 
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 // find the subscription.
                 foreach (Subscription current in m_subscriptions)
@@ -4659,7 +4665,7 @@ namespace Opc.Ua.Client
         /// <returns>The number of desired publish requests for the session.</returns>
         protected virtual int GetDesiredPublishRequestCount(bool createdOnly)
         {
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 if (m_subscriptions.Count == 0)
                 {
@@ -4726,7 +4732,7 @@ namespace Opc.Ua.Client
             SubscriptionCollection subscriptions)
         {
             var subscriptionIds = new UInt32Collection();
-            lock (SyncRoot)
+            lock (m_lock)
             {
                 foreach (Subscription subscription in subscriptions)
                 {
@@ -4940,10 +4946,11 @@ namespace Opc.Ua.Client
 #if DEBUG_SEQUENTIALPUBLISHING
         private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];
 #endif
+        private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
         private readonly SystemContext m_systemContext;
-        private NodeCache m_nodeCache;
+        private readonly NodeCache m_nodeCache;
         private readonly List<IUserIdentity> m_identityHistory = [];
         private byte[]? m_serverNonce;
         private byte[]? m_previousServerNonce;

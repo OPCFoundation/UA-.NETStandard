@@ -2773,8 +2773,7 @@ namespace Opc.Ua.Client
                 MonitoredItemNotification notification = notifications.MonitoredItems[ii];
 
                 // lookup monitored item,
-                MonitoredItem? monitoredItem = null;
-
+                MonitoredItem? monitoredItem;
                 lock (m_cache)
                 {
                     if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out monitoredItem))
@@ -2814,8 +2813,7 @@ namespace Opc.Ua.Client
             {
                 EventFieldList eventFields = notifications.Events[ii];
 
-                MonitoredItem? monitoredItem = null;
-
+                MonitoredItem? monitoredItem;
                 lock (m_cache)
                 {
                     if (!m_monitoredItems.TryGetValue(eventFields.ClientHandle, out monitoredItem))

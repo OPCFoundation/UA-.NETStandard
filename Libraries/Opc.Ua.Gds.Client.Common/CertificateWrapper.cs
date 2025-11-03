@@ -203,7 +203,9 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return X509Utils.GetApplicationUrisFromCertificate(Certificate).FirstOrDefault();
+                        IReadOnlyList<string> applicationUris
+                            = X509Utils.GetApplicationUrisFromCertificate(Certificate);
+                        return applicationUris.Count > 0 ? applicationUris[0] : null;
                     }
                     catch (Exception e)
                     {

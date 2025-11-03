@@ -935,7 +935,6 @@ namespace Opc.Ua.Configuration.Tests
             {
                 await certStore.AddAsync(cert1).ConfigureAwait(false);
                 await certStore.AddAsync(cert2).ConfigureAwait(false);
-                certStore.Close();
             }
 
             var certId1 = new CertificateIdentifier
@@ -963,11 +962,11 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(config);
 
             // Set multiple certificates
-            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection
-            {
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
                 certId1,
                 certId2
-            };
+            ];
 
             // This should throw because all certificates must have the same ApplicationUri
             ServiceResultException sre = NUnit.Framework.Assert
@@ -975,7 +974,7 @@ namespace Opc.Ua.Configuration.Tests
                     await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                     .ConfigureAwait(false));
             Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
-            Assert.That(sre.Message, Does.Contain("certificate") & Does.Contain("invalid"));
+            NUnit.Framework.Assert.That(sre.Message, Does.Contain("certificate") & Does.Contain("invalid"));
         }
 
         /// <summary>
@@ -1011,7 +1010,6 @@ namespace Opc.Ua.Configuration.Tests
             {
                 await certStore.AddAsync(cert1).ConfigureAwait(false);
                 await certStore.AddAsync(cert2).ConfigureAwait(false);
-                certStore.Close();
             }
 
             var certId1 = new CertificateIdentifier
@@ -1039,11 +1037,11 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(config);
 
             // Set multiple certificates with same URI
-            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection
-            {
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
                 certId1,
                 certId2
-            };
+            ];
 
             // This should succeed because all certificates have the same ApplicationUri
             bool certOK = await applicationInstance
@@ -1063,7 +1061,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1088,7 +1086,6 @@ namespace Opc.Ua.Configuration.Tests
             using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
             {
                 await certStore.AddAsync(cert).ConfigureAwait(false);
-                certStore.Close();
             }
 
             var certId = new CertificateIdentifier
@@ -1108,7 +1105,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
             Assert.NotNull(config);
 
-            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection { certId };
+            config.SecurityConfiguration.ApplicationCertificates = [certId];
 
             // This should succeed because one of the URIs matches
             bool certOK = await applicationInstance
@@ -1137,7 +1134,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1162,7 +1159,6 @@ namespace Opc.Ua.Configuration.Tests
             using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
             {
                 await certStore.AddAsync(cert).ConfigureAwait(false);
-                certStore.Close();
             }
 
             var certId = new CertificateIdentifier
@@ -1182,7 +1178,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
             Assert.NotNull(config);
 
-            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection { certId };
+            config.SecurityConfiguration.ApplicationCertificates = [certId];
 
             // This should fail because none of the URIs match
             ServiceResultException sre = NUnit.Framework.Assert
@@ -1203,7 +1199,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1233,7 +1229,6 @@ namespace Opc.Ua.Configuration.Tests
             {
                 await certStore.AddAsync(cert1).ConfigureAwait(false);
                 await certStore.AddAsync(cert2).ConfigureAwait(false);
-                certStore.Close();
             }
 
             var certId1 = new CertificateIdentifier
@@ -1261,11 +1256,11 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
             Assert.NotNull(config);
 
-            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection
-            {
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
                 certId1,
                 certId2
-            };
+            ];
 
             // This should succeed because both certificates contain ApplicationUri in their SAN
             bool certOK = await applicationInstance
@@ -1285,7 +1280,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1315,7 +1310,6 @@ namespace Opc.Ua.Configuration.Tests
             {
                 await certStore.AddAsync(cert1).ConfigureAwait(false);
                 await certStore.AddAsync(cert2).ConfigureAwait(false);
-                certStore.Close();
             }
 
             var certId1 = new CertificateIdentifier
@@ -1343,11 +1337,11 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
             Assert.NotNull(config);
 
-            config.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection
-            {
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
                 certId1,
                 certId2
-            };
+            ];
 
             // This should fail because cert2 doesn't contain ApplicationUri
             ServiceResultException sre = NUnit.Framework.Assert

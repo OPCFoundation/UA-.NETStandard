@@ -1953,7 +1953,7 @@ namespace Opc.Ua
 
         private static ServiceResult ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
         {
-            var applicationUri = endpoint?.Description?.Server?.ApplicationUri;
+            string applicationUri = endpoint?.Description?.Server?.ApplicationUri;
 
             // check that an ApplicatioUri is specified for the Endpoint
             if (string.IsNullOrEmpty(applicationUri))
@@ -1965,14 +1965,17 @@ namespace Opc.Ua
 
             // Check if the application URI matches any URI in the certificate
             // and get the list of certificate URIs in a single call
-            if (!X509Utils.CompareApplicationUriWithCertificate(serverCertificate, applicationUri, out var certificateApplicationUris))
+            if (!X509Utils.CompareApplicationUriWithCertificate(
+                serverCertificate,
+                applicationUri,
+                out IReadOnlyList<string> certificateApplicationUris))
             {
                 if (certificateApplicationUris.Count == 0)
                 {
                     return ServiceResult.Create(
-                            StatusCodes.BadCertificateUriInvalid,
-                            "The Server Certificate ({1}) does not contain an applicationUri.",
-                            serverCertificate.Subject);
+                        StatusCodes.BadCertificateUriInvalid,
+                        "The Server Certificate ({1}) does not contain an applicationUri.",
+                        serverCertificate.Subject);
                 }
 
                 return ServiceResult.Create(
