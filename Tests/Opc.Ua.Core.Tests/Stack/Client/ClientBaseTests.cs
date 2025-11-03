@@ -325,7 +325,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 sut.TestUpdateRequestHeader(request, true, "Read");
                 Thread.Sleep(50);
                 sut.TestRequestCompleted(request, response, "Read");
-
             }
             // Assert - both traces and metrics should be recorded
             Assert.That(activityListener.RecordedEvents.Count, Is.GreaterThan(0));
@@ -339,8 +338,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             // Arrange
             using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
-            sut.ActivityTraceFlags = ClientTraceFlags.Metrics | ClientTraceFlags.Traces |
-             ClientTraceFlags.Log | ClientTraceFlags.EventLog;
+            sut.ActivityTraceFlags =
+                ClientTraceFlags.Metrics |
+                ClientTraceFlags.Traces |
+                ClientTraceFlags.Log |
+                ClientTraceFlags.EventLog;
             sut.TestLogger = m_loggerProvider!.CreateLogger("ClientBase");
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
@@ -472,7 +474,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// </summary>
         private class TestLoggerProvider : ILoggerProvider
         {
-            public List<string> LogEntries { get; } = new List<string>();
+            public List<string> LogEntries { get; } = [];
 
             public ILogger CreateLogger(string categoryName)
             {
@@ -520,18 +522,20 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         private class TestMeterListener : IDisposable
         {
             private MeterListener? m_listener;
-            public List<MeasurementRecord> RecordedMeasurements { get; } = new List<MeasurementRecord>();
+            public List<MeasurementRecord> RecordedMeasurements { get; } = [];
 
             public void StartListening(Meter meter)
             {
-                m_listener = new MeterListener();
-                m_listener.InstrumentPublished = (instrument, listener) =>
-                 {
-                     if (instrument.Meter.Name == meter.Name)
-                     {
-                         listener.EnableMeasurementEvents(instrument);
-                     }
-                 };
+                m_listener = new MeterListener
+                {
+                    InstrumentPublished = (instrument, listener) =>
+                    {
+                        if (instrument.Meter.Name == meter.Name)
+                        {
+                            listener.EnableMeasurementEvents(instrument);
+                        }
+                    }
+                };
 
                 m_listener.SetMeasurementEventCallback<double>(OnMeasurementRecorded);
                 m_listener.Start();
@@ -570,9 +574,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         private class TestActivityListener : IDisposable
         {
             private readonly ActivityListener m_listener;
-            private Activity? m_currentActivity;
 
-            public List<ActivityEvent> RecordedEvents { get; } = new List<ActivityEvent>();
+            public Activity? CurrentActivity { get; private set; }
+
+            public List<ActivityEvent> RecordedEvents { get; } = [];
 
             public TestActivityListener()
             {
@@ -580,7 +585,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 {
                     ShouldListenTo = _ => true,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-                    ActivityStarted = activity => m_currentActivity = activity,
+                    ActivityStarted = activity => CurrentActivity = activity,
                     ActivityStopped = activity =>
                     {
                         // Capture events when activity stops
@@ -594,7 +599,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 ActivitySource.AddActivityListener(m_listener);
             }
 
-            public ActivityListener GetListener() => m_listener;
+            public ActivityListener GetListener()
+            {
+                return m_listener;
+            }
 
             public void Dispose()
             {

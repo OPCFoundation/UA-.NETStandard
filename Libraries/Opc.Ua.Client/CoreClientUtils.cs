@@ -148,6 +148,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
@@ -214,6 +215,7 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,

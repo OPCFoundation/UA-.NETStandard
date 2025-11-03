@@ -1001,8 +1001,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void NodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(Telemetry);
-            context.NamespaceUris = new NamespaceTable();
+            var context = new ServiceMessageContext(Telemetry)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
             context.NamespaceUris.Append("http://opcfoundation.org/UA/");
             context.NamespaceUris.Append("http://test.org/");
 
@@ -1119,9 +1121,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void ExpandedNodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(Telemetry);
-            context.NamespaceUris = new NamespaceTable();
-            context.ServerUris = new StringTable();
+            var context = new ServiceMessageContext(Telemetry)
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
             context.NamespaceUris.Append("http://opcfoundation.org/UA/");
             context.NamespaceUris.Append("http://test.org/");
             context.ServerUris.Append("urn:server1");

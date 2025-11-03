@@ -609,7 +609,7 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
-            var activitySource = sessionMock.MessageContext.Telemetry.GetActivitySource();
+            ActivitySource activitySource = sessionMock.MessageContext.Telemetry.GetActivitySource();
             ActivitySource.AddActivityListener(new ActivityListener
             {
                 ShouldListenTo = activitySource => activitySource.Name == activitySource.Name,

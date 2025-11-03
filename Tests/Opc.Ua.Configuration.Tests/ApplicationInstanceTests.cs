@@ -1487,7 +1487,7 @@ namespace Opc.Ua.Configuration.Tests
             var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
 
             // Build the certificate with the custom SAN extension
-            var builder = CertificateBuilder
+            ICertificateBuilder builder = CertificateBuilder
                 .Create(subjectName)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)

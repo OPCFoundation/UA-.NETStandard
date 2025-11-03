@@ -694,7 +694,7 @@ namespace Opc.Ua
             return (Histogram<double>)m_instruments.GetOrAdd(
                 "duration",
                 n => meter.CreateHistogram(
-                    $"opc.ua.client.request.duration",
+                    "opc.ua.client.request.duration",
                     "s",
                     "Measures the time taken to perform the request",
                     advice: new InstrumentAdvice<double>
