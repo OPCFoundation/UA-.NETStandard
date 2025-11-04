@@ -741,7 +741,7 @@ namespace Opc.Ua
 
     /// <summary>
     /// Defines flags that control activity tracing
-    /// using the telemtry context provided to the client.
+    /// using the telemetry context provided to the client.
     /// </summary>
     [Flags]
     public enum ClientTraceFlags

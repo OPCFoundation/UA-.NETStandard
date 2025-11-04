@@ -612,7 +612,7 @@ namespace Opc.Ua.Client.Tests
             ActivitySource activitySource = sessionMock.MessageContext.Telemetry.GetActivitySource();
             ActivitySource.AddActivityListener(new ActivityListener
             {
-                ShouldListenTo = activitySource => activitySource.Name == activitySource.Name,
+                ShouldListenTo = a => a.Name == activitySource.Name,
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllData,
                 SampleUsingParentId = (ref ActivityCreationOptions<string> options) => ActivitySamplingResult.AllData
             });
@@ -671,7 +671,7 @@ namespace Opc.Ua.Client.Tests
             var activitySource = sessionMock.MessageContext.Telemetry.GetActivitySource();
             ActivitySource.AddActivityListener(new ActivityListener
             {
-                ShouldListenTo = activitySource => activitySource.Name == activitySource.Name,
+                ShouldListenTo = a => a.Name == activitySource.Name,
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllData,
                 SampleUsingParentId = (ref ActivityCreationOptions<string> options) => ActivitySamplingResult.AllData
             });
