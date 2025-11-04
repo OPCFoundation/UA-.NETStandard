@@ -1087,7 +1087,8 @@ namespace Opc.Ua
                 m_endpoint = endpoint;
                 SecureChannelContext = context;
                 Request = request;
-                m_tcs = new TaskCompletionSource<IServiceResponse>();
+                m_tcs = new TaskCompletionSource<IServiceResponse>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
             }
 
             /// <inheritdoc/>
