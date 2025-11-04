@@ -382,7 +382,7 @@ namespace Opc.Ua.Bindings
         {
             if (m_timer != null)
             {
-               // InternalComplete(false, new ServiceResult(StatusCodes.BadRequestTimeout));
+                InternalComplete(false, new ServiceResult(StatusCodes.BadRequestTimeout));
             }
         }
 
