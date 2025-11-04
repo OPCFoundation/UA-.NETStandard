@@ -43,7 +43,6 @@ namespace Opc.Ua
     /// </remarks>
     public sealed class EncodeableFactory : IEncodeableFactory
     {
-
         /// <summary>
         /// Create single instance of the encodeable factory.
         /// </summary>

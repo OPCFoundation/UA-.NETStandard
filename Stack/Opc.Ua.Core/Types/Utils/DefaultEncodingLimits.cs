@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Default is 2MB. Set to multiple of MinBufferSize to avoid rounding errors in other UA implementations.
         /// </remarks>
-        public static readonly int MaxMessageSize = TcpMessageLimits.MinBufferSize * 256;
+        public static readonly int MaxMessageSize = 8192 * 256;
 
         /// <summary>
         /// The default maximum nesting level accepted while encoding or decoding objects.

@@ -34,6 +34,27 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public bool IsKnown(ExpandedNodeId typeId)
+        {
+            if (NodeId.IsNull(typeId) || typeId.ServerIndex != 0)
+            {
+                return false;
+            }
+
+            var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
+
+            if (localId == null)
+            {
+                return false;
+            }
+
+            lock (m_lock)
+            {
+                return m_nodes.ContainsKey(localId);
+            }
+        }
+
+        /// <inheritdoc/>
         public bool IsKnown(NodeId typeId)
         {
             if (NodeId.IsNull(typeId))
@@ -44,6 +65,37 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 return m_nodes.ContainsKey(typeId);
+            }
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindSuperType(ExpandedNodeId typeId)
+        {
+            if (NodeId.IsNull(typeId) || typeId.ServerIndex != 0)
+            {
+                return NodeId.Null;
+            }
+
+            var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
+
+            if (localId == null)
+            {
+                return NodeId.Null;
+            }
+
+            lock (m_lock)
+            {
+                if (!m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
+                {
+                    return NodeId.Null;
+                }
+
+                if (typeInfo.SuperType != null)
+                {
+                    return typeInfo.SuperType.NodeId;
+                }
+
+                return NodeId.Null;
             }
         }
 
@@ -69,6 +121,18 @@ namespace Opc.Ua
 
                 return NodeId.Null;
             }
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct)
+        {
+            return Task.FromResult(FindSuperType(typeId));
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct)
+        {
+            return Task.FromResult(FindSuperType(typeId));
         }
 
         /// <inheritdoc/>
@@ -100,6 +164,50 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId)
+        {
+            if (NodeId.IsNull(subTypeId) || subTypeId.ServerIndex != 0)
+            {
+                return false;
+            }
+
+            if (NodeId.IsNull(superTypeId) || superTypeId.ServerIndex != 0)
+            {
+                return false;
+            }
+
+            // check for exact match.
+            if (subTypeId == superTypeId)
+            {
+                return true;
+            }
+
+            var startId = ExpandedNodeId.ToNodeId(subTypeId, m_namespaceUris);
+
+            if (startId == null)
+            {
+                return false;
+            }
+
+            var targetId = ExpandedNodeId.ToNodeId(superTypeId, m_namespaceUris);
+
+            if (targetId == null)
+            {
+                return false;
+            }
+
+            lock (m_lock)
+            {
+                if (!m_nodes.TryGetValue(startId, out TypeInfo typeInfo))
+                {
+                    return false;
+                }
+
+                return typeInfo.IsTypeOf(targetId);
+            }
+        }
+
+        /// <inheritdoc/>
         public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
         {
             // check for null.
@@ -126,6 +234,173 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
+        {
+            lock (m_lock)
+            {
+                if (!m_nodes.TryGetValue(referenceTypeId, out TypeInfo typeInfo))
+                {
+                    return null;
+                }
+
+                return typeInfo.BrowseName;
+            }
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindReferenceType(QualifiedName browseName)
+        {
+            // check for empty name.
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            lock (m_lock)
+            {
+                if (!m_referenceTypes.TryGetValue(browseName, out TypeInfo typeInfo))
+                {
+                    return null;
+                }
+
+                return typeInfo.NodeId;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
+        {
+            // check for invalid ids.
+            if (NodeId.IsNull(encodingId) || NodeId.IsNull(datatypeId))
+            {
+                return false;
+            }
+
+            var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
+
+            if (localId == null)
+            {
+                return false;
+            }
+
+            var localTypeId = ExpandedNodeId.ToNodeId(datatypeId, m_namespaceUris);
+
+            if (localTypeId == null)
+            {
+                return false;
+            }
+
+            lock (m_lock)
+            {
+                // lookup the immediate basetype of the subtype.
+
+                if (!m_encodings.TryGetValue(localId, out TypeInfo typeInfo))
+                {
+                    return false;
+                }
+
+                // the encoding is a representation of the expected datatype id.
+                if (localTypeId == typeInfo.NodeId)
+                {
+                    return true;
+                }
+
+                // check if the encoding is a representation of a subtype of the expected datatype id.
+                TypeInfo superTypeInfo = typeInfo.SuperType;
+
+                while (superTypeInfo != null)
+                {
+                    if (!superTypeInfo.Deleted && superTypeInfo.NodeId == localTypeId)
+                    {
+                        return true;
+                    }
+
+                    superTypeInfo = superTypeInfo.SuperType;
+                }
+
+                // no match.
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value)
+        {
+            // no match on null values.
+            if (value == null)
+            {
+                return false;
+            }
+
+            // may still match if the extension type is an encoding for the expected type.
+            if (IsEncodingOf(value.TypeId, expectedTypeId))
+            {
+                return true;
+            }
+
+            // no match.
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool IsEncodingFor(NodeId expectedTypeId, object value)
+        {
+            // null actual datatype matches nothing.
+            if (value == null)
+            {
+                return false;
+            }
+
+            // null expected datatype matches everything.
+            if (NodeId.IsNull(expectedTypeId))
+            {
+                return true;
+            }
+
+            // get the actual datatype.
+            NodeId actualTypeId = Ua.TypeInfo.GetDataTypeId(value);
+
+            // value is valid if the expected datatype is same as or a supertype of the actual datatype
+            // for example: expected datatype of 'Integer' matches an actual datatype of 'UInt32'.
+            if (IsTypeOf(actualTypeId, expectedTypeId))
+            {
+                return true;
+            }
+
+            // allow matches non-structure values where the actual datatype is a supertype of the expected datatype.
+            // for example: expected datatype of 'UtcTime' matches an actual datatype of 'DateTime'.
+            if (actualTypeId != DataTypeIds.Structure)
+            {
+                return IsTypeOf(expectedTypeId, actualTypeId);
+            }
+
+            // for structure types must try to determine the subtype.
+
+            if (value is ExtensionObject extension)
+            {
+                return IsEncodingFor(expectedTypeId, extension);
+            }
+
+            // every element in an array must match.
+
+            if (value is ExtensionObject[] extensions)
+            {
+                for (int ii = 0; ii < extensions.Length; ii++)
+                {
+                    if (!IsEncodingFor(expectedTypeId, extensions[ii]))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // can only get here if the value is an unrecognized data type.
+            return false;
+        }
+
+        /// <inheritdoc/>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
@@ -143,6 +418,33 @@ namespace Opc.Ua
                 }
 
                 return typeInfo.NodeId;
+            }
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindDataTypeId(NodeId encodingId)
+        {
+            lock (m_lock)
+            {
+                if (!m_encodings.TryGetValue(encodingId, out TypeInfo typeInfo))
+                {
+                    return NodeId.Null;
+                }
+
+                return typeInfo.NodeId;
+            }
+        }
+
+        /// <summary>
+        /// Removes all types from the tree.
+        /// </summary>
+        public void Clear()
+        {
+            lock (m_lock)
+            {
+                m_nodes.Clear();
+                m_encodings.Clear();
+                m_referenceTypes.Clear();
             }
         }
 
@@ -290,6 +592,42 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Adds an encoding for an existing data type.
+        /// </summary>
+        public bool AddEncoding(NodeId dataTypeId, ExpandedNodeId encodingId)
+        {
+            var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
+
+            if (localId == null)
+            {
+                return false;
+            }
+
+            lock (m_lock)
+            {
+                if (!m_nodes.TryGetValue(dataTypeId, out TypeInfo typeInfo))
+                {
+                    return false;
+                }
+
+                if (typeInfo.Encodings == null)
+                {
+                    typeInfo.Encodings = [localId];
+                }
+                else
+                {
+                    var encodings = new NodeId[typeInfo.Encodings.Length + 1];
+                    System.Array.Copy(typeInfo.Encodings, encodings, typeInfo.Encodings.Length);
+                    encodings[^1] = localId;
+                    typeInfo.Encodings = encodings;
+                }
+
+                m_encodings[localId] = typeInfo;
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Adds type to the table. A browse name is only required if it is a ReferenceType.
         /// </summary>
         /// <param name="subTypeId">The sub type identifier.</param>
@@ -348,6 +686,58 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Removes a subtype.
+        /// </summary>
+        /// <param name="typeId">The type identifier.</param>
+        public void Remove(ExpandedNodeId typeId)
+        {
+            if (NodeId.IsNull(typeId) || typeId.ServerIndex != 0)
+            {
+                return;
+            }
+
+            var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
+
+            if (localId == null)
+            {
+                return;
+            }
+
+            lock (m_lock)
+            {
+                // remove type.
+
+                if (!m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
+                {
+                    return;
+                }
+
+                m_nodes.Remove(localId);
+
+                // setting the flag to deleted ensures references from subtypes are not broken.
+                typeInfo.Deleted = true;
+
+                // remove from subtype list.
+                typeInfo.SuperType?.RemoveSubType(localId);
+
+                // remove encodings.
+                if (typeInfo.Encodings != null)
+                {
+                    for (int ii = 0; ii < typeInfo.Encodings.Length; ii++)
+                    {
+                        m_encodings.Remove(typeInfo.Encodings[ii]);
+                    }
+                }
+
+                // remove reference type.
+                if (!QualifiedName.IsNull(typeInfo.BrowseName))
+                {
+                    m_referenceTypes.Remove(typeInfo.BrowseName);
+                }
+            }
+        }
+
+        /// <summary>
         /// Stores the information about an indexed type.
         /// </summary>
         private class TypeInfo
@@ -394,6 +784,23 @@ namespace Opc.Ua
                     SubTypes ??= [];
 
                     SubTypes[subType.NodeId] = subType;
+                }
+            }
+
+            /// <summary>
+            /// Remove subtype.
+            /// </summary>
+            /// <param name="subtypeId">The subtype identifier.</param>
+            public void RemoveSubType(NodeId subtypeId)
+            {
+                if (subtypeId != null && SubTypes != null)
+                {
+                    SubTypes.Remove(subtypeId);
+
+                    if (SubTypes.Count == 0)
+                    {
+                        SubTypes = null;
+                    }
                 }
             }
 

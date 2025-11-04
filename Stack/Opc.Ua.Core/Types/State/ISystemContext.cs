@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public interface ISystemContext
     {
-
         /// <summary>
         /// The table of namespace uris to use when accessing the system.
         /// </summary>
@@ -62,7 +61,6 @@ namespace Opc.Ua
         /// </summary>
         ITelemetryContext Telemetry { get; }
     }
-
 
     /// <summary>
     /// A generic implementation for ISystemContext interface.

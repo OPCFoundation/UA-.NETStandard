@@ -17,7 +17,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public static class TcpMessageLimits
     {
-
         /// <summary>
         /// The minimum send or receive buffer size.
         /// </summary>

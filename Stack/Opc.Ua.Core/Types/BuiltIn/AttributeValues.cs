@@ -159,7 +159,6 @@ namespace Opc.Ua
     /// </remarks>
     public static class MinimumSamplingIntervals
     {
-
         /// <summary>
         /// The server can sample the variable continuously.
         /// </summary>

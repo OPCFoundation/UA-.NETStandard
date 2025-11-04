@@ -14,6 +14,37 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Common\**" />
+    <Compile Remove="Documentation\**" />
+    <Compile Remove="Extensions\**" />
+    <Compile Remove="Org.BouncyCastle\**" />
+    <Compile Remove="PEM\**" />
+    <Compile Remove="Properties\**" />
+    <Compile Remove="X509Certificate\**" />
+    <Compile Remove="X509Crl\**" />
+    <EmbeddedResource Remove="Common\**" />
+    <EmbeddedResource Remove="Documentation\**" />
+    <EmbeddedResource Remove="Extensions\**" />
+    <EmbeddedResource Remove="Org.BouncyCastle\**" />
+    <EmbeddedResource Remove="PEM\**" />
+    <EmbeddedResource Remove="Properties\**" />
+    <EmbeddedResource Remove="X509Certificate\**" />
+    <EmbeddedResource Remove="X509Crl\**" />
+    <None Remove="Common\**" />
+    <None Remove="Documentation\**" />
+    <None Remove="Extensions\**" />
+    <None Remove="Org.BouncyCastle\**" />
+    <None Remove="PEM\**" />
+    <None Remove="Properties\**" />
+    <None Remove="X509Certificate\**" />
+    <None Remove="X509Crl\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Polyfills\System.Collections.Generic.cs" />
+    <Compile Remove="Polyfills\System.Security.Cryptography.X509Certificates.cs" />
+    <Compile Remove="Polyfills\System.Threading.Tasks.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="System.Formats.Asn1" />

@@ -55,7 +55,6 @@ namespace Opc.Ua
     /// </summary>
     public interface ILocalNode : INode
     {
-
         /// <summary>
         /// The node identifier.
         /// </summary>

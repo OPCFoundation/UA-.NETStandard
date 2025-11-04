@@ -60,7 +60,6 @@ namespace Opc.Ua
     /// </remarks>
     public static partial class Utils
     {
-
         /// <summary>
         /// Global default logger provider
         /// </summary>
@@ -92,7 +91,6 @@ namespace Opc.Ua
         /// </summary>
         public static class TraceMasks
         {
-
             /// <summary>
             /// Output error messages.
             /// </summary>

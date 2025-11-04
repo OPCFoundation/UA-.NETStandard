@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public interface IDecoder : IDisposable
     {
-
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>

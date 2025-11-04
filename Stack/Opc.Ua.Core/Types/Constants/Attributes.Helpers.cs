@@ -27,7 +27,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class Attributes
     {
-
         /// <summary>
         /// Throw if out of range
         /// </summary>

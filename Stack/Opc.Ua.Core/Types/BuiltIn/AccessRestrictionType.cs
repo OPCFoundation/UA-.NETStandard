@@ -10,26 +10,46 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
+using System.Runtime.Serialization;
+
 namespace Opc.Ua
 {
     /// <summary>
-    /// Defines well-known namespaces.
+    /// Access restrictions
     /// </summary>
-    public static partial class Namespaces
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [Flags]
+    public enum AccessRestrictionType : ushort
     {
         /// <summary>
-        /// The XML Schema Instance namespace.
+        /// No restrictions
         /// </summary>
-        public const string XmlSchemaInstance = "http://www.w3.org/2001/XMLSchema-instance";
+        [EnumMember(Value = "None_0")]
+        None = 0,
 
         /// <summary>
-        /// The URI for the built-in types namespace.
+        /// Signing required
         /// </summary>
-        public const string OpcUaBuiltInTypes = OpcUa + "BuiltInTypes/";
+        [EnumMember(Value = "SigningRequired_1")]
+        SigningRequired = 1,
 
         /// <summary>
-        /// The URI for the OPC Binary Schema.
+        /// Encryption required
         /// </summary>
-        public const string OpcBinarySchema = "http://opcfoundation.org/BinarySchema/";
+        [EnumMember(Value = "EncryptionRequired_2")]
+        EncryptionRequired = 2,
+
+        /// <summary>
+        /// Session required
+        /// </summary>
+        [EnumMember(Value = "SessionRequired_4")]
+        SessionRequired = 4,
+
+        /// <summary>
+        /// Apply restrictions to browse
+        /// </summary>
+        [EnumMember(Value = "ApplyRestrictionsToBrowse_8")]
+        ApplyRestrictionsToBrowse = 8,
     }
 }

@@ -14,7 +14,6 @@ using System.Collections.Generic;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Stores the information requires to translate a string.
     /// </summary>

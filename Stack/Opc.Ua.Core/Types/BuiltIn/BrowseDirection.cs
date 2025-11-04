@@ -10,27 +10,38 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System.Runtime.Serialization;
+
 namespace Opc.Ua
 {
     /// <summary>
-    /// The Argument class.
+    /// Browse direction
     /// </summary>
-    public partial class Argument
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum BrowseDirection
     {
         /// <summary>
-        /// Initializes an instance of the argument.
+        /// Forward
         /// </summary>
-        public Argument(string name, NodeId dataType, int valueRank, string description)
-        {
-            m_name = name;
-            m_dataType = dataType;
-            m_valueRank = valueRank;
-            m_description = description;
-        }
+        [EnumMember(Value = "Forward_0")]
+        Forward = 0,
 
         /// <summary>
-        /// The value for the argument.
+        /// Inverse
         /// </summary>
-        public object Value { get; set; }
+        [EnumMember(Value = "Inverse_1")]
+        Inverse = 1,
+
+        /// <summary>
+        /// Both directions
+        /// </summary>
+        [EnumMember(Value = "Both_2")]
+        Both = 2,
+
+        /// <summary>
+        /// Invalid value
+        /// </summary>
+        [EnumMember(Value = "Invalid_3")]
+        Invalid = 3,
     }
 }

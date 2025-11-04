@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public interface IEncoder : IDisposable
     {
-
         /// <summary>
         /// If the encoder is configured to produce a reversible encoding.
         /// </summary>

@@ -30,7 +30,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 #if !NETFRAMEWORK
-using Opc.Ua.Security.Certificates;
+//using Opc.Ua.Security.Certificates;
 #endif
 
 namespace Opc.Ua
@@ -40,7 +40,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class Utils
     {
-
         /// <summary>
         /// Suppresses any exceptions while disposing the object.
         /// </summary>

@@ -10,26 +10,44 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System.Runtime.Serialization;
+
 namespace Opc.Ua
 {
     /// <summary>
-    /// Defines well-known namespaces.
+    /// Structure type
     /// </summary>
-    public static partial class Namespaces
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    public enum StructureType
     {
         /// <summary>
-        /// The XML Schema Instance namespace.
+        /// Structure type
         /// </summary>
-        public const string XmlSchemaInstance = "http://www.w3.org/2001/XMLSchema-instance";
+        [EnumMember(Value = "Structure_0")]
+        Structure = 0,
 
         /// <summary>
-        /// The URI for the built-in types namespace.
+        /// Structure with optional fields
         /// </summary>
-        public const string OpcUaBuiltInTypes = OpcUa + "BuiltInTypes/";
+        [EnumMember(Value = "StructureWithOptionalFields_1")]
+        StructureWithOptionalFields = 1,
 
         /// <summary>
-        /// The URI for the OPC Binary Schema.
+        /// Union type
         /// </summary>
-        public const string OpcBinarySchema = "http://opcfoundation.org/BinarySchema/";
+        [EnumMember(Value = "Union_2")]
+        Union = 2,
+
+        /// <summary>
+        /// Structure with subtyped values
+        /// </summary>
+        [EnumMember(Value = "StructureWithSubtypedValues_3")]
+        StructureWithSubtypedValues = 3,
+
+        /// <summary>
+        /// Union with subtyped values
+        /// </summary>
+        [EnumMember(Value = "UnionWithSubtypedValues_4")]
+        UnionWithSubtypedValues = 4,
     }
 }

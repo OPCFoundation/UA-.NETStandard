@@ -13,14 +13,17 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// A node in the server address space.
     /// </summary>
-    public partial class Node : IFormattable, ILocalNode
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    public class Node : IEncodeable, IJsonEncodeable, IFormattable, ILocalNode
     {
+#if ZOMBIE
         /// <summary>
         /// Creates a node from a reference description.
         /// </summary>
@@ -29,11 +32,12 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_nodeId = (NodeId)reference.NodeId;
-            m_nodeClass = reference.NodeClass;
-            m_browseName = reference.BrowseName;
-            m_displayName = reference.DisplayName;
+            NodeId = (NodeId)reference.NodeId;
+            NodeClass = reference.NodeClass;
+            BrowseName = reference.BrowseName;
+            DisplayName = reference.DisplayName;
         }
+#endif
 
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
@@ -53,6 +57,283 @@ namespace Opc.Ua
                 WriteMask = (uint)source.WriteMask;
                 UserWriteMask = (uint)source.UserWriteMask;
             }
+        }
+
+        /// <summary>
+        /// Create
+        /// </summary>
+        public Node()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            NodeId = null;
+            NodeClass = NodeClass.Unspecified;
+            BrowseName = null;
+            DisplayName = null;
+            Description = null;
+            WriteMask = 0;
+            UserWriteMask = 0;
+            m_rolePermissions = [];
+            m_userRolePermissions = [];
+            AccessRestrictions = 0;
+            m_references = [];
+        }
+
+        /// <summary>
+        /// Node id
+        /// </summary>
+        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
+        public NodeId NodeId { get; set; }
+
+        /// <summary>
+        /// Node class
+        /// </summary>
+        [DataMember(Name = "NodeClass", IsRequired = false, Order = 2)]
+        public NodeClass NodeClass { get; set; }
+
+        /// <summary>
+        /// Browse name
+        /// </summary>
+        [DataMember(Name = "BrowseName", IsRequired = false, Order = 3)]
+        public QualifiedName BrowseName { get; set; }
+
+        /// <summary>
+        /// Display name
+        /// </summary>
+        [DataMember(Name = "DisplayName", IsRequired = false, Order = 4)]
+        public LocalizedText DisplayName { get; set; }
+
+        /// <summary>
+        /// Description
+        /// </summary>
+        [DataMember(Name = "Description", IsRequired = false, Order = 5)]
+        public LocalizedText Description { get; set; }
+
+        /// <summary>
+        /// Write mask
+        /// </summary>
+        [DataMember(Name = "WriteMask", IsRequired = false, Order = 6)]
+        public uint WriteMask { get; set; }
+
+        /// <summary>
+        /// User write mask
+        /// </summary>
+        [DataMember(Name = "UserWriteMask", IsRequired = false, Order = 7)]
+        public uint UserWriteMask { get; set; }
+
+        /// <summary>
+        /// Role permissions
+        /// </summary>
+        [DataMember(Name = "RolePermissions", IsRequired = false, Order = 8)]
+        public RolePermissionTypeCollection RolePermissions
+        {
+            get => m_rolePermissions;
+
+            set
+            {
+                m_rolePermissions = value;
+
+                if (value == null)
+                {
+                    m_rolePermissions = [];
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "UserRolePermissions", IsRequired = false, Order = 9)]
+        public RolePermissionTypeCollection UserRolePermissions
+        {
+            get => m_userRolePermissions;
+
+            set
+            {
+                m_userRolePermissions = value;
+
+                if (value == null)
+                {
+                    m_userRolePermissions = [];
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "AccessRestrictions", IsRequired = false, Order = 10)]
+        public ushort AccessRestrictions { get; set; }
+
+        /// <remarks />
+        [DataMember(Name = "References", IsRequired = false, Order = 11)]
+        public ReferenceNodeCollection References
+        {
+            get => m_references;
+
+            set
+            {
+                m_references = value;
+
+                if (value == null)
+                {
+                    m_references = [];
+                }
+            }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Node;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Node_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Node_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Node_Encoding_DefaultJson;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("NodeId", NodeId);
+            encoder.WriteEnumerated("NodeClass", NodeClass);
+            encoder.WriteQualifiedName("BrowseName", BrowseName);
+            encoder.WriteLocalizedText("DisplayName", DisplayName);
+            encoder.WriteLocalizedText("Description", Description);
+            encoder.WriteUInt32("WriteMask", WriteMask);
+            encoder.WriteUInt32("UserWriteMask", UserWriteMask);
+            encoder.WriteEncodeableArray("RolePermissions", RolePermissions.ToArray(), typeof(RolePermissionType));
+            encoder.WriteEncodeableArray("UserRolePermissions", UserRolePermissions.ToArray(), typeof(RolePermissionType));
+            encoder.WriteUInt16("AccessRestrictions", AccessRestrictions);
+            encoder.WriteEncodeableArray("References", References.ToArray(), typeof(ReferenceNode));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            NodeId = decoder.ReadNodeId("NodeId");
+            NodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            BrowseName = decoder.ReadQualifiedName("BrowseName");
+            DisplayName = decoder.ReadLocalizedText("DisplayName");
+            Description = decoder.ReadLocalizedText("Description");
+            WriteMask = decoder.ReadUInt32("WriteMask");
+            UserWriteMask = decoder.ReadUInt32("UserWriteMask");
+            RolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
+            UserRolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("UserRolePermissions", typeof(RolePermissionType));
+            AccessRestrictions = decoder.ReadUInt16("AccessRestrictions");
+            References = (ReferenceNodeCollection)decoder.ReadEncodeableArray("References", typeof(ReferenceNode));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            if (encodeable is not Node value)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(NodeId, value.NodeId))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(NodeClass, value.NodeClass))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(BrowseName, value.BrowseName))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(DisplayName, value.DisplayName))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(Description, value.Description))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(WriteMask, value.WriteMask))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(UserWriteMask, value.UserWriteMask))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_rolePermissions, value.m_rolePermissions))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_userRolePermissions, value.m_userRolePermissions))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(AccessRestrictions, value.AccessRestrictions))
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_references, value.m_references))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (Node)MemberwiseClone();
+        }
+
+        /// <inheritdoc/>
+        public new object MemberwiseClone()
+        {
+            var clone = (Node)base.MemberwiseClone();
+
+            clone.NodeId = Utils.Clone(NodeId);
+            clone.NodeClass = (NodeClass)Utils.Clone(NodeClass);
+            clone.BrowseName = Utils.Clone(BrowseName);
+            clone.DisplayName = Utils.Clone(DisplayName);
+            clone.Description = Utils.Clone(Description);
+            clone.WriteMask = (uint)Utils.Clone(WriteMask);
+            clone.UserWriteMask = (uint)Utils.Clone(UserWriteMask);
+            clone.m_rolePermissions = Utils.Clone(m_rolePermissions);
+            clone.m_userRolePermissions = Utils.Clone(m_userRolePermissions);
+            clone.AccessRestrictions = (ushort)Utils.Clone(AccessRestrictions);
+            clone.m_references = Utils.Clone(m_references);
+
+            return clone;
         }
 
         /// <summary>
@@ -151,19 +432,19 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (m_displayName != null && !string.IsNullOrEmpty(m_displayName.Text))
+                if (DisplayName != null && !string.IsNullOrEmpty(DisplayName.Text))
                 {
-                    return m_displayName.Text;
+                    return DisplayName.Text;
                 }
 
-                if (!QualifiedName.IsNull(m_browseName))
+                if (!QualifiedName.IsNull(BrowseName))
                 {
-                    return m_browseName.Name;
+                    return BrowseName.Name;
                 }
 
                 return Utils.Format(
                     "(unknown {0})",
-                    m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
+                    NodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -184,7 +465,7 @@ namespace Opc.Ua
         /// The node identifier.
         /// </summary>
         /// <value>The node identifier.</value>
-        ExpandedNodeId INode.NodeId => m_nodeId;
+        ExpandedNodeId INode.NodeId => NodeId;
 
         /// <summary>
         /// The identifier for the TypeDefinition node.
@@ -220,8 +501,8 @@ namespace Opc.Ua
         /// <value>The write mask.</value>
         AttributeWriteMask ILocalNode.WriteMask
         {
-            get => (AttributeWriteMask)m_writeMask;
-            set => m_writeMask = (uint)value;
+            get => (AttributeWriteMask)WriteMask;
+            set => WriteMask = (uint)value;
         }
 
         /// <summary>
@@ -230,8 +511,8 @@ namespace Opc.Ua
         /// <value>The user write mask.</value>
         AttributeWriteMask ILocalNode.UserWriteMask
         {
-            get => (AttributeWriteMask)m_userWriteMask;
-            set => m_userWriteMask = (uint)value;
+            get => (AttributeWriteMask)UserWriteMask;
+            set => UserWriteMask = (uint)value;
         }
 
         /// <summary>
@@ -288,9 +569,9 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            hash.Add(m_nodeId);
-            hash.Add(m_nodeClass);
-            hash.Add(m_browseName);
+            hash.Add(NodeId);
+            hash.Add(NodeClass);
+            hash.Add(BrowseName);
             return hash.ToHashCode();
         }
 
@@ -304,25 +585,25 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.NodeId:
-                    return m_nodeId;
+                    return NodeId;
                 case Attributes.NodeClass:
-                    return m_nodeClass;
+                    return NodeClass;
                 case Attributes.BrowseName:
-                    return m_browseName;
+                    return BrowseName;
                 case Attributes.DisplayName:
-                    return m_displayName;
+                    return DisplayName;
                 case Attributes.Description:
-                    return m_description;
+                    return Description;
                 case Attributes.WriteMask:
-                    return m_writeMask;
+                    return WriteMask;
                 case Attributes.UserWriteMask:
-                    return m_userWriteMask;
+                    return UserWriteMask;
                 case Attributes.RolePermissions:
                     return m_rolePermissions;
                 case Attributes.UserRolePermissions:
                     return m_userRolePermissions;
                 case Attributes.AccessRestrictions:
-                    return m_accessRestrictions;
+                    return AccessRestrictions;
                 default:
                     Attributes.ThrowIfOutOfRange(attributeId);
                     return false;
@@ -340,19 +621,19 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.BrowseName:
-                    m_browseName = (QualifiedName)value;
+                    BrowseName = (QualifiedName)value;
                     break;
                 case Attributes.DisplayName:
-                    m_displayName = (LocalizedText)value;
+                    DisplayName = (LocalizedText)value;
                     break;
                 case Attributes.Description:
-                    m_description = (LocalizedText)value;
+                    Description = (LocalizedText)value;
                     break;
                 case Attributes.WriteMask:
-                    m_writeMask = (uint)value;
+                    WriteMask = (uint)value;
                     break;
                 case Attributes.UserWriteMask:
-                    m_userWriteMask = (uint)value;
+                    UserWriteMask = (uint)value;
                     break;
                 case Attributes.RolePermissions:
                     m_rolePermissions = (RolePermissionTypeCollection)value;
@@ -361,7 +642,7 @@ namespace Opc.Ua
                     m_userRolePermissions = (RolePermissionTypeCollection)value;
                     break;
                 case Attributes.AccessRestrictions:
-                    m_accessRestrictions = (ushort)value;
+                    AccessRestrictions = (ushort)value;
                     break;
                 default:
                     Attributes.ThrowIfOutOfRange(attributeId);
@@ -372,1038 +653,74 @@ namespace Opc.Ua
         }
 
         private ReferenceCollection m_referenceTable;
+        private RolePermissionTypeCollection m_rolePermissions;
+        private RolePermissionTypeCollection m_userRolePermissions;
+        private ReferenceNodeCollection m_references;
     }
 
     /// <summary>
-    /// A node in the server address space.
+    /// Node collection
     /// </summary>
-    public partial class ReferenceNode : IReference, IComparable, IFormattable
+    [CollectionDataContract(
+        Name = "ListOfNode",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Node")]
+    public class NodeCollection : List<Node>, ICloneable
     {
-        /// <summary>
-        /// Initializes the reference.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="isInverse">if set to <c>true</c> [is inverse].</param>
-        /// <param name="targetId">The target id.</param>
-        public ReferenceNode(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
-        {
-            m_referenceTypeId = referenceTypeId;
-            m_isInverse = isInverse;
-            m_targetId = targetId;
-        }
-
-        /// <summary>
-        /// Returns a string representation of the HierarchyBrowsePath.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
-        }
-
-        /// <summary>
-        /// Returns a string representation of the HierarchyBrowsePath.
-        /// </summary>
-        /// <param name="format">The format.</param>
-        /// <param name="formatProvider">The provider.</param>
-        /// <returns>A string representation of the HierarchyBrowsePath.</returns>
-        /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            if (format != null)
-            {
-                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
-            }
-
-            string referenceType = null;
-
-            if (m_referenceTypeId != null &&
-                m_referenceTypeId.IdType == IdType.Numeric &&
-                m_referenceTypeId.NamespaceIndex == 0)
-            {
-                referenceType = ReferenceTypes.GetBrowseName((uint)m_referenceTypeId.Identifier);
-            }
-
-            referenceType ??= Utils.Format("{0}", m_referenceTypeId);
-
-            if (m_isInverse)
-            {
-                return Utils.Format("<!{0}>{1}", referenceType, m_targetId);
-            }
-
-            return Utils.Format("<{0}>{1}", referenceType, m_targetId);
-        }
-
-        /// <summary>
-        /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
-        /// </summary>
-        /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
-        /// <returns>
-        /// true if the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>; otherwise, false.
-        /// </returns>
-        /// <exception cref="T:System.NullReferenceException">
-        /// The <paramref name="obj"/> parameter is null.
-        /// </exception>
-        public override bool Equals(object obj)
-        {
-            return CompareTo(obj) == 0;
-        }
-
-        /// <summary>
-        /// Serves as a hash function for a particular type.
-        /// </summary>
-        /// <returns>
-        /// A hash code for the current <see cref="T:System.Object"/>.
-        /// </returns>
-        public override int GetHashCode()
-        {
-            var hash = new HashCode();
-            hash.Add(m_referenceTypeId);
-            hash.Add(m_isInverse);
-            hash.Add(m_targetId);
-            return hash.ToHashCode();
-        }
-
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <param name="a">ReferenceNode A.</param>
-        /// <param name="b">The ReferenceNode B.</param>
-        /// <returns>The result of the operator.Returns true if the objects are equal.</returns>
-        public static bool operator ==(ReferenceNode a, object b)
-        {
-            if (a is null)
-            {
-                return b is null;
-            }
-
-            return a.CompareTo(b) == 0;
-        }
-
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <param name="a">ReferenceNode A.</param>
-        /// <param name="b">The ReferenceNode B.</param>
-        /// <returns>The result of the operator.Returns true if the objects are not equal.</returns>
-        public static bool operator !=(ReferenceNode a, object b)
-        {
-            if (a is null)
-            {
-                return b is not null;
-            }
-
-            return a.CompareTo(b) != 0;
-        }
-
-        /// <summary>
-        /// Compares the current instance with another object of the same type and returns an integer that indicates whether the current instance precedes, follows, or occurs in the same position in the sort order as the other object.
-        /// </summary>
-        /// <param name="obj">An object to compare with this instance.</param>
-        /// <returns>
-        /// A 32-bit signed integer that indicates the relative order of the objects being compared. The return value has these meanings:
-        /// Value
-        /// Meaning
-        /// Less than zero
-        /// This instance is less than <paramref name="obj"/>.
-        /// Zero
-        /// This instance is equal to <paramref name="obj"/>.
-        /// Greater than zero
-        /// This instance is greater than <paramref name="obj"/>.
-        /// </returns>
-        /// <exception cref="T:System.ArgumentException">
-        /// 	<paramref name="obj"/> is not the same type as this instance.
-        /// </exception>
-        public int CompareTo(object obj)
-        {
-            if (obj is null)
-            {
-                return +1;
-            }
-
-            if (ReferenceEquals(obj, this))
-            {
-                return 0;
-            }
-
-            if (obj is not ReferenceNode reference)
-            {
-                return -1;
-            }
-
-            if (m_referenceTypeId is null)
-            {
-                return reference.m_referenceTypeId is null ? 0 : -1;
-            }
-
-            int result = m_referenceTypeId.CompareTo(reference.m_referenceTypeId);
-
-            if (result != 0)
-            {
-                return result;
-            }
-
-            if (reference.m_isInverse != m_isInverse)
-            {
-                return m_isInverse ? +1 : -1;
-            }
-
-            if (m_targetId is null)
-            {
-                return reference.m_targetId is null ? 0 : -1;
-            }
-
-            return m_targetId.CompareTo(reference.m_targetId);
-        }
-    }
-
-    /// <summary>
-    /// An instance node in the server address space.
-    /// </summary>
-    public partial class InstanceNode : Node
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public InstanceNode(ILocalNode source)
-            : base(source)
+        /// <inheritdoc/>
+        public NodeCollection()
         {
         }
-    }
 
-    /// <summary>
-    /// An type node in the server address space.
-    /// </summary>
-    public partial class TypeNode : Node
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public TypeNode(ILocalNode source)
-            : base(source)
+        /// <inheritdoc/>
+        public NodeCollection(int capacity) : base(capacity)
         {
         }
-    }
 
-    /// <summary>
-    /// A variable node in the server address space.
-    /// </summary>
-    public partial class VariableNode : IVariable
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public VariableNode(ILocalNode source)
-            : base(source)
+        /// <inheritdoc/>
+        public NodeCollection(IEnumerable<Node> collection) : base(collection)
         {
-            NodeClass = NodeClass.Variable;
+        }
 
-            if (source is IVariable variable)
+        /// <inheritdoc/>
+        public static implicit operator NodeCollection(Node[] values)
+        {
+            if (values != null)
             {
-                DataType = variable.DataType;
-                ValueRank = variable.ValueRank;
-                AccessLevel = variable.AccessLevel;
-                UserAccessLevel = variable.UserAccessLevel;
-                MinimumSamplingInterval = variable.MinimumSamplingInterval;
-                Historizing = variable.Historizing;
-
-                object value = variable.Value ??
-                    TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
-
-                Value = new Variant(value);
-
-                if (variable.ArrayDimensions != null)
-                {
-                    ArrayDimensions = [.. variable.ArrayDimensions];
-                }
+                return [.. values];
             }
+
+            return [];
         }
 
-        /// <summary>
-        /// The value attribute.
-        /// </summary>
-        /// <value>The value.</value>
-        object IVariableBase.Value
+        /// <inheritdoc/>
+        public static explicit operator Node[](NodeCollection values)
         {
-            get => m_value.Value;
-            set => m_value = new Variant(value);
-        }
-
-        /// <summary>
-        /// The number in each dimension of an array value.
-        /// </summary>
-        /// <value>The array dimensions.</value>
-        IList<uint> IVariableBase.ArrayDimensions
-        {
-            get => m_arrayDimensions;
-            set
+            if (values != null)
             {
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
-                else
-                {
-                    m_arrayDimensions = [.. value];
-                }
+                return [.. values];
             }
+
+            return null;
         }
 
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>True if the node supports the specified attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
+        /// <inheritdoc/>
+        public object Clone()
         {
-            switch (attributeId)
+            return (NodeCollection)MemberwiseClone();
+        }
+
+        /// <inheritdoc/>
+        public new object MemberwiseClone()
+        {
+            var clone = new NodeCollection(Count);
+
+            for (int ii = 0; ii < Count; ii++)
             {
-                case Attributes.Value:
-                case Attributes.DataType:
-                case Attributes.ValueRank:
-                case Attributes.AccessLevel:
-                case Attributes.AccessLevelEx:
-                case Attributes.UserAccessLevel:
-                case Attributes.MinimumSamplingInterval:
-                case Attributes.Historizing:
-                    return true;
-                case Attributes.ArrayDimensions:
-                    return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
-                default:
-                    return base.SupportsAttribute(attributeId);
+                clone.Add(Utils.Clone(this[ii]));
             }
-        }
 
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.DataType:
-                    return m_dataType;
-                case Attributes.ValueRank:
-                    return m_valueRank;
-                case Attributes.AccessLevel:
-                    return m_accessLevel;
-                case Attributes.UserAccessLevel:
-                    return m_userAccessLevel;
-                case Attributes.MinimumSamplingInterval:
-                    return m_minimumSamplingInterval;
-                case Attributes.Historizing:
-                    return m_historizing;
-                case Attributes.AccessLevelEx:
-                    return m_accessLevelEx;
-                // values are copied when the are written so then can be safely returned.
-                case Attributes.Value:
-                    return m_value.Value;
-                // array dimensions attribute is not support if it is empty.
-                case Attributes.ArrayDimensions:
-                    if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
-                    {
-                        return StatusCodes.BadAttributeIdInvalid;
-                    }
-
-                    return m_arrayDimensions.ToArray();
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                case Attributes.AccessLevel:
-                    m_accessLevel = (byte)value;
-                    return ServiceResult.Good;
-                case Attributes.UserAccessLevel:
-                    m_userAccessLevel = (byte)value;
-                    return ServiceResult.Good;
-                case Attributes.AccessLevelEx:
-                    m_accessLevelEx = (uint)value;
-                    return ServiceResult.Good;
-                case Attributes.MinimumSamplingInterval:
-                    m_minimumSamplingInterval = (int)value;
-                    return ServiceResult.Good;
-                case Attributes.Historizing:
-                    m_historizing = (bool)value;
-                    return ServiceResult.Good;
-                // values are copied when the are written so then can be safely returned on read.
-                case Attributes.Value:
-                    m_value = new Variant(Utils.Clone(value));
-                    return ServiceResult.Good;
-                case Attributes.DataType:
-                    var dataType = (NodeId)value;
-
-                    // must ensure the value is of the correct datatype.
-                    if (dataType != m_dataType)
-                    {
-                        m_value = new Variant(TypeInfo.GetDefaultValue(dataType, m_valueRank));
-                    }
-
-                    m_dataType = dataType;
-                    return ServiceResult.Good;
-                case Attributes.ValueRank:
-                    int valueRank = (int)value;
-
-                    if (valueRank != m_valueRank)
-                    {
-                        m_value = new Variant(TypeInfo.GetDefaultValue(m_dataType, valueRank));
-                    }
-
-                    m_valueRank = valueRank;
-
-                    return ServiceResult.Good;
-                case Attributes.ArrayDimensions:
-                    m_arrayDimensions = [.. (uint[])value];
-
-                    // ensure number of dimensions is correct.
-                    if (m_arrayDimensions.Count > 0 && m_arrayDimensions.Count != m_valueRank)
-                    {
-                        m_valueRank = m_arrayDimensions.Count;
-                        m_value = new Variant(TypeInfo.GetDefaultValue(m_dataType, m_valueRank));
-                    }
-
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
-        }
-    }
-
-    /// <summary>
-    /// An object node in the server address space.
-    /// </summary>
-    public partial class ObjectNode : IObject
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public ObjectNode(ILocalNode source)
-            : base(source)
-        {
-            NodeClass = NodeClass.Object;
-
-            if (source is IObject node)
-            {
-                EventNotifier = node.EventNotifier;
-            }
-        }
-
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <returns>True if the value of an attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.EventNotifier:
-                    return true;
-                default:
-                    return base.SupportsAttribute(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.EventNotifier:
-                    return m_eventNotifier;
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>Result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                case Attributes.EventNotifier:
-                    m_eventNotifier = (byte)value;
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
-        }
-    }
-
-    /// <summary>
-    /// An object type node in the server address space.
-    /// </summary>
-    public partial class ObjectTypeNode : IObjectType
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public ObjectTypeNode(ILocalNode source)
-            : base(source)
-        {
-            NodeClass = NodeClass.ObjectType;
-
-            if (source is IObjectType node)
-            {
-                IsAbstract = node.IsAbstract;
-            }
-        }
-
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>True if the node supports the specified attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                    return true;
-                default:
-                    return base.SupportsAttribute(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>The node supports the specified attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                    return m_isAbstract;
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                    m_isAbstract = (bool)value;
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
-        }
-    }
-
-    /// <summary>
-    /// A variable type node in the server address space.
-    /// </summary>
-    public partial class VariableTypeNode : IVariableType
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public VariableTypeNode(ILocalNode source)
-            : base(source)
-        {
-            NodeClass = NodeClass.VariableType;
-
-            if (source is IVariableType node)
-            {
-                IsAbstract = node.IsAbstract;
-                Value = new Variant(node.Value);
-                DataType = node.DataType;
-                ValueRank = node.ValueRank;
-
-                if (node.ArrayDimensions != null)
-                {
-                    ArrayDimensions = [.. node.ArrayDimensions];
-                }
-            }
-        }
-
-        /// <summary>
-        /// The value attribute.
-        /// </summary>
-        /// <value>The value.</value>
-        object IVariableBase.Value
-        {
-            get => m_value.Value;
-            set => m_value = new Variant(value);
-        }
-
-        /// <summary>
-        /// The number in each dimension of an array value.
-        /// </summary>
-        /// <value>The number in each dimension of an array value.</value>
-        IList<uint> IVariableBase.ArrayDimensions
-        {
-            get => m_arrayDimensions;
-            set
-            {
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
-                else
-                {
-                    m_arrayDimensions = [.. value];
-                }
-            }
-        }
-
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>True if the node supports the specified attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.Value:
-                    return m_value.Value != null;
-                case Attributes.ValueRank:
-                case Attributes.DataType:
-                case Attributes.IsAbstract:
-                    return true;
-                case Attributes.ArrayDimensions:
-                    return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
-                default:
-                    return base.SupportsAttribute(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.DataType:
-                    return m_dataType;
-                case Attributes.ValueRank:
-                    return m_valueRank;
-                // values are copied when the are written so then can be safely returned.
-                case Attributes.Value:
-                    return m_value.Value;
-                case Attributes.ArrayDimensions:
-                    if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
-                    {
-                        return StatusCodes.BadAttributeIdInvalid;
-                    }
-
-                    return m_arrayDimensions.ToArray();
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                // values are copied when the are written so then can be safely returned on read.
-                case Attributes.Value:
-                    m_value = new Variant(Utils.Clone(value));
-                    return ServiceResult.Good;
-                case Attributes.DataType:
-                    var dataType = (NodeId)value;
-
-                    // must ensure the value is of the correct datatype.
-                    if (dataType != m_dataType)
-                    {
-                        m_value = Variant.Null;
-                    }
-
-                    m_dataType = dataType;
-                    return ServiceResult.Good;
-                case Attributes.ValueRank:
-                    int valueRank = (int)value;
-
-                    if (valueRank != m_valueRank)
-                    {
-                        m_value = Variant.Null;
-                    }
-
-                    m_valueRank = valueRank;
-
-                    return ServiceResult.Good;
-                case Attributes.ArrayDimensions:
-                    m_arrayDimensions = [.. (uint[])value];
-
-                    // ensure number of dimensions is correct.
-                    if (m_arrayDimensions.Count > 0 && m_valueRank != m_arrayDimensions.Count)
-                    {
-                        m_valueRank = m_arrayDimensions.Count;
-                        m_value = Variant.Null;
-                    }
-
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
-        }
-    }
-
-    /// <summary>
-    /// A reference type node in the server address space.
-    /// </summary>
-    public partial class ReferenceTypeNode : IReferenceType
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public ReferenceTypeNode(ILocalNode source)
-            : base(source)
-        {
-            NodeClass = NodeClass.ReferenceType;
-
-            if (source is IReferenceType node)
-            {
-                IsAbstract = node.IsAbstract;
-                InverseName = node.InverseName;
-                Symmetric = node.Symmetric;
-            }
-        }
-
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <returns>True if the node supports the specified attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                case Attributes.InverseName:
-                case Attributes.Symmetric:
-                    return true;
-                default:
-                    return base.SupportsAttribute(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                    return m_isAbstract;
-                case Attributes.InverseName:
-                    return m_inverseName;
-                case Attributes.Symmetric:
-                    return m_symmetric;
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                    m_isAbstract = (bool)value;
-                    return ServiceResult.Good;
-                case Attributes.InverseName:
-                    m_inverseName = (LocalizedText)value;
-                    return ServiceResult.Good;
-                case Attributes.Symmetric:
-                    m_symmetric = (bool)value;
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
-        }
-    }
-
-    /// <summary>
-    /// A method node in the server address space.
-    /// </summary>
-    public partial class MethodNode : IMethod
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public MethodNode(ILocalNode source)
-            : base(source)
-        {
-            NodeClass = NodeClass.Method;
-
-            if (source is IMethod node)
-            {
-                Executable = node.Executable;
-                UserExecutable = node.UserExecutable;
-            }
-        }
-
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>True if the node supports the specified attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.Executable:
-                case Attributes.UserExecutable:
-                    return true;
-                default:
-                    return base.SupportsAttribute(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.Executable:
-                    return m_executable;
-                case Attributes.UserExecutable:
-                    return m_userExecutable;
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                case Attributes.Executable:
-                    m_executable = (bool)value;
-                    return ServiceResult.Good;
-                case Attributes.UserExecutable:
-                    m_userExecutable = (bool)value;
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
-        }
-    }
-
-    /// <summary>
-    /// A view node in the server address space.
-    /// </summary>
-    public partial class ViewNode : IView
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public ViewNode(ILocalNode source)
-            : base(source)
-        {
-            NodeClass = NodeClass.View;
-
-            if (source is IView node)
-            {
-                EventNotifier = node.EventNotifier;
-                ContainsNoLoops = node.ContainsNoLoops;
-            }
-        }
-
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <returns>True if the node supports the specified attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.EventNotifier:
-                case Attributes.ContainsNoLoops:
-                    return true;
-                default:
-                    return base.SupportsAttribute(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.EventNotifier:
-                    return m_eventNotifier;
-                case Attributes.ContainsNoLoops:
-                    return m_containsNoLoops;
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The write operation result.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                case Attributes.EventNotifier:
-                    m_eventNotifier = (byte)value;
-                    return ServiceResult.Good;
-                case Attributes.ContainsNoLoops:
-                    m_containsNoLoops = (bool)value;
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
-        }
-    }
-
-    /// <summary>
-    /// A view node in the server address space.
-    /// </summary>
-    public partial class DataTypeNode : IDataType
-    {
-        /// <summary>
-        /// Creates a node from another node (copies attributes - not references).
-        /// </summary>
-        /// <param name="source">The source.</param>
-        public DataTypeNode(ILocalNode source)
-            : base(source)
-        {
-            NodeClass = NodeClass.DataType;
-
-            if (source is IDataType node)
-            {
-                IsAbstract = node.IsAbstract;
-            }
-        }
-
-        /// <summary>
-        /// Whether the node supports the specified attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute identifier.</param>
-        /// <returns>True if the node supports the specified attribute.</returns>
-        public override bool SupportsAttribute(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                case Attributes.DataTypeDefinition:
-                    return true;
-                default:
-                    return base.SupportsAttribute(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Reads the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                    return m_isAbstract;
-                case Attributes.DataTypeDefinition:
-                    return m_dataTypeDefinition;
-                default:
-                    return base.Read(attributeId);
-            }
-        }
-
-        /// <summary>
-        /// Writes the value of an attribute.
-        /// </summary>
-        /// <param name="attributeId">The attribute id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
-        {
-            switch (attributeId)
-            {
-                case Attributes.IsAbstract:
-                    m_isAbstract = (bool)value;
-                    return ServiceResult.Good;
-                case Attributes.DataTypeDefinition:
-                    m_dataTypeDefinition = (ExtensionObject)value;
-                    return ServiceResult.Good;
-                default:
-                    return base.Write(attributeId, value);
-            }
+            return clone;
         }
     }
 }

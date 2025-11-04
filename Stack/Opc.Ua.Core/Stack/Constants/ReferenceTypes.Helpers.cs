@@ -28,7 +28,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class ReferenceTypes
     {
-
         /// <summary>
         /// Returns the browse name for the attribute.
         /// </summary>

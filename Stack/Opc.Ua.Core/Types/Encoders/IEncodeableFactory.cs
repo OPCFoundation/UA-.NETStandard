@@ -35,7 +35,6 @@ namespace Opc.Ua
     /// </summary>
     public interface IEncodeableFactory : IEncodeableTypeLookup
     {
-
         /// <summary>
         /// Get a factory builder.
         /// </summary>
@@ -93,7 +92,6 @@ namespace Opc.Ua
     /// </summary>
     public interface IEncodeableFactoryBuilder : IEncodeableTypeLookup
     {
-
         /// <summary>
         /// <para>
         /// Adds all encodeable .net types exported from an assembly to
@@ -122,7 +120,6 @@ namespace Opc.Ua
     /// </summary>
     public static class EncodeableFactoryExtensions
     {
-
         /// <summary>
         /// Returns the system type for the datatype.
         /// </summary>
