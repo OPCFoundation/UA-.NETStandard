@@ -42,9 +42,7 @@ namespace Opc.Ua
             InitializeChannel(channel);
         }
 
-        /// <summary>
-        /// How to record activity of the client
-        /// </summary>
+        /// <inheritdoc/>
         public ClientTraceFlags ActivityTraceFlags { get; set; }
 
         /// <inheritdoc/>
