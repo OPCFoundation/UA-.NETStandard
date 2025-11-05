@@ -47,49 +47,14 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// A subclass of a session for testing purposes, e.g. to override some implementations.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaClient)]
-    [KnownType(typeof(TestableSubscription))]
-    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSession : Session
     {
-        /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        /// <param name="channel">The channel used to communicate with the server.</param>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        public TestableSession(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            ITelemetryContext telemetry)
-            : this(channel as ITransportChannel, configuration, endpoint, null, telemetry)
-        {
-        }
-
-        /// <summary>
-        /// Constructs a new instance of the <see cref="ISession"/> class.
-        /// </summary>
-        /// <param name="channel">The channel used to communicate with the server.</param>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint used to initialize the channel.</param>
-        /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
-        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
-        /// <remarks>
-        /// The application configuration is used to look up the certificate if none is provided.
-        /// The clientCertificate must have the private key. This will require that the certificate
-        /// be loaded from a certicate store. Converting a DER encoded blob to a X509Certificate2
-        /// will not include a private key.
-        /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are used to validate
-        /// that the list of EndpointDescriptions returned at GetEndpoints matches the list returned at CreateSession.
-        /// </remarks>
+        /// <inheritdoc/>
         public TestableSession(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            ITelemetryContext telemetry,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
             : base(
@@ -97,19 +62,21 @@ namespace Opc.Ua.Client.Tests
                 configuration,
                 endpoint,
                 clientCertificate,
+                null,
                 availableEndpoints,
                 discoveryProfileUris)
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ISession"/> class.
-        /// </summary>
-        /// <param name="channel">The channel.</param>
-        /// <param name="template">The template session.</param>
-        /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public TestableSession(ITransportChannel channel, Session template, bool copyEventHandlers)
-            : base(channel, template, copyEventHandlers)
+        /// <inheritdoc/>
+        public TestableSession(
+            ITransportChannel channel,
+            Session template,
+            bool copyEventHandlers)
+            : base(
+                  channel,
+                  template,
+                  copyEventHandlers)
         {
         }
 
@@ -137,46 +104,84 @@ namespace Opc.Ua.Client.Tests
                 TimestampOffset = TimestampOffset
             };
         }
+
+        /// <inheritdoc/>
+        protected override Subscription CreateSubscription(SubscriptionOptions options)
+        {
+            return new TestableSubscription(MessageContext.Telemetry, options);
+        }
+
+        /// <inheritdoc/>
+        public override void Snapshot(out SessionState state)
+        {
+            base.Snapshot(out state);
+            state = new TestableSessionState(state)
+            {
+                TimestampOffset = TimestampOffset
+            };
+        }
+
+        /// <inheritdoc/>
+        public override void Restore(SessionState state)
+        {
+            if (state is TestableSessionState s)
+            {
+                TimestampOffset = s.TimestampOffset;
+            }
+            base.Restore(state);
+        }
+    }
+
+    /// <summary>
+    /// Testable session state
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaClient)]
+    [KnownType(typeof(MonitoredItemState))]
+    [KnownType(typeof(SubscriptionState))]
+    public record class TestableSessionState : SessionState
+    {
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        public TestableSessionState()
+        {
+        }
+
+        /// <summary>
+        /// Create a new instance of the <see cref="TestableSessionState"/> class.
+        /// </summary>
+        /// <param name="state"></param>
+        public TestableSessionState(SessionState state)
+            : base(state)
+        {
+        }
+
+        /// <summary>
+        /// The timespan offset to be used to modify the request header timestamp.
+        /// </summary>
+        [DataMember]
+        public TimeSpan TimestampOffset { get; set; } = new TimeSpan(0);
     }
 
     /// <summary>
     /// A subclass of the subscription for testing purposes.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaClient)]
-    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSubscription : Subscription
     {
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
-        public TestableSubscription(ITelemetryContext telemetry)
-            : base(telemetry)
+        public TestableSubscription(ITelemetryContext telemetry, SubscriptionOptions options = null)
+            : base(telemetry, options)
         {
         }
 
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
-        public TestableSubscription(Subscription template)
-            : this(template, false)
-        {
-        }
-
-        /// <summary>
-        /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
-        /// </summary>
-        public TestableSubscription(Subscription template, bool copyEventHandlers)
+        public TestableSubscription(Subscription template, bool copyEventHandlers = false)
             : base(template, copyEventHandlers)
         {
-        }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        protected new void Initialize(StreamingContext context)
-        {
-            base.Initialize(context);
         }
 
         /// <inheritdoc/>
@@ -184,19 +189,24 @@ namespace Opc.Ua.Client.Tests
         {
             return new TestableSubscription(this, copyEventHandlers);
         }
+
+        /// <inheritdoc/>
+        protected override MonitoredItem CreateMonitoredItem(MonitoredItemOptions options)
+        {
+            return new TestableMonitoredItem(Telemetry, options);
+        }
     }
 
     /// <summary>
     /// A subclass of a monitored item for testing purposes.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaClient)]
-    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableMonitoredItem : MonitoredItem
     {
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
         /// </summary>
-        public TestableMonitoredItem()
+        public TestableMonitoredItem(ITelemetryContext telemetry, MonitoredItemOptions options = null)
+            : base(telemetry, options)
         {
         }
 
@@ -216,23 +226,6 @@ namespace Opc.Ua.Client.Tests
             bool copyEventHandlers,
             bool copyClientHandle)
             : base(template, copyEventHandlers, copyClientHandle)
-        {
-        }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        protected new void Initialize(StreamingContext context)
-        {
-            base.Initialize(context);
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets the private members to default values.
-        /// </summary>
-        private static void Initialize()
         {
         }
 

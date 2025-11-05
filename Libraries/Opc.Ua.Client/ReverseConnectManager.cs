@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -153,15 +155,21 @@ namespace Opc.Ua.Client
             }
 
             /// <summary>
-            /// Register with the server certificate.
+            /// Register with the server certificate to extract the application Uri.
             /// </summary>
+            /// <remarks>
+            /// The first Uri in the subject alternate name field is considered the application Uri.
+            /// </remarks>
+            /// <param name="serverCertificate">The server certificate with the application Uri.</param>
+            /// <param name="endpointUrl">The endpoint Url of the server.</param>
+            /// <param name="onConnectionWaiting">The connection to use.</param>
             public Registration(
                 X509Certificate2 serverCertificate,
                 Uri endpointUrl,
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
                 : this(endpointUrl, onConnectionWaiting)
             {
-                ServerUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
+                ServerUri = X509Utils.GetApplicationUrisFromCertificate(serverCertificate).FirstOrDefault();
             }
 
             private Registration(

@@ -202,6 +202,7 @@ namespace Opc.Ua.Bindings
             }
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
             HttpClient client = m_client ?? throw BadNotConnected();
+            using Activity? activity = m_telemetry.StartActivity();
             try
             {
                 var content = new ByteArrayContent(
@@ -301,6 +302,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="url">The server url.</param>
         /// <param name="settings">The settings for the transport channel.</param>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             if (m_disposed)

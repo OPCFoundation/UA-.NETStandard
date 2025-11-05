@@ -4289,7 +4289,7 @@ namespace Opc.Ua
         {
             // no explicitly defined children on base type.
         }
-        
+
         /// <summary>
         /// Removes a child from the node.
         /// </summary>

@@ -1395,8 +1395,9 @@ namespace Opc.Ua
                     .GetInstanceCertificate(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
-                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(
-                    instanceCertificate);
+                // it is ok to pick the first here since it is only a fallback value
+                configuration.ApplicationUri = X509Utils.GetApplicationUrisFromCertificate(
+                    instanceCertificate).FirstOrDefault();
 
                 if (string.IsNullOrEmpty(configuration.ApplicationUri))
                 {
@@ -1511,6 +1512,20 @@ namespace Opc.Ua
                 m_totalThreadCount = 0;
                 m_queuedRequestsCount = 0;
                 m_stopped = false;
+
+                ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
+
+                ThreadPool.SetMinThreads(
+                    Math.Max(minThreadCount, m_minThreadCount),
+                    Math.Max(minCompletionPortThreads, m_minThreadCount)
+                );
+
+                ThreadPool.GetMaxThreads(out maxThreadCount, out int maxCompletionPortThreads);
+
+                ThreadPool.SetMaxThreads(
+                    Math.Max(maxThreadCount, m_maxThreadCount),
+                    Math.Max(maxCompletionPortThreads, m_maxThreadCount)
+                );
 
                 // Start worker tasks
                 for (int i = 0; i < m_minThreadCount; i++)

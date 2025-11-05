@@ -36,7 +36,7 @@ namespace Opc.Ua.Client
     /// It can be used to create instances of enhanced Session
     /// classes with added functionality or overridden methods.
     /// </summary>
-    public class TraceableRequestHeaderClientSessionFactory : TraceableSessionFactory
+    public class TraceableRequestHeaderClientSessionFactory : DefaultSessionFactory
     {
         public TraceableRequestHeaderClientSessionFactory(ITelemetryContext telemetry)
             : base(telemetry)
@@ -45,22 +45,14 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Session Create(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-        {
-            return new TraceableRequestHeaderClientSession(channel, configuration, endpoint);
-        }
-
-        /// <inheritdoc/>
-        public override Session Create(
+        public override ISession Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            X509Certificate2Collection clientCertificateChain,
+            EndpointDescriptionCollection availableEndpoints,
+            StringCollection discoveryProfileUris)
         {
             return new TraceableRequestHeaderClientSession(
                 channel,

@@ -623,7 +623,7 @@ namespace Opc.Ua
             {
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (applicationUri == X509Utils.GetApplicationUriFromCertificate(certificate) &&
+                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri) &&
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {
@@ -1094,8 +1094,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEntryExists,
-                        "A certificate with the specified thumbprint already exists. Subject={0}, Thumbprint={1}",
-                        certificate.SubjectName,
+                        "A certificate with the specified thumbprint {0} already exists.",
                         certificate.Thumbprint);
                 }
             }
