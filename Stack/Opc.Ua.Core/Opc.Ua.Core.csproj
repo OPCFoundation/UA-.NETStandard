@@ -22,65 +22,6 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Schema\**" />
-    <Compile Remove="Security\**" />
-    <Compile Remove="Stack\**" />
-    <Compile Remove="Types\Redaction\**" />
-    <EmbeddedResource Remove="Schema\**" />
-    <EmbeddedResource Remove="Security\**" />
-    <EmbeddedResource Remove="Stack\**" />
-    <EmbeddedResource Remove="Types\Redaction\**" />
-    <None Remove="Schema\**" />
-    <None Remove="Security\**" />
-    <None Remove="Stack\**" />
-    <None Remove="Types\Redaction\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="Types\BuiltIn\NotificationData.cs" />
-    <Compile Remove="Types\Constants\StatusCodes.Helpers.cs" />
-    <Compile Remove="Types\Encoders\IJsonDecoder.cs" />
-    <Compile Remove="Types\Encoders\IJsonEncoder.cs" />
-    <Compile Remove="Types\Encoders\JsonDecoder.cs" />
-    <Compile Remove="Types\Encoders\JsonEncoder.cs" />
-    <Compile Remove="Types\Utils\DataGenerator.cs" />
-    <Compile Remove="Types\Utils\OpcUaCoreEventSource.cs" />
-    <Compile Remove="Types\Utils\RelativePath.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="Types\Schemas\BuiltInTypes.bsd" />
-    <None Remove="Types\Schemas\StandardTypes.bsd" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Schema\UANodeSet.cs" />
-    <Compile Include="Schema\UANodeSetHelpers.cs" />
-    <Compile Include="Stack\Diagnostics\DefaultTelemetry.cs" />
-    <Compile Include="Stack\Diagnostics\ITelemetryContext.cs" />
-    <Compile Include="Stack\Diagnostics\TelemetryExtensions.cs" />
-    <Compile Include="Stack\Diagnostics\TelemetryUtils.cs" />
-    <Compile Include="Stack\Nodes\DataTypeNode.cs" />
-    <Compile Include="Stack\Nodes\INode.cs" />
-    <Compile Include="Stack\Nodes\InstanceNode.cs" />
-    <Compile Include="Stack\Nodes\MethodNode.cs" />
-    <Compile Include="Stack\Nodes\Node.cs" />
-    <Compile Include="Stack\Nodes\NodeSet.cs" />
-    <Compile Include="Stack\Nodes\NodeTable.cs" />
-    <Compile Include="Stack\Nodes\ObjectNode.cs" />
-    <Compile Include="Stack\Nodes\ObjectTypeNode.cs" />
-    <Compile Include="Stack\Nodes\ReferenceNode.cs" />
-    <Compile Include="Stack\Nodes\ReferenceTable.cs" />
-    <Compile Include="Stack\Nodes\ReferenceTypeNode.cs" />
-    <Compile Include="Stack\Nodes\TypeNode.cs" />
-    <Compile Include="Stack\Nodes\TypeTable.cs" />
-    <Compile Include="Stack\Nodes\VariableNode.cs" />
-    <Compile Include="Stack\Nodes\VariableTypeNode.cs" />
-    <Compile Include="Stack\Nodes\ViewNode.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
-    <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
-    <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
@@ -91,11 +32,8 @@
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Properties\" />
-    <Folder Include="Stack\Constants\" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size! -->
@@ -107,9 +45,6 @@
   <!-- Embed the zipped Nodeset2 file -->
   <ItemGroup>
     <EmbeddedResource Include="$(ZipNodeSet2XML)" Link="$(NodeSet2XML).zip" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Schema\UANodeSet.xsd" />
   </ItemGroup>
   <!-- Zip the NodeSet2 file -->
   <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(NodeSet2XML)" Outputs="$(ZipNodeSet2XML)">

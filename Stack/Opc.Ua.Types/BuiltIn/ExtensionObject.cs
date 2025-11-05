@@ -16,7 +16,6 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using Newtonsoft.Json.Linq;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
@@ -389,7 +388,7 @@ namespace Opc.Ua
                 {
                     Encoding = ExtensionObjectEncoding.Xml;
                 }
-                else if (m_body is JObject)
+                else if (m_body is string)
                 {
                     Encoding = ExtensionObjectEncoding.Json;
                 }
@@ -491,7 +490,7 @@ namespace Opc.Ua
                     return string.Format(formatProvider, "<{0}>", element.Name);
                 }
 
-                if (m_body is JObject json)
+                if (m_body is string json)
                 {
                     return string.Format(formatProvider, "{0}", json.ToString());
                 }

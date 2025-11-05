@@ -17,7 +17,6 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace Opc.Ua
 {
@@ -65,9 +64,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class LocalizedText : ICloneable, IFormattable
     {
-        private const string kMulLocale = "mul";
-        private const string kMulLocaleDictionaryKey = "t";
-
         /// <summary>
         /// Initializes the object with the default values.
         /// </summary>
@@ -126,7 +122,6 @@ namespace Opc.Ua
             {
                 XmlEncodedText = TranslationInfo.Text;
             }
-            m_translations = DecodeMulLocale();
         }
 
         /// <summary>
@@ -143,7 +138,6 @@ namespace Opc.Ua
 
             XmlEncodedLocale = value.XmlEncodedLocale;
             XmlEncodedText = value.XmlEncodedText;
-            m_translations = DecodeMulLocale();
         }
 
         /// <summary>
@@ -165,7 +159,6 @@ namespace Opc.Ua
         {
             XmlEncodedLocale = locale;
             XmlEncodedText = text;
-            m_translations = DecodeMulLocale();
         }
 
         /// <summary>
@@ -183,7 +176,6 @@ namespace Opc.Ua
             {
                 TranslationInfo = new TranslationInfo(key, locale, text);
             }
-            m_translations = DecodeMulLocale();
         }
 
         /// <summary>
@@ -263,10 +255,7 @@ namespace Opc.Ua
                         return;
                     }
                 }
-                //Encode the dictionary to a mul locale.
                 m_translations = value;
-                XmlEncodedLocale = kMulLocale;
-                XmlEncodedText = EncodeMulLocale(m_translations);
             }
         }
 
@@ -307,12 +296,6 @@ namespace Opc.Ua
         /// The information required to translate the text into other locales.
         /// </summary>
         public TranslationInfo TranslationInfo { get; set; }
-
-        /// <summary>
-        /// Returns true if this LocalizedText uses the "mul" special locale.
-        /// </summary>
-        public bool IsMultiLanguage
-            => string.Equals(XmlEncodedLocale, kMulLocale, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Returns true if the objects are equal.
@@ -375,18 +358,12 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
-            var hash = new HashCode();
-            if (XmlEncodedText != null)
-            {
-                hash.Add(XmlEncodedText);
-            }
-
-            if (XmlEncodedLocale != null)
-            {
-                hash.Add(XmlEncodedLocale);
-            }
-
-            return hash.ToHashCode();
+            int hashCode = -423158783;
+            hashCode = (hashCode * -1521134295) +
+                EqualityComparer<string>.Default.GetHashCode(XmlEncodedLocale);
+            hashCode = (hashCode * -1521134295) +
+                EqualityComparer<string>.Default.GetHashCode(XmlEncodedText);
+            return hashCode;
         }
 
         /// <summary>
@@ -462,145 +439,6 @@ namespace Opc.Ua
             }
 
             return string.IsNullOrEmpty(value.XmlEncodedText);
-        }
-
-        /// <summary>
-        /// Returns a LocalizedText filtered by the preferred locales according to OPC UA Part 4 rules for 'mul' and 'qst'. (https://reference.opcfoundation.org/Core/Part4/v105/docs/5.4)
-        /// </summary>
-        /// <param name="preferredLocales">The list of preferred locales, possibly including 'mul' or 'qst' as the first entry.</param>
-        /// <returns>A LocalizedText containing translations as specified by the rules.</returns>
-        public LocalizedText FilterByPreferredLocales(IList<string> preferredLocales)
-        {
-            if (preferredLocales == null || preferredLocales.Count == 0 || XmlEncodedLocale == null)
-            {
-                return this;
-            }
-
-            KeyValuePair<string, string> defaultKVP;
-            bool isMultilanguageRequested = preferredLocales[0]
-                .ToLowerInvariant() is "mul" or "qst";
-
-            // If not a multi-language request, return the best match or fallback
-            if (!isMultilanguageRequested)
-            {
-                if (!IsMultiLanguage)
-                {
-                    // nothing to do for single locale text
-                    return this;
-                }
-
-                // Try to find the first matching locale
-                foreach (string locale in preferredLocales)
-                {
-                    if (Translations.TryGetValue(locale, out string text))
-                    {
-                        return new LocalizedText(locale, text);
-                    }
-                }
-                // return the first available locale
-                defaultKVP = Translations.First();
-                return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
-            }
-
-            // Multi-language request: 'mul' or 'qst'
-            if (preferredLocales.Count == 1)
-            {
-                return this;
-            }
-            if (!IsMultiLanguage)
-            {
-                // nothing to do for single locale text
-                return this;
-            }
-
-            var translations = new ReadOnlyDictionary<string, string>(
-                Translations.Where(t => preferredLocales.Contains(t.Key))
-                    .ToDictionary(s => s.Key, s => s.Value));
-
-            // If matching locales are found return those
-            if (translations.Count > 0)
-            {
-                return new LocalizedText(translations);
-            }
-            defaultKVP = Translations.First();
-
-            return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
-        }
-
-        /// <summary>
-        /// Ecodes the translations to a JSON string according to the format specified in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="translations"/> is <c>null</c>.</exception>
-        /// <exception cref="ArgumentException"></exception>
-        private static string EncodeMulLocale(IReadOnlyDictionary<string, string> translations)
-        {
-            if (translations == null)
-            {
-                throw new ArgumentNullException(nameof(translations));
-            }
-
-            if (translations.Count == 0)
-            {
-                throw new ArgumentException(
-                    "The translations dictionary must not be empty.",
-                    nameof(translations));
-            }
-
-            var t = new List<object[]>();
-            foreach (KeyValuePair<string, string> kvp in translations)
-            {
-                t.Add([kvp.Key, kvp.Value]);
-            }
-
-            return JsonConvert.SerializeObject(
-                new Dictionary<string, object> { { kMulLocaleDictionaryKey, t } });
-        }
-
-        /// <summary>
-        /// If this is a "mul" locale, returns a dictionary of locale/text pairs from the JSON Text.
-        /// Otherwise, returns null.
-        /// </summary>
-        private ReadOnlyDictionary<string, string> DecodeMulLocale()
-        {
-            if (!IsMultiLanguage || string.IsNullOrWhiteSpace(XmlEncodedText))
-            {
-                return null;
-            }
-
-            var result = new Dictionary<string, string>();
-            try
-            {
-                // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
-                Dictionary<string, object> json =
-                    JsonConvert.DeserializeObject<Dictionary<string, object>>(XmlEncodedText);
-                if (json != null &&
-                    json.TryGetValue(kMulLocaleDictionaryKey, out object tValue) &&
-                    tValue is Newtonsoft.Json.Linq.JArray tArray)
-                {
-                    foreach (Newtonsoft.Json.Linq.JToken pairToken in tArray)
-                    {
-                        if (pairToken is Newtonsoft.Json.Linq.JArray pair && pair.Count == 2)
-                        {
-                            string locale = pair[0]?.ToString();
-                            string text = pair[1]?.ToString();
-                            if (!string.IsNullOrEmpty(locale) && text != null)
-                            {
-                                result[locale] = text;
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // TODO: Need to wire a logger here
-                ITelemetryContext telemetry = AmbientMessageContext.Telemetry;
-                ILogger logger = telemetry != null ?
-                     telemetry.CreateLogger<LocalizedText>() : Utils.Fallback.Logger;
-                logger.LogDebug("Failed to parse mul locale JSON text: {Text}", XmlEncodedText);
-                return null; // Return null if parsing fails
-            }
-            return new ReadOnlyDictionary<string, string>(result);
         }
 
         private IReadOnlyDictionary<string, string> m_translations;
