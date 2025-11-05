@@ -86,7 +86,6 @@ namespace Opc.Ua.Bindings
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
             m_random = new Random();
-            m_lastRequestId = 0;
             m_connectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
@@ -1674,7 +1673,7 @@ namespace Opc.Ua.Bindings
 
         private Uri? m_url;
         private Uri? m_via;
-        private uint m_lastRequestId;
+        private static uint m_lastRequestId;
         private readonly ConcurrentDictionary<uint, WriteOperation> m_requests;
         private WriteOperation? m_handshakeOperation;
         private ChannelToken? m_requestedToken;

@@ -596,7 +596,8 @@ namespace Opc.Ua.Server
             {
                 SecureChannelId = secureChannelId;
                 OperationTimeout = operationTimeout;
-                Tcs = new TaskCompletionSource<ISubscription>();
+                Tcs = new TaskCompletionSource<ISubscription>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
                 m_cancellationTokenRegistration = cancellationToken.Register(
                     () => Tcs.TrySetCanceled());
                 // Cancel publish request if it times out
