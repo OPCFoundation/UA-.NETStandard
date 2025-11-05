@@ -358,12 +358,18 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
-            int hashCode = -423158783;
-            hashCode = (hashCode * -1521134295) +
-                EqualityComparer<string>.Default.GetHashCode(XmlEncodedLocale);
-            hashCode = (hashCode * -1521134295) +
-                EqualityComparer<string>.Default.GetHashCode(XmlEncodedText);
-            return hashCode;
+            var hash = new HashCode();
+            if (XmlEncodedText != null)
+            {
+                hash.Add(XmlEncodedText);
+            }
+
+            if (XmlEncodedLocale != null)
+            {
+                hash.Add(XmlEncodedLocale);
+            }
+
+            return hash.ToHashCode();
         }
 
         /// <summary>

@@ -24,6 +24,11 @@ namespace Opc.Ua
         /// Returns the next reference.
         /// </summary>
         IReference Next();
+
+        /// <summary>
+        /// Pushes a previously returned reference back into the browser.
+        /// </summary>
+        void Push(IReference reference);
     }
 
     /// <summary>
@@ -107,6 +112,17 @@ namespace Opc.Ua
                 }
 
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Pushes a previously returned reference back into the browser.
+        /// </summary>
+        public virtual void Push(IReference reference)
+        {
+            lock (DataLock)
+            {
+                m_pushBack = reference;
             }
         }
 

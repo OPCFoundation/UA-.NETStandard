@@ -137,6 +137,42 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the value after checking if the variable is null.
+        /// </summary>
+        /// <typeparam name="T">The framework type of value contained in the <paramref name="variable"/>.</typeparam>
+        /// <param name="variable">The variable.</param>
+        /// <returns>
+        /// The value contained by the <paramref name="variable"/> or the default value for the datatype if the variable is null.
+        /// </returns>
+        public static T GetValue<T>(BaseDataVariableState<T> variable)
+        {
+            if (variable == null)
+            {
+                return default;
+            }
+
+            return variable.Value;
+        }
+
+        /// <summary>
+        /// Returns the value after checking if the property is null.
+        /// </summary>
+        /// <typeparam name="T">The type of value contained in the property.</typeparam>
+        /// <param name="property">The property.</param>
+        /// <returns>
+        /// The value. The default value for the datatype if the property is null.
+        /// </returns>
+        public static T GetValue<T>(PropertyState<T> property)
+        {
+            if (property == null)
+            {
+                return default;
+            }
+
+            return property.Value;
+        }
+
+        /// <summary>
         /// Converts a values contained in a variant to the value defined for the variable.
         /// </summary>
         /// <typeparam name="T">The framework type of value contained in this instance.</typeparam>
@@ -816,6 +852,11 @@ namespace Opc.Ua
         /// Raised when the AccessLevelEx attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<uint> OnReadAccessLevelEx;
+
+        /// <summary>
+        /// Raised when the AccessLevelEx attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<uint> OnWriteAccessLevelEx;
 
         /// <summary>
         /// Exports a copy of the node to a <paramref name="node"/> node provided the <paramref name="node"/> type is compatible with <see cref="VariableNode"/>.
@@ -2007,6 +2048,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new PropertyState(parent);
+        }
+
+        /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
@@ -2107,6 +2158,16 @@ namespace Opc.Ua
                 StatusCode = StatusCodes.BadWaitingForInitialData;
                 ReferenceTypeId = ReferenceTypeIds.HasComponent;
             }
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new BaseDataVariableState(parent);
         }
 
         /// <summary>
@@ -2268,6 +2329,221 @@ namespace Opc.Ua
             set => base.Value = value;
         }
     }
+
+    /// <summary>
+    /// A thread safe object that can be used to access the value of a structure variable.
+    /// </summary>
+    public class BaseVariableValue
+    {
+        /// <summary>
+        /// Initializes the instance with a synchronization object.
+        /// </summary>
+        public BaseVariableValue(object dataLock)
+        {
+            Lock = dataLock;
+            CopyPolicy = VariableCopyPolicy.CopyOnRead;
+
+            Lock ??= new object();
+        }
+
+        /// <summary>
+        /// An object used to synchronize access to the value.
+        /// </summary>
+        public object Lock { get; }
+
+        /// <summary>
+        /// The behavior to use when reading or writing all or part of the object.
+        /// </summary>
+        public VariableCopyPolicy CopyPolicy { get; set; }
+
+        /// <summary>
+        /// Gets or sets the current error state.
+        /// </summary>
+        public ServiceResult Error { get; set; }
+
+        /// <summary>
+        /// Gets or sets the timestamp associated with the value.
+        /// </summary>
+        public DateTime Timestamp { get; set; }
+
+        /// <summary>
+        /// Clears the change masks for all nodes in the update list.
+        /// </summary>
+        public void ChangesComplete(ISystemContext context)
+        {
+            lock (Lock)
+            {
+                if (m_updateList != null)
+                {
+                    for (int ii = 0; ii < m_updateList.Length; ii++)
+                    {
+                        BaseInstanceState instance = m_updateList[ii];
+
+                        if (instance != null)
+                        {
+                            instance.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                            instance.ClearChangeMasks(context, false);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Raised before the value is read.
+        /// </summary>
+        public VariableValueEventHandler OnBeforeRead;
+
+        /// <summary>
+        /// Raised after the value is written.
+        /// </summary>
+        public VariableValueEventHandler OnAfterWrite;
+
+        /// <summary>
+        /// Does any processing before a read operation takes place.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="node">The node.</param>
+        protected void DoBeforeReadProcessing(ISystemContext context, NodeState node)
+        {
+            OnBeforeRead?.Invoke(context, this, node);
+        }
+
+        /// <summary>
+        /// Reads the value or a component of the value.
+        /// </summary>
+        protected ServiceResult Read(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                // ensure a value timestamp exists.
+                if (Timestamp == DateTime.MinValue)
+                {
+                    Timestamp = DateTime.UtcNow;
+                }
+
+                timestamp = Timestamp;
+
+                // check for errors.
+                if (ServiceResult.IsBad(Error))
+                {
+                    value = null;
+                    statusCode = Error.StatusCode;
+                    return Error;
+                }
+
+                // apply the index range and encoding.
+                ServiceResult result = BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                    context,
+                    indexRange,
+                    dataEncoding,
+                    ref value);
+
+                if (ServiceResult.IsBad(result))
+                {
+                    statusCode = result.StatusCode;
+                    return result;
+                }
+
+                // apply copy policy
+                if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
+                {
+                    value = Utils.Clone(value);
+                }
+
+                statusCode = StatusCodes.Good;
+
+                return ServiceResult.Good;
+            }
+        }
+
+        /// <summary>
+        /// Reads the current value.
+        /// </summary>
+        protected ServiceResult Read(object currentValue, ref object valueToRead)
+        {
+            lock (Lock)
+            {
+                if (ServiceResult.IsBad(Error))
+                {
+                    valueToRead = null;
+                    return Error;
+                }
+
+                if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
+                {
+                    valueToRead = Utils.Clone(currentValue);
+                }
+                else
+                {
+                    valueToRead = currentValue;
+                }
+
+                return ServiceResult.Good;
+            }
+        }
+
+        /// <summary>
+        /// Writes the current value.
+        /// </summary>
+        protected object Write(object valueToWrite)
+        {
+            lock (Lock)
+            {
+                if ((CopyPolicy & VariableCopyPolicy.CopyOnWrite) != 0)
+                {
+                    return Utils.Clone(valueToWrite);
+                }
+
+                return valueToWrite;
+            }
+        }
+
+        /// <summary>
+        /// Sets the list of nodes which are updated when ClearChangeMasks is called.
+        /// </summary>
+        protected void SetUpdateList(IList<BaseInstanceState> updateList)
+        {
+            lock (Lock)
+            {
+                m_updateList = null;
+
+                if (updateList != null && updateList.Count > 0)
+                {
+                    m_updateList = new BaseInstanceState[updateList.Count];
+
+                    for (int ii = 0; ii < m_updateList.Length; ii++)
+                    {
+                        m_updateList[ii] = updateList[ii];
+
+                        // the copy copy is enforced by the value wrapper.
+
+                        if (m_updateList[ii] is BaseVariableState variable)
+                        {
+                            variable.CopyPolicy = VariableCopyPolicy.Never;
+                        }
+                    }
+                }
+            }
+        }
+
+        private BaseInstanceState[] m_updateList;
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the value attribute is read or written.
+    /// </summary>
+    public delegate void VariableValueEventHandler(
+        ISystemContext context,
+        BaseVariableValue variable,
+        NodeState component);
 
     /// <summary>
     /// Specifies the policies to use when handling reads and write to value.

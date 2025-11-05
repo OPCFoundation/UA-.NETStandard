@@ -816,12 +816,12 @@ namespace Opc.Ua
             if (!InternalTryParse(text, false, out NodeId value, out string errorMessage))
             {
                 // Check if this should be an ArgumentException based on the error message
-                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
+                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") ||
                     errorMessage.Contains("Missing valid identifier prefix")))
                 {
                     throw new ArgumentException(errorMessage);
                 }
-                
+
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
@@ -877,12 +877,12 @@ namespace Opc.Ua
             if (!InternalTryParse(text, namespaceSet, out NodeId value, out string errorMessage))
             {
                 // Check if this should be an ArgumentException based on the error message
-                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
+                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") ||
                     errorMessage.Contains("Missing valid identifier prefix")))
                 {
                     throw new ArgumentException(errorMessage);
                 }
-                
+
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));

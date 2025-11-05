@@ -34,6 +34,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new BaseObjectState(parent);
+        }
+
+        /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)

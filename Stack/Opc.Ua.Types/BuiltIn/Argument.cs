@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Xml.Linq;
 
@@ -210,5 +211,71 @@ namespace Opc.Ua
         }
 
         private UInt32Collection m_arrayDimensions;
+    }
+
+    /// <summary>
+    /// Argument collection
+    /// </summary>
+    [CollectionDataContract(
+        Name = "ListOfArgument",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "Argument")]
+    public class ArgumentCollection : List<Argument>, ICloneable
+    {
+        /// <inheritdoc/>
+        public ArgumentCollection()
+        {
+        }
+
+        /// <inheritdoc/>
+        public ArgumentCollection(int capacity) : base(capacity)
+        {
+        }
+
+        /// <inheritdoc/>
+        public ArgumentCollection(IEnumerable<Argument> collection) : base(collection)
+        {
+        }
+
+        /// <inheritdoc/>
+        public static implicit operator ArgumentCollection(Argument[] values)
+        {
+            if (values != null)
+            {
+                return [.. values];
+            }
+
+            return [];
+        }
+
+        /// <inheritdoc/>
+        public static explicit operator Argument[](ArgumentCollection values)
+        {
+            if (values != null)
+            {
+                return [.. values];
+            }
+
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public object Clone()
+        {
+            return (ArgumentCollection)MemberwiseClone();
+        }
+
+        /// <inheritdoc/>
+        public new object MemberwiseClone()
+        {
+            ArgumentCollection clone = new ArgumentCollection(Count);
+
+            for (int ii = 0; ii < Count; ii++)
+            {
+                clone.Add(Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
     }
 }

@@ -10,20 +10,17 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-
 namespace Opc.Ua
 {
     /// <summary>
     /// The base class for all object type nodes.
     /// </summary>
-    public class BaseObjectTypeState : BaseTypeState
+    public class FolderTypeState : BaseObjectTypeState
     {
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public BaseObjectTypeState()
-            : base(NodeClass.ObjectType)
+        public FolderTypeState()
         {
         }
 
@@ -33,53 +30,22 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             SuperTypeId = NodeId.Create(
-                ObjectTypes.BaseObjectType,
+                ObjectTypes.FolderType,
                 Namespaces.OpcUa,
                 context.NamespaceUris);
-            NodeId = NodeId.Create(
-                ObjectTypes.BaseObjectType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
+            NodeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
             BrowseName = QualifiedName.Create(
-                BrowseNames.BaseObjectType,
+                BrowseNames.FolderType,
                 Namespaces.OpcUa,
                 context.NamespaceUris);
             DisplayName = new LocalizedText(
-                BrowseNames.BaseObjectType,
+                BrowseNames.FolderType,
                 string.Empty,
-                BrowseNames.BaseObjectType);
+                BrowseNames.FolderType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
-        }
-
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new BaseObjectTypeState();
-        }
-
-        /// <inheritdoc/>
-        public override object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            var clone = (BaseObjectTypeState)Activator.CreateInstance(GetType());
-            return CloneChildren(clone);
         }
     }
 }

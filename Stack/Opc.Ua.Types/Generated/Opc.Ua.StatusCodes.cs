@@ -64,6 +64,11 @@ namespace Opc.Ua
         public const uint BadUserAccessDenied = 0x801F0000;
 
         /// <summary>
+        /// Too many arguments were provided.
+        /// </summary>
+        public const uint BadTooManyArguments = 0x80E50000;
+
+        /// <summary>
         /// Waiting for the server to obtain values from the underlying data source.
         /// </summary>
         public const uint BadWaitingForInitialData = 0x80320000;
@@ -119,6 +124,11 @@ namespace Opc.Ua
         public const uint BadNotSupported = 0x803D0000;
 
         /// <summary>
+        /// Requested operation is not implemented.
+        /// </summary>
+        public const uint BadNotImplemented = 0x80400000;
+
+        /// <summary>
         /// A mandatory structured parameter was missing or null.
         /// </summary>
         public const uint BadStructureMissing = 0x80460000;
@@ -137,6 +147,21 @@ namespace Opc.Ua
         /// The value supplied for the attribute is not of the same type as the attribute's value.
         /// </summary>
         public const uint BadTypeMismatch = 0x80740000;
+
+        /// <summary>
+        /// The client did not specify all of the input arguments for the method.
+        /// </summary>
+        public const uint BadArgumentsMissing = 0x80760000;
+
+        /// <summary>
+        /// The executable attribute does not allow the execution of the method.
+        /// </summary>
+        public const uint BadNotExecutable = 0x81110000;
+
+        /// <summary>
+        /// One or more arguments are invalid.
+        /// </summary>
+        public const uint BadInvalidArgument = 0x80AB0000;
 
         /// <summary>
         /// A value had an invalid syntax.

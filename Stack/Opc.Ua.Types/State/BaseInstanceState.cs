@@ -20,6 +20,9 @@ namespace Opc.Ua
     /// The base class for all instance nodes.
     /// </summary>
     public class BaseInstanceState : NodeState
+#if ZOMBIE
+	, IFilterTarget
+#endif
     {
         /// <summary>
         /// Initializes the instance with its default attribute values.
@@ -78,6 +81,108 @@ namespace Opc.Ua
         /// </summary>
         public NodeState Parent { get; internal set; }
 
+#if ZOMBIE
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        /// <returns>The type definition id.</returns>
+        public virtual NodeId GetDefaultTypeDefinitionId(ISystemContext context)
+        {
+            return GetDefaultTypeDefinitionId(context.NamespaceUris);
+        }
+
+        /// <summary>
+        /// Gets a display path for the node.
+        /// </summary>
+        public string GetDisplayPath()
+        {
+            return GetDisplayPath(0, '.');
+        }
+
+        /// <summary>
+        /// Gets a display text for the node.
+        /// </summary>
+        public string GetDisplayText()
+        {
+            return GetNonNullText(this);
+        }
+
+        /// <summary>
+        /// Gets a display path for the node.
+        /// </summary>
+        public string GetDisplayPath(int maxLength, char seperator)
+        {
+            string name = GetNonNullText(this);
+
+            NodeState stateParent = Parent;
+
+            if (stateParent == null)
+            {
+                return name;
+            }
+
+            var buffer = new StringBuilder();
+
+            if (maxLength > 2)
+            {
+                NodeState parent = stateParent;
+                var names = new List<string>();
+
+                while (parent != null)
+                {
+                    if (parent is not BaseInstanceState instance)
+                    {
+                        break;
+                    }
+
+                    parent = instance.Parent;
+
+                    string parentName = GetNonNullText(parent);
+                    names.Add(parentName);
+
+                    if (names.Count == maxLength - 2)
+                    {
+                        break;
+                    }
+                }
+
+                for (int ii = names.Count - 1; ii >= 0; ii--)
+                {
+                    buffer.Append(names[ii])
+                        .Append(seperator);
+                }
+            }
+
+            buffer.Append(GetNonNullText(stateParent))
+                .Append(seperator)
+                .Append(name);
+
+            return buffer.ToString();
+        }
+
+        /// <summary>
+        /// Returns non-null text for the node.
+        /// </summary>
+        private static string GetNonNullText(NodeState node)
+        {
+            if (node == null)
+            {
+                return "(null)";
+            }
+
+            if (node.DisplayName == null)
+            {
+                if (node.BrowseName != null)
+                {
+                    return node.BrowseName.Name;
+                }
+
+                return node.NodeClass.ToString();
+            }
+
+            return node.DisplayName.Text;
+        }
+#endif
         /// <summary>
         /// A numeric identifier for the instance that is unique within the parent.
         /// </summary>
@@ -134,6 +239,129 @@ namespace Opc.Ua
             }
         }
 
+#if ZOMBIE
+        /// <summary>
+        /// Sets the flag which indicates whether event are being monitored for the instance and its children.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="e">The event to report.</param>
+        public override void ReportEvent(ISystemContext context, IFilterTarget e)
+        {
+            base.ReportEvent(context, e);
+
+            // recursively notify the parent.
+            Parent?.ReportEvent(context, e);
+        }
+
+        /// <summary>
+        /// Initializes the instance from an event notification.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="fields">The fields selected for the event notification.</param>
+        /// <param name="e">The event notification.</param>
+        /// <remarks>
+        /// This method creates components based on the browse paths in the event field and sets
+        /// the NodeId or Value based on values in the event notification.
+        /// </remarks>
+        public void Update(
+            ISystemContext context,
+            SimpleAttributeOperandCollection fields,
+            EventFieldList e)
+        {
+            for (int ii = 0; ii < fields.Count; ii++)
+            {
+                SimpleAttributeOperand field = fields[ii];
+                object value = e.EventFields[ii].Value;
+
+                // check if value provided.
+                if (value == null)
+                {
+                    continue;
+                }
+
+                // extract the NodeId for the event.
+                if (field.BrowsePath.Count == 0 && field.AttributeId == Attributes.NodeId)
+                {
+                    NodeId = value as NodeId;
+                    continue;
+                }
+
+                // extract the type definition for the event.
+                if (field.BrowsePath.Count == 1 &&
+                    field.AttributeId == Attributes.Value &&
+                    field.BrowsePath[0] == BrowseNames.EventType)
+                {
+                    m_typeDefinitionId = value as NodeId;
+                    continue;
+                }
+
+                // save value for child node.
+                BaseInstanceState parent = this;
+
+                for (int jj = 0; jj < field.BrowsePath.Count; jj++)
+                {
+                    // find a predefined child identified by the browse name.
+                    BaseInstanceState child = parent.CreateChild(context, field.BrowsePath[jj]);
+
+                    // create a placeholder for unknown children.
+                    if (child == null)
+                    {
+                        if (field.AttributeId == Attributes.Value)
+                        {
+                            child = new BaseDataVariableState(parent);
+                        }
+                        else
+                        {
+                            child = new BaseObjectState(parent);
+                        }
+
+                        parent.AddChild(child);
+                    }
+
+                    // ensure the browse name is set.
+                    if (QualifiedName.IsNull(child.BrowseName))
+                    {
+                        child.BrowseName = field.BrowsePath[jj];
+                    }
+
+                    // ensure the display name is set.
+                    if (LocalizedText.IsNullOrEmpty(child.DisplayName))
+                    {
+                        child.DisplayName = child.BrowseName.Name;
+                    }
+
+                    // process next element in path.
+                    if (jj < field.BrowsePath.Count - 1)
+                    {
+                        parent = child;
+                        continue;
+                    }
+
+                    // save the variable value.
+                    if (field.AttributeId == Attributes.Value)
+                    {
+                        if (child is BaseVariableState variable &&
+                            field.AttributeId == Attributes.Value)
+                        {
+                            try
+                            {
+                                variable.WrappedValue = e.EventFields[ii];
+                            }
+                            catch (Exception)
+                            {
+                                variable.Value = null;
+                            }
+                        }
+
+                        break;
+                    }
+
+                    // save the node id.
+                    child.NodeId = value as NodeId;
+                }
+            }
+        }
+#endif
         /// <summary>
         /// Sets the minimum sampling interval for the node an all of its child variables..
         /// </summary>
@@ -164,6 +392,62 @@ namespace Opc.Ua
             }
         }
 
+#if ZOMBIE
+        /// <inheritdoc/>
+        public virtual bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
+        {
+            return NodeId.IsNull(typeDefinitionId) ||
+                context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId);
+        }
+
+        /// <inheritdoc/>
+        public virtual object GetAttributeValue(
+            FilterContext context,
+            NodeId typeDefinitionId,
+            IList<QualifiedName> relativePath,
+            uint attributeId,
+            NumericRange indexRange)
+        {
+            // check the type definition.
+            if (!NodeId.IsNull(typeDefinitionId) &&
+                typeDefinitionId != ObjectTypes.BaseEventType &&
+                !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
+            {
+                return null;
+            }
+
+            // read the child attribute.
+            var dataValue = new DataValue();
+
+            ServiceResult result = ReadChildAttribute(
+                null,
+                relativePath,
+                0,
+                attributeId,
+                dataValue);
+
+            if (ServiceResult.IsBad(result))
+            {
+                return null;
+            }
+
+            // apply any index range.
+            object value = dataValue.Value;
+
+            if (value != null)
+            {
+                result = indexRange.ApplyRange(ref value);
+
+                if (ServiceResult.IsBad(result))
+                {
+                    return null;
+                }
+            }
+
+            // return the result.
+            return value;
+        }
+#endif
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>

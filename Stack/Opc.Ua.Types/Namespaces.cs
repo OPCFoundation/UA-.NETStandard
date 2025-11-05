@@ -15,7 +15,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines well-known namespaces.
     /// </summary>
-    public static partial class Namespaces
+    internal static class Namespaces
     {
         /// <summary>
         /// The XML Schema Instance namespace.
@@ -31,5 +31,16 @@ namespace Opc.Ua
         /// The URI for the OPC Binary Schema.
         /// </summary>
         public const string OpcBinarySchema = "http://opcfoundation.org/BinarySchema/";
+
+        /// <summary>
+        /// The URI for the OpcUa namespace (.NET code namespace is 'Opc.Ua').
+        /// </summary>
+        public const string OpcUa = "http://opcfoundation.org/UA/";
+
+        /// <summary>
+        /// The URI for the OpcUaXsd namespace (.NET code namespace is 'Opc.Ua').
+        /// </summary>
+        public const string OpcUaXsd = "http://opcfoundation.org/UA/2008/02/Types.xsd";
     }
+
 }

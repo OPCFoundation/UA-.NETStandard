@@ -701,6 +701,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new BaseDataVariableTypeState();
+        }
+
+        /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
@@ -732,6 +742,155 @@ namespace Opc.Ua
                 context.NamespaceUris);
             ValueRank = ValueRanks.Any;
             ArrayDimensions = null;
+        }
+    }
+
+    /// <summary>
+    /// A typed base class for all data variable type nodes.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
+    {
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public BaseDataVariableTypeState()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default;
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Sets the value to its default value if it is not valid.
+        /// </summary>
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
+        {
+            return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
+        }
+
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
+            set => base.Value = value;
+        }
+    }
+
+    /// <summary>
+    /// A base class for all property variable type nodes.
+    /// </summary>
+    public class PropertyTypeState : BaseVariableTypeState
+    {
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PropertyTypeState()
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new PropertyTypeState();
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            SuperTypeId = NodeId.Create(
+                VariableTypes.BaseVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            NodeId = NodeId.Create(
+                VariableTypes.PropertyType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            BrowseName = QualifiedName.Create(
+                BrowseNames.PropertyType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            DisplayName = new LocalizedText(
+                BrowseNames.PropertyType,
+                string.Empty,
+                BrowseNames.PropertyType);
+            Description = null;
+            WriteMask = AttributeWriteMask.None;
+            UserWriteMask = AttributeWriteMask.None;
+            IsAbstract = false;
+            Value = null;
+            DataType = NodeId.Create(
+                DataTypes.BaseDataType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            ValueRank = ValueRanks.Any;
+            ArrayDimensions = null;
+        }
+    }
+
+    /// <summary>
+    /// A typed base class for all property variable type nodes.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class PropertyTypeState<T> : PropertyTypeState
+    {
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PropertyTypeState()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default;
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Sets the value to its default value if it is not valid.
+        /// </summary>
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
+        {
+            return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
+        }
+
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
+            set => base.Value = value;
         }
     }
 }

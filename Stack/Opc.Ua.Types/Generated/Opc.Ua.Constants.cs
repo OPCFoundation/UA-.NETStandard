@@ -38,10 +38,6 @@ using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
-    #region DataType Identifiers
-    /// <exclude />
-
-
     public static partial class DataTypes
     {
         public const uint BaseDataType = 24;
@@ -104,84 +100,6 @@ namespace Opc.Ua
 
         public const uint Union = 12756;
 
-        public const uint DataTypeDescription = 14525;
-
-        public const uint StructureDescription = 15487;
-
-        public const uint EnumDescription = 15488;
-
-        public const uint PubSubState = 14647;
-
-        public const uint DataSetWriterDataType = 15597;
-
-        public const uint DataSetWriterTransportDataType = 15598;
-
-        public const uint DataSetWriterMessageDataType = 15605;
-
-        public const uint PubSubGroupDataType = 15609;
-
-        public const uint WriterGroupDataType = 15480;
-
-        public const uint WriterGroupTransportDataType = 15611;
-
-        public const uint WriterGroupMessageDataType = 15616;
-
-        public const uint PubSubConnectionDataType = 15617;
-
-        public const uint NetworkAddressDataType = 15502;
-
-        public const uint ReaderGroupDataType = 15520;
-
-        public const uint ReaderGroupTransportDataType = 15621;
-
-        public const uint ReaderGroupMessageDataType = 15622;
-
-        public const uint DataSetReaderDataType = 15623;
-
-        public const uint DataSetReaderTransportDataType = 15628;
-
-        public const uint DataSetReaderMessageDataType = 15629;
-
-        public const uint PubSubConfiguration2DataType = 23602;
-
-        public const uint JsonWriterGroupMessageDataType = 15657;
-
-        public const uint JsonDataSetWriterMessageDataType = 15664;
-
-        public const uint JsonDataSetReaderMessageDataType = 15665;
-
-        public const uint BrokerConnectionTransportDataType = 15007;
-
-        public const uint BrokerWriterGroupTransportDataType = 15667;
-
-        public const uint BrokerDataSetWriterTransportDataType = 15669;
-
-        public const uint BrokerDataSetReaderTransportDataType = 15670;
-
-        public const uint JsonNetworkMessage = 19311;
-
-        public const uint JsonDataSetMessage = 19312;
-
-        public const uint JsonDataSetMetaDataMessage = 19313;
-
-        public const uint JsonApplicationDescriptionMessage = 19314;
-
-        public const uint JsonServerEndpointsMessage = 19315;
-
-        public const uint JsonStatusMessage = 19316;
-
-        public const uint JsonPubSubConnectionMessage = 19317;
-
-        public const uint JsonActionMetaDataMessage = 19318;
-
-        public const uint JsonActionResponderMessage = 19319;
-
-        public const uint JsonActionNetworkMessage = 19320;
-
-        public const uint JsonActionRequestMessage = 19321;
-
-        public const uint JsonActionResponseMessage = 19322;
-
         public const uint IdType = 256;
 
         public const uint NodeClass = 257;
@@ -238,201 +156,18 @@ namespace Opc.Ua
 
         public const uint UtcTime = 294;
 
-        public const uint LocaleId = 295;
-
-        public const uint Index = 17588;
-
         public const uint IntegerId = 288;
-
-        public const uint FindServersRequest = 420;
-
-        public const uint FindServersResponse = 423;
-
-        public const uint GetEndpointsRequest = 426;
-
-        public const uint GetEndpointsResponse = 429;
-
-        public const uint CreateSessionRequest = 459;
-
-        public const uint CreateSessionResponse = 462;
-
-        public const uint AnonymousIdentityToken = 319;
-
-        public const uint UserNameIdentityToken = 322;
-
-        public const uint X509IdentityToken = 325;
-
-        public const uint IssuedIdentityToken = 938;
-
-        public const uint ActivateSessionRequest = 465;
-
-        public const uint ActivateSessionResponse = 468;
-
-        public const uint CloseSessionRequest = 471;
-
-        public const uint CloseSessionResponse = 474;
-
-        public const uint CancelRequest = 477;
-
-        public const uint CancelResponse = 480;
 
         public const uint ViewDescription = 511;
 
         public const uint BrowseDescription = 514;
 
-        public const uint BrowseRequest = 525;
-
-        public const uint BrowseResponse = 528;
-
-        public const uint BrowseNextRequest = 531;
-
-        public const uint BrowseNextResponse = 534;
-
         public const uint RelativePathElement = 537;
 
         public const uint RelativePath = 540;
 
-        public const uint TranslateBrowsePathsToNodeIdsRequest = 552;
-
-        public const uint TranslateBrowsePathsToNodeIdsResponse = 555;
-
-        public const uint RegisterNodesRequest = 558;
-
-        public const uint RegisterNodesResponse = 561;
-
-        public const uint UnregisterNodesRequest = 564;
-
-        public const uint UnregisterNodesResponse = 567;
-
         public const uint Counter = 289;
-
-        public const uint ElementOperand = 592;
-
-        public const uint LiteralOperand = 595;
-
-        public const uint AttributeOperand = 598;
-
-        public const uint SimpleAttributeOperand = 601;
-
-        public const uint ReadRequest = 629;
-
-        public const uint ReadResponse = 632;
-
-        public const uint HistoryReadDetails = 641;
-
-        public const uint ReadEventDetails = 644;
-
-        public const uint ReadEventDetails2 = 32799;
-
-        public const uint ReadRawModifiedDetails = 647;
-
-        public const uint ReadProcessedDetails = 650;
-
-        public const uint ReadAtTimeDetails = 653;
-
-        public const uint ReadAnnotationDataDetails = 23497;
-
-        public const uint HistoryData = 656;
-
-        public const uint HistoryModifiedData = 11217;
-
-        public const uint HistoryEvent = 659;
-
-        public const uint HistoryReadRequest = 662;
-
-        public const uint HistoryReadResponse = 665;
-
-        public const uint WriteRequest = 671;
-
-        public const uint WriteResponse = 674;
-
-        public const uint UpdateDataDetails = 680;
-
-        public const uint UpdateStructureDataDetails = 11295;
-
-        public const uint UpdateEventDetails = 683;
-
-        public const uint HistoryUpdateRequest = 698;
-
-        public const uint HistoryUpdateResponse = 701;
-
-        public const uint CallRequest = 710;
-
-        public const uint CallResponse = 713;
-
-        public const uint DataChangeFilter = 722;
-
-        public const uint EventFilter = 725;
-
-        public const uint AggregateFilter = 728;
-
-        public const uint EventFilterResult = 734;
-
-        public const uint AggregateFilterResult = 737;
-
-        public const uint CreateMonitoredItemsRequest = 749;
-
-        public const uint CreateMonitoredItemsResponse = 752;
-
-        public const uint ModifyMonitoredItemsRequest = 761;
-
-        public const uint ModifyMonitoredItemsResponse = 764;
-
-        public const uint SetMonitoringModeRequest = 767;
-
-        public const uint SetMonitoringModeResponse = 770;
-
-        public const uint SetTriggeringRequest = 773;
-
-        public const uint SetTriggeringResponse = 776;
-
-        public const uint DeleteMonitoredItemsRequest = 779;
-
-        public const uint DeleteMonitoredItemsResponse = 782;
-
-        public const uint CreateSubscriptionRequest = 785;
-
-        public const uint CreateSubscriptionResponse = 788;
-
-        public const uint ModifySubscriptionRequest = 791;
-
-        public const uint ModifySubscriptionResponse = 794;
-
-        public const uint SetPublishingModeRequest = 797;
-
-        public const uint SetPublishingModeResponse = 800;
-
-        public const uint DataChangeNotification = 809;
-
-        public const uint EventNotificationList = 914;
-
-        public const uint StatusChangeNotification = 818;
-
-        public const uint PublishRequest = 824;
-
-        public const uint PublishResponse = 827;
-
-        public const uint RepublishRequest = 830;
-
-        public const uint RepublishResponse = 833;
-
-        public const uint TransferSubscriptionsRequest = 839;
-
-        public const uint TransferSubscriptionsResponse = 842;
-
-        public const uint DeleteSubscriptionsRequest = 845;
-
-        public const uint DeleteSubscriptionsResponse = 848;
-
-        public const uint Range = 884;
-
-        public const uint EUInformation = 887;
     }
-    #endregion
-
-    #region Object Identifiers
-    /// <exclude />
-
 
     public static partial class Objects
     {
@@ -597,11 +332,6 @@ namespace Opc.Ua
 
         public const uint RelativePath_Encoding_DefaultJson = 15189;
     }
-    #endregion
-
-    #region ObjectType Identifiers
-    /// <exclude />
-
 
     public static partial class ObjectTypes
     {
@@ -609,11 +339,6 @@ namespace Opc.Ua
 
         public const uint DataTypeEncodingType = 76;
     }
-    #endregion
-
-    #region ReferenceType Identifiers
-    /// <exclude />
-
 
     public static partial class ReferenceTypes
     {
@@ -679,11 +404,6 @@ namespace Opc.Ua
 
         public const uint HasCondition = 9006;
     }
-    #endregion
-
-    #region VariableType Identifiers
-    /// <exclude />
-
 
     public static partial class VariableTypes
     {
@@ -695,11 +415,6 @@ namespace Opc.Ua
 
         public const uint DataTypeDictionaryType = 72;
     }
-    #endregion
-
-    #region DataType Node Identifiers
-    /// <exclude />
-
 
     public static partial class DataTypeIds
     {
@@ -761,9 +476,6 @@ namespace Opc.Ua
 
         public static readonly NodeId DiagnosticInfo = new NodeId(Opc.Ua.DataTypes.DiagnosticInfo);
 
-
-        public static readonly NodeId Union = new NodeId(Opc.Ua.DataTypes.Union);
-
         public static readonly NodeId RolePermissionType = new NodeId(Opc.Ua.DataTypes.RolePermissionType);
 
         public static readonly NodeId DataTypeDefinition = new NodeId(Opc.Ua.DataTypes.DataTypeDefinition);
@@ -814,11 +526,6 @@ namespace Opc.Ua
 
         public static readonly NodeId RelativePath = new NodeId(Opc.Ua.DataTypes.RelativePath);
     }
-    #endregion
-
-    #region Object Node Identifiers
-    /// <exclude />
-
 
     public static partial class ObjectIds
     {
@@ -981,11 +688,6 @@ namespace Opc.Ua
 
         public static readonly NodeId RelativePath_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RelativePath_Encoding_DefaultJson);
     }
-    #endregion
-
-    #region ObjectType Node Identifiers
-    /// <exclude />
-
 
     public static partial class ObjectTypeIds
     {
@@ -993,11 +695,6 @@ namespace Opc.Ua
 
         public static readonly NodeId DataTypeEncodingType = new NodeId(Opc.Ua.ObjectTypes.DataTypeEncodingType);
     }
-    #endregion
-
-    #region ReferenceType Node Identifiers
-    /// <exclude />
-
 
     public static partial class ReferenceTypeIds
     {
@@ -1063,11 +760,6 @@ namespace Opc.Ua
 
         public static readonly NodeId HasCondition = new NodeId(Opc.Ua.ReferenceTypes.HasCondition);
     }
-    #endregion
-
-    #region VariableType Node Identifiers
-    /// <exclude />
-
 
     public static partial class VariableTypeIds
     {
@@ -1079,14 +771,9 @@ namespace Opc.Ua
 
         public static readonly NodeId DataTypeDictionaryType = new NodeId(Opc.Ua.VariableTypes.DataTypeDictionaryType);
     }
-    #endregion
-
-    #region BrowseName Declarations
-
 
     public static partial class BrowseNames
     {
-
         public const string AlarmGroupMember = "AlarmGroupMember";
 
         public const string AlarmSuppressionGroupMember = "AlarmSuppressionGroupMember";
@@ -1173,8 +860,6 @@ namespace Opc.Ua
 
         public const string HistoryUpdateDetails = "HistoryUpdateDetails";
 
-        public const string Index = "Index";
-
         public const string InputArguments = "InputArguments";
 
         public const string Int16 = "Int16";
@@ -1184,8 +869,6 @@ namespace Opc.Ua
         public const string Int64 = "Int64";
 
         public const string Integer = "Integer";
-
-        public const string LocaleId = "LocaleId";
 
         public const string LocalizedText = "LocalizedText";
 
@@ -1223,26 +906,6 @@ namespace Opc.Ua
 
         public const string UInteger = "UInteger";
 
-        public const string Union = "Union";
-
         public const string XmlElement = "XmlElement";
     }
-    #endregion
-
-    #region Namespace Declarations
-
-
-    public static partial class Namespaces
-    {
-        /// <summary>
-        /// The URI for the OpcUa namespace (.NET code namespace is 'Opc.Ua').
-        /// </summary>
-        public const string OpcUa = "http://opcfoundation.org/UA/";
-
-        /// <summary>
-        /// The URI for the OpcUaXsd namespace (.NET code namespace is 'Opc.Ua').
-        /// </summary>
-        public const string OpcUaXsd = "http://opcfoundation.org/UA/2008/02/Types.xsd";
-    }
-    #endregion
 }
