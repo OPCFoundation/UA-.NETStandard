@@ -151,7 +151,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             // Act
             sut.TestUpdateRequestHeader(request, true, "Read");
+            var sw = Stopwatch.StartNew();
             Thread.Sleep(TimeSpan.FromMilliseconds(100)); // simulate some duration
+            sw.Stop();
             sut.TestRequestCompleted(request, response, "Read");
 
             // Assert - metrics should be recorded
@@ -160,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 m_meterListener.RecordedMeasurements.FirstOrDefault()!;
             Assert.That(measurement!, Is.Not.Null);
             Assert.That(measurement.InstrumentName, Is.EqualTo("opc.ua.client.request.duration"));
-            Assert.That(measurement.Value, Is.EqualTo(0.11).Within(0.02));
+            Assert.That(measurement.Value, Is.EqualTo(sw.Elapsed.TotalSeconds).Within(0.03));
 
             // Assert - no logs should be recorded
             Assert.That(m_loggerProvider!.LogEntries
