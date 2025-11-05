@@ -500,18 +500,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create default factory which contains all known encodeable types.
+        /// Default factory which contains all known encodeable types.
         /// </summary>
-        private static EncodeableFactory Root
+        private static EncodeableFactory Root { get; }
+
+        static EncodeableFactory()
         {
-            get
-            {
-                var factory = new EncodeableFactory();
-                factory.Builder
-                    .AddEncodeableTypes(typeof(EncodeableFactory).Assembly)
-                    .Commit();
-                return factory;
-            }
+            var factory = new EncodeableFactory();
+            factory.Builder
+                .AddEncodeableTypes(typeof(EncodeableFactory).Assembly)
+                .Commit();
+            Root = factory;
         }
 
         /// <summary>
