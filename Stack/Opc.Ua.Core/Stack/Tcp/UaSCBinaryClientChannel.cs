@@ -1355,10 +1355,10 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private WriteOperation BeginOperation(int timeout, AsyncCallback? callback, object? state)
         {
-            var requestId = Utils.IncrementIdentifier(ref s_lastRequestId);
+            var requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             if (requestId == 0)
             {
-                requestId = Utils.IncrementIdentifier(ref s_lastRequestId);
+                requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             }
             var operation = new WriteOperation(timeout, callback, state, m_logger)
             {
@@ -1678,7 +1678,7 @@ namespace Opc.Ua.Bindings
 
         private Uri? m_url;
         private Uri? m_via;
-        private static uint s_lastRequestId;
+        private uint m_lastRequestId;
         private readonly ConcurrentDictionary<uint, WriteOperation> m_requests;
         private WriteOperation? m_handshakeOperation;
         private ChannelToken? m_requestedToken;
