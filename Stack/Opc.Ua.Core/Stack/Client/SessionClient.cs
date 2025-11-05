@@ -10,8 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.Threading;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -62,13 +60,8 @@ namespace Opc.Ua
         /// <param name="sessionCookie">The session cookie.</param>
         public virtual void SessionCreated(NodeId sessionId, NodeId sessionCookie)
         {
-            lock (m_lock)
-            {
-                SessionId = sessionId;
-                AuthenticationToken = sessionCookie;
-            }
+            SessionId = sessionId;
+            AuthenticationToken = sessionCookie;
         }
-
-        private readonly Lock m_lock = new();
     }
 }

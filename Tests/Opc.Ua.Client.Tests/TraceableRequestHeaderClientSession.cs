@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 
@@ -72,17 +73,27 @@ namespace Opc.Ua.Client
             ActivityContext context,
             out AdditionalParametersType traceData)
         {
+            // https://reference.opcfoundation.org/Core/Part26/v105/docs/5.5.4
+            Span<byte> spanId = stackalloc byte[8];
+            Span<byte> traceId = stackalloc byte[16];
+            context.SpanId.CopyTo(spanId);
+            context.TraceId.CopyTo(traceId);
+            var spanContextParameter = new KeyValuePair
+            {
+                Key = "SpanContext",
+                Value = new Variant(new SpanContextDataType
+                {
+#if NET8_0_OR_GREATER
+                    SpanId = BitConverter.ToUInt64(spanId),
+                    TraceId = (Uuid)new Guid(traceId)
+#else
+                    SpanId = BitConverter.ToUInt64(spanId.ToArray(), 0),
+                    TraceId = (Uuid)new Guid(traceId.ToArray())
+#endif
+                })
+            };
             traceData = new AdditionalParametersType();
-
-            // Determine the trace flag based on the 'Recorded' status.
-            string traceFlags = (context.TraceFlags & ActivityTraceFlags.Recorded) != 0
-                ? "01"
-                : "00";
-
-            // Construct the traceparent header, adhering to the W3C Trace Context format.
-            string traceparent = $"00-{context.TraceId}-{context.SpanId}-{traceFlags}";
-            traceData.Parameters
-                .Add(new KeyValuePair { Key = "traceparent", Value = new Variant(traceparent) });
+            traceData.Parameters.Add(spanContextParameter);
         }
 
         ///<inheritdoc/>

@@ -51,12 +51,12 @@ namespace Opc.Ua.Client.Tests
     [TestFixtureSource(nameof(FixtureArgs))]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
-    public class SessionClientBatchTest : ClientTestFramework
+    public class ClientBatchTest : ClientTestFramework
     {
         private const uint kOperationLimit = 5;
         private Random m_random;
 
-        public SessionClientBatchTest(string uriScheme = Utils.UriSchemeOpcTcp)
+        public ClientBatchTest(string uriScheme = Utils.UriSchemeOpcTcp)
             : base(uriScheme)
         {
         }
@@ -71,22 +71,18 @@ namespace Opc.Ua.Client.Tests
             await base.OneTimeSetUpAsync().ConfigureAwait(false);
             if (Session is Session session)
             {
-                session.OperationLimits = null;
-                session.OperationLimits = new OperationLimits
-                {
-                    MaxMonitoredItemsPerCall = kOperationLimit,
-                    MaxNodesPerBrowse = kOperationLimit,
-                    MaxNodesPerHistoryReadData = kOperationLimit,
-                    MaxNodesPerHistoryReadEvents = kOperationLimit,
-                    MaxNodesPerHistoryUpdateData = kOperationLimit,
-                    MaxNodesPerHistoryUpdateEvents = kOperationLimit,
-                    MaxNodesPerMethodCall = kOperationLimit,
-                    MaxNodesPerNodeManagement = kOperationLimit,
-                    MaxNodesPerRead = kOperationLimit,
-                    MaxNodesPerRegisterNodes = kOperationLimit,
-                    MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit,
-                    MaxNodesPerWrite = kOperationLimit
-                };
+                session.OperationLimits.MaxMonitoredItemsPerCall = kOperationLimit;
+                session.OperationLimits.MaxNodesPerBrowse = kOperationLimit;
+                session.OperationLimits.MaxNodesPerHistoryReadData = kOperationLimit;
+                session.OperationLimits.MaxNodesPerHistoryReadEvents = kOperationLimit;
+                session.OperationLimits.MaxNodesPerHistoryUpdateData = kOperationLimit;
+                session.OperationLimits.MaxNodesPerHistoryUpdateEvents = kOperationLimit;
+                session.OperationLimits.MaxNodesPerMethodCall = kOperationLimit;
+                session.OperationLimits.MaxNodesPerNodeManagement = kOperationLimit;
+                session.OperationLimits.MaxNodesPerRead = kOperationLimit;
+                session.OperationLimits.MaxNodesPerRegisterNodes = kOperationLimit;
+                session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit;
+                session.OperationLimits.MaxNodesPerWrite = kOperationLimit;
             }
             m_random = new Random(0x62541);
         }
@@ -265,7 +261,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+            ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // Browse template
             const uint startingNode = Objects.RootFolder;
@@ -424,7 +420,7 @@ namespace Opc.Ua.Client.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+            ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             var browsePaths = new BrowsePathCollection();
             var browsePath = new BrowsePath
@@ -461,7 +457,7 @@ namespace Opc.Ua.Client.Tests
         public async Task HistoryReadAsync(bool eventDetails)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+            ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // there are no historizing nodes, but create some real ones
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
@@ -499,7 +495,7 @@ namespace Opc.Ua.Client.Tests
         public async Task HistoryUpdateAsync(bool eventDetails)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger logger = telemetry.CreateLogger<SessionClientBatchTest>();
+            ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // there are no historizing nodes, instead use some real nodes to test
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(

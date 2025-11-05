@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Quickstarts.ReferenceServer;
@@ -95,8 +94,8 @@ namespace Opc.Ua.Server.Tests
         public void TestModellingRulesPopulated()
         {
             // Browse ServerCapabilities->ModellingRules
-            var modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
-            
+            NodeId modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
+
             var browseRequest = new BrowseDescription
             {
                 NodeId = modellingRulesNodeId,
@@ -109,35 +108,32 @@ namespace Opc.Ua.Server.Tests
 
             var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
 
-            BrowseResultCollection results;
-            DiagnosticInfoCollection diagnosticInfos;
-
             m_server.Browse(
                 m_requestHeader,
                 null,
                 0,
                 browseDescriptions,
-                out results,
-                out diagnosticInfos);
+                out BrowseResultCollection results,
+                out DiagnosticInfoCollection _);
 
             Assert.That(results, Is.Not.Null);
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].References.Count, Is.GreaterThan(0), "ModellingRules folder should not be empty");
 
             // Check that expected modelling rules are present
-            var expectedRules = new[]
-            {
+            string[] expectedRules =
+            [
                 BrowseNames.ModellingRule_Mandatory,
                 BrowseNames.ModellingRule_Optional,
                 BrowseNames.ModellingRule_ExposesItsArray,
                 BrowseNames.ModellingRule_OptionalPlaceholder,
                 BrowseNames.ModellingRule_MandatoryPlaceholder
-            };
+            ];
 
-            foreach (var expectedRule in expectedRules)
+            foreach (string expectedRule in expectedRules)
             {
                 bool found = false;
-                foreach (var reference in results[0].References)
+                foreach (ReferenceDescription reference in results[0].References)
                 {
                     if (reference.BrowseName.Name == expectedRule)
                     {
@@ -161,8 +157,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TestModellingRulesHaveCorrectType()
         {
-            var modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
-            
+            NodeId modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
+
             var browseRequest = new BrowseDescription
             {
                 NodeId = modellingRulesNodeId,
@@ -175,16 +171,13 @@ namespace Opc.Ua.Server.Tests
 
             var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
 
-            BrowseResultCollection results;
-            DiagnosticInfoCollection diagnosticInfos;
-
             m_server.Browse(
                 m_requestHeader,
                 null,
                 0,
                 browseDescriptions,
-                out results,
-                out diagnosticInfos);
+                out BrowseResultCollection results,
+                out DiagnosticInfoCollection _);
 
             Assert.That(results, Is.Not.Null);
             Assert.That(results.Count, Is.EqualTo(1));
@@ -195,7 +188,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectTypeIds.ModellingRuleType,
                 m_server.CurrentInstance.NamespaceUris);
 
-            foreach (var reference in results[0].References)
+            foreach (ReferenceDescription reference in results[0].References)
             {
                 Assert.That(reference.NodeClass, Is.EqualTo(NodeClass.Object));
                 Assert.That(reference.TypeDefinition, Is.EqualTo(expectedTypeDefinition),

@@ -186,7 +186,7 @@ namespace Opc.Ua
                 return alternateName.Uris;
             }
 
-            return new List<string>();
+            return [];
         }
 
         /// <summary>
@@ -209,8 +209,8 @@ namespace Opc.Ua
         /// <param name="certificateApplicationUris">The list of application URIs found in the certificate.</param>
         /// <returns>True if the application URI matches any URI in the certificate; otherwise, false.</returns>
         public static bool CompareApplicationUriWithCertificate(
-            X509Certificate2 certificate, 
-            string applicationUri, 
+            X509Certificate2 certificate,
+            string applicationUri,
             out IReadOnlyList<string> certificateApplicationUris)
         {
             certificateApplicationUris = GetApplicationUrisFromCertificate(certificate);
@@ -220,7 +220,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            foreach (var certificateApplicationUri in certificateApplicationUris)
+            foreach (string certificateApplicationUri in certificateApplicationUris)
             {
                 if (!string.IsNullOrEmpty(certificateApplicationUri) &&
                     string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))

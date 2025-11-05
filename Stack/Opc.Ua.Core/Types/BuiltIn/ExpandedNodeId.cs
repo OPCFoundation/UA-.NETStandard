@@ -679,7 +679,7 @@ namespace Opc.Ua
                         return false;
                     }
 
-                    if (!uint.TryParse(text.Substring(4, index - 4), NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
+                    if (!uint.TryParse(text[4..index], NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
                     {
                         errorMessage = "Invalid server index format.";
                         return false;
@@ -1370,17 +1370,19 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="text">The ExpandedNodeId value as a string.</param>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         private void InternalParse(string text)
         {
             if (!InternalTryParseInstance(text, out string errorMessage))
             {
                 // Check if this should be an ArgumentException based on the error message
-                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
-                    errorMessage.Contains("Missing valid identifier prefix")))
+                if (errorMessage != null &&
+                    (errorMessage.Contains("namespace Uri ('nsu=')", StringComparison.Ordinal) ||
+                        errorMessage.Contains("Missing valid identifier prefix", StringComparison.Ordinal)))
                 {
                     throw new ArgumentException(errorMessage);
                 }
-                
+
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     errorMessage ?? Utils.Format("Cannot parse expanded node id text: '{0}'", text));
@@ -1395,7 +1397,6 @@ namespace Opc.Ua
         /// <returns>True if parsing was successful, false otherwise.</returns>
         private bool InternalTryParseInstance(string text, out string errorMessage)
         {
-            errorMessage = null;
             uint serverIndex = 0;
             string namespaceUri = null;
 
@@ -1412,7 +1413,7 @@ namespace Opc.Ua
                         return false;
                     }
 
-                    if (!uint.TryParse(text.Substring(4, index - 4), NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
+                    if (!uint.TryParse(text[4..index], NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
                     {
                         errorMessage = "Invalid server index format.";
                         return false;

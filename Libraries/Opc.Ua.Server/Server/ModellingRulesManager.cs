@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
         public ModellingRulesManager(IServerInternal server)
         {
             m_server = server;
-            m_modellingRules = new NodeIdDictionary<string>();
+            m_modellingRules = [];
         }
 
         /// <summary>

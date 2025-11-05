@@ -787,7 +787,7 @@ namespace Opc.Ua
         /// Returns a true/false to indicate if the specified <see cref="ExpandedNodeId"/> is null.
         /// </remarks>
         /// <param name="nodeId">The ExpandedNodeId to validate</param>
-        public static bool IsNull([NotNullWhen(false)]ExpandedNodeId nodeId)
+        public static bool IsNull([NotNullWhen(false)] ExpandedNodeId nodeId)
         {
             if (nodeId == null)
             {
@@ -816,12 +816,13 @@ namespace Opc.Ua
             if (!InternalTryParse(text, false, out NodeId value, out string errorMessage))
             {
                 // Check if this should be an ArgumentException based on the error message
-                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
-                    errorMessage.Contains("Missing valid identifier prefix")))
+                if (errorMessage != null &&
+                    (errorMessage.Contains("namespace Uri ('nsu=')", StringComparison.Ordinal) ||
+                        errorMessage.Contains("Missing valid identifier prefix", StringComparison.Ordinal)))
                 {
                     throw new ArgumentException(errorMessage);
                 }
-                
+
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
@@ -877,12 +878,13 @@ namespace Opc.Ua
             if (!InternalTryParse(text, namespaceSet, out NodeId value, out string errorMessage))
             {
                 // Check if this should be an ArgumentException based on the error message
-                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
-                    errorMessage.Contains("Missing valid identifier prefix")))
+                if (errorMessage != null &&
+                    (errorMessage.Contains("namespace Uri ('nsu=')", StringComparison.Ordinal) ||
+                        errorMessage.Contains("Missing valid identifier prefix", StringComparison.Ordinal)))
                 {
                     throw new ArgumentException(errorMessage);
                 }
-                
+
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
@@ -925,7 +927,7 @@ namespace Opc.Ua
                         return false;
                     }
 
-                    if (!ushort.TryParse(text.Substring(3, index - 3), NumberStyles.None, CultureInfo.InvariantCulture, out namespaceIndex))
+                    if (!ushort.TryParse(text[3..index], NumberStyles.None, CultureInfo.InvariantCulture, out namespaceIndex))
                     {
                         errorMessage = "Invalid namespace index format.";
                         return false;
@@ -937,7 +939,7 @@ namespace Opc.Ua
                 // parse numeric node identifier.
                 if (text.StartsWith("i=", StringComparison.Ordinal))
                 {
-                    if (uint.TryParse(text.Substring(2), NumberStyles.None, CultureInfo.InvariantCulture, out uint numericId))
+                    if (uint.TryParse(text[2..], NumberStyles.None, CultureInfo.InvariantCulture, out uint numericId))
                     {
                         value = new NodeId(numericId, namespaceIndex);
                         return true;
@@ -956,7 +958,7 @@ namespace Opc.Ua
                 // parse guid node identifier.
                 if (text.StartsWith("g=", StringComparison.Ordinal))
                 {
-                    if (Guid.TryParse(text.Substring(2), out Guid guidId))
+                    if (Guid.TryParse(text[2..], out Guid guidId))
                     {
                         value = new NodeId(guidId, namespaceIndex);
                         return true;

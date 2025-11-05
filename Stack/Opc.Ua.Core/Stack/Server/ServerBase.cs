@@ -1395,9 +1395,10 @@ namespace Opc.Ua
                     .GetInstanceCertificate(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
+                IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
+                    instanceCertificate);
                 // it is ok to pick the first here since it is only a fallback value
-                configuration.ApplicationUri = X509Utils.GetApplicationUrisFromCertificate(
-                    instanceCertificate).FirstOrDefault();
+                configuration.ApplicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
 
                 if (string.IsNullOrEmpty(configuration.ApplicationUri))
                 {
