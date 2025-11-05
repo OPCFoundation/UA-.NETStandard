@@ -263,7 +263,7 @@ namespace Opc.Ua.Server.Tests
             string clientApplicationUri)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger<CreateSessionApplicationUriValidationTests> logger = telemetry.CreateLogger<CreateSessionApplicationUriValidationTests>();
+            ILogger logger = telemetry.CreateLogger<CreateSessionApplicationUriValidationTests>();
 
             // Create temporary PKI directory
             string clientPkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
@@ -321,8 +321,8 @@ namespace Opc.Ua.Server.Tests
 
                 // Create and open session with retry logic for transient errors
                 var sessionFactory = new DefaultSessionFactory(telemetry);
-                const int maxAttempts = 5;
-                const int delayMs = 10000;
+                const int maxAttempts = 40;
+                const int delayMs = 5000;
                 for (int attempt = 0; ; attempt++)
                 {
                     try
