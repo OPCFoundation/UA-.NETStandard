@@ -25,16 +25,23 @@
     <Compile Remove="Schema\**" />
     <Compile Remove="Security\**" />
     <Compile Remove="Stack\**" />
+    <Compile Remove="Types\Redaction\**" />
     <EmbeddedResource Remove="Schema\**" />
     <EmbeddedResource Remove="Security\**" />
     <EmbeddedResource Remove="Stack\**" />
+    <EmbeddedResource Remove="Types\Redaction\**" />
     <None Remove="Schema\**" />
     <None Remove="Security\**" />
     <None Remove="Stack\**" />
+    <None Remove="Types\Redaction\**" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Types\BuiltIn\NotificationData.cs" />
     <Compile Remove="Types\Constants\StatusCodes.Helpers.cs" />
+    <Compile Remove="Types\Encoders\IJsonDecoder.cs" />
+    <Compile Remove="Types\Encoders\IJsonEncoder.cs" />
+    <Compile Remove="Types\Encoders\JsonDecoder.cs" />
+    <Compile Remove="Types\Encoders\JsonEncoder.cs" />
     <Compile Remove="Types\Utils\DataGenerator.cs" />
     <Compile Remove="Types\Utils\OpcUaCoreEventSource.cs" />
     <Compile Remove="Types\Utils\RelativePath.cs" />
@@ -46,13 +53,10 @@
   <ItemGroup>
     <Compile Include="Schema\UANodeSet.cs" />
     <Compile Include="Schema\UANodeSetHelpers.cs" />
-    <Compile Include="Stack\Constants\Namespaces.cs" />
-    <Compile Include="Stack\Constants\ReferenceTypes.Helpers.cs" />
     <Compile Include="Stack\Diagnostics\DefaultTelemetry.cs" />
     <Compile Include="Stack\Diagnostics\ITelemetryContext.cs" />
     <Compile Include="Stack\Diagnostics\TelemetryExtensions.cs" />
     <Compile Include="Stack\Diagnostics\TelemetryUtils.cs" />
-    <Compile Include="Stack\Generated\Opc.Ua.Constants.cs" />
     <Compile Include="Stack\Nodes\DataTypeNode.cs" />
     <Compile Include="Stack\Nodes\INode.cs" />
     <Compile Include="Stack\Nodes\InstanceNode.cs" />
@@ -88,7 +92,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
-    <Folder Include="Stack\Types\" />
+    <Folder Include="Stack\Constants\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />

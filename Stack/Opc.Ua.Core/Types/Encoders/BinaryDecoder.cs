@@ -160,6 +160,164 @@ namespace Opc.Ua
         /// </summary>
         public Stream BaseStream => m_reader?.BaseStream;
 
+        /// <summary>
+        /// Decodes a message from a stream.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
+        public static IEncodeable DecodeMessage(
+            Stream stream,
+            Type expectedType,
+            IServiceMessageContext context)
+        {
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            using var decoder = new BinaryDecoder(stream, context);
+            return decoder.DecodeMessage(expectedType);
+        }
+
+#if ZOMBIE
+        /// <summary>
+        /// Decodes a session-less message from a buffer.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static IEncodeable DecodeSessionLessMessage(
+            byte[] buffer,
+            IServiceMessageContext context)
+        {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            // read the node id.
+            NodeId typeId = decoder.ReadNodeId(null);
+
+            // convert to absolute node id.
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
+
+            // lookup message session-less envelope type.
+            Type actualType = context.Factory.GetSystemType(absoluteId);
+
+            if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode session-less service message with type id: {0}.",
+                    absoluteId);
+            }
+
+            // decode the actual message.
+            var message = new SessionLessServiceMessage();
+
+            message.Decode(decoder);
+
+            decoder.Close();
+
+            return message.Message;
+        }
+#endif
+
+        /// <summary>
+        /// Decodes a message from a buffer.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
+        public static IEncodeable DecodeMessage(
+            byte[] buffer,
+            Type expectedType,
+            IServiceMessageContext context)
+        {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            return decoder.DecodeMessage(expectedType);
+        }
+
+        /// <summary>
+        /// Decodes an object from a buffer.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public IEncodeable DecodeMessage(Type expectedType)
+        {
+            int start = Position;
+
+            // read the node id.
+            NodeId typeId = ReadNodeId(null);
+
+            // convert to absolute node id.
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
+
+            // lookup message type.
+            Type actualType =
+                Context.Factory.GetSystemType(absoluteId)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode message with type id: {0}.",
+                    absoluteId);
+
+            // read the message.
+            IEncodeable message = ReadEncodeable(null, actualType, absoluteId);
+
+            // check that the max message size was not exceeded.
+            int messageLength = Position - start;
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < messageLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    Context.MaxMessageSize,
+                    messageLength);
+            }
+
+            // return the message.
+            return message;
+        }
+
+        /// <summary>
+        /// Loads a string table from a binary stream.
+        /// </summary>
+        public bool LoadStringTable(StringTable stringTable)
+        {
+            int count = SafeReadInt32();
+
+            if (count < -0)
+            {
+                return false;
+            }
+
+            for (uint ii = 0; ii < count; ii++)
+            {
+                stringTable.Append(ReadString(null));
+            }
+
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public EncodingType EncodingType => EncodingType.Binary;
+
         /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
@@ -1337,6 +1495,13 @@ namespace Opc.Ua
                     "Unexpected null or empty Dimensions for multidimensional matrix.");
             }
             return null;
+        }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(IList<string> switches, out string fieldName)
+        {
+            fieldName = null;
+            return ReadUInt32("SwitchField");
         }
 
         /// <inheritdoc/>

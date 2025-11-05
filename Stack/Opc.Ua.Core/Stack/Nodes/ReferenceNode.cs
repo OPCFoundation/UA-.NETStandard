@@ -165,23 +165,12 @@ namespace Opc.Ua
         /// </returns>
         public override string ToString()
         {
-            string referenceType = null;
-
-            if (ReferenceTypeId != null &&
-                ReferenceTypeId.IdType == IdType.Numeric &&
-                ReferenceTypeId.NamespaceIndex == 0)
-            {
-                referenceType = ReferenceTypes.GetBrowseName((uint)ReferenceTypeId.Identifier);
-            }
-
-            referenceType ??= Utils.Format("{0}", ReferenceTypeId);
-
             if (IsInverse)
             {
-                return Utils.Format("<!{0}>{1}", referenceType, TargetId);
+                return Utils.Format("<!{0}>{1}", ReferenceTypeId, TargetId);
             }
 
-            return Utils.Format("<{0}>{1}", referenceType, TargetId);
+            return Utils.Format("<{0}>{1}", ReferenceTypeId, TargetId);
         }
 
         /// <summary>

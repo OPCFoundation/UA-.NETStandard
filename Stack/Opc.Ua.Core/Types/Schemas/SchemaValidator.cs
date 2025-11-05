@@ -16,6 +16,7 @@ using System.IO;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Serialization;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Schema
 {
@@ -77,9 +78,18 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Returns true if the QName is null.
         /// </summary>
-        protected static bool IsNull(XmlQualifiedName name)
+        protected static bool IsNull([NotNullWhen(false)] XmlQualifiedName name)
         {
             return name == null || string.IsNullOrEmpty(name.Name);
+        }
+
+        /// <summary>
+        /// Formats a string and throws an exception.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        protected static Exception Exception(string format)
+        {
+            throw new FormatException(format);
         }
 
         /// <summary>
@@ -274,6 +284,14 @@ namespace Opc.Ua.Schema
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns the schema for the specified type (returns the entire schema if null).
+        /// </summary>
+        public virtual string GetSchema(string typeName)
+        {
+            return null;
         }
     }
 }

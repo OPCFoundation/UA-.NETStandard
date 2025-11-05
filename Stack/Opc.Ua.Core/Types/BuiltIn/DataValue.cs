@@ -374,6 +374,205 @@ namespace Opc.Ua
         [DataMember(Order = 6, IsRequired = false)]
         public ushort ServerPicoseconds { get; set; }
 
+        /// <summary>
+        /// Returns true if the status code is good.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        public static bool IsGood(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsGood(value.StatusCode);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the status is bad or uncertain.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        public static bool IsNotGood(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsNotGood(value.StatusCode);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the status code is uncertain.
+        /// </summary>
+        /// <param name="value">The value to checck the quality of</param>
+        public static bool IsUncertain(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsUncertain(value.StatusCode);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        public static bool IsNotUncertain(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsNotUncertain(value.StatusCode);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the status code is bad.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        public static bool IsBad(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsBad(value.StatusCode);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        public static bool IsNotBad(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsNotBad(value.StatusCode);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Ensures the data value contains a value with the specified type.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public object GetValue(Type expectedType)
+        {
+            object value = Value;
+
+            if (expectedType != null && value != null)
+            {
+                // return null for a DataValue with bad status code.
+                if (StatusCode.IsBad(StatusCode))
+                {
+                    return null;
+                }
+
+                if (value is ExtensionObject extension)
+                {
+                    value = extension.Body;
+                }
+
+                if (!expectedType.IsInstanceOfType(value))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTypeMismatch,
+                        "DataValue is not of type {0}.",
+                        expectedType.Name);
+                }
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Gets the value from the data value.
+        /// Returns default value for bad status.
+        /// </summary>
+        /// <typeparam name="T">The type of object.</typeparam>
+        /// <returns>The value.</returns>
+        /// <remarks>
+        /// Checks the StatusCode and returns default value for bad status.
+        /// Extracts the body from an ExtensionObject value if it has the correct type.
+        /// Throws exception only if there is a type mismatch;
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        public T GetValueOrDefault<T>()
+        {
+            // return default for a DataValue with bad status code.
+            if (StatusCode.IsBad(StatusCode))
+            {
+                return default;
+            }
+
+            object value = Value;
+            if (value != null)
+            {
+                if (value is ExtensionObject extension)
+                {
+                    value = extension.Body;
+                }
+
+                if (!typeof(T).IsInstanceOfType(value))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTypeMismatch,
+                        "DataValue is not of type {0}.",
+                        typeof(T).Name);
+                }
+
+                return (T)value;
+            }
+
+            // a null value for a value type should throw
+            if (typeof(T).IsValueType)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "DataValue is null and not of value type {0}.",
+                    typeof(T).Name);
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// Gets the value from the data value.
+        /// </summary>
+        /// <typeparam name="T">The type of object.</typeparam>
+        /// <param name="defaultValue">The default value to return if any error occurs.</param>
+        /// <returns>The value.</returns>
+        /// <remarks>
+        /// Does not throw exceptions; returns the caller provided value instead.
+        /// Extracts the body from an ExtensionObject value if it has the correct type.
+        /// Checks the StatusCode and returns an error if not Good.
+        /// </remarks>
+        public T GetValue<T>(T defaultValue)
+        {
+            if (StatusCode.IsNotGood(StatusCode))
+            {
+                return defaultValue;
+            }
+
+            if (typeof(T).IsInstanceOfType(Value))
+            {
+                return (T)Value;
+            }
+
+            if (Value is ExtensionObject extension && typeof(T).IsInstanceOfType(extension.Body))
+            {
+                return (T)extension.Body;
+            }
+
+            return defaultValue;
+        }
+
         private Variant m_value;
     }
 

@@ -91,6 +91,113 @@ namespace Opc.Ua
             m_stack.Push(m_root);
         }
 
+        /// <summary>
+        /// Decodes a session-less message from a buffer.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
+        public static IEncodeable DecodeSessionLessMessage(
+            byte[] buffer,
+            IServiceMessageContext context)
+        {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            using var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context);
+            // decode the actual message.
+            var message = new SessionLessServiceMessage();
+            message.Decode(decoder);
+            return message.Message;
+        }
+
+        /// <summary>
+        /// Decodes a message from a buffer.
+        /// </summary>
+        public static IEncodeable DecodeMessage(
+            byte[] buffer,
+            Type expectedType,
+            IServiceMessageContext context)
+        {
+            return DecodeMessage(new ArraySegment<byte>(buffer), expectedType, context);
+        }
+
+        /// <summary>
+        /// Decodes a message from a buffer.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static IEncodeable DecodeMessage(
+            ArraySegment<byte> buffer,
+            Type expectedType,
+            IServiceMessageContext context)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            // check that the max message size was not exceeded.
+            if (context.MaxMessageSize > 0 && context.MaxMessageSize < buffer.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    context.MaxMessageSize,
+                    buffer.Count);
+            }
+
+            using var decoder = new JsonDecoder(
+                Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count),
+                context);
+            return decoder.DecodeMessage(expectedType);
+        }
+
+        /// <inheritdoc/>
+        public IEncodeable DecodeMessage(Type expectedType)
+        {
+            StringCollection namespaceUris = ReadStringArray("NamespaceUris");
+            StringCollection serverUris = ReadStringArray("ServerUris");
+
+            if ((namespaceUris != null && namespaceUris.Count > 0) ||
+                (serverUris != null && serverUris.Count > 0))
+            {
+                NamespaceTable namespaces =
+                    namespaceUris == null || namespaceUris.Count == 0
+                        ? Context.NamespaceUris
+                        : new NamespaceTable(namespaceUris);
+                StringTable servers =
+                    serverUris == null || serverUris.Count == 0
+                        ? Context.ServerUris
+                        : new StringTable(serverUris);
+
+                SetMappingTables(namespaces, servers);
+            }
+
+            // read the node id.
+            NodeId typeId = ReadNodeId("TypeId");
+
+            // convert to absolute node id.
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
+
+            // lookup message type.
+            Type actualType =
+                Context.Factory.GetSystemType(absoluteId)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
+
+            // read the message.
+
+            // return the message.
+            return ReadEncodeable("Body", actualType, absoluteId);
+        }
+
         /// <inheritdoc/>
         public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
         {
@@ -149,6 +256,29 @@ namespace Opc.Ua
             m_reader.Close();
         }
 
+        /// <summary>
+        /// Closes the stream used for reading.
+        /// </summary>
+        public void Close(bool checkEof)
+        {
+            if (checkEof && m_reader.TokenType != JsonToken.EndObject)
+            {
+                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+                {
+                }
+            }
+
+            m_reader.Close();
+        }
+
+        /// <summary>
+        /// Reads the body extension object from the stream.
+        /// </summary>
+        public object ReadExtensionObjectBody(ExpandedNodeId typeId)
+        {
+            return null;
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -167,6 +297,9 @@ namespace Opc.Ua
                 m_reader = null;
             }
         }
+
+        /// <inheritdoc/>
+        public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
@@ -2538,6 +2671,64 @@ namespace Opc.Ua
                 return matrix.ToArray();
             }
             return null;
+        }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(IList<string> switches, out string fieldName)
+        {
+            fieldName = null;
+
+            if (m_stack.Peek() is Dictionary<string, object> context)
+            {
+                long index = -1;
+
+                if (context.ContainsKey("SwitchField"))
+                {
+                    index = ReadUInt32("SwitchField");
+                }
+
+                if (switches == null)
+                {
+                    return 0;
+                }
+
+                if (index >= switches.Count)
+                {
+                    return (uint)index;
+                }
+
+                if (index >= 0)
+                {
+                    if (!context.ContainsKey("Value"))
+                    {
+                        fieldName = switches[(int)index];
+                    }
+                    else
+                    {
+                        fieldName = "Value";
+                    }
+
+                    return (uint)index;
+                }
+
+                foreach (KeyValuePair<string, object> ii in context)
+                {
+                    if (ii.Key == "UaTypeId")
+                    {
+                        continue;
+                    }
+
+                    index = switches.IndexOf(ii.Key);
+
+                    if (index >= 0)
+                    {
+                        fieldName = ii.Key;
+                        return (uint)index;
+                    }
+                }
+            }
+
+            return 0;
         }
 
         /// <inheritdoc/>

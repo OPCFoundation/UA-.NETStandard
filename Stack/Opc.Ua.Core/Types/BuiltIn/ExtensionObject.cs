@@ -17,6 +17,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
 {
@@ -635,6 +636,42 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Converts an array of extension objects to a List of the specified type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="source">The array to convert.</param>
+        /// <returns>The new typed List</returns>
+        /// <remarks>
+        /// Will add null elements if individual elements cannot be converted.
+        /// </remarks>
+        public static List<T> ToList<T>(object source)
+            where T : class
+        {
+            if (source is not Array extensions)
+            {
+                return null;
+            }
+
+            var list = new List<T>();
+
+            for (int ii = 0; ii < extensions.Length; ii++)
+            {
+                IEncodeable element = ToEncodeable(extensions.GetValue(ii) as ExtensionObject);
+
+                if (typeof(T).IsInstanceOfType(element))
+                {
+                    list.Add((T)element);
+                }
+                else
+                {
+                    list.Add(null);
+                }
+            }
+
+            return list;
+        }
+
+        /// <summary>
         /// Returns an instance of a null ExtensionObject.
         /// </summary>
         public static ExtensionObject Null { get; } = new ExtensionObject();
@@ -813,6 +850,43 @@ namespace Opc.Ua
             }
 
             return [];
+        }
+
+        /// <summary>
+        /// Converts an encodeable object to an extension object.
+        /// </summary>
+        /// <param name="encodeables">An enumerable array of ExtensionObjects to convert to a collection</param>
+        public static ExtensionObjectCollection ToExtensionObjects(
+            IEnumerable<IEncodeable> encodeables)
+        {
+            // return null if the input list is null.
+            if (encodeables == null)
+            {
+                return null;
+            }
+
+            // convert each encodeable to an extension object.
+            var extensibles = new ExtensionObjectCollection();
+
+            if (encodeables != null)
+            {
+                foreach (IEncodeable encodeable in encodeables)
+                {
+                    // check if already an extension object.
+
+                    if (encodeable is ExtensionObject extensible)
+                    {
+                        extensibles.Add(extensible);
+                    }
+                    // wrap the encodeable with an extension object and let the serializer choose the encoding.
+                    else
+                    {
+                        extensibles.Add(new ExtensionObject(encodeable));
+                    }
+                }
+            }
+
+            return extensibles;
         }
 
         /// <inheritdoc/>

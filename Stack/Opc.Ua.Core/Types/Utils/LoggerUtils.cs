@@ -40,9 +40,7 @@
 
 using System;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable CA2254 // Template should be a static expression
@@ -92,6 +90,11 @@ namespace Opc.Ua
         public static class TraceMasks
         {
             /// <summary>
+            /// Do not output any messages.
+            /// </summary>
+            public const int None = 0x0;
+
+            /// <summary>
             /// Output error messages.
             /// </summary>
             public const int Error = 0x1;
@@ -107,9 +110,39 @@ namespace Opc.Ua
             public const int StackTrace = 0x4;
 
             /// <summary>
+            /// Output basic messages for service calls.
+            /// </summary>
+            public const int Service = 0x8;
+
+            /// <summary>
+            /// Output detailed messages for service calls.
+            /// </summary>
+            public const int ServiceDetail = 0x10;
+
+            /// <summary>
             /// Output basic messages for each operation.
             /// </summary>
             public const int Operation = 0x20;
+
+            /// <summary>
+            /// Output detailed messages for each operation.
+            /// </summary>
+            public const int OperationDetail = 0x40;
+
+            /// <summary>
+            /// Output messages related to application initialization or shutdown
+            /// </summary>
+            public const int StartStop = 0x80;
+
+            /// <summary>
+            /// Output messages related to a call to an external system.
+            /// </summary>
+            public const int ExternalSystem = 0x100;
+
+            /// <summary>
+            /// Output messages related to security
+            /// </summary>
+            public const int Security = 0x200;
 
             /// <summary>
             /// Output all messages.

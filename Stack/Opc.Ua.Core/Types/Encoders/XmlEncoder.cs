@@ -241,6 +241,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The type of encoding being used.
+        /// </summary>
+        public EncodingType EncodingType => EncodingType.Xml;
+
+        /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
         public IServiceMessageContext Context { get; }
@@ -264,6 +269,25 @@ namespace Opc.Ua
         public void PopNamespace()
         {
             m_namespaces.Pop();
+        }
+
+        /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        public void EncodeMessage(IEncodeable message)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            PushNamespace(Namespaces.OpcUaXsd);
+
+            // write the message.
+            WriteEncodeable(message.GetType().Name, message, message.GetType());
+
+            PopNamespace();
         }
 
         /// <summary>
@@ -1344,6 +1368,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Writes a GUID array to the stream.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteGuidArray(string fieldName, IList<Guid> values)
+        {
+            if (BeginField(fieldName, values == null, true, true))
+            {
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                if (values != null)
+                {
+                    for (int ii = 0; ii < values.Count; ii++)
+                    {
+                        WriteGuid("Guid", values[ii]);
+                    }
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+            }
+        }
+
+        /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -1763,6 +1817,13 @@ namespace Opc.Ua
 
                 EndField(fieldName);
             }
+        }
+
+        /// <inheritdoc/>
+        public void WriteSwitchField(uint switchField, out string fieldName)
+        {
+            fieldName = null;
+            WriteUInt32("SwitchField", switchField);
         }
 
         /// <inheritdoc/>

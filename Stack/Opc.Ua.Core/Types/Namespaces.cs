@@ -13,13 +13,23 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// Interface implemented by structured type instances.
+    /// Defines well-known namespaces.
     /// </summary>
-    public interface IStructureTypeInfo
+    public static partial class Namespaces
     {
         /// <summary>
-        /// Gets the structure type.
+        /// The XML Schema Instance namespace.
         /// </summary>
-        StructureType StructureType { get; }
+        public const string XmlSchemaInstance = "http://www.w3.org/2001/XMLSchema-instance";
+
+        /// <summary>
+        /// The URI for the built-in types namespace.
+        /// </summary>
+        public const string OpcUaBuiltInTypes = OpcUa + "BuiltInTypes/";
+
+        /// <summary>
+        /// The URI for the OPC Binary Schema.
+        /// </summary>
+        public const string OpcBinarySchema = "http://opcfoundation.org/BinarySchema/";
     }
 }

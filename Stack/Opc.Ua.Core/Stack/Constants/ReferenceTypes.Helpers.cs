@@ -29,6 +29,11 @@ namespace Opc.Ua
     public static partial class ReferenceTypes
     {
         /// <summary>
+        /// Returns the browse names for all reference types.
+        /// </summary>
+        public static IEnumerable<string> BrowseNames => s_referenceTypeNameToId.Value.Keys;
+
+        /// <summary>
         /// Returns the browse name for the attribute.
         /// </summary>
         public static string GetBrowseName(uint identifier)
@@ -36,6 +41,38 @@ namespace Opc.Ua
             return s_referenceTypeIdToName.Value.TryGetValue(identifier, out string name)
                 ? name : string.Empty;
         }
+
+        /// <summary>
+        /// Returns the browse names for all reference types.
+        /// </summary>
+        [Obsolete("Use BrowseNames property instead.")]
+        public static string[] GetBrowseNames()
+        {
+            return [.. BrowseNames];
+        }
+
+        /// <summary>
+        /// Returns the id for the attribute with the specified browse name.
+        /// </summary>
+        public static uint GetIdentifier(string browseName)
+        {
+            return s_referenceTypeNameToId.Value.TryGetValue(browseName, out uint id)
+                ? id : 0;
+        }
+
+        /// <summary>
+        /// Creates a dictionary of reference type browse names to identifers.
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, uint>> s_referenceTypeNameToId =
+            new(() =>
+            {
+#if NET8_0_OR_GREATER
+                return s_referenceTypeIdToName.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
+#else
+                return new ReadOnlyDictionary<string, uint>(
+                    s_referenceTypeIdToName.Value.ToDictionary(k => k.Value, k => k.Key));
+#endif
+            });
 
         /// <summary>
         /// Creates a dictionary of identifers to browse names for reference types.

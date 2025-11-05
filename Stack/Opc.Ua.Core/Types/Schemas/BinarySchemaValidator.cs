@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Schema.Binary
 {
@@ -58,6 +59,26 @@ namespace Opc.Ua.Schema.Binary
         public TypeDictionary Dictionary { get; private set; }
 
         /// <summary>
+        /// The types defined in the dictionary.
+        /// </summary>
+        public IList<TypeDescription> ValidatedDescriptions => m_validatedDescriptions;
+
+        /// <summary>
+        /// Any warnings during validation.
+        /// </summary>
+        public ICollection<string> Warnings => m_warnings;
+
+        /// <summary>
+        /// Generates the code from the contents of the address space.
+        /// </summary>
+        public void Validate(Stream stream)
+        {
+            // read and parse the file.
+            Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), stream);
+            Validate();
+        }
+
+        /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
         public void Validate(string inputPath)
@@ -70,7 +91,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
-        public string GetSchema(string typeName)
+        public override string GetSchema(string typeName)
         {
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
@@ -214,7 +235,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Returns true if the documentation element is empty.
         /// </summary>
-        private static bool IsNull(Documentation documentation)
+        private static bool IsNull([NotNullWhen(false)] Documentation documentation)
         {
             if (documentation == null)
             {

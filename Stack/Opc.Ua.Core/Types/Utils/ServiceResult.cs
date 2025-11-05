@@ -433,6 +433,42 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResult
         /// </summary>
+        public static ServiceResult Create(uint code, TranslationInfo translation)
+        {
+            if (translation == null)
+            {
+                return new ServiceResult(code);
+            }
+
+            return new ServiceResult(code, new LocalizedText(translation));
+        }
+
+        /// <summary>
+        /// Creates a new instance of a ServiceResult
+        /// </summary>
+        public static ServiceResult Create(
+            Exception e,
+            TranslationInfo translation,
+            uint defaultCode)
+        {
+            // replace the default code with the one from the exception.
+
+            if (e is ServiceResultException sre)
+            {
+                defaultCode = sre.StatusCode;
+            }
+
+            if (translation == null)
+            {
+                return new ServiceResult(e, defaultCode);
+            }
+
+            return new ServiceResult(defaultCode, new LocalizedText(translation), e);
+        }
+
+        /// <summary>
+        /// Creates a new instance of a ServiceResult
+        /// </summary>
         public static ServiceResult Create(uint code, string format, params object[] args)
         {
             if (format == null)
@@ -491,6 +527,58 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if the status is bad or uncertain.
+        /// </summary>
+        public static bool IsNotGood(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsNotGood(status.Code);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the status code is uncertain.
+        /// </summary>
+        public static bool IsUncertain(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsUncertain(status.Code);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the status code is good or uncertain.
+        /// </summary>
+        public static bool IsGoodOrUncertain(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsGood(status.Code) || StatusCode.IsUncertain(status.Code);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        public static bool IsNotUncertain(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsNotUncertain(status.Code);
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
         public static bool IsBad(ServiceResult status)
@@ -501,6 +589,19 @@ namespace Opc.Ua
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        public static bool IsNotBad(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsNotBad(status.Code);
+            }
+
+            return true;
         }
 
         /// <summary>

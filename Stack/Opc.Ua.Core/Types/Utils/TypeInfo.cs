@@ -237,24 +237,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// A constant representing an unknown type.
-        /// </summary>
-        /// <value>The constant representing an unknown type.</value>
-        public static TypeInfo Unknown { get; } = new TypeInfo();
-
-        /// <summary>
-        /// The built-in type.
-        /// </summary>
-        /// <value>The type of the type represented by this instance.</value>
-        public BuiltInType BuiltInType { get; }
-
-        /// <summary>
-        /// The value rank.
-        /// </summary>
-        /// <value>The value rank of the type represented by this instance.</value>
-        public int ValueRank { get; }
-
-        /// <summary>
         /// Returns the data type id that describes a value.
         /// </summary>
         /// <param name="value">The value instance to check the data type.</param>
@@ -274,6 +256,127 @@ namespace Opc.Ua
             }
 
             return dataTypeId;
+        }
+
+        /// <summary>
+        /// Returns the data type id that describes a value.
+        /// </summary>
+        /// <param name="type">The framework type.</param>
+        /// <returns>An data type identifier for a node in a server's address space.</returns>
+        public static NodeId GetDataTypeId(Type type)
+        {
+            TypeInfo typeInfo = Construct(type);
+
+            NodeId dataTypeId = GetDataTypeId(typeInfo);
+
+            if (NodeId.IsNull(dataTypeId))
+            {
+                if (type.GetTypeInfo().IsEnum ||
+                    (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
+                {
+                    return DataTypeIds.Enumeration;
+                }
+            }
+
+            return dataTypeId;
+        }
+
+        /// <summary>
+        /// Returns the data type id that describes a value.
+        /// </summary>
+        /// <param name="typeInfo">The type info.</param>
+        /// <returns>An data type identifier for a node in a server's address space.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static NodeId GetDataTypeId(TypeInfo typeInfo)
+        {
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    return DataTypeIds.Boolean;
+                case BuiltInType.SByte:
+                    return DataTypeIds.SByte;
+                case BuiltInType.Byte:
+                    return DataTypeIds.Byte;
+                case BuiltInType.Int16:
+                    return DataTypeIds.Int16;
+                case BuiltInType.UInt16:
+                    return DataTypeIds.UInt16;
+                case BuiltInType.Int32:
+                    return DataTypeIds.Int32;
+                case BuiltInType.UInt32:
+                    return DataTypeIds.UInt32;
+                case BuiltInType.Int64:
+                    return DataTypeIds.Int64;
+                case BuiltInType.UInt64:
+                    return DataTypeIds.UInt64;
+                case BuiltInType.Float:
+                    return DataTypeIds.Float;
+                case BuiltInType.Double:
+                    return DataTypeIds.Double;
+                case BuiltInType.String:
+                    return DataTypeIds.String;
+                case BuiltInType.DateTime:
+                    return DataTypeIds.DateTime;
+                case BuiltInType.Guid:
+                    return DataTypeIds.Guid;
+                case BuiltInType.ByteString:
+                    return DataTypeIds.ByteString;
+                case BuiltInType.XmlElement:
+                    return DataTypeIds.XmlElement;
+                case BuiltInType.NodeId:
+                    return DataTypeIds.NodeId;
+                case BuiltInType.ExpandedNodeId:
+                    return DataTypeIds.ExpandedNodeId;
+                case BuiltInType.StatusCode:
+                    return DataTypeIds.StatusCode;
+                case BuiltInType.DiagnosticInfo:
+                    return DataTypeIds.DiagnosticInfo;
+                case BuiltInType.QualifiedName:
+                    return DataTypeIds.QualifiedName;
+                case BuiltInType.LocalizedText:
+                    return DataTypeIds.LocalizedText;
+                case BuiltInType.ExtensionObject:
+                    return DataTypeIds.Structure;
+                case BuiltInType.DataValue:
+                    return DataTypeIds.DataValue;
+                case BuiltInType.Variant:
+                    return DataTypeIds.BaseDataType;
+                case BuiltInType.Number:
+                    return DataTypeIds.Number;
+                case BuiltInType.Integer:
+                    return DataTypeIds.Integer;
+                case BuiltInType.UInteger:
+                    return DataTypeIds.UInteger;
+                case BuiltInType.Enumeration:
+                    return DataTypeIds.Enumeration;
+                case BuiltInType.Null:
+                    return NodeId.Null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {typeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Returns the array rank for a value.
+        /// </summary>
+        /// <param name="value">The value instance to check the array rank.</param>
+        /// <returns>The array rank of the <paramref name="value"/></returns>
+        public static int GetValueRank(object value)
+        {
+            if (value == null)
+            {
+                return ValueRanks.Any;
+            }
+
+            TypeInfo typeInfo = Construct(value);
+
+            if (typeInfo.BuiltInType == BuiltInType.Null && value is Matrix matrix)
+            {
+                return matrix.TypeInfo.ValueRank;
+            }
+
+            return typeInfo.ValueRank;
         }
 
         /// <summary>
@@ -302,6 +405,94 @@ namespace Opc.Ua
             return typeInfo.ValueRank;
         }
 
+#if ZOMBIE
+        /// <summary>
+        /// Returns the BuiltInType type for the DataTypeId.
+        /// </summary>
+        /// <param name="datatypeId">The data type identifier.</param>
+        /// <returns>An <see cref="BuiltInType"/> for  <paramref name="datatypeId"/></returns>
+        public static BuiltInType GetBuiltInType(NodeId datatypeId)
+        {
+            if (datatypeId == null ||
+                datatypeId.NamespaceIndex != 0 ||
+                datatypeId.IdType != IdType.Numeric)
+            {
+                return BuiltInType.Null;
+            }
+            switch ((uint)datatypeId.Identifier)
+            {
+                // subtype of DateTime
+                case DataTypes.UtcTime:
+                    return BuiltInType.DateTime;
+                // subtype of ByteString
+                case DataTypes.ApplicationInstanceCertificate:
+                case DataTypes.AudioDataType:
+                case DataTypes.ContinuationPoint:
+                case DataTypes.Image:
+                case DataTypes.ImageBMP:
+                case DataTypes.ImageGIF:
+                case DataTypes.ImageJPG:
+                case DataTypes.ImagePNG:
+                    return BuiltInType.ByteString;
+                // subtype of NodeId
+                case DataTypes.SessionAuthenticationToken:
+                    return BuiltInType.NodeId;
+                // subtype of Double
+                case DataTypes.Duration:
+                    return BuiltInType.Double;
+                // subtype of UInt32
+                case DataTypes.IntegerId:
+                case DataTypes.Index:
+                case DataTypes.VersionTime:
+                case DataTypes.Counter:
+                    return BuiltInType.UInt32;
+                // subtype of UInt64
+                case DataTypes.BitFieldMaskDataType:
+                    return BuiltInType.UInt64;
+                // subtype of String
+                case DataTypes.DateString:
+                case DataTypes.DecimalString:
+                case DataTypes.DurationString:
+                case DataTypes.LocaleId:
+                case DataTypes.NormalizedString:
+                case DataTypes.NumericRange:
+                case DataTypes.TimeString:
+                    return BuiltInType.String;
+                default:
+                    var builtInType = (BuiltInType)Enum.ToObject(
+                        typeof(BuiltInType),
+                        datatypeId.Identifier);
+                    if (builtInType is > BuiltInType.DiagnosticInfo and not BuiltInType.Enumeration)
+                    {
+                        return BuiltInType.Null;
+                    }
+                    return builtInType;
+            }
+        }
+#endif
+
+        /// <summary>
+        /// Returns true if the built-in type is a numeric type.
+        /// </summary>
+        /// <param name="builtInType">The built-in type to check.</param>
+        /// <returns>
+        /// True if the built-in type is a numeric type.
+        /// </returns>
+        public static bool IsNumericType(BuiltInType builtInType)
+        {
+            if (builtInType is >= BuiltInType.SByte and <= BuiltInType.Double)
+            {
+                return true;
+            }
+
+            if (builtInType is >= BuiltInType.Number and <= BuiltInType.UInteger)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Returns true if the built-in type is a type that cannot be null.
         /// </summary>
@@ -322,6 +513,29 @@ namespace Opc.Ua
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns true if a 'null' value exists for the built-in type
+        /// in all data encodings.
+        /// </summary>
+        /// <param name="builtInType">The built in type to check.</param>
+        /// <returns>
+        /// True if the built-in type is a type that is nullable.
+        /// </returns>
+        public static bool IsEncodingNullableType(BuiltInType builtInType)
+        {
+            if (builtInType is >= BuiltInType.Boolean and <= BuiltInType.Double)
+            {
+                return false;
+            }
+
+            if (builtInType is BuiltInType.DataValue or BuiltInType.DiagnosticInfo)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -358,7 +572,48 @@ namespace Opc.Ua
 
             return BuiltInType.Null;
         }
-#if ZOMBIE // Manual
+
+#if NET_STANDARD_ASYNC
+        /// <summary>
+        /// Returns the BuiltInType type for the DataTypeId.
+        /// </summary>
+        /// <param name="datatypeId">The data type identifier for a node in a server's address space..</param>
+        /// <param name="typeTree">The type tree for a server. .</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
+        /// <returns>
+        /// A <see cref="BuiltInType"/> value for <paramref name="datatypeId"/>
+        /// </returns>
+        public static async Task<BuiltInType> GetBuiltInTypeAsync(
+            NodeId datatypeId,
+            ITypeTable typeTree,
+            CancellationToken ct = default)
+        {
+            NodeId typeId = datatypeId;
+
+            while (!NodeId.IsNull(typeId))
+            {
+                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
+                {
+                    var id = (BuiltInType)(int)(uint)typeId.Identifier;
+
+                    if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)
+                    {
+                        return id;
+                    }
+                }
+
+                if (typeTree == null)
+                {
+                    break;
+                }
+
+                typeId = await typeTree.FindSuperTypeAsync(typeId, ct).ConfigureAwait(false);
+            }
+
+            return BuiltInType.Null;
+        }
+#endif
+#if ZOMBIE
         /// <summary>
         /// Returns the system type for the datatype.
         /// </summary>
@@ -481,6 +736,11 @@ namespace Opc.Ua
             }
         }
 #endif
+        /// <summary>
+        /// A constant representing an unknown type.
+        /// </summary>
+        /// <value>The constant representing an unknown type.</value>
+        public static TypeInfo Unknown { get; } = new TypeInfo();
 
         /// <summary>
         /// Returns the xml qualified name for the specified system type id.
@@ -567,6 +827,18 @@ namespace Opc.Ua
             }
             return GetXmlName(value?.GetType());
         }
+
+        /// <summary>
+        /// The built-in type.
+        /// </summary>
+        /// <value>The type of the type represented by this instance.</value>
+        public BuiltInType BuiltInType { get; }
+
+        /// <summary>
+        /// The value rank.
+        /// </summary>
+        /// <value>The value rank of the type represented by this instance.</value>
+        public int ValueRank { get; }
 
         /// <summary>
         /// Returns the type info if the value is an instance of the data type with the specified value rank.
@@ -913,6 +1185,221 @@ namespace Opc.Ua
             }
 
             return new NodeId((uint)(int)BuiltInType);
+        }
+
+        /// <summary>
+        /// Returns the system type a scalar or array instance of the built-in type.
+        /// </summary>
+        /// <param name="builtInType">A built-in type.</param>
+        /// <param name="valueRank">The value rank.</param>
+        /// <returns>A system type equivalent to the built-in type.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static Type GetSystemType(BuiltInType builtInType, int valueRank)
+        {
+            if (valueRank == ValueRanks.Scalar)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean:
+                        return typeof(bool);
+                    case BuiltInType.SByte:
+                        return typeof(sbyte);
+                    case BuiltInType.Byte:
+                        return typeof(byte);
+                    case BuiltInType.Int16:
+                        return typeof(short);
+                    case BuiltInType.UInt16:
+                        return typeof(ushort);
+                    case BuiltInType.Int32:
+                        return typeof(int);
+                    case BuiltInType.UInt32:
+                        return typeof(uint);
+                    case BuiltInType.Int64:
+                        return typeof(long);
+                    case BuiltInType.UInt64:
+                        return typeof(ulong);
+                    case BuiltInType.Float:
+                        return typeof(float);
+                    case BuiltInType.Double:
+                        return typeof(double);
+                    case BuiltInType.String:
+                        return typeof(string);
+                    case BuiltInType.DateTime:
+                        return typeof(DateTime);
+                    case BuiltInType.Guid:
+                        return typeof(Uuid);
+                    case BuiltInType.ByteString:
+                        return typeof(byte[]);
+                    case BuiltInType.XmlElement:
+                        return typeof(XmlElement);
+                    case BuiltInType.NodeId:
+                        return typeof(NodeId);
+                    case BuiltInType.ExpandedNodeId:
+                        return typeof(ExpandedNodeId);
+                    case BuiltInType.LocalizedText:
+                        return typeof(LocalizedText);
+                    case BuiltInType.QualifiedName:
+                        return typeof(QualifiedName);
+                    case BuiltInType.StatusCode:
+                        return typeof(StatusCode);
+                    case BuiltInType.DiagnosticInfo:
+                        return typeof(DiagnosticInfo);
+                    case BuiltInType.DataValue:
+                        return typeof(DataValue);
+                    case BuiltInType.Variant:
+                        return typeof(Variant);
+                    case BuiltInType.ExtensionObject:
+                        return typeof(ExtensionObject);
+                    case BuiltInType.Enumeration:
+                        return typeof(int);
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                    case BuiltInType.Null:
+                        return typeof(Variant);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                             $"Unexpected BuiltInType {builtInType}");
+                }
+            }
+            else if (valueRank == ValueRanks.OneDimension)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean:
+                        return typeof(bool[]);
+                    case BuiltInType.SByte:
+                        return typeof(sbyte[]);
+                    case BuiltInType.Byte:
+                        return typeof(byte[]);
+                    case BuiltInType.Int16:
+                        return typeof(short[]);
+                    case BuiltInType.UInt16:
+                        return typeof(ushort[]);
+                    case BuiltInType.Int32:
+                        return typeof(int[]);
+                    case BuiltInType.UInt32:
+                        return typeof(uint[]);
+                    case BuiltInType.Int64:
+                        return typeof(long[]);
+                    case BuiltInType.UInt64:
+                        return typeof(ulong[]);
+                    case BuiltInType.Float:
+                        return typeof(float[]);
+                    case BuiltInType.Double:
+                        return typeof(double[]);
+                    case BuiltInType.String:
+                        return typeof(string[]);
+                    case BuiltInType.DateTime:
+                        return typeof(DateTime[]);
+                    case BuiltInType.Guid:
+                        return typeof(Uuid[]);
+                    case BuiltInType.ByteString:
+                        return typeof(byte[][]);
+                    case BuiltInType.XmlElement:
+                        return typeof(XmlElement[]);
+                    case BuiltInType.NodeId:
+                        return typeof(NodeId[]);
+                    case BuiltInType.ExpandedNodeId:
+                        return typeof(ExpandedNodeId[]);
+                    case BuiltInType.LocalizedText:
+                        return typeof(LocalizedText[]);
+                    case BuiltInType.QualifiedName:
+                        return typeof(QualifiedName[]);
+                    case BuiltInType.StatusCode:
+                        return typeof(StatusCode[]);
+                    case BuiltInType.DiagnosticInfo:
+                        return typeof(DiagnosticInfo[]);
+                    case BuiltInType.DataValue:
+                        return typeof(DataValue[]);
+                    case BuiltInType.Variant:
+                        return typeof(Variant[]);
+                    case BuiltInType.ExtensionObject:
+                        return typeof(ExtensionObject[]);
+                    case BuiltInType.Enumeration:
+                        return typeof(int[]);
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                        return typeof(Variant[]);
+                    case BuiltInType.Null:
+                        return typeof(Variant);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
+                }
+            }
+            else if (valueRank >= ValueRanks.TwoDimensions)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean:
+                        return typeof(bool).MakeArrayType(valueRank);
+                    case BuiltInType.SByte:
+                        return typeof(sbyte).MakeArrayType(valueRank);
+                    case BuiltInType.Byte:
+                        return typeof(byte).MakeArrayType(valueRank);
+                    case BuiltInType.Int16:
+                        return typeof(short).MakeArrayType(valueRank);
+                    case BuiltInType.UInt16:
+                        return typeof(ushort).MakeArrayType(valueRank);
+                    case BuiltInType.Int32:
+                        return typeof(int).MakeArrayType(valueRank);
+                    case BuiltInType.UInt32:
+                        return typeof(uint).MakeArrayType(valueRank);
+                    case BuiltInType.Int64:
+                        return typeof(long).MakeArrayType(valueRank);
+                    case BuiltInType.UInt64:
+                        return typeof(ulong).MakeArrayType(valueRank);
+                    case BuiltInType.Float:
+                        return typeof(float).MakeArrayType(valueRank);
+                    case BuiltInType.Double:
+                        return typeof(double).MakeArrayType(valueRank);
+                    case BuiltInType.String:
+                        return typeof(string).MakeArrayType(valueRank);
+                    case BuiltInType.DateTime:
+                        return typeof(DateTime).MakeArrayType(valueRank);
+                    case BuiltInType.Guid:
+                        return typeof(Uuid).MakeArrayType(valueRank);
+                    case BuiltInType.ByteString:
+                        return typeof(byte[]).MakeArrayType(valueRank);
+                    case BuiltInType.XmlElement:
+                        return typeof(XmlElement).MakeArrayType(valueRank);
+                    case BuiltInType.NodeId:
+                        return typeof(NodeId).MakeArrayType(valueRank);
+                    case BuiltInType.ExpandedNodeId:
+                        return typeof(ExpandedNodeId).MakeArrayType(valueRank);
+                    case BuiltInType.LocalizedText:
+                        return typeof(LocalizedText).MakeArrayType(valueRank);
+                    case BuiltInType.QualifiedName:
+                        return typeof(QualifiedName).MakeArrayType(valueRank);
+                    case BuiltInType.StatusCode:
+                        return typeof(StatusCode).MakeArrayType(valueRank);
+                    case BuiltInType.DiagnosticInfo:
+                        return typeof(DiagnosticInfo).MakeArrayType(valueRank);
+                    case BuiltInType.DataValue:
+                        return typeof(DataValue).MakeArrayType(valueRank);
+                    case BuiltInType.Variant:
+                        return typeof(Variant).MakeArrayType(valueRank);
+                    case BuiltInType.ExtensionObject:
+                        return typeof(ExtensionObject).MakeArrayType(valueRank);
+                    case BuiltInType.Enumeration:
+                        return typeof(int).MakeArrayType(valueRank);
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                        return typeof(Variant).MakeArrayType(valueRank);
+                    case BuiltInType.Null:
+                        return typeof(Variant);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
+                }
+            }
+            else
+            {
+                return typeof(Variant);
+            }
         }
 
         /// <summary>
@@ -1420,6 +1907,253 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Casts a value to the specified target type.
+        /// </summary>
+        /// <param name="source">The instance of a source value.</param>
+        /// <param name="targetType">Type of the target.</param>
+        /// <returns>Return casted value.<see cref="DBNull"/></returns>
+        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
+        public static object Cast(object source, BuiltInType targetType)
+        {
+            return Cast(source, Construct(source), targetType);
+        }
+
+        /// <summary>
+        /// Casts a value to the specified target type.
+        /// </summary>
+        /// <param name="source">The instance of a source value.</param>
+        /// <param name="sourceType">Type of the source.</param>
+        /// <param name="targetType">Type of the target.</param>
+        /// <returns>Return casted value.</returns>
+        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static object Cast(object source, TypeInfo sourceType, BuiltInType targetType)
+        {
+            // null always casts to null.
+            if (sourceType.BuiltInType == BuiltInType.Null)
+            {
+                return null;
+            }
+
+            // check for trivial case.
+            if (sourceType.BuiltInType == targetType)
+            {
+                return source;
+            }
+
+            // check for trivial case.
+            if (targetType == BuiltInType.Variant && sourceType.ValueRank < 0)
+            {
+                return new Variant(source);
+            }
+
+            // check for guid.
+            if (sourceType.BuiltInType == BuiltInType.Guid)
+            {
+                source = Cast(source, sourceType, ToGuid);
+            }
+
+            switch (targetType)
+            {
+                case BuiltInType.Boolean:
+                    return Cast(source, sourceType, ToBoolean);
+                case BuiltInType.SByte:
+                    return Cast(source, sourceType, ToSByte);
+                case BuiltInType.Byte:
+                    return Cast(source, sourceType, ToByte);
+                case BuiltInType.Int16:
+                    return Cast(source, sourceType, ToInt16);
+                case BuiltInType.UInt16:
+                    return Cast(source, sourceType, ToUInt16);
+                case BuiltInType.Int32:
+                    return Cast(source, sourceType, ToInt32);
+                case BuiltInType.UInt32:
+                    return Cast(source, sourceType, ToUInt32);
+                case BuiltInType.Int64:
+                    return Cast(source, sourceType, ToInt64);
+                case BuiltInType.UInt64:
+                    return Cast(source, sourceType, ToUInt64);
+                case BuiltInType.Float:
+                    return Cast(source, sourceType, ToFloat);
+                case BuiltInType.Double:
+                    return Cast(source, sourceType, ToDouble);
+                case BuiltInType.String:
+                    return Cast(source, sourceType, ToString);
+                case BuiltInType.DateTime:
+                    return Cast(source, sourceType, ToDateTime);
+                case BuiltInType.Guid:
+                    return Cast(source, sourceType, ToGuid);
+                case BuiltInType.ByteString:
+                    return Cast(source, sourceType, ToByteString);
+                case BuiltInType.NodeId:
+                    return Cast(source, sourceType, ToNodeId);
+                case BuiltInType.ExpandedNodeId:
+                    return Cast(source, sourceType, ToExpandedNodeId);
+                case BuiltInType.StatusCode:
+                    return Cast(source, sourceType, ToStatusCode);
+                case BuiltInType.QualifiedName:
+                    return Cast(source, sourceType, ToQualifiedName);
+                case BuiltInType.LocalizedText:
+                    return Cast(source, sourceType, ToLocalizedText);
+                case BuiltInType.Variant:
+                    return Cast(source, sourceType, ToVariant);
+                case BuiltInType.Number:
+                    return Cast(source, sourceType, ToDouble);
+                case BuiltInType.Integer:
+                    return Cast(source, sourceType, ToInt64);
+                case BuiltInType.UInteger:
+                    return Cast(source, sourceType, ToUInt64);
+                case BuiltInType.Enumeration:
+                    return Cast(source, sourceType, ToInt32);
+                case BuiltInType.XmlElement:
+                    return Cast(source, sourceType, ToXmlElement);
+                case BuiltInType.Null:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {targetType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts the array using the specified conversion function.
+        /// </summary>
+        /// <param name="dst">The destination array (must have the same size as the source array).</param>
+        /// <param name="dstType">The data type of the elements in the destination array.</param>
+        /// <param name="src">The source array.</param>
+        /// <param name="srcType">The data type of the elements in the source array.</param>
+        /// <param name="convertor">The handler which does the conversion.</param>
+        public static void CastArray(
+            Array dst,
+            BuiltInType dstType,
+            Array src,
+            BuiltInType srcType,
+            CastArrayElementHandler convertor)
+        {
+            bool isSrcVariant = src.GetType().GetElementType() == typeof(Variant);
+            bool isDstVariant = dst.GetType().GetElementType() == typeof(Variant);
+
+            // optimize performance if dealing with a one dimensional array.
+            if (src.Rank == 1)
+            {
+                for (int ii = 0; ii < dst.Length; ii++)
+                {
+                    object element = src.GetValue(ii);
+
+                    if (isSrcVariant)
+                    {
+                        element = ((Variant)element).Value;
+                    }
+
+                    if (convertor != null)
+                    {
+                        element = convertor(element, srcType, dstType);
+                    }
+
+                    if (isDstVariant)
+                    {
+                        element = new Variant(element);
+                    }
+
+                    dst.SetValue(element, ii);
+                }
+
+                return;
+            }
+
+            // do it the hard way for multidimensional arrays.
+            int[] dimensions = new int[src.Rank];
+
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                dimensions[ii] = src.GetLength(ii);
+            }
+
+            int length = dst.Length;
+            int[] indexes = new int[dimensions.Length];
+
+            for (int ii = 0; ii < length; ii++)
+            {
+                int divisor = dst.Length;
+
+                for (int jj = 0; jj < indexes.Length; jj++)
+                {
+                    divisor /= dimensions[jj];
+                    indexes[jj] = ii / divisor % dimensions[jj];
+                }
+
+                object element = src.GetValue(indexes);
+
+                if (element != null)
+                {
+                    if (isSrcVariant)
+                    {
+                        element = ((Variant)element).Value;
+                    }
+
+                    if (convertor != null)
+                    {
+                        element = convertor(element, srcType, dstType);
+                    }
+
+                    if (isDstVariant)
+                    {
+                        element = new Variant(element);
+                    }
+
+                    dst.SetValue(element, indexes);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Converts the array.
+        /// </summary>
+        /// <param name="srcArray">The source array.</param>
+        /// <param name="srcType">The type of the source array.</param>
+        /// <param name="dstType">The type of the converted array.</param>
+        /// <param name="convertor">The handler which does the conversion.</param>
+        /// <returns>The converted array.</returns>
+        public static Array CastArray(
+            Array srcArray,
+            BuiltInType srcType,
+            BuiltInType dstType,
+            CastArrayElementHandler convertor)
+        {
+            if (srcArray == null)
+            {
+                return null;
+            }
+
+            int[] dimensions = new int[srcArray.Rank];
+
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                dimensions[ii] = srcArray.GetLength(ii);
+            }
+
+            Array dstArray = CreateArray(dstType, dimensions);
+            CastArray(dstArray, dstType, srcArray, srcType, convertor);
+
+            return dstArray;
+        }
+
+        /// <summary>
+        /// A delegate for a function that converts an array element.
+        /// </summary>
+        /// <param name="source">The element to be converted.</param>
+        /// <param name="srcType">The type of the source element.</param>
+        /// <param name="dstType">The type of the converted value.</param>
+        /// <returns>The converted</returns>
+        public delegate object CastArrayElementHandler(
+            object source,
+            BuiltInType srcType,
+            BuiltInType dstType);
+
+        /// <summary>
         /// Maps the type name to a built-in type.
         /// </summary>
         private static BuiltInType GetBuiltInType(string typeName)
@@ -1483,6 +2217,1013 @@ namespace Opc.Ua
                 default:
                     return BuiltInType.Null;
             }
+        }
+
+        /// <summary>
+        /// Converts a value to a Boolean
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static bool ToBoolean(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    return (bool)value;
+                case BuiltInType.SByte:
+                    return Convert.ToBoolean((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToBoolean((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToBoolean((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToBoolean((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToBoolean((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToBoolean((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToBoolean((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToBoolean((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToBoolean((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToBoolean((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToBoolean((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a SByte
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static sbyte ToSByte(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.SByte:
+                    return (sbyte)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToSByte((bool)value);
+                case BuiltInType.Byte:
+                    return Convert.ToSByte((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToSByte((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToSByte((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToSByte((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToSByte((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToSByte((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToSByte((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToSByte((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToSByte((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToSByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Byte
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static byte ToByte(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.Byte:
+                    return (byte)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToByte((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToByte((sbyte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToByte((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToByte((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToByte((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToByte((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToByte((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToByte((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToByte((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToByte((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Int16
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static short ToInt16(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.Int16:
+                    return (short)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToInt16((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToInt16((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToInt16((byte)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToInt16((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToInt16((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToInt16((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToInt16((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToInt16((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToInt16((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToInt16((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToInt16((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a UInt16
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static ushort ToUInt16(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.UInt16:
+                    return (ushort)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt16((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToUInt16((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToUInt16((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToUInt16((short)value);
+                case BuiltInType.Int32:
+                    return Convert.ToUInt16((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToUInt16((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToUInt16((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToUInt16((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToUInt16((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToUInt16((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToUInt16((string)value);
+                case BuiltInType.StatusCode:
+                    var code = (StatusCode)value;
+                    return (ushort)(code.CodeBits >> 16);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Int32
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static int ToInt32(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.Int32:
+                    return (int)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToInt32((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToInt32((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToInt32((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToInt32((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToInt32((ushort)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToInt32((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToInt32((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToInt32((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToInt32((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToInt32((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToInt32((string)value);
+                case BuiltInType.StatusCode:
+                    return Convert.ToInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a UInt32
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static uint ToUInt32(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.UInt32:
+                    return (uint)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt32((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToUInt32((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToUInt32((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToUInt32((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToUInt32((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToUInt32((int)value);
+                case BuiltInType.Int64:
+                    return Convert.ToUInt32((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToUInt32((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToUInt32((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToUInt32((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToUInt32((string)value);
+                case BuiltInType.StatusCode:
+                    return Convert.ToUInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Int64
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static long ToInt64(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.Int64:
+                    return (long)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToInt64((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToInt64((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToInt64((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToInt64((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToInt64((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToInt64((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToInt64((uint)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToInt64((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToInt64((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToInt64((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToInt64((string)value);
+                case BuiltInType.StatusCode:
+                    return Convert.ToInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a UInt64
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static ulong ToUInt64(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.UInt64:
+                    return (ulong)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt64((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToUInt64((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToUInt64((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToUInt64((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToUInt64((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToUInt64((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToUInt64((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToUInt64((long)value);
+                case BuiltInType.Float:
+                    return Convert.ToUInt64((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToUInt64((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToUInt64((string)value);
+                case BuiltInType.StatusCode:
+                    return Convert.ToUInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Float
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static float ToFloat(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.Float:
+                    return (float)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToSingle((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToSingle((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToSingle((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToSingle((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToSingle((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToSingle((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToSingle((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToSingle((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToSingle((ulong)value);
+                case BuiltInType.Double:
+                    return Convert.ToSingle((double)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToSingle((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Double
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static double ToDouble(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.Double:
+                    return (double)value;
+                case BuiltInType.Boolean:
+                    return Convert.ToDouble((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToDouble((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToDouble((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToDouble((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToDouble((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToDouble((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToDouble((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToDouble((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToDouble((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToDouble((float)value);
+                case BuiltInType.String:
+                    return XmlConvert.ToDouble((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a String
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static string ToString(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.String:
+                    return (string)value;
+                case BuiltInType.Boolean:
+                    return XmlConvert.ToString((bool)value);
+                case BuiltInType.SByte:
+                    return XmlConvert.ToString((sbyte)value);
+                case BuiltInType.Byte:
+                    return XmlConvert.ToString((byte)value);
+                case BuiltInType.Int16:
+                    return XmlConvert.ToString((short)value);
+                case BuiltInType.UInt16:
+                    return XmlConvert.ToString((ushort)value);
+                case BuiltInType.Int32:
+                    return XmlConvert.ToString((int)value);
+                case BuiltInType.UInt32:
+                    return XmlConvert.ToString((uint)value);
+                case BuiltInType.Int64:
+                    return XmlConvert.ToString((long)value);
+                case BuiltInType.UInt64:
+                    return XmlConvert.ToString((ulong)value);
+                case BuiltInType.Float:
+                    return XmlConvert.ToString((float)value);
+                case BuiltInType.Double:
+                    return XmlConvert.ToString((double)value);
+                case BuiltInType.DateTime:
+                    return XmlConvert.ToString(
+                        (DateTime)value,
+                        XmlDateTimeSerializationMode.Unspecified);
+                case BuiltInType.Guid:
+                    return ((Uuid)value).ToString();
+                case BuiltInType.NodeId:
+                    return ((NodeId)value).ToString();
+                case BuiltInType.ExpandedNodeId:
+                    return ((ExpandedNodeId)value).ToString();
+                case BuiltInType.LocalizedText:
+                    return ((LocalizedText)value).Text;
+                case BuiltInType.QualifiedName:
+                    return ((QualifiedName)value).ToString();
+                case BuiltInType.XmlElement:
+                    return ((XmlElement)value).OuterXml;
+                case BuiltInType.StatusCode:
+                    return ((StatusCode)value).Code.ToString(CultureInfo.InvariantCulture);
+                case BuiltInType.ExtensionObject:
+                    return ((ExtensionObject)value).ToString();
+                case BuiltInType.Null:
+                    return null;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a DateTime
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static DateTime ToDateTime(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.DateTime:
+                    return (DateTime)value;
+                case BuiltInType.String:
+                    return XmlConvert.ToDateTime(
+                        (string)value,
+                        XmlDateTimeSerializationMode.Unspecified);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Guid
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static Uuid ToGuid(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.String:
+                    return new Uuid((string)value);
+                case BuiltInType.ByteString:
+                    return new Uuid(new Guid((byte[])value));
+                case BuiltInType.Guid:
+                    var guid = value as Guid?;
+
+                    if (guid != null)
+                    {
+                        return new Uuid(guid.Value);
+                    }
+
+                    return (Uuid)value;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a ByteString
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static byte[] ToByteString(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.ByteString:
+                    return (byte[])value;
+                case BuiltInType.String:
+                    string text = (string)value;
+
+                    if (text == null)
+                    {
+                        return null;
+                    }
+
+                    if (text.Length == 0)
+                    {
+                        return [];
+                    }
+
+                    using (var ostrm = new System.IO.MemoryStream())
+                    {
+                        byte buffer = 0;
+                        bool firstByte = false;
+                        const string digits = "0123456789ABCDEF";
+
+                        for (int ii = 0; ii < text.Length; ii++)
+                        {
+                            if (!char.IsWhiteSpace(text, ii) && !char.IsLetterOrDigit(text, ii))
+                            {
+                                throw new FormatException(
+                                    "Invalid character in ByteString. " + text[ii]);
+                            }
+
+                            if (char.IsWhiteSpace(text, ii))
+                            {
+                                continue;
+                            }
+
+                            int index = digits.IndexOf(
+                                char.ToUpper(text[ii]),
+                                StringComparison.Ordinal);
+
+                            if (index < 0)
+                            {
+                                throw new FormatException(
+                                    "Invalid character in ByteString." + text[ii]);
+                            }
+
+                            buffer <<= 4;
+                            buffer += (byte)index;
+
+                            if (firstByte)
+                            {
+                                ostrm.WriteByte(buffer);
+                                firstByte = false;
+                                continue;
+                            }
+
+                            firstByte = true;
+                        }
+
+                        if (firstByte)
+                        {
+                            buffer <<= 4;
+                            ostrm.WriteByte(buffer);
+                        }
+
+                        // you should not access a closed stream, ever.
+                        return ostrm.ToArray();
+                    }
+                case BuiltInType.Guid:
+                    return ((Guid)(Uuid)value).ToByteArray();
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a XmlElement
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static XmlElement ToXmlElement(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.XmlElement:
+                    return (XmlElement)value;
+                case BuiltInType.String:
+                    var document = new XmlDocument();
+                    document.LoadInnerXml((string)value);
+                    return document.DocumentElement;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a NodeId
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static NodeId ToNodeId(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.NodeId:
+                    return (NodeId)value;
+                case BuiltInType.ExpandedNodeId:
+                    return (NodeId)(ExpandedNodeId)value;
+                case BuiltInType.String:
+                    return NodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a ExpandedNodeId
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static ExpandedNodeId ToExpandedNodeId(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.ExpandedNodeId:
+                    return (ExpandedNodeId)value;
+                case BuiltInType.NodeId:
+                    return (ExpandedNodeId)(NodeId)value;
+                case BuiltInType.String:
+                    return ExpandedNodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a StatusCode
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static StatusCode ToStatusCode(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.StatusCode:
+                    return (StatusCode)value;
+                case BuiltInType.UInt16:
+                    uint code = Convert.ToUInt32((ushort)value, CultureInfo.InvariantCulture);
+                    code <<= 16;
+                    return (StatusCode)code;
+                case BuiltInType.Int32:
+                    return (StatusCode)Convert.ToUInt32((int)value, CultureInfo.InvariantCulture);
+                case BuiltInType.UInt32:
+                    return (StatusCode)(uint)value;
+                case BuiltInType.Int64:
+                    return (StatusCode)Convert.ToUInt32((long)value, CultureInfo.InvariantCulture);
+                case BuiltInType.UInt64:
+                    return (StatusCode)Convert.ToUInt32((ulong)value);
+                case BuiltInType.String:
+                    string text = (string)value;
+
+                    if (text == null)
+                    {
+                        return StatusCodes.Good;
+                    }
+
+                    text = text.Trim();
+
+                    if (text.StartsWith("0x", StringComparison.Ordinal))
+                    {
+                        return (StatusCode)Convert.ToUInt32(text[2..], 16);
+                    }
+
+                    return (StatusCode)Convert.ToUInt32(
+                        (string)value,
+                        CultureInfo.InvariantCulture);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a QualifiedName
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static QualifiedName ToQualifiedName(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.QualifiedName:
+                    return (QualifiedName)value;
+                case BuiltInType.String:
+                    return QualifiedName.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a LocalizedText
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        private static LocalizedText ToLocalizedText(object value, TypeInfo sourceType)
+        {
+            // handle for supported conversions.
+            switch (sourceType.BuiltInType)
+            {
+                case BuiltInType.LocalizedText:
+                    return (LocalizedText)value;
+                case BuiltInType.String:
+                    return new LocalizedText((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {sourceType.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a Variant
+        /// </summary>
+        private static Variant ToVariant(object value, TypeInfo sourceType)
+        {
+            return new Variant(value);
+        }
+
+        /// <summary>
+        /// Delegate for a function used to cast a value to the specified type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        private delegate T CastDelegate<T>(object value, TypeInfo sourceType);
+
+        /// <summary>
+        /// Casts a scalar or array value to the specified type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        private static object Cast<T>(object input, TypeInfo sourceType, CastDelegate<T> handler)
+        {
+            sourceType ??= Construct(input);
+
+            if (sourceType.ValueRank >= 0)
+            {
+                return Cast((Array)input, sourceType, handler);
+            }
+
+            if (sourceType.BuiltInType == BuiltInType.Variant)
+            {
+                object value = ((Variant)input).Value;
+                sourceType = Construct(value);
+                return handler(value, sourceType);
+            }
+
+            return handler(input, sourceType);
+        }
+
+        /// <summary>
+        /// Casts an array to an array of the specified type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        private static Array Cast<T>(Array input, TypeInfo sourceType, CastDelegate<T> handler)
+        {
+            if (input == null)
+            {
+                return null;
+            }
+
+            TypeInfo elementType = CreateScalar(sourceType.BuiltInType);
+
+            if (input.Rank == 1)
+            {
+                var copy = new T[input.Length];
+
+                for (int ii = 0; ii < input.Length; ii++)
+                {
+                    object value = input.GetValue(ii);
+
+                    if (value != null)
+                    {
+                        if (sourceType.BuiltInType == BuiltInType.Variant)
+                        {
+                            value = ((Variant)value).Value;
+                            elementType = Construct(value);
+                        }
+
+                        copy[ii] = handler(value, elementType);
+                    }
+                }
+
+                return copy;
+            }
+
+            if (input.Rank == 2)
+            {
+                int x = input.GetLength(0);
+                int y = input.GetLength(1);
+
+                var copy = new T[x, y];
+
+                for (int ii = 0; ii < x; ii++)
+                {
+                    for (int jj = 0; jj < y; jj++)
+                    {
+                        object value = input.GetValue(ii, jj);
+
+                        if (value != null)
+                        {
+                            if (sourceType.BuiltInType == BuiltInType.Variant)
+                            {
+                                value = ((Variant)value).Value;
+                                elementType = Construct(value);
+                            }
+
+                            copy[ii, jj] = handler(value, elementType);
+                        }
+                    }
+                }
+
+                return copy;
+            }
+
+            int[] dimensions = new int[input.Rank];
+
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                dimensions[ii] = input.GetLength(ii);
+            }
+
+            var output = Array.CreateInstance(typeof(T), dimensions);
+
+            int length = output.Length;
+            int[] indexes = new int[dimensions.Length];
+
+            for (int ii = 0; ii < length; ii++)
+            {
+                int divisor = output.Length;
+
+                for (int jj = 0; jj < indexes.Length; jj++)
+                {
+                    divisor /= dimensions[jj];
+                    indexes[jj] = ii / divisor % dimensions[jj];
+                }
+
+                object value = input.GetValue(indexes);
+
+                if (value != null)
+                {
+                    if (sourceType.BuiltInType == BuiltInType.Variant)
+                    {
+                        value = ((Variant)value).Value;
+                        elementType = Construct(value);
+                    }
+
+                    output.SetValue(handler(value, elementType), indexes);
+                }
+            }
+
+            return output;
         }
 
         /// <summary>

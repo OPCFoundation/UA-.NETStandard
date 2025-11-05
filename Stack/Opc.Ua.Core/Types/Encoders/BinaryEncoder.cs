@@ -179,6 +179,171 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or sets the position in the stream.
+        /// </summary>
+        public int Position
+        {
+            get => (int)m_writer.BaseStream.Position;
+            set => m_writer.Seek(value, SeekOrigin.Begin);
+        }
+
+        /// <summary>
+        /// Writes raw bytes to the stream.
+        /// </summary>
+        public void WriteRawBytes(byte[] buffer, int offset, int count)
+        {
+            m_writer.Write(buffer, offset, count);
+        }
+
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        /// <summary>
+        /// Writes raw bytes to the stream.
+        /// </summary>
+        public void WriteRawBytes(ReadOnlySpan<byte> buffer)
+        {
+            m_writer.Write(buffer);
+        }
+#endif
+
+        /// <summary>
+        /// Encodes a message in a buffer.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        public static byte[] EncodeMessage(IEncodeable message, IServiceMessageContext context)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            // create encoder.
+            using var encoder = new BinaryEncoder(context);
+            // encode message
+            encoder.EncodeMessage(message);
+
+            // close encoder.
+            return encoder.CloseAndReturnBuffer();
+        }
+
+#if ZOMBIE
+        /// <summary>
+        /// Encodes a session-less message to a buffer.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void EncodeSessionLessMessage(
+            IEncodeable message,
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            // create encoder.
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen);
+            long start = encoder.m_ostrm.Position;
+
+            // write the type id.
+            encoder.WriteNodeId(null, DataTypeIds.SessionlessInvokeRequestType);
+
+            // write the message.
+            var envelope = new SessionLessServiceMessage
+            {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Message = message ?? throw new ArgumentNullException(nameof(message))
+            };
+
+            envelope.Encode(encoder);
+
+            // check that the max message size was not exceeded.
+            if (context.MaxMessageSize > 0 &&
+                context.MaxMessageSize < (int)(encoder.m_ostrm.Position - start))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    context.MaxMessageSize,
+                    (int)(encoder.m_ostrm.Position - start));
+            }
+        }
+#endif
+
+        /// <summary>
+        /// Encodes a message in a stream.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        public static void EncodeMessage(
+            IEncodeable message,
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            // create encoder.
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen);
+            // encode message
+            encoder.EncodeMessage(message);
+        }
+
+        /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public void EncodeMessage(IEncodeable message)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            long start = m_ostrm.Position;
+
+            // convert the namespace uri to an index.
+            var typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, Context.NamespaceUris);
+
+            // write the type id.
+            WriteNodeId(null, typeId);
+
+            // write the message.
+            WriteEncodeable(null, message, message.GetType());
+
+            // check that the max message size was not exceeded.
+            if (Context.MaxMessageSize > 0 &&
+                Context.MaxMessageSize < (int)(m_ostrm.Position - start))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    Context.MaxMessageSize,
+                    (int)(m_ostrm.Position - start));
+            }
+        }
+
+        /// <summary>
         /// Saves a string table from a binary stream.
         /// </summary>
         public void SaveStringTable(StringTable stringTable)
@@ -196,6 +361,11 @@ namespace Opc.Ua
                 WriteString(null, stringTable.GetString(ii));
             }
         }
+
+        /// <summary>
+        /// The type of encoding being used.
+        /// </summary>
+        public EncodingType EncodingType => EncodingType.Binary;
 
         /// <summary>
         /// The message context associated with the encoder.
@@ -451,6 +621,61 @@ namespace Opc.Ua
 
             WriteInt32(null, count);
             m_writer.Write(value, index, count);
+        }
+
+        /// <summary>
+        /// Writes a byte string to the stream.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
+        {
+            // == compares memory reference, comparing to empty means we compare to the default
+            // If null array is converted to span the span is default
+            if (value == ReadOnlySpan<byte>.Empty)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
+
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    Context.MaxByteStringLength,
+                    value.Length);
+            }
+
+            WriteInt32(null, value.Length);
+            m_writer.Write(value);
+        }
+
+        /// <summary>
+        /// Writes a byte string to the stream.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteByteString(string fieldName, ReadOnlySequence<byte> value)
+        {
+            if (value.IsEmpty)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
+
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    Context.MaxByteStringLength,
+                    value.Length);
+            }
+
+            WriteInt32(null, (int)value.Length);
+            foreach (ReadOnlyMemory<byte> element in value)
+            {
+                m_writer.Write(element.Span);
+            }
         }
 
         /// <summary>
@@ -1134,6 +1359,24 @@ namespace Opc.Ua
         /// Writes a GUID array to the stream.
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
+        {
+            // write length.
+            if (WriteArrayLength(values))
+            {
+                return;
+            }
+
+            // write contents.
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                WriteGuid(null, values[ii]);
+            }
+        }
+
+        /// <summary>
+        /// Writes a GUID array to the stream.
+        /// </summary>
+        public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1861,6 +2104,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteSwitchField(uint switchField, out string fieldName)
+        {
+            fieldName = null;
+            WriteUInt32("SwitchField", switchField);
+        }
+
+        /// <inheritdoc/>
         public void WriteEncodingMask(uint encodingMask)
         {
             WriteUInt32("EncodingMask", encodingMask);
@@ -2480,6 +2730,18 @@ namespace Opc.Ua
         ServerTimestamp = 0x08,
         SourcePicoseconds = 0x10,
         ServerPicoseconds = 0x20
+    }
+
+    /// <summary>
+    /// The possible values for the data value encoding byte.
+    /// </summary>
+    [Flags]
+    internal enum ExtensionObjectEncodingBits
+    {
+        None = 0,
+        TypeId = 0x01,
+        BinaryBody = 0x02,
+        XmlBody = 0x04
     }
 
     /// <summary>

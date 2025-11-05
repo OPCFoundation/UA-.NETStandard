@@ -160,6 +160,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="values">The list of values.</param>
         /// <returns>The read-only list.</returns>
+        public static ReadOnlyList<T> ToList(T[] values)
+        {
+            return new ReadOnlyList<T>(values);
+        }
+
+        /// <summary>
+        /// Creates a read-only list from a list.
+        /// </summary>
+        /// <param name="values">The list of values.</param>
+        /// <returns>The read-only list.</returns>
         public static implicit operator ReadOnlyList<T>(T[] values)
         {
             return new ReadOnlyList<T>(values);

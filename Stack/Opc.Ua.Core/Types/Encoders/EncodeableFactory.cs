@@ -44,6 +44,12 @@ namespace Opc.Ua
     public sealed class EncodeableFactory : IEncodeableFactory
     {
         /// <summary>
+        /// The default factory for the process.
+        /// </summary>
+        [Obsolete("Obtain a factory from a context or use EncodeableFactory.Create()")]
+        public static EncodeableFactory GlobalFactory { get; } = new();
+
+        /// <summary>
         /// Create single instance of the encodeable factory.
         /// </summary>
         private EncodeableFactory()
@@ -80,6 +86,9 @@ namespace Opc.Ua
         public IEncodeableFactoryBuilder Builder => new EncodeableFactoryBuilder(this);
 
         /// <inheritdoc/>
+        public IEnumerable<ExpandedNodeId> KnownTypeIds => m_encodeableTypes.Keys;
+
+        /// <inheritdoc/>
         public bool TryGetEncodeableType(
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEncodeableType? systemType)
@@ -90,6 +99,12 @@ namespace Opc.Ua
                 return false;
             }
             return m_encodeableTypes.TryGetValue(typeId, out systemType);
+        }
+
+        /// <inheritdoc/>
+        public object Clone()
+        {
+            return MemberwiseClone();
         }
 
         /// <inheritdoc/>
@@ -109,6 +124,55 @@ namespace Opc.Ua
             public EncodeableFactoryBuilder(EncodeableFactory factory)
             {
                 m_factory = factory;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEncodeableType(
+                Type systemType)
+            {
+                AddEncodeableType(systemType, null);
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEncodeableType(
+                ExpandedNodeId encodingId,
+                Type systemType)
+            {
+                if (!NodeId.IsNull(encodingId))
+                {
+                    IEncodeableType? type = ReflectionBasedType.From(systemType);
+                    if (type != null)
+                    {
+                        m_encodeableTypes[encodingId] = type;
+                    }
+                }
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEncodeableType(IEncodeableType type)
+            {
+                if (type == null)
+                {
+                    throw new ArgumentNullException(nameof(type));
+                }
+                AddEncodeableType(type, null);
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEncodeableType(
+                ExpandedNodeId encodingId,
+                IEncodeableType type)
+            {
+                if (NodeId.IsNull(encodingId))
+                {
+                    throw new ArgumentNullException(nameof(encodingId));
+                }
+                m_encodeableTypes[encodingId] = type ??
+                    throw new ArgumentNullException(nameof(type));
+                return this;
             }
 
             /// <inheritdoc/>

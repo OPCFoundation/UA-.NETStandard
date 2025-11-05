@@ -22,6 +22,11 @@ namespace Opc.Ua
     public interface IEncoder : IDisposable
     {
         /// <summary>
+        /// The type of encoding being used.
+        /// </summary>
+        EncodingType EncodingType { get; }
+
+        /// <summary>
         /// If the encoder is configured to produce a reversible encoding.
         /// </summary>
         /// <remarks>
@@ -61,6 +66,11 @@ namespace Opc.Ua
         /// Pops a namespace from the namespace stack.
         /// </summary>
         void PopNamespace();
+
+        /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        void EncodeMessage(IEncodeable message);
 
         /// <summary>
         /// Writes a boolean to the stream.
@@ -285,6 +295,11 @@ namespace Opc.Ua
         void WriteGuidArray(string fieldName, IList<Uuid> values);
 
         /// <summary>
+        /// Writes a GUID array to the stream.
+        /// </summary>
+        void WriteGuidArray(string fieldName, IList<Guid> values);
+
+        /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
         void WriteByteStringArray(string fieldName, IList<byte[]> values);
@@ -355,8 +370,36 @@ namespace Opc.Ua
         void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType);
 
         /// <summary>
+        /// Encode the switch field for a union.
+        /// </summary>
+        /// <params name="switchField">The switch field </params>
+        /// <params name="fieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</params>
+        void WriteSwitchField(uint switchField, out string fieldName);
+
+        /// <summary>
         /// Encode the encoding mask for a structure with optional fields.
         /// </summary>
         void WriteEncodingMask(uint encodingMask);
+    }
+
+    /// <summary>
+    /// The type of encoding used by an encoder/decoder.
+    /// </summary>
+    public enum EncodingType
+    {
+        /// <summary>
+        /// The UA Binary encoding.
+        /// </summary>
+        Binary,
+
+        /// <summary>
+        /// XML
+        /// </summary>
+        Xml,
+
+        /// <summary>
+        /// JSON
+        /// </summary>
+        Json
     }
 }

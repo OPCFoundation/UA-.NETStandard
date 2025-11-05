@@ -15,6 +15,62 @@ using System.Collections.Generic;
 namespace Opc.Ua
 {
     /// <summary>
+    /// An interface to an object that can translate itself.
+    /// </summary>
+    public interface ITranslatableObject
+    {
+        /// <summary>
+        /// Returns a copy of the object with translateable strings replaced.
+        /// </summary>
+        /// <param name="manager">The manager which provides the translations.</param>
+        /// <param name="preferredLocales">The locales to use.</param>
+        /// <returns>A copy of the object</returns>
+        /// <remarks>
+        /// The copy is not necessarily a deep copy and may reference components of the original object.
+        /// The original object is not changed.
+        /// </remarks>
+        ITranslatableObject Translate(ITranslationManager manager, IList<string> preferredLocales);
+    }
+
+    /// <summary>
+    /// An interface to an object that provides translations.
+    /// </summary>
+    public interface ITranslationManager
+    {
+        /// <summary>
+        /// Translates the text and then formats it with the arguments provided.
+        /// </summary>
+        /// <param name="preferredLocales">The list of preferred locales</param>
+        /// <param name="key">The key used to look up the translation</param>
+        /// <param name="text">The text to translate</param>
+        /// <param name="args">The format argumente</param>
+        /// <returns>The translated text</returns>
+        /// <remarks>
+        /// If any error occur during format the unformatted text is used instead.
+        /// </remarks>
+        LocalizedText Translate(
+            IList<string> preferredLocales,
+            string key,
+            string text,
+            params object[] args);
+
+        /// <summary>
+        /// Translates the LocalizedText using the information in the TranslationInfo property.
+        /// </summary>
+        /// <seealso cref="Translate(IList{string},string,string,object[])" />
+        LocalizedText Translate(IList<string> preferredLocales, LocalizedText text);
+
+        /// <summary>
+        /// Translates a service result.
+        /// </summary>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="result">The result.</param>
+        /// <returns>The result with all localized text translated.</returns>
+        /// <remarks>Recurssively translates text in inner results.</remarks>
+        ServiceResult Translate(IList<string> preferredLocales, ServiceResult result);
+    }
+
+    /// <summary>
     /// Stores the information requires to translate a string.
     /// </summary>
     public class TranslationInfo

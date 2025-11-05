@@ -31,6 +31,16 @@ namespace Opc.Ua
         /// The Object or View produces event notifications.
         /// </summary>
         public const byte SubscribeToEvents = 0x1;
+
+        /// <summary>
+        /// The Object has an event history which may be read.
+        /// </summary>
+        public const byte HistoryRead = 0x4;
+
+        /// <summary>
+        /// The Object has an event history which may be updated.
+        /// </summary>
+        public const byte HistoryWrite = 0x8;
     }
 
     /// <summary>
@@ -75,6 +85,21 @@ namespace Opc.Ua
         /// The history value of the Variable may be read or updated.
         /// </summary>
         public const byte HistoryReadOrWrite = 0xC;
+
+        /// <summary>
+        /// Indicates if the Variable generates SemanticChangeEvents when its value changes.
+        /// </summary>
+        public const byte SemanticChange = 0x10;
+
+        /// <summary>
+        /// Indicates if the current StatusCode of the value is writable.
+        /// </summary>
+        public const byte StatusWrite = 0x20;
+
+        /// <summary>
+        /// Indicates if the current SourceTimestamp is writable.
+        /// </summary>
+        public const byte TimestampWrite = 0x40;
     }
 
     /// <summary>
@@ -149,6 +174,65 @@ namespace Opc.Ua
 
             return true;
         }
+
+        /// <summary>
+        /// Checks if the actual array dimensions is compatible with the expected value rank and array dimensions.
+        /// </summary>
+        public static bool IsValid(
+            IList<uint> actualArrayDimensions,
+            int valueRank,
+            IList<uint> expectedArrayDimensions)
+        {
+            // check if parameter omitted.
+            if (actualArrayDimensions == null || actualArrayDimensions.Count == 0)
+            {
+                return expectedArrayDimensions == null || expectedArrayDimensions.Count == 0;
+            }
+
+            // no array dimensions allowed for scalars.
+            if (valueRank == Scalar)
+            {
+                return false;
+            }
+
+            // check if one dimension required.
+            if (valueRank is OneDimension or ScalarOrOneDimension &&
+                actualArrayDimensions.Count != 1)
+            {
+                return false;
+            }
+
+            // check number of dimensions.
+            if (valueRank != OneOrMoreDimensions && actualArrayDimensions.Count != valueRank)
+            {
+                return false;
+            }
+
+            // nothing more to do if expected dimensions omitted.
+            if (expectedArrayDimensions == null || expectedArrayDimensions.Count == 0)
+            {
+                return true;
+            }
+
+            // check dimensions.
+            if (expectedArrayDimensions.Count != actualArrayDimensions.Count)
+            {
+                return false;
+            }
+
+            // check length of each dimension.
+            for (int ii = 0; ii < expectedArrayDimensions.Count; ii++)
+            {
+                if (expectedArrayDimensions[ii] != actualArrayDimensions[ii] &&
+                    expectedArrayDimensions[ii] != 0)
+                {
+                    return false;
+                }
+            }
+
+            // everything ok.
+            return true;
+        }
     }
 
     /// <summary>
@@ -159,6 +243,11 @@ namespace Opc.Ua
     /// </remarks>
     public static class MinimumSamplingIntervals
     {
+        /// <summary>
+        /// The server does not know how fast the value can be sampled.
+        /// </summary>
+        public const double Indeterminate = -1;
+
         /// <summary>
         /// The server can sample the variable continuously.
         /// </summary>

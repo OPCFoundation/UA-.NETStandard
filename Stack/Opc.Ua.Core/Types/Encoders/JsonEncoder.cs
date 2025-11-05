@@ -232,6 +232,120 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Encodes a session-less message to a buffer.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void EncodeSessionLessMessage(
+            IEncodeable message,
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            // create encoder.
+            var encoder = new JsonEncoder(context, true, false, stream, leaveOpen);
+            try
+            {
+                long start = stream.Position;
+
+                // write the message.
+                var envelope = new SessionLessServiceMessage
+                {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris,
+                    Message = message
+                };
+
+                envelope.Encode(encoder);
+
+                // check that the max message size was not exceeded.
+                if (context.MaxMessageSize > 0 &&
+                    context.MaxMessageSize < (int)(stream.Position - start))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxMessageSize {0} < {1}",
+                        context.MaxMessageSize,
+                        (int)(stream.Position - start));
+                }
+
+                encoder.Close();
+            }
+            finally
+            {
+                if (leaveOpen)
+                {
+                    stream.Position = 0;
+                }
+                encoder.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Encodes a message in a stream.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        public static ArraySegment<byte> EncodeMessage(
+            IEncodeable message,
+            byte[] buffer,
+            IServiceMessageContext context)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            using var stream = new MemoryStream(buffer, true);
+            using var encoder = new JsonEncoder(context, true, false, stream);
+            // encode message
+            encoder.EncodeMessage(message);
+            int length = encoder.Close();
+
+            return new ArraySegment<byte>(buffer, 0, length);
+        }
+
+        /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        public void EncodeMessage(IEncodeable message)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            // convert the namespace uri to an index.
+            var typeId = ExpandedNodeId.ToNodeId(message.TypeId, Context.NamespaceUris);
+
+            // write the type id.
+            WriteNodeId("TypeId", typeId);
+
+            // write the message.
+            WriteEncodeable("Body", message, message.GetType());
+        }
+
+        /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
         /// </summary>
         /// <param name="namespaceUris">The namespaces URIs referenced by the data being encoded.</param>
@@ -412,6 +526,76 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [Obsolete(
+            "Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types."
+        )]
+        public void UsingReversibleEncoding<T>(
+            Action<string, T> action,
+            string fieldName,
+            T value,
+            bool useReversibleEncoding)
+        {
+            JsonEncodingType currentValue = EncodingToUse;
+            try
+            {
+                EncodingToUse = useReversibleEncoding
+                    ? JsonEncodingType.Reversible
+                    : JsonEncodingType.NonReversible;
+                action(fieldName, value);
+            }
+            finally
+            {
+                EncodingToUse = currentValue;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void UsingAlternateEncoding<T>(
+            Action<string, T> action,
+            string fieldName,
+            T value,
+            JsonEncodingType useEncoding)
+        {
+            JsonEncodingType currentValue = EncodingToUse;
+            try
+            {
+                EncodingToUse = useEncoding;
+                action(fieldName, value);
+            }
+            finally
+            {
+                EncodingToUse = currentValue;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteSwitchField(uint switchField, out string fieldName)
+        {
+            fieldName = null;
+
+            switch (EncodingToUse)
+            {
+                case JsonEncodingType.Compact:
+                    if (SuppressArtifacts)
+                    {
+                        return;
+                    }
+                    break;
+                case JsonEncodingType.Reversible:
+                    fieldName = "Value";
+                    break;
+                case JsonEncodingType.Verbose:
+                case JsonEncodingType.NonReversible:
+                    return;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected Encoding type {EncodingToUse}");
+            }
+
+            WriteUInt32("SwitchField", switchField);
+        }
+
+        /// <inheritdoc/>
         public void WriteEncodingMask(uint encodingMask)
         {
             if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) ||
@@ -420,6 +604,9 @@ namespace Opc.Ua
                 WriteUInt32("EncodingMask", encodingMask);
             }
         }
+
+        /// <inheritdoc/>
+        public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
         public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible;
@@ -465,6 +652,15 @@ namespace Opc.Ua
         {
             get => m_includeDefaultNumberValues || m_includeDefaultValues;
             set => m_includeDefaultNumberValues = ThrowIfCompactOrVerbose(value);
+        }
+
+        /// <summary>
+        /// The Json encoder default encoding for NodeId as string or object.
+        /// </summary>
+        public bool EncodeNodeIdAsString
+        {
+            get => m_encodeNodeIdAsString;
+            set => m_encodeNodeIdAsString = ThrowIfCompactOrVerbose(value);
         }
 
         /// <summary>
@@ -2223,6 +2419,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Writes a GUID array to the stream.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteGuidArray(string fieldName, IList<Guid> values)
+        {
+            if (CheckForSimpleFieldNull(fieldName, values))
+            {
+                return;
+            }
+
+            PushArray(fieldName);
+
+            // check the length.
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                WriteGuid(null, values[ii]);
+            }
+
+            PopArray();
+        }
+
+        /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2826,7 +3049,143 @@ namespace Opc.Ua
             }
         }
 
-#if ZOMBIE // Manual
+        /// <summary>
+        /// Writes a raw value.
+        /// </summary>
+        public void WriteRawValue(FieldMetaData field, DataValue dv, DataSetFieldContentMask mask)
+        {
+            m_nestingLevel++;
+
+            try
+            {
+                if (m_commaRequired)
+                {
+                    m_writer.Write(kComma);
+                }
+
+                EscapeString(field.Name);
+                m_writer.Write(kQuotationColon);
+                m_commaRequired = false;
+                bool dimensionsInline = false;
+
+                if (mask is not DataSetFieldContentMask.None and not DataSetFieldContentMask.RawData)
+                {
+                    m_writer.Write(kLeftCurlyBrace);
+                    m_writer.Write(kQuotation);
+                    m_writer.Write("Value");
+                    m_writer.Write(kQuotationColon);
+                    dimensionsInline = true;
+                }
+
+                if (mask == DataSetFieldContentMask.None && StatusCode.IsBad(dv.StatusCode))
+                {
+                    dv = new DataValue { WrappedValue = dv.StatusCode };
+                }
+
+                WriteRawValueContents(field, dv, dimensionsInline);
+
+                if (mask is not DataSetFieldContentMask.None and not DataSetFieldContentMask.RawData)
+                {
+                    if ((mask & DataSetFieldContentMask.StatusCode) != 0 &&
+                        dv.StatusCode != StatusCodes.Good)
+                    {
+                        WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
+                    }
+
+                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0 &&
+                        dv.SourceTimestamp != DateTime.MinValue)
+                    {
+                        WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
+
+                        if (dv.SourcePicoseconds != 0)
+                        {
+                            WriteUInt16(nameof(dv.SourcePicoseconds), dv.SourcePicoseconds);
+                        }
+                    }
+
+                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0 &&
+                        dv.ServerTimestamp != DateTime.MinValue)
+                    {
+                        WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
+
+                        if (dv.ServerPicoseconds != 0)
+                        {
+                            WriteUInt16(nameof(dv.ServerPicoseconds), dv.ServerPicoseconds);
+                        }
+                    }
+
+                    m_writer.Write(kRightCurlyBrace);
+                }
+
+                m_commaRequired = true;
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
+        private void WriteRawExtensionObject(object value)
+        {
+            if (value is ExtensionObject eo)
+            {
+                value = eo.Body;
+            }
+
+            if (value is IEncodeable encodeable)
+            {
+                PushStructure(null);
+                encodeable.Encode(this);
+                PopStructure();
+            }
+            else
+            {
+                if (m_commaRequired)
+                {
+                    m_writer.Write(kComma);
+                }
+
+                m_writer.Write(kNull);
+            }
+
+            m_commaRequired = true;
+        }
+
+        private void WriteRawVariantArray(object value)
+        {
+            if (value is IList<Variant> list)
+            {
+                PushArray(null);
+
+                foreach (Variant ii in list)
+                {
+                    if (ii is Variant vt)
+                    {
+                        PushStructure(null);
+                        WriteVariantContents(vt.Value, vt.TypeInfo);
+                        PopStructure();
+                    }
+                    else
+                    {
+                        if (m_commaRequired)
+                        {
+                            m_writer.Write(kComma);
+                        }
+
+                        m_writer.Write(kNull);
+                    }
+                }
+
+                PopArray();
+            }
+            else
+            {
+                m_writer.Write(kNull);
+            }
+
+            m_commaRequired = true;
+        }
+
         private void WriteRawValueContents(FieldMetaData field, DataValue dv, bool dimensionsInline)
         {
             object value = dv.Value;
@@ -2961,7 +3320,6 @@ namespace Opc.Ua
                 m_writer.Write(kRightCurlyBrace);
             }
         }
-#endif
 
         /// <summary>
         /// Writes the contents of a Variant to the stream.
@@ -3193,7 +3551,6 @@ namespace Opc.Ua
 
                 if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
-#if ZOMBIE // Manual
                     string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
 
                     if (!string.IsNullOrEmpty(symbolicId))
@@ -3203,7 +3560,6 @@ namespace Opc.Ua
                             symbolicId,
                             EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                     }
-#endif
                 }
             }
 

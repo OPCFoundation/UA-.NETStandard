@@ -65,6 +65,19 @@ namespace Opc.Ua
         {
             TryRemove(key, out _);
         }
+
+        /// <summary>
+        /// remove a entry from the dictionary only if it has the provided value
+        /// https://devblogs.microsoft.com/pfxteam/little-known-gems-atomic-conditional-removals-from-concurrentdictionary/
+        /// </summary>
+        /// <param name="key">the key of the entry to remove</param>
+        /// <param name="value">the value of the entry to remove</param>
+        /// <returns>true if removed, false if not removed</returns>
+        public bool TryRemove(NodeId key, T value)
+        {
+            return ((ICollection<KeyValuePair<NodeId, T>>)this).Remove(
+                new KeyValuePair<NodeId, T>(key, value));
+        }
     }
 
 #else // USE_LEGACY_IMPLEMENTATION

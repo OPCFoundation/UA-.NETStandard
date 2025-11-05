@@ -61,6 +61,20 @@ namespace Opc.Ua
         {
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
                 .Create(configure);
+
+            // Set the default Id format to W3C
+            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+            Activity.ForceDefaultIdFormat = true;
+        }
+
+        /// <summary>
+        /// Create default telemetry
+        /// </summary>
+        /// <param name="configure"></param>
+        /// <returns></returns>
+        public ITelemetryContext Create(Action<ILoggingBuilder> configure)
+        {
+            return new DefaultTelemetry(configure);
         }
 
         /// <inheritdoc/>
