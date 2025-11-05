@@ -361,7 +361,7 @@ namespace Opc.Ua
         /// <summary>
         /// Handles a condition refresh.
         /// </summary>
-        public override void ConditionRefresh(
+        public /*override*/ void ConditionRefresh(
             ISystemContext context,
             List<IFilterTarget> events,
             bool includeChildren)

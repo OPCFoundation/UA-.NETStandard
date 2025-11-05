@@ -38,7 +38,7 @@ using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
-    public static partial class DataTypes
+    internal static partial class DataTypes
     {
         public const uint BaseDataType = 24;
 
@@ -169,7 +169,7 @@ namespace Opc.Ua
         public const uint Counter = 289;
     }
 
-    public static partial class Objects
+    internal static partial class Objects
     {
 
         public const uint ModellingRule_Mandatory = 78;
@@ -333,14 +333,14 @@ namespace Opc.Ua
         public const uint RelativePath_Encoding_DefaultJson = 15189;
     }
 
-    public static partial class ObjectTypes
+    internal static partial class ObjectTypes
     {
         public const uint BaseObjectType = 58;
 
         public const uint DataTypeEncodingType = 76;
     }
 
-    public static partial class ReferenceTypes
+    internal static partial class ReferenceTypes
     {
         public const uint References = 31;
 
@@ -405,7 +405,7 @@ namespace Opc.Ua
         public const uint HasCondition = 9006;
     }
 
-    public static partial class VariableTypes
+    internal static partial class VariableTypes
     {
         public const uint BaseVariableType = 62;
 
@@ -416,7 +416,7 @@ namespace Opc.Ua
         public const uint DataTypeDictionaryType = 72;
     }
 
-    public static partial class DataTypeIds
+    internal static partial class DataTypeIds
     {
         public static readonly NodeId BaseDataType = new NodeId(Opc.Ua.DataTypes.BaseDataType);
 
@@ -527,7 +527,7 @@ namespace Opc.Ua
         public static readonly NodeId RelativePath = new NodeId(Opc.Ua.DataTypes.RelativePath);
     }
 
-    public static partial class ObjectIds
+    internal static partial class ObjectIds
     {
 
         public static readonly NodeId ModellingRule_Mandatory = new NodeId(Opc.Ua.Objects.ModellingRule_Mandatory);
@@ -689,14 +689,14 @@ namespace Opc.Ua
         public static readonly NodeId RelativePath_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RelativePath_Encoding_DefaultJson);
     }
 
-    public static partial class ObjectTypeIds
+    internal static partial class ObjectTypeIds
     {
         public static readonly NodeId BaseObjectType = new NodeId(Opc.Ua.ObjectTypes.BaseObjectType);
 
         public static readonly NodeId DataTypeEncodingType = new NodeId(Opc.Ua.ObjectTypes.DataTypeEncodingType);
     }
 
-    public static partial class ReferenceTypeIds
+    internal static partial class ReferenceTypeIds
     {
         public static readonly NodeId References = new NodeId(Opc.Ua.ReferenceTypes.References);
 
@@ -761,7 +761,7 @@ namespace Opc.Ua
         public static readonly NodeId HasCondition = new NodeId(Opc.Ua.ReferenceTypes.HasCondition);
     }
 
-    public static partial class VariableTypeIds
+    internal static partial class VariableTypeIds
     {
         public static readonly NodeId BaseVariableType = new NodeId(Opc.Ua.VariableTypes.BaseVariableType);
 
@@ -772,7 +772,7 @@ namespace Opc.Ua
         public static readonly NodeId DataTypeDictionaryType = new NodeId(Opc.Ua.VariableTypes.DataTypeDictionaryType);
     }
 
-    public static partial class BrowseNames
+    internal static partial class BrowseNames
     {
         public const string AlarmGroupMember = "AlarmGroupMember";
 

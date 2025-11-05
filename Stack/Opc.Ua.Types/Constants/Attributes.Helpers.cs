@@ -25,7 +25,7 @@ namespace Opc.Ua
     /// <summary>
     /// A class that defines constants used by UA applications.
     /// </summary>
-    public static partial class Attributes
+    internal static partial class Attributes
     {
         /// <summary>
         /// Throw if out of range

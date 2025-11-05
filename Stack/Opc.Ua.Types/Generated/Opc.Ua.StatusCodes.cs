@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// A class that defines constants used by UA applications.
     /// </summary>
     /// <exclude />
-    public static partial class StatusCodes
+    internal static partial class StatusCodes
     {
         /// <summary>
         /// An unexpected error occurred.

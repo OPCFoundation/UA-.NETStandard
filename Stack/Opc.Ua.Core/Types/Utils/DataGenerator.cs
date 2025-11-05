@@ -561,6 +561,25 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
+        /// This method returns a random value of values for the type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public T GetRandom<T>(bool useBoundaryValues)
+        {
+            if (useBoundaryValues && UseBoundaryValue())
+            {
+                object boundaryValue = GetBoundaryValue(typeof(T));
+
+                if (boundaryValue != null || !typeof(T).GetTypeInfo().IsValueType)
+                {
+                    return (T)boundaryValue;
+                }
+            }
+
+            return (T)GetRandom(typeof(T));
+        }
+
+        /// <summary>
         /// This method returns a random array of values for the type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -744,6 +763,30 @@ namespace Opc.Ua.Test
         public string GetRandomString()
         {
             return CreateString(GetRandomLocale(), false);
+        }
+
+        /// <summary>
+        /// Creates a random string for the locale.
+        /// </summary>
+        public string GetRandomString(string locale)
+        {
+            return CreateString(locale, false);
+        }
+
+        /// <summary>
+        /// Creates a random symbol with a random locale.
+        /// </summary>
+        public string GetRandomSymbol()
+        {
+            return CreateString(GetRandomLocale(), true);
+        }
+
+        /// <summary>
+        /// Creates a random symbol for the locale.
+        /// </summary>
+        public string GetRandomSymbol(string locale)
+        {
+            return CreateString(locale, false);
         }
 
         /// <inheritdoc/>
@@ -1064,6 +1107,63 @@ namespace Opc.Ua.Test
                 true,
                 new StringTable(),
                 m_logger);
+        }
+
+        /// <inheritdoc/>
+        public object GetRandomNumber()
+        {
+            switch (m_random.NextInt32(5))
+            {
+                case 0:
+                case 1:
+                    return GetRandomInteger();
+                case 2:
+                case 3:
+                    return GetRandomUInteger();
+                case 4:
+                    return GetRandomFloat();
+                //case 6: return GetRandomDecimal();
+                default:
+                    return GetRandomDouble();
+            }
+        }
+
+        /// <inheritdoc/>
+        public object GetRandomInteger()
+        {
+            switch (m_random.NextInt32(3))
+            {
+                case 0:
+                    return GetRandomSByte();
+                case 1:
+                    return GetRandomInt16();
+                case 2:
+                    return GetRandomInt32();
+                case 3:
+                    return GetRandomInt64();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected random value");
+            }
+        }
+
+        /// <inheritdoc/>
+        public object GetRandomUInteger()
+        {
+            switch (m_random.NextInt32(3))
+            {
+                case 0:
+                    return GetRandomByte();
+                case 1:
+                    return GetRandomUInt16();
+                case 2:
+                    return GetRandomUInt32();
+                case 3:
+                    return GetRandomUInt64();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected random value");
+            }
         }
 
         /// <summary>

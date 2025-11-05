@@ -40,6 +40,10 @@ namespace Opc.Ua
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public static partial class StatusCodes
     {
+        /// <summary>
+        /// An unexpected error occurred.
+        /// </summary>
+        public const uint BadUnexpectedError = 0x80010000;
 
         /// <summary>
         /// An internal error occurred as a result of a programming or configuration error.
@@ -60,6 +64,21 @@ namespace Opc.Ua
         /// A low level communication error occurred.
         /// </summary>
         public const uint BadCommunicationError = 0x80050000;
+
+        /// <summary>
+        /// Encoding halted because of invalid data in the objects being serialized.
+        /// </summary>
+        public const uint BadEncodingError = 0x80060000;
+
+        /// <summary>
+        /// Decoding halted because of invalid data in the stream.
+        /// </summary>
+        public const uint BadDecodingError = 0x80070000;
+
+        /// <summary>
+        /// The message encoding/decoding limits imposed by the stack have been exceeded.
+        /// </summary>
+        public const uint BadEncodingLimitsExceeded = 0x80080000;
 
         /// <summary>
         /// The request message size exceeds limits set by the server.
@@ -197,6 +216,11 @@ namespace Opc.Ua
         public const uint BadCertificateChainIncomplete = 0x810D0000;
 
         /// <summary>
+        /// User does not have permission to perform the requested operation.
+        /// </summary>
+        public const uint BadUserAccessDenied = 0x801F0000;
+
+        /// <summary>
         /// The user identity token is not valid.
         /// </summary>
         public const uint BadIdentityTokenInvalid = 0x80200000;
@@ -257,6 +281,11 @@ namespace Opc.Ua
         public const uint BadRequestCancelledByClient = 0x802C0000;
 
         /// <summary>
+        /// Too many arguments were provided.
+        /// </summary>
+        public const uint BadTooManyArguments = 0x80E50000;
+
+        /// <summary>
         /// The server requires a license to operate in general or to perform a service or operation, but existing license is expired.
         /// </summary>
         public const uint BadLicenseExpired = 0x810E0000;
@@ -307,14 +336,69 @@ namespace Opc.Ua
         public const uint BadNoCommunication = 0x80310000;
 
         /// <summary>
+        /// Waiting for the server to obtain values from the underlying data source.
+        /// </summary>
+        public const uint BadWaitingForInitialData = 0x80320000;
+
+        /// <summary>
+        /// The syntax the node id is not valid or refers to a node that is not valid for the operation.
+        /// </summary>
+        public const uint BadNodeIdInvalid = 0x80330000;
+
+        /// <summary>
+        /// The node id refers to a node that does not exist in the server address space.
+        /// </summary>
+        public const uint BadNodeIdUnknown = 0x80340000;
+
+        /// <summary>
+        /// The attribute is not supported for the specified Node.
+        /// </summary>
+        public const uint BadAttributeIdInvalid = 0x80350000;
+
+        /// <summary>
+        /// The syntax of the index range parameter is invalid.
+        /// </summary>
+        public const uint BadIndexRangeInvalid = 0x80360000;
+
+        /// <summary>
+        /// No data exists within the range of indexes specified.
+        /// </summary>
+        public const uint BadIndexRangeNoData = 0x80370000;
+
+        /// <summary>
         /// The written data does not match the IndexRange specified.
         /// </summary>
         public const uint BadIndexRangeDataMismatch = 0x80EA0000;
 
         /// <summary>
+        /// The data encoding is invalid.
+        /// </summary>
+        public const uint BadDataEncodingInvalid = 0x80380000;
+
+        /// <summary>
+        /// The server does not support the requested data encoding for the node.
+        /// </summary>
+        public const uint BadDataEncodingUnsupported = 0x80390000;
+
+        /// <summary>
+        /// The access level does not allow reading or subscribing to the Node.
+        /// </summary>
+        public const uint BadNotReadable = 0x803A0000;
+
+        /// <summary>
+        /// The access level does not allow writing to the Node.
+        /// </summary>
+        public const uint BadNotWritable = 0x803B0000;
+
+        /// <summary>
         /// The value was out of range.
         /// </summary>
         public const uint BadOutOfRange = 0x803C0000;
+
+        /// <summary>
+        /// The requested operation is not supported.
+        /// </summary>
+        public const uint BadNotSupported = 0x803D0000;
 
         /// <summary>
         /// A requested item was not found or a search operation ended without success.
@@ -325,6 +409,11 @@ namespace Opc.Ua
         /// The object cannot be used because it has been deleted.
         /// </summary>
         public const uint BadObjectDeleted = 0x803F0000;
+
+        /// <summary>
+        /// Requested operation is not implemented.
+        /// </summary>
+        public const uint BadNotImplemented = 0x80400000;
 
         /// <summary>
         /// The monitoring mode is invalid.
@@ -350,6 +439,11 @@ namespace Opc.Ua
         /// A monitoring filter cannot be used in combination with the attribute specified.
         /// </summary>
         public const uint BadFilterNotAllowed = 0x80450000;
+
+        /// <summary>
+        /// A mandatory structured parameter was missing or null.
+        /// </summary>
+        public const uint BadStructureMissing = 0x80460000;
 
         /// <summary>
         /// The event filter is not valid.
@@ -522,6 +616,11 @@ namespace Opc.Ua
         public const uint BadNodeClassInvalid = 0x805F0000;
 
         /// <summary>
+        /// The browse name is invalid.
+        /// </summary>
+        public const uint BadBrowseNameInvalid = 0x80600000;
+
+        /// <summary>
         /// The browse name is not unique among nodes that share the same relationship with the parent.
         /// </summary>
         public const uint BadBrowseNameDuplicated = 0x80610000;
@@ -657,9 +756,29 @@ namespace Opc.Ua
         public const uint BadInvalidTimestampArgument = 0x80BD0000;
 
         /// <summary>
+        /// The server does not support writing the combination of value, status and timestamps provided.
+        /// </summary>
+        public const uint BadWriteNotSupported = 0x80730000;
+
+        /// <summary>
+        /// The value supplied for the attribute is not of the same type as the attribute's value.
+        /// </summary>
+        public const uint BadTypeMismatch = 0x80740000;
+
+        /// <summary>
         /// The method id does not refer to a method for the specified object.
         /// </summary>
         public const uint BadMethodInvalid = 0x80750000;
+
+        /// <summary>
+        /// The client did not specify all of the input arguments for the method.
+        /// </summary>
+        public const uint BadArgumentsMissing = 0x80760000;
+
+        /// <summary>
+        /// The executable attribute does not allow the execution of the method.
+        /// </summary>
+        public const uint BadNotExecutable = 0x81110000;
 
         /// <summary>
         /// The server has reached its maximum number of subscriptions.
@@ -1142,6 +1261,11 @@ namespace Opc.Ua
         public const uint GoodNonCriticalTimeout = 0x00AA0000;
 
         /// <summary>
+        /// One or more arguments are invalid.
+        /// </summary>
+        public const uint BadInvalidArgument = 0x80AB0000;
+
+        /// <summary>
         /// Could not establish a network connection to remote server.
         /// </summary>
         public const uint BadConnectionRejected = 0x80AC0000;
@@ -1190,6 +1314,11 @@ namespace Opc.Ua
         /// Non blocking behaviour is required and the operation would block.
         /// </summary>
         public const uint BadWouldBlock = 0x80B50000;
+
+        /// <summary>
+        /// A value had an invalid syntax.
+        /// </summary>
+        public const uint BadSyntaxError = 0x80B60000;
 
         /// <summary>
         /// The operation could not be finished because all available connections are in use.

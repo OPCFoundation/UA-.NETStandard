@@ -792,7 +792,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines standard status codes.
     /// </summary>
-    public static partial class StatusCodes
+    internal static partial class StatusCodes
     {
         /// <summary>
         /// The operation completed successfully.
