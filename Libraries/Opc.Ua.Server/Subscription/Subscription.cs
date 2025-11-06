@@ -67,7 +67,10 @@ namespace Opc.Ua.Server
             m_publishingEnabled = publishingEnabled;
             Priority = priority;
             m_publishTimerExpiry = HiResClock.TickCount64 + (long)publishingInterval;
-            m_keepAliveCounter = 0;
+            //Per OPC UA spec Part 4 Section 5.13.1.2, the server must send a message (notification or keep-alive)
+            //at the end of the first publishing cycle to inform the client the subscription is operational
+            //So we initialize the keep-alive counter to maxKeepAliveCount to force a message at the end of the first publish cycle
+            m_keepAliveCounter = maxKeepAliveCount;
             m_lifetimeCounter = 0;
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
