@@ -107,25 +107,16 @@ namespace Opc.Ua.Server
                     new ServiceResultException(StatusCodes.BadNoSubscription));
             }
 
-            // find the waiting subscription with the highest priority.
-            QueuedSubscription subscriptionToPublish = GetSubscriptionToPublish();
-
-            // check if a subscription is already waiting.
-            if (subscriptionToPublish != null)
+            QueuedSubscription subscriptionToPublish;
+            lock (m_subscriptionPublishLock)
             {
-                // reset subscriptions waiting flag.
-                m_subscriptionsWaiting = false;
-                foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
-                {
-                    if (entry.Value.ReadyToPublish)
-                    {
-                        m_subscriptionsWaiting = true;
-                        break;
-                    }
-                }
+                // find the waiting subscription with the highest priority.
+                subscriptionToPublish = GetSubscriptionToPublish();
 
-                subscriptionToPublish.Publishing = true;
-                return Task.FromResult(subscriptionToPublish.Subscription);
+                if (subscriptionToPublish != null)
+                {
+                    return Task.FromResult(subscriptionToPublish.Subscription);
+                }
             }
 
             lock (m_lock)
@@ -374,7 +365,10 @@ namespace Opc.Ua.Server
 
                 if (moreNotifications)
                 {
-                    AssignSubscriptionToRequest(queuedSubscription);
+                    lock (m_subscriptionPublishLock)
+                    {
+                        AssignSubscriptionToRequest(queuedSubscription);
+                    }
                 }
                 else
                 {
@@ -389,11 +383,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Requeue(ISubscription subscription)
         {
-            if(m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription queuedSubscription))
+            if (m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription queuedSubscription))
             {
                 queuedSubscription.Publishing = false;
                 queuedSubscription.ReadyToPublish = true;
-                queuedSubscription.Timestamp = DateTime.UtcNow;
             }
         }
 
@@ -430,22 +423,16 @@ namespace Opc.Ua.Server
                 // do nothing if subscription has already been flagged as available.
                 if (subscription.ReadyToPublish)
                 {
-                    if (subscription.ReadyToPublish && m_queuedRequests.Count == 0)
-                    {
-                        if (!m_subscriptionsWaiting)
-                        {
-                            m_subscriptionsWaiting = true;
-                            // TraceState("SUBSCRIPTIONS WAITING");
-                        }
-                    }
-
                     continue;
                 }
 
                 // assign subscription to request if one is available.
                 if (!subscription.Publishing)
                 {
-                    AssignSubscriptionToRequest(subscription);
+                    lock (m_subscriptionPublishLock)
+                    {
+                        AssignSubscriptionToRequest(subscription);
+                    }
                 }
             }
 
@@ -539,6 +526,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                subscriptionToPublish.Publishing = true;
                 return subscriptionToPublish;
             }
 
@@ -661,12 +649,12 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly Lock m_subscriptionPublishLock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
         private readonly LinkedList<QueuedPublishRequest> m_queuedRequests;
         private readonly ConcurrentDictionary<uint, QueuedSubscription> m_queuedSubscriptions;
         private readonly int m_maxRequestCount;
-        private bool m_subscriptionsWaiting;
     }
 }
