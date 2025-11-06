@@ -218,7 +218,7 @@ namespace Opc.Ua
         {
             if (format != null)
             {
-                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+                throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
             }
 
             if (!QualifiedName.IsNull(m_browseName))
@@ -533,7 +533,7 @@ namespace Opc.Ua
                 Factory = context.EncodeableFactory
             };
 
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
             var root = new XmlQualifiedName(
@@ -1218,7 +1218,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, TextReader input)
         {
-            using var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings());
+            using var reader = XmlReader.Create(input, CoreUtils.DefaultXmlReaderSettings());
             LoadFromXml(context, reader);
         }
 
@@ -1229,7 +1229,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, Stream input)
         {
-            using var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings());
+            using var reader = XmlReader.Create(input, CoreUtils.DefaultXmlReaderSettings());
             LoadFromXml(context, reader);
         }
 
@@ -2347,7 +2347,7 @@ namespace Opc.Ua
                 }
             }
         }
-#if ZOMBIE
+
         /// <summary>
         /// Reports an event produced by the node.
         /// </summary>
@@ -2376,7 +2376,7 @@ namespace Opc.Ua
                 }
             }
         }
-#endif
+
         /// <summary>
         /// Adds a notifier relationship to the node.
         /// </summary>
@@ -2516,7 +2516,6 @@ namespace Opc.Ua
             }
         }
 
-#if ZOMBIE
         /// <summary>
         /// Returns the last event produced for any conditions belonging to the node or its children.
         /// </summary>
@@ -2561,7 +2560,7 @@ namespace Opc.Ua
                 }
             }
         }
-#endif
+
         /// <summary>
         /// Returns the method with the specified NodeId or MethodDeclarationId.
         /// </summary>
@@ -2966,7 +2965,7 @@ namespace Opc.Ua
             for (int ii = 0; ii < children.Count; ii++)
             {
                 BaseInstanceState child = children[ii];
-                string childPath = Utils.Format("{0}/{1}", browsePath, child.SymbolicName);
+                string childPath = CoreUtils.Format("{0}/{1}", browsePath, child.SymbolicName);
                 hierarchy[child.NodeId] = childPath;
                 child.GetInstanceHierarchy(context, childPath, hierarchy);
             }
@@ -3025,7 +3024,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                string childPath = Utils.Format("{0}/{1}", browsePath, children[ii].SymbolicName);
+                string childPath = CoreUtils.Format("{0}/{1}", browsePath, children[ii].SymbolicName);
                 children[ii].GetHierarchyReferences(context, childPath, hierarchy, references);
             }
         }
@@ -4342,7 +4341,7 @@ namespace Opc.Ua
             {
                 if (copy)
                 {
-                    variable.Value = Utils.Clone(sourceVariable.Value);
+                    variable.Value = CoreUtils.Clone(sourceVariable.Value);
                 }
                 else
                 {
@@ -4379,7 +4378,7 @@ namespace Opc.Ua
 
             if (copy)
             {
-                child.Value = Utils.Clone(value);
+                child.Value = CoreUtils.Clone(value);
             }
             else
             {

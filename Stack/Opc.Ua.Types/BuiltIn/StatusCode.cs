@@ -432,7 +432,7 @@ namespace Opc.Ua
                 return string.Format(formatProvider, "0x{0:X8}", Code);
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <summary>
@@ -474,12 +474,11 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
-#if ZOMBIE // Manual
-            buffer.Append(LookupSymbolicId(Code));
-#endif
+            buffer.AppendFormat(CultureInfo.InvariantCulture, "{0:X8}", 0xFFFF0000 & Code);
+
             if ((0x0000FFFF & Code) != 0)
             {
-                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", 0x0000FFFF & Code);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " [Flags: {0:X4}]", 0x0000FFFF & Code);
             }
 
             return buffer.ToString();

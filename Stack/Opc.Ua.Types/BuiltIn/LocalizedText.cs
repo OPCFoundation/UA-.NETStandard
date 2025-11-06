@@ -393,7 +393,7 @@ namespace Opc.Ua
                 return string.Format(formatProvider, "{0}", XmlEncodedText);
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -525,7 +525,7 @@ namespace Opc.Ua
 
             foreach (LocalizedText element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

@@ -38,7 +38,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
     public class TestFilterTarget : IFilterTarget
     {
         public object GetAttributeValue(
-            FilterContext context,
+            IFilterContext context,
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             throw new NotImplementedException();
         }
 
-        public bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
+        public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
         {
             throw new NotImplementedException();
         }
@@ -65,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
     {
         public ITelemetryContext Telemetry { get; }
         public EventFilter Filter { get; }
-        public FilterContext FilterContext { get; }
+        public IFilterContext FilterContext { get; }
         public TestFilterTarget TestFilterTarget { get; }
 
         public ContentFilterTests()

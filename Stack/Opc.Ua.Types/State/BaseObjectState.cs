@@ -48,7 +48,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.BaseObjectType);
+            SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseObjectType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;

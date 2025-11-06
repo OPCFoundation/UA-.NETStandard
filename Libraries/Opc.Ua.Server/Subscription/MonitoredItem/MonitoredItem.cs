@@ -981,7 +981,7 @@ namespace Opc.Ua.Server
         /// Fetches the event fields from the event.
         /// </summary>
         private EventFieldList GetEventFields(
-            FilterContext context,
+            IFilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server
         /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
         /// </summary>
         protected bool CanSendFilteredAlarm(
-            FilterContext context,
+            IFilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {

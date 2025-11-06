@@ -139,22 +139,22 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(DefaultEncodingId, value.DefaultEncodingId))
+            if (!CoreUtils.IsEqual(DefaultEncodingId, value.DefaultEncodingId))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(BaseDataType, value.BaseDataType))
+            if (!CoreUtils.IsEqual(BaseDataType, value.BaseDataType))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(StructureType, value.StructureType))
+            if (!CoreUtils.IsEqual(StructureType, value.StructureType))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(m_fields, value.m_fields))
+            if (!CoreUtils.IsEqual(m_fields, value.m_fields))
             {
                 return false;
             }
@@ -173,10 +173,10 @@ namespace Opc.Ua
         {
             var clone = (StructureDefinition)base.MemberwiseClone();
 
-            clone.DefaultEncodingId = Utils.Clone(DefaultEncodingId);
-            clone.BaseDataType = Utils.Clone(BaseDataType);
-            clone.StructureType = (StructureType)Utils.Clone(StructureType);
-            clone.m_fields = Utils.Clone(m_fields);
+            clone.DefaultEncodingId = CoreUtils.Clone(DefaultEncodingId);
+            clone.BaseDataType = CoreUtils.Clone(BaseDataType);
+            clone.StructureType = (StructureType)CoreUtils.Clone(StructureType);
+            clone.m_fields = CoreUtils.Clone(m_fields);
 
             return clone;
         }
@@ -287,7 +287,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

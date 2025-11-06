@@ -575,7 +575,7 @@ namespace Opc.Ua
         /// Logger to be used by the client inheritance chain
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; set; } = Utils.Null.Logger;
+        protected ILogger m_logger { get; set; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
         private ITransportChannel m_channel;

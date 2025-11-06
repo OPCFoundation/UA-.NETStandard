@@ -141,32 +141,32 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(NodeId, value.NodeId))
+            if (!CoreUtils.IsEqual(NodeId, value.NodeId))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(BrowseDirection, value.BrowseDirection))
+            if (!CoreUtils.IsEqual(BrowseDirection, value.BrowseDirection))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(IncludeSubtypes, value.IncludeSubtypes))
+            if (!CoreUtils.IsEqual(IncludeSubtypes, value.IncludeSubtypes))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(NodeClassMask, value.NodeClassMask))
+            if (!CoreUtils.IsEqual(NodeClassMask, value.NodeClassMask))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(ResultMask, value.ResultMask))
+            if (!CoreUtils.IsEqual(ResultMask, value.ResultMask))
             {
                 return false;
             }
@@ -185,12 +185,12 @@ namespace Opc.Ua
         {
             BrowseDescription clone = (BrowseDescription)base.MemberwiseClone();
 
-            clone.NodeId = Utils.Clone(NodeId);
-            clone.BrowseDirection = (BrowseDirection)Utils.Clone(BrowseDirection);
-            clone.ReferenceTypeId = Utils.Clone(ReferenceTypeId);
-            clone.IncludeSubtypes = (bool)Utils.Clone(IncludeSubtypes);
-            clone.NodeClassMask = (uint)Utils.Clone(NodeClassMask);
-            clone.ResultMask = (uint)Utils.Clone(ResultMask);
+            clone.NodeId = CoreUtils.Clone(NodeId);
+            clone.BrowseDirection = (BrowseDirection)CoreUtils.Clone(BrowseDirection);
+            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
+            clone.IncludeSubtypes = (bool)CoreUtils.Clone(IncludeSubtypes);
+            clone.NodeClassMask = (uint)CoreUtils.Clone(NodeClassMask);
+            clone.ResultMask = (uint)CoreUtils.Clone(ResultMask);
 
             return clone;
         }
@@ -255,7 +255,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

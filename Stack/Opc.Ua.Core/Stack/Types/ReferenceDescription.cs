@@ -10,81 +10,46 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Globalization;
-
 namespace Opc.Ua
 {
     /// <summary>
-    /// A reference returned in browse operation.
+    /// Extends reference description with helper functionality
     /// </summary>
-    public partial class ReferenceDescription : IFormattable
+    public static class ReferenceDescriptionExtensions
     {
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            if (format == null)
-            {
-                if (m_displayName != null && !string.IsNullOrEmpty(m_displayName.Text))
-                {
-                    return m_displayName.Text;
-                }
-
-                if (!QualifiedName.IsNull(m_browseName))
-                {
-                    return m_browseName.Name;
-                }
-
-                return Utils.Format(
-                    "(unknown {0})",
-                    m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
-            }
-
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
-        }
-
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        public override string ToString()
-        {
-            return ToString(null, null);
-        }
-
         /// <summary>
         /// Sets the reference type for the reference.
         /// </summary>
-        public void SetReferenceType(
+        public static void SetReferenceType(
+            this ReferenceDescription referenceDescription,
             BrowseResultMask resultMask,
             NodeId referenceTypeId,
             bool isForward)
         {
             if (((int)resultMask & (int)BrowseResultMask.ReferenceTypeId) != 0)
             {
-                m_referenceTypeId = referenceTypeId;
+                referenceDescription.ReferenceTypeId = referenceTypeId;
             }
             else
             {
-                m_referenceTypeId = null;
+                referenceDescription.ReferenceTypeId = null;
             }
 
             if (((int)resultMask & (int)BrowseResultMask.IsForward) != 0)
             {
-                m_isForward = isForward;
+                referenceDescription.IsForward = isForward;
             }
             else
             {
-                m_isForward = false;
+                referenceDescription.IsForward = false;
             }
         }
 
         /// <summary>
         /// Sets the target attributes for the reference.
         /// </summary>
-        public void SetTargetAttributes(
+        public static void SetTargetAttributes(
+            this ReferenceDescription referenceDescription,
             BrowseResultMask resultMask,
             NodeClass nodeClass,
             QualifiedName browseName,
@@ -93,44 +58,39 @@ namespace Opc.Ua
         {
             if (((int)resultMask & (int)BrowseResultMask.NodeClass) != 0)
             {
-                m_nodeClass = nodeClass;
+                referenceDescription.NodeClass = nodeClass;
             }
             else
             {
-                m_nodeClass = 0;
+                referenceDescription.NodeClass = 0;
             }
 
             if (((int)resultMask & (int)BrowseResultMask.BrowseName) != 0)
             {
-                m_browseName = browseName;
+                referenceDescription.BrowseName = browseName;
             }
             else
             {
-                m_browseName = null;
+                referenceDescription.BrowseName = null;
             }
 
             if (((int)resultMask & (int)BrowseResultMask.DisplayName) != 0)
             {
-                m_displayName = displayName;
+                referenceDescription.DisplayName = displayName;
             }
             else
             {
-                m_displayName = null;
+                referenceDescription.DisplayName = null;
             }
 
             if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0)
             {
-                m_typeDefinition = typeDefinition;
+                referenceDescription.TypeDefinition = typeDefinition;
             }
             else
             {
-                m_typeDefinition = null;
+                referenceDescription.TypeDefinition = null;
             }
         }
-
-        /// <summary>
-        /// True if the reference filter has not been applied.
-        /// </summary>
-        public bool Unfiltered { get; set; }
     }
 }

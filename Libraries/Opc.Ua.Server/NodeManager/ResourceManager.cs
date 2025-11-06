@@ -316,7 +316,7 @@ namespace Opc.Ua.Server
             LocalizedText defaultText,
             TranslationInfo info)
         {
-            defaultText = defaultText?.FilterByPreferredLocales(preferredLocales);
+            defaultText = FilterByPreferredLocales(defaultText, preferredLocales);
 
             bool isMultilanguageRequested =
                 preferredLocales?.Count > 0 &&
@@ -487,6 +487,20 @@ namespace Opc.Ua.Server
                 // construct translated localized text.
                 return new LocalizedText(culture.Name, formattedText) { TranslationInfo = info };
             }
+        }
+
+        /// <summary>
+        /// Filter text by preferred locales.
+        /// </summary>
+        /// <param name="defaultText"></param>
+        /// <param name="preferredLocales"></param>
+        /// <returns></returns>
+        private LocalizedText FilterByPreferredLocales(LocalizedText defaultText, IList<string> preferredLocales)
+        {
+#if ZOMBIE
+            // TODO: Port from Localized text
+#endif
+            return defaultText;
         }
 
         /// <summary>

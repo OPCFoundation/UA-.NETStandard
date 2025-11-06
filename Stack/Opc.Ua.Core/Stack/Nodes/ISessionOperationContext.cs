@@ -10,22 +10,23 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Xml;
-using Microsoft.Extensions.Logging;
-
 namespace Opc.Ua
 {
     /// <summary>
-    /// Defines various static utility functions.
+    /// An interface to an object that describes a node local to the server.
     /// </summary>
-    public static partial class Utils
+    public interface ISessionOperationContext : IOperationContext
     {
+        /// <summary>
+        /// The identifier for the session (null if multiple sessions are associated with the operation).
+        /// </summary>
+        /// <value>The session identifier.</value>
+        NodeId SessionId { get; }
+
+        /// <summary>
+        /// The identity of the user.
+        /// </summary>
+        /// <value>The user identity.</value>
+        IUserIdentity UserIdentity { get; }
     }
 }

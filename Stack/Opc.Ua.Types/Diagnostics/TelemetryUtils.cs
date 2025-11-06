@@ -30,6 +30,8 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text;
 using Microsoft.Extensions.Logging;
 
 #nullable enable
@@ -39,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// Telemetry utilities
     /// </summary>
-    public static partial class Utils
+    public static partial class LoggerUtils
     {
         /// <summary>
         /// Fallback logger
@@ -126,6 +128,84 @@ namespace Opc.Ua
             private static void DebugCheck()
             {
                 Debug.Fail("Using a NullLogger");
+            }
+        }
+
+        /// <summary>
+        /// Append the exception and all nested exception with no indent
+        /// </summary>
+        public static StringBuilder AppendException(
+            this StringBuilder buffer,
+            Exception exception)
+        {
+            return AppendException(buffer, exception, string.Empty);
+        }
+
+        /// <summary>
+        /// Append the exception and all nested exception with indent
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="exception"/> or <paramref name="indent"/> is <c>null</c>.
+        /// </exception>
+        public static StringBuilder AppendException(
+            this StringBuilder buffer,
+            Exception exception,
+            string indent)
+        {
+            if (exception == null)
+            {
+                throw new ArgumentNullException(nameof(exception));
+            }
+            if (indent == null)
+            {
+                throw new ArgumentNullException(nameof(indent));
+            }
+            for (int i = 0; i < 100; i++)
+            {
+                if (i > 0)
+                {
+                    buffer
+                        .AppendLine()
+                        .Append(indent)
+                        .Append(">>>> (Inner #")
+                        .Append(i)
+                        .AppendLine(") >>>>");
+                }
+
+                buffer
+                    .Append(indent)
+                    .Append('[')
+                    .Append(exception.GetType().Name)
+                    .Append(']')
+                    .Append(' ')
+                    .Append(exception.Message ?? "(No message)");
+
+                if (!string.IsNullOrEmpty(exception.StackTrace))
+                {
+                    AddStackTrace(buffer, exception.StackTrace, indent);
+                }
+
+                if (exception.InnerException == null)
+                {
+                    break;
+                }
+                exception = exception.InnerException;
+            }
+            return buffer;
+
+            static void AddStackTrace(StringBuilder buffer, string stackTrace, string indent)
+            {
+                string[] trace = stackTrace.Split(Environment.NewLine.ToCharArray());
+                for (int ii = 0; ii < trace.Length; ii++)
+                {
+                    if (!string.IsNullOrEmpty(trace[ii]))
+                    {
+                        buffer
+                            .AppendLine()
+                            .Append(indent)
+                            .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
+                    }
+                }
             }
         }
     }

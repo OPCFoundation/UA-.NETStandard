@@ -97,7 +97,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static Exception Exception(string format, object arg1)
         {
-            return new InvalidOperationException(Utils.Format(format, arg1));
+            return new InvalidOperationException(CoreUtils.Format(format, arg1));
         }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static Exception Exception(string format, object arg1, object arg2)
         {
-            return new InvalidOperationException(Utils.Format(format, arg1, arg2));
+            return new InvalidOperationException(CoreUtils.Format(format, arg1, arg2));
         }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static Exception Exception(string format, object arg1, object arg2, object arg3)
         {
-            return new InvalidOperationException(Utils.Format(format, arg1, arg2, arg3));
+            return new InvalidOperationException(CoreUtils.Format(format, arg1, arg2, arg3));
         }
 
         /// <summary>
@@ -227,7 +227,7 @@ namespace Opc.Ua.Schema
         protected static object LoadFile(Type type, string path)
         {
             using var reader = new StreamReader(new FileStream(path, FileMode.Open));
-            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
             var serializer = new XmlSerializer(type);
             return serializer.Deserialize(xmlReader);
         }
@@ -238,7 +238,7 @@ namespace Opc.Ua.Schema
         protected static object LoadFile(Type type, Stream stream)
         {
             using var reader = new StreamReader(stream);
-            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
             var serializer = new XmlSerializer(type);
             return serializer.Deserialize(xmlReader);
         }
@@ -257,14 +257,14 @@ namespace Opc.Ua.Schema
                 }
 
                 using var reader = new StreamReader(assembly.GetManifestResourceStream(path));
-                using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+                using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
                 var serializer = new XmlSerializer(type);
                 return serializer.Deserialize(xmlReader);
             }
             catch (Exception e)
             {
                 throw new FileNotFoundException(
-                    Utils.Format("Could not load resource '{0}'.", path),
+                    CoreUtils.Format("Could not load resource '{0}'.", path),
                     e);
             }
         }

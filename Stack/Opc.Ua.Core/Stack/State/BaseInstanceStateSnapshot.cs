@@ -56,7 +56,7 @@ namespace Opc.Ua
         /// <returns>
         /// True if the object is an instance of the specified type.
         /// </returns>
-        public bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
+        public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
         {
             return NodeId.IsNull(typeDefinitionId) ||
                 context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId);
@@ -74,7 +74,7 @@ namespace Opc.Ua
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
         public object GetAttributeValue(
-            FilterContext context,
+            IFilterContext context,
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,

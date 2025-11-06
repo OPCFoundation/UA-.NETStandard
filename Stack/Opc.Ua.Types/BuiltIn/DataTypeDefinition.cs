@@ -142,7 +142,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

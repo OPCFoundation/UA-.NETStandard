@@ -172,5 +172,65 @@ namespace Opc.Ua
         /// How a variable may be accessed.
         /// </summary>
         public const uint AccessLevelEx = 27;
+
+        /// <summary>
+        /// Returns the data type id for the attribute.
+        /// </summary>
+        public static NodeId GetDataTypeId(uint attributeId)
+        {
+            switch (attributeId)
+            {
+                case Value:
+                    return DataTypeIds.BaseDataType;
+                case DisplayName:
+                case Description:
+                    return DataTypeIds.LocalizedText;
+                case WriteMask:
+                case UserWriteMask:
+                    return DataTypeIds.UInt32;
+                case NodeId:
+                    return DataTypeIds.NodeId;
+                case NodeClass:
+                    return DataTypeIds.Enumeration;
+                case BrowseName:
+                    return DataTypeIds.QualifiedName;
+                case IsAbstract:
+                case Symmetric:
+                    return DataTypeIds.Boolean;
+                case InverseName:
+                    return DataTypeIds.LocalizedText;
+                case ContainsNoLoops:
+                    return DataTypeIds.Boolean;
+                case EventNotifier:
+                    return DataTypeIds.Byte;
+                case DataType:
+                    return DataTypeIds.NodeId;
+                case ValueRank:
+                    return DataTypeIds.Int32;
+                case AccessLevel:
+                case UserAccessLevel:
+                    return DataTypeIds.Byte;
+                case MinimumSamplingInterval:
+                    return DataTypeIds.Duration;
+                case Historizing:
+                case Executable:
+                case UserExecutable:
+                    return DataTypeIds.Boolean;
+                case ArrayDimensions:
+                    return DataTypeIds.UInt32;
+                case DataTypeDefinition:
+                    return DataTypeIds.Structure;
+                case RolePermissions:
+                case UserRolePermissions:
+                    return DataTypeIds.RolePermissionType;
+                case AccessRestrictions:
+                    return DataTypeIds.UInt16;
+                case AccessLevelEx:
+                    return DataTypeIds.UInt32;
+                default:
+                    ThrowIfOutOfRange(attributeId);
+                    return null;
+            }
+        }
     }
 }

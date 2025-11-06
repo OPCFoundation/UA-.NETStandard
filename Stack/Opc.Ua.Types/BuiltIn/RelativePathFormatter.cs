@@ -163,7 +163,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadIndexRangeInvalid,
-                            Utils.Format(
+                            CoreUtils.Format(
                                 "Cannot translate namespace index '{0}' to target namespace table.",
                                 qname.NamespaceIndex));
                     }
@@ -184,7 +184,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadIndexRangeInvalid,
-                            Utils.Format(
+                            CoreUtils.Format(
                                 "Cannot translate namespace index '{0}' to target namespace table.",
                                 qname.NamespaceIndex));
                     }
@@ -226,7 +226,7 @@ namespace Opc.Ua
                 return path.ToString();
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <summary>
@@ -291,7 +291,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadIndexRangeInvalid,
-                    Utils.Format("Cannot parse relative path: '{0}'.", textToParse),
+                    CoreUtils.Format("Cannot parse relative path: '{0}'.", textToParse),
                     e);
             }
 
@@ -459,7 +459,7 @@ namespace Opc.Ua
                     return path.ToString();
                 }
 
-                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+                throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
             }
 
             /// <summary>
@@ -583,7 +583,7 @@ namespace Opc.Ua
 
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
-                            Utils.Format("Invalid escape sequence '&{0}' in browse path.", next));
+                            CoreUtils.Format("Invalid escape sequence '&{0}' in browse path.", next));
                     }
 
                     // check for invalid character.
@@ -591,7 +591,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
-                            Utils.Format("Unexpected character '{0}' in browse path.", next));
+                            CoreUtils.Format("Unexpected character '{0}' in browse path.", next));
                     }
 
                     // append character.
@@ -604,7 +604,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSyntaxError,
-                        Utils.Format(
+                        CoreUtils.Format(
                             "Missing closing '>' for reference type name in browse path."));
                 }
 
@@ -614,7 +614,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
-                            Utils.Format("Reference type name is null in browse path."));
+                            CoreUtils.Format("Reference type name is null in browse path."));
                     }
 
                     if (namespaceIndex == 0)

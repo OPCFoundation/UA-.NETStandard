@@ -37,7 +37,7 @@ namespace Opc.Ua
                 Dimensions[ii] = value.GetLength(ii);
             }
 
-            Elements = Utils.FlattenArray(value);
+            Elements = CoreUtils.FlattenArray(value);
             TypeInfo = new TypeInfo(builtInType, Dimensions.Length);
         }
 
@@ -144,11 +144,11 @@ namespace Opc.Ua
                 {
                     return false;
                 }
-                if (!Utils.IsEqual(Dimensions, matrix.Dimensions))
+                if (!CoreUtils.IsEqual(Dimensions, matrix.Dimensions))
                 {
                     return false;
                 }
-                return Utils.IsEqual(Elements, matrix.Elements);
+                return CoreUtils.IsEqual(Elements, matrix.Elements);
             }
 
             return false;
@@ -213,7 +213,7 @@ namespace Opc.Ua
                 return buffer.ToString();
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -230,7 +230,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            return new Matrix(Utils.Clone(Elements), TypeInfo.BuiltInType, Utils.Clone(Dimensions));
+            return new Matrix(CoreUtils.Clone(Elements), TypeInfo.BuiltInType, CoreUtils.Clone(Dimensions));
         }
 
         /// <summary>

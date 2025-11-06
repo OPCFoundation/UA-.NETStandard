@@ -18,14 +18,8 @@ namespace Opc.Ua
     /// <summary>
     /// An interface to an object that describes how access the system containing the data.
     /// </summary>
-    public interface ISystemContext
+    public interface ISessionSystemContext : ISystemContext
     {
-        /// <summary>
-        /// An application defined handle for the system.
-        /// </summary>
-        /// <value>The system handle.</value>
-        object SystemHandle { get; }
-
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
         /// </summary>
@@ -37,95 +31,28 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The user identity.</value>
         IUserIdentity UserIdentity { get; }
-
-        /// <summary>
-        /// The locales to use if available.
-        /// </summary>
-        /// <value>The preferred locales.</value>
-        IList<string> PreferredLocales { get; }
-
-        /// <summary>
-        /// The audit log entry associated with the operation (null if not available).
-        /// </summary>
-        /// <value>The audit entry identifier.</value>
-        string AuditEntryId { get; }
-
-        /// <summary>
-        /// The table of namespace uris to use when accessing the system.
-        /// </summary>
-        /// <value>The namespace URIs.</value>
-        NamespaceTable NamespaceUris { get; }
-
-        /// <summary>
-        /// The table of server uris to use when accessing the system.
-        /// </summary>
-        /// <value>The server URIs.</value>
-        StringTable ServerUris { get; }
-
-        /// <summary>
-        /// A table containing the types that are to be used when accessing the system.
-        /// </summary>
-        /// <value>The type table.</value>
-        ITypeTable TypeTable { get; }
-
-        /// <summary>
-        /// A factory that can be used to create encodeable types.
-        /// </summary>
-        /// <value>The encodeable factory.</value>
-        IEncodeableFactory EncodeableFactory { get; }
-
-        /// <summary>
-        /// A factory that can be used to create node ids.
-        /// </summary>
-        /// <value>The node identifiers factory.</value>
-        INodeIdFactory NodeIdFactory { get; }
-
-        /// <summary>
-        /// A factory that can be used to create encodeable types.
-        /// </summary>
-        /// <value>The encodeable factory.</value>
-        NodeStateFactory NodeStateFactory { get; }
-
-        /// <summary>
-        /// Telemetry context for logging and tracing in the system
-        /// </summary>
-        ITelemetryContext Telemetry { get; }
-    }
-
-    /// <summary>
-    /// An interface that can be used to create new node ids.
-    /// </summary>
-    public interface INodeIdFactory
-    {
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="node">The node.</param>
-        /// <returns>The new NodeId.</returns>
-        NodeId New(ISystemContext context, NodeState node);
     }
 
     /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class SystemContext : ISystemContext, IOperationContext
+    public class SessionSystemContext : ISessionSystemContext, ISessionOperationContext
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="SystemContext"/> class.
+        /// Initializes a new instance of the <see cref="SessionSystemContext"/> class.
         /// </summary>
-        public SystemContext(ITelemetryContext telemetry)
+        public SessionSystemContext(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
             NodeStateFactory = new NodeStateFactory();
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SystemContext"/> class.
+        /// Initializes a new instance of the <see cref="SessionSystemContext"/> class.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        public SystemContext(IOperationContext context, ITelemetryContext telemetry)
+        public SessionSystemContext(IOperationContext context, ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
             NodeStateFactory = new NodeStateFactory();
@@ -149,9 +76,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (OperationContext != null)
+                if (OperationContext is ISessionOperationContext session)
                 {
-                    return OperationContext.SessionId;
+                    return session.SessionId;
                 }
 
                 return m_sessionId;
@@ -167,9 +94,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (OperationContext != null)
+                if (OperationContext is ISessionOperationContext session)
                 {
-                    return OperationContext.UserIdentity;
+                    return session.UserIdentity;
                 }
 
                 return m_userIdentity;
@@ -264,7 +191,7 @@ namespace Opc.Ua
         /// </returns>
         public ISystemContext Copy(IOperationContext context)
         {
-            var copy = (SystemContext)MemberwiseClone();
+            var copy = (SessionSystemContext)MemberwiseClone();
 
             if (context != null)
             {

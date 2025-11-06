@@ -45,7 +45,7 @@ namespace Opc.Ua
         /// <param name="value">The Variant value to copy.</param>
         public Variant(Variant value)
         {
-            m_value = Utils.Clone(value.m_value);
+            m_value = CoreUtils.Clone(value.m_value);
             TypeInfo = value.TypeInfo;
         }
 
@@ -87,11 +87,11 @@ namespace Opc.Ua
 
             System.Diagnostics.Debug.Assert(
                 sanityCheck.BuiltInType == TypeInfo.BuiltInType,
-                Utils.Format("{0} != {1}", sanityCheck.BuiltInType, typeInfo.BuiltInType));
+                CoreUtils.Format("{0} != {1}", sanityCheck.BuiltInType, typeInfo.BuiltInType));
 
             System.Diagnostics.Debug.Assert(
                 sanityCheck.ValueRank == TypeInfo.ValueRank,
-                Utils.Format("{0} != {1}", sanityCheck.ValueRank, typeInfo.ValueRank));
+                CoreUtils.Format("{0} != {1}", sanityCheck.ValueRank, typeInfo.ValueRank));
 #endif
         }
 
@@ -877,7 +877,7 @@ namespace Opc.Ua
                 return buffer.ToString();
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <summary>
@@ -988,7 +988,7 @@ namespace Opc.Ua
         /// </remarks>
         public new readonly object MemberwiseClone()
         {
-            return new Variant(Utils.Clone(Value));
+            return new Variant(CoreUtils.Clone(Value));
         }
 
         /// <summary>
@@ -1558,7 +1558,7 @@ namespace Opc.Ua
         /// </summary>
         public readonly bool Equals(Variant other)
         {
-            return Utils.IsEqual(m_value, other.m_value);
+            return CoreUtils.IsEqual(m_value, other.m_value);
         }
 
         /// <summary>
@@ -1586,7 +1586,7 @@ namespace Opc.Ua
 
             if (variant != null)
             {
-                return Utils.IsEqual(m_value, variant.Value.m_value);
+                return CoreUtils.IsEqual(m_value, variant.Value.m_value);
             }
 
             return false;
@@ -2306,7 +2306,7 @@ namespace Opc.Ua
                     // not supported.
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format(
+                        CoreUtils.Format(
                             "The type '{0}' cannot be stored in a Variant object.",
                             value.GetType().FullName));
                 // convert Guids to Uuids.
@@ -2378,7 +2378,7 @@ namespace Opc.Ua
                     // not supported.
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format(
+                        CoreUtils.Format(
                             "The type '{0}' cannot be stored in a Variant object.",
                             array.GetType().FullName));
                 }
@@ -2526,7 +2526,7 @@ namespace Opc.Ua
             // not supported.
             throw new ServiceResultException(
                 StatusCodes.BadNotSupported,
-                Utils.Format(
+                CoreUtils.Format(
                     "Arrays of the type '{0}' cannot be stored in a Variant object.",
                     value.GetType().FullName));
         }
@@ -2614,7 +2614,7 @@ namespace Opc.Ua
 
             foreach (Variant element in this)
             {
-                clone.Add((Variant)Utils.Clone(element));
+                clone.Add((Variant)CoreUtils.Clone(element));
             }
 
             return clone;

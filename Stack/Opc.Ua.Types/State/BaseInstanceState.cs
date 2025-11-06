@@ -19,10 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for all instance nodes.
     /// </summary>
-    public class BaseInstanceState : NodeState
-#if ZOMBIE
-	, IFilterTarget
-#endif
+    public class BaseInstanceState : NodeState, IFilterTarget
     {
         /// <summary>
         /// Initializes the instance with its default attribute values.
@@ -81,7 +78,6 @@ namespace Opc.Ua
         /// </summary>
         public NodeState Parent { get; internal set; }
 
-#if ZOMBIE
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -182,7 +178,7 @@ namespace Opc.Ua
 
             return node.DisplayName.Text;
         }
-#endif
+
         /// <summary>
         /// A numeric identifier for the instance that is unique within the parent.
         /// </summary>
@@ -239,7 +235,6 @@ namespace Opc.Ua
             }
         }
 
-#if ZOMBIE
         /// <summary>
         /// Sets the flag which indicates whether event are being monitored for the instance and its children.
         /// </summary>
@@ -253,6 +248,7 @@ namespace Opc.Ua
             Parent?.ReportEvent(context, e);
         }
 
+#if ZOMBIE
         /// <summary>
         /// Initializes the instance from an event notification.
         /// </summary>
@@ -392,9 +388,8 @@ namespace Opc.Ua
             }
         }
 
-#if ZOMBIE
         /// <inheritdoc/>
-        public virtual bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
+        public virtual bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
         {
             return NodeId.IsNull(typeDefinitionId) ||
                 context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId);
@@ -402,7 +397,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual object GetAttributeValue(
-            FilterContext context,
+            IFilterContext context,
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
@@ -410,7 +405,7 @@ namespace Opc.Ua
         {
             // check the type definition.
             if (!NodeId.IsNull(typeDefinitionId) &&
-                typeDefinitionId != ObjectTypes.BaseEventType &&
+                typeDefinitionId != ObjectTypeIds.BaseEventType &&
                 !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
             {
                 return null;
@@ -447,7 +442,7 @@ namespace Opc.Ua
             // return the result.
             return value;
         }
-#endif
+
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>

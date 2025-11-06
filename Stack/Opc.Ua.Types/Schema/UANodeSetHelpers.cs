@@ -40,7 +40,7 @@ namespace Opc.Ua.Export
         public static UANodeSet Read(Stream istrm)
         {
             using var reader = new StreamReader(istrm);
-            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
             var serializer = new XmlSerializer(typeof(UANodeSet));
             return serializer.Deserialize(xmlReader) as UANodeSet;
         }
@@ -51,7 +51,7 @@ namespace Opc.Ua.Export
         /// <param name="istrm">The input stream.</param>
         public void Write(Stream istrm)
         {
-            XmlWriterSettings setting = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings setting = CoreUtils.DefaultXmlWriterSettings();
             var writer = XmlWriter.Create(istrm, setting);
 
             try

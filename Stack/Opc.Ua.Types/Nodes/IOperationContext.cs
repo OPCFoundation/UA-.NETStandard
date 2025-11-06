@@ -21,18 +21,6 @@ namespace Opc.Ua
     public interface IOperationContext
     {
         /// <summary>
-        /// The identifier for the session (null if multiple sessions are associated with the operation).
-        /// </summary>
-        /// <value>The session identifier.</value>
-        NodeId SessionId { get; }
-
-        /// <summary>
-        /// The identity of the user.
-        /// </summary>
-        /// <value>The user identity.</value>
-        IUserIdentity UserIdentity { get; }
-
-        /// <summary>
         /// The locales to use if available.
         /// </summary>
         /// <value>The preferred locales.</value>

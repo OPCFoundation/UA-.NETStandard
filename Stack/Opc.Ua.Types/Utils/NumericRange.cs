@@ -334,7 +334,7 @@ namespace Opc.Ua
                 return string.Format(formatProvider, "{0}:{1}", m_begin, m_end);
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <summary>

@@ -411,7 +411,6 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
             HasApplicationSecureAdminAccess(context, null);
@@ -421,12 +420,11 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(
             ISystemContext context,
             CertificateStoreIdentifier _)
         {
-            if (context is SystemContext { OperationContext: OperationContext operationContext })
+            if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
                     MessageSecurityMode.SignAndEncrypt)
@@ -598,7 +596,7 @@ namespace Opc.Ua.Server
                 var updateCertificate = new UpdateCertificateData
                 {
                     IssuerCollection = newIssuerCollection,
-                    SessionId = context.SessionId
+                    SessionId = (context as ISessionSystemContext)?.SessionId
                 };
                 try
                 {

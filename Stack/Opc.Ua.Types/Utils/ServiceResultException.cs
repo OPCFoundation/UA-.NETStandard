@@ -165,7 +165,7 @@ namespace Opc.Ua
                 return new ServiceResultException(code);
             }
 
-            return new ServiceResultException(code, Utils.Format(format, args));
+            return new ServiceResultException(code, CoreUtils.Format(format, args));
         }
 
         /// <summary>
@@ -182,7 +182,20 @@ namespace Opc.Ua
                 return new ServiceResultException(code, e);
             }
 
-            return new ServiceResultException(code, Utils.Format(format, args), e);
+            return new ServiceResultException(code, CoreUtils.Format(format, args), e);
+        }
+
+        /// <summary>
+        /// Creates a new instance of a ServiceResultException
+        /// </summary>
+        public static ServiceResultException Create(
+            StatusCode code,
+            int index,
+            DiagnosticInfoCollection diagnosticInfos,
+            IList<string> stringTable)
+        {
+            return new ServiceResultException(
+                new ServiceResult(code, index, diagnosticInfos, stringTable));
         }
 
         /// <summary>
@@ -198,7 +211,7 @@ namespace Opc.Ua
 #if DEBUG
             string message = format == null ?
                 "An unexpected error occurred" :
-                Utils.Format(format, args);
+                CoreUtils.Format(format, args);
 #if DEBUGCHK
             System.Diagnostics.Debug.Fail(message);
 #endif
@@ -211,7 +224,7 @@ namespace Opc.Ua
             }
             return new ServiceResultException(
                 StatusCodes.BadUnexpectedError,
-                Utils.Format(format, args));
+                CoreUtils.Format(format, args));
         }
 
         /// <summary>

@@ -1265,6 +1265,7 @@ namespace Opc.Ua.Gds.Server
                 domainNames = GetDefaultDomainNames(application);
             }
 
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             requestId = m_request.StartNewKeyPairRequest(
                 applicationId,
                 certificateGroup.Configuration.Id,
@@ -1273,7 +1274,7 @@ namespace Opc.Ua.Gds.Server
                 domainNames,
                 privateKeyFormat,
                 privateKeyPassword?.ToCharArray(),
-                context.UserIdentity?.DisplayName);
+                userIdentity?.DisplayName);
 
             if (m_autoApprove)
             {
@@ -1362,12 +1363,13 @@ namespace Opc.Ua.Gds.Server
             await certificateGroup.VerifySigningRequestAsync(application, certificateRequest, cancellationToken).ConfigureAwait(false);
 
             // store request in the queue for approval
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             result.RequestId = m_request.StartSigningRequest(
                 applicationId,
                 certificateGroup.Configuration.Id,
                 certificateTypeNameId,
                 certificateRequest,
-                context.UserIdentity?.DisplayName);
+                userIdentity?.DisplayName);
 
             if (m_autoApprove)
             {

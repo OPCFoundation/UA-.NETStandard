@@ -93,7 +93,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         public override string GetSchema(string typeName)
         {
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
 
             var ostrm = new MemoryStream();
             var writer = XmlWriter.Create(ostrm, settings);

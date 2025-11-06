@@ -40,7 +40,10 @@
 
 using System;
 using System.Globalization;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable CA2254 // Template should be a static expression
@@ -59,9 +62,20 @@ namespace Opc.Ua
     public static partial class Utils
     {
         /// <summary>
+        /// The high performance EventSource log interface.
+        /// </summary>
+        internal static OpcUaCoreEventSource EventLog { get; } = new();
+
+        /// <summary>
         /// Global default logger provider
         /// </summary>
         internal static TraceLoggerProvider LoggerProvider { get; } = new();
+
+        static Utils()
+        {
+            TelemetryExtensions.InternalOnly__TelemetryHook =
+                () => DefaultTelemetry.Create(builder => builder.AddProvider(LoggerProvider));
+        }
 
         /// <summary>
         /// The possible trace output mechanisms.
@@ -151,81 +165,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Append the exception and all nested exception with no indent
+        /// Format a log string of the certificate
         /// </summary>
-        public static StringBuilder AppendException(
-            this StringBuilder buffer,
-            Exception exception)
+        /// <param name="certificate"></param>
+        /// <returns></returns>
+        public static string AsLogSafeString(this X509Certificate2 certificate)
         {
-            return AppendException(buffer, exception, string.Empty);
-        }
-
-        /// <summary>
-        /// Append the exception and all nested exception with indent
-        /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="exception"/> or <paramref name="indent"/> is <c>null</c>.
-        /// </exception>
-        public static StringBuilder AppendException(
-            this StringBuilder buffer,
-            Exception exception,
-            string indent)
-        {
-            if (exception == null)
+            if (certificate == null)
             {
-                throw new ArgumentNullException(nameof(exception));
+                return "(none)";
             }
-            if (indent == null)
+            var buffer = new StringBuilder();
+            buffer
+                .Append('[')
+                .Append(Redact.Create(certificate.Subject))
+                .Append("], [")
+                .Append(Redact.Create(certificate.Thumbprint))
+                .Append(']');
+
+            if (certificate.Handle == IntPtr.Zero)
             {
-                throw new ArgumentNullException(nameof(indent));
+                buffer.Append(" !!DISPOSED!!");
             }
-            for (int i = 0; i < 100; i++)
+            else if (certificate.HasPrivateKey)
             {
-                if (i > 0)
-                {
-                    buffer
-                        .AppendLine()
-                        .Append(indent)
-                        .Append(">>>> (Inner #")
-                        .Append(i)
-                        .AppendLine(") >>>>");
-                }
-
-                buffer
-                    .Append(indent)
-                    .Append('[')
-                    .Append(exception.GetType().Name)
-                    .Append(']')
-                    .Append(' ')
-                    .Append(exception.Message ?? "(No message)");
-
-                if (!string.IsNullOrEmpty(exception.StackTrace))
-                {
-                    AddStackTrace(buffer, exception.StackTrace, indent);
-                }
-
-                if (exception.InnerException == null)
-                {
-                    break;
-                }
-                exception = exception.InnerException;
+                buffer.Append(" (with Private Key)");
             }
-            return buffer;
-
-            static void AddStackTrace(StringBuilder buffer, string stackTrace, string indent)
-            {
-                string[] trace = stackTrace.Split(Environment.NewLine.ToCharArray());
-                for (int ii = 0; ii < trace.Length; ii++)
-                {
-                    if (!string.IsNullOrEmpty(trace[ii]))
-                    {
-                        buffer
-                            .AppendLine()
-                            .Append(indent)
-                            .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
-                    }
-                }
-            }
+            return buffer.ToString();
         }
     }
 }

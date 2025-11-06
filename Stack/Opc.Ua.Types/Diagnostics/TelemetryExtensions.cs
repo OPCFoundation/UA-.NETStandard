@@ -52,7 +52,7 @@ namespace Opc.Ua
         public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? telemetry)
         {
             DebugCheck(telemetry);
-            return telemetry?.LoggerFactory ?? s_default.Value.LoggerFactory;
+            return telemetry?.LoggerFactory ?? Default.LoggerFactory;
         }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace Opc.Ua
         public static Meter CreateMeter(this ITelemetryContext? telemetry)
         {
             DebugCheck(telemetry);
-            return telemetry?.CreateMeter() ?? s_default.Value.CreateMeter();
+            return telemetry?.CreateMeter() ?? Default.CreateMeter();
         }
 
         /// <summary>
@@ -108,7 +108,7 @@ namespace Opc.Ua
         public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
         {
             DebugCheck(telemetry);
-            return telemetry?.ActivitySource ?? s_default.Value.ActivitySource;
+            return telemetry?.ActivitySource ?? Default.ActivitySource;
         }
 
         /// <summary>
@@ -124,8 +124,23 @@ namespace Opc.Ua
             return telemetry.GetActivitySource().StartActivity(name, kind);
         }
 
-        private static readonly Lazy<DefaultTelemetry> s_default =
-            new(() => new DefaultTelemetry(), true);
+        /// <summary>
+        /// Hook setting default telemetry context
+        /// </summary>
+        public static Func<ITelemetryContext> InternalOnly__TelemetryHook
+        {
+            get
+            {
+                static ITelemetryContext GetDefault() => s_default.Value;
+                return s_default1 ?? GetDefault;
+            }
+            set => s_default1 = value;
+        }
+
+        private static ITelemetryContext Default => InternalOnly__TelemetryHook();
+        private static readonly Lazy<ITelemetryContext> s_default =
+            new(() => DefaultTelemetry.Create(builder => { }), true);
+        private static Func<ITelemetryContext>? s_default1;
 
         /// <summary>
         /// Perform a debug check to help analyze null telemetry anywhere and helping

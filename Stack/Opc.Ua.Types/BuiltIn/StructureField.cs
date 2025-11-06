@@ -162,37 +162,37 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(Name, value.Name))
+            if (!CoreUtils.IsEqual(Name, value.Name))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(Description, value.Description))
+            if (!CoreUtils.IsEqual(Description, value.Description))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(DataType, value.DataType))
+            if (!CoreUtils.IsEqual(DataType, value.DataType))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(ValueRank, value.ValueRank))
+            if (!CoreUtils.IsEqual(ValueRank, value.ValueRank))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
+            if (!CoreUtils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(MaxStringLength, value.MaxStringLength))
+            if (!CoreUtils.IsEqual(MaxStringLength, value.MaxStringLength))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(IsOptional, value.IsOptional))
+            if (!CoreUtils.IsEqual(IsOptional, value.IsOptional))
             {
                 return false;
             }
@@ -211,13 +211,13 @@ namespace Opc.Ua
         {
             var clone = (StructureField)base.MemberwiseClone();
 
-            clone.Name = Utils.Clone(Name);
-            clone.Description = Utils.Clone(Description);
-            clone.DataType = Utils.Clone(DataType);
-            clone.ValueRank = (int)Utils.Clone(ValueRank);
-            clone.m_arrayDimensions = Utils.Clone(m_arrayDimensions);
-            clone.MaxStringLength = (uint)Utils.Clone(MaxStringLength);
-            clone.IsOptional = (bool)Utils.Clone(IsOptional);
+            clone.Name = CoreUtils.Clone(Name);
+            clone.Description = CoreUtils.Clone(Description);
+            clone.DataType = CoreUtils.Clone(DataType);
+            clone.ValueRank = (int)CoreUtils.Clone(ValueRank);
+            clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
+            clone.MaxStringLength = (uint)CoreUtils.Clone(MaxStringLength);
+            clone.IsOptional = (bool)CoreUtils.Clone(IsOptional);
 
             return clone;
         }
@@ -284,7 +284,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

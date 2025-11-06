@@ -1086,7 +1086,7 @@ namespace Opc.Ua
 
             foreach (byte[] element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;
@@ -1168,7 +1168,7 @@ namespace Opc.Ua
 
             foreach (XmlElement element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

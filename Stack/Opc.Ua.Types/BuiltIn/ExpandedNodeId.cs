@@ -435,7 +435,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the inner node id.
         /// </summary>
-        internal NodeId InnerNodeId { get; set; }
+        public NodeId InnerNodeId { get; set; }
 
         /// <summary>
         /// The node identifier formatted as a URI.
@@ -552,7 +552,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(namespaceUri))
             {
                 buffer.Append("nsu=")
-                    .Append(Utils.EscapeUri(namespaceUri))
+                    .Append(CoreUtils.EscapeUri(namespaceUri))
                     .Append(';');
             }
 
@@ -626,7 +626,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? Utils.Format("Cannot parse expanded node id text: '{0}'", text));
+                    errorMessage ?? CoreUtils.Format("Cannot parse expanded node id text: '{0}'", text));
             }
             return value;
         }
@@ -707,7 +707,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                errorMessage = Utils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
+                errorMessage = CoreUtils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
                 return false;
             }
 
@@ -757,7 +757,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? Utils.Format("Cannot parse expanded node id text: '{0}'", text));
+                    errorMessage ?? CoreUtils.Format("Cannot parse expanded node id text: '{0}'", text));
             }
             return value;
         }
@@ -796,11 +796,11 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    errorMessage = CoreUtils.Format("Invalid ExpandedNodeId ({0}).", originalText);
                     return false;
                 }
 
-                string serverUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
+                string serverUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
                 serverIndex =
                     options?.UpdateTables == true
                         ? context.ServerUris.GetIndexOrAppend(serverUri)
@@ -808,7 +808,7 @@ namespace Opc.Ua
 
                 if (serverIndex < 0)
                 {
-                    errorMessage = Utils.Format("No mapping to ServerIndex for ServerUri ({0}).", serverUri);
+                    errorMessage = CoreUtils.Format("No mapping to ServerIndex for ServerUri ({0}).", serverUri);
                     return false;
                 }
 
@@ -821,7 +821,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    errorMessage = CoreUtils.Format("Invalid ExpandedNodeId ({0}).", originalText);
                     return false;
                 }
 
@@ -847,11 +847,11 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    errorMessage = CoreUtils.Format("Invalid ExpandedNodeId ({0}).", originalText);
                     return false;
                 }
 
-                namespaceUri = Utils.UnescapeUri(text[4..index]);
+                namespaceUri = CoreUtils.UnescapeUri(text[4..index]);
                 namespaceIndex =
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
@@ -1125,7 +1125,7 @@ namespace Opc.Ua
                 return Format(formatProvider);
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -1246,7 +1246,7 @@ namespace Opc.Ua
                     if (!string.IsNullOrEmpty(serverUri))
                     {
                         buffer.Append("svu=")
-                            .Append(Utils.EscapeUri(serverUri))
+                            .Append(CoreUtils.EscapeUri(serverUri))
                             .Append(';');
                     }
                     else
@@ -1267,7 +1267,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(NamespaceUri))
             {
                 buffer.Append("nsu=")
-                    .Append(Utils.EscapeUri(NamespaceUri))
+                    .Append(CoreUtils.EscapeUri(NamespaceUri))
                     .Append(';');
             }
 
@@ -1375,15 +1375,15 @@ namespace Opc.Ua
             if (!InternalTryParseInstance(text, out string errorMessage))
             {
                 // Check if this should be an ArgumentException based on the error message
-                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") || 
+                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") ||
                     errorMessage.Contains("Missing valid identifier prefix")))
                 {
                     throw new ArgumentException(errorMessage);
                 }
-                
+
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? Utils.Format("Cannot parse expanded node id text: '{0}'", text));
+                    errorMessage ?? CoreUtils.Format("Cannot parse expanded node id text: '{0}'", text));
             }
         }
 
@@ -1440,7 +1440,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                errorMessage = Utils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
+                errorMessage = CoreUtils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
                 return false;
             }
 
@@ -1543,7 +1543,7 @@ namespace Opc.Ua
 
             foreach (ExpandedNodeId element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

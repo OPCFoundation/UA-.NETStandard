@@ -114,7 +114,7 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable)
-            : this(result, diagnosticsMask, serviceLevel, stringTable, 0, Utils.Fallback.Logger)
+            : this(result, diagnosticsMask, serviceLevel, stringTable, 0, LoggerUtils.Fallback.Logger)
         {
         }
 
@@ -127,7 +127,7 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable)
-            : this(exception, diagnosticsMask, serviceLevel, stringTable, Utils.Fallback.Logger)
+            : this(exception, diagnosticsMask, serviceLevel, stringTable, LoggerUtils.Fallback.Logger)
         {
         }
 
@@ -439,7 +439,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return Utils.Format(
+                return CoreUtils.Format(
                     "{0}:{1}:{2}:{3}",
                     SymbolicId,
                     NamespaceUri,
@@ -447,7 +447,7 @@ namespace Opc.Ua
                     LocalizedText);
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -647,7 +647,7 @@ namespace Opc.Ua
 
             foreach (DiagnosticInfo element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

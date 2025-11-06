@@ -56,6 +56,18 @@ namespace Opc.Ua
     public interface ILocalNode : INode
     {
         /// <summary>
+        /// A synchronization object that can be used to safely access the node.
+        /// </summary>
+        /// <value>The data lock.</value>
+        object DataLock { get; }
+
+        /// <summary>
+        /// A handle assigned to the node.
+        /// </summary>
+        /// <value>The handle.</value>
+        object Handle { get; set; }
+
+        /// <summary>
         /// The node identifier.
         /// </summary>
         /// <value>The node identifier.</value>
@@ -92,10 +104,23 @@ namespace Opc.Ua
         AttributeWriteMask UserWriteMask { get; set; }
 
         /// <summary>
+        /// The identifier for the ModellingRule node.
+        /// </summary>
+        /// <value>The modelling rule.</value>
+        NodeId ModellingRule { get; }
+
+        /// <summary>
         /// The collection of references for the node.
         /// </summary>
         /// <value>The references.</value>
         IReferenceCollection References { get; }
+
+        /// <summary>
+        /// Creates a copy of the node.
+        /// </summary>
+        /// <param name="nodeId">The node identifier.</param>
+        /// <returns>Copy of the node.</returns>
+        ILocalNode CreateCopy(NodeId nodeId);
 
         /// <summary>
         /// Returns true if the node supports the attribute.
@@ -103,6 +128,23 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute identifier.</param>
         /// <returns>True if the node supports the attribute.</returns>
         bool SupportsAttribute(uint attributeId);
+
+        /// <summary>
+        /// Reads the value of a attribute.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="attributeId">The attribute identifier.</param>
+        /// <param name="value">The value.</param>
+        /// <returns>The result of read operation.</returns>
+        ServiceResult Read(IOperationContext context, uint attributeId, DataValue value);
+
+        /// <summary>
+        /// Writes the value of an attribute.
+        /// </summary>
+        /// <param name="attributeId">The attribute identifier.</param>
+        /// <param name="value">The value.</param>
+        /// <returns>The result of Write operation</returns>
+        ServiceResult Write(uint attributeId, DataValue value);
     }
 
     /// <summary>

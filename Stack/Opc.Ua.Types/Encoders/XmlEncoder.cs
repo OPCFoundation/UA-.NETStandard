@@ -36,7 +36,7 @@ namespace Opc.Ua
             m_destination = new StringBuilder();
             m_nestingLevel = 0;
 
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CheckCharacters = false;
             settings.ConformanceLevel = ConformanceLevel.Auto;
             settings.NamespaceHandling = NamespaceHandling.OmitDuplicates;
@@ -63,7 +63,7 @@ namespace Opc.Ua
             if (writer == null)
             {
                 m_destination = new StringBuilder();
-                m_writer = XmlWriter.Create(m_destination, Utils.DefaultXmlWriterSettings());
+                m_writer = XmlWriter.Create(m_destination, CoreUtils.DefaultXmlWriterSettings());
             }
             else
             {
@@ -456,7 +456,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, false, false))
             {
-                value = Utils.ToOpcUaUniversalTime(value);
+                value = CoreUtils.ToOpcUaUniversalTime(value);
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
@@ -935,7 +935,7 @@ namespace Opc.Ua
                         .ToString(CultureInfo.InvariantCulture);
                     if (valueSymbol != valueInt32)
                     {
-                        m_writer.WriteString(Utils.Format("{0}_{1}", valueSymbol, valueInt32));
+                        m_writer.WriteString(CoreUtils.Format("{0}_{1}", valueSymbol, valueInt32));
                     }
                     else
                     {
@@ -1765,7 +1765,7 @@ namespace Opc.Ua
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadEncodingError,
-                                Utils.Format(
+                                CoreUtils.Format(
                                     "Objects with type '{0}' are not allowed in the array being serialized.",
                                     systemType.FullName));
                         }
@@ -1934,7 +1934,7 @@ namespace Opc.Ua
                         case BuiltInType.UInteger:
                             throw new ServiceResultException(
                                 StatusCodes.BadEncodingError,
-                                Utils.Format(
+                                CoreUtils.Format(
                                     "Type '{0}' is not allowed in an Variant.",
                                     value.GetType().FullName));
                         default:
@@ -2063,7 +2063,7 @@ namespace Opc.Ua
                         case BuiltInType.UInteger:
                             throw new ServiceResultException(
                                 StatusCodes.BadEncodingError,
-                                Utils.Format(
+                                CoreUtils.Format(
                                     "Type '{0}' is not allowed in an Variant.",
                                     value.GetType().FullName));
                         default:
@@ -2112,7 +2112,7 @@ namespace Opc.Ua
             {
                 using var reader = XmlReader.Create(
                     new StringReader(xml.OuterXml),
-                    Utils.DefaultXmlReaderSettings());
+                    CoreUtils.DefaultXmlReaderSettings());
                 m_writer.WriteNode(reader, false);
                 return;
             }
@@ -2121,7 +2121,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    Utils.Format(
+                    CoreUtils.Format(
                         "Don't know how to encode extension object body with type '{0}'.",
                         body.GetType().FullName));
             }

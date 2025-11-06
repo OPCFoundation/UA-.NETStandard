@@ -61,29 +61,14 @@ namespace Opc.Ua.Tests
         private readonly Func<ITelemetryContext, T> m_factory;
     }
 
-    public sealed class NUnitTelemetryContext : ITelemetryContext
+    public sealed class NUnitTelemetryContext : DefaultTelemetry
     {
-        private static readonly DefaultTelemetry s_default = new();
-
-        /// <inheritdoc/>
-        public Meter CreateMeter()
-        {
-            return s_default.CreateMeter();
-        }
-
-        /// <inheritdoc/>
-        public ActivitySource ActivitySource => s_default.ActivitySource;
-
-        /// <inheritdoc/>
-        public ILoggerFactory LoggerFactory { get; }
-
         /// <summary>
         /// Create telemetry context
         /// </summary>
         private NUnitTelemetryContext(string context)
+            : base(builder => builder.AddProvider(new NUnitLoggerProvider(context)))
         {
-            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(
-                builder => builder.AddProvider(new NUnitLoggerProvider(context)));
         }
 
         /// <summary>

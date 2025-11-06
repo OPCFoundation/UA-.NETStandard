@@ -72,6 +72,85 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Sets the output for tracing (thread safe).
+        /// </summary>
+        public void SetTraceOutput(Utils.TraceOutput output)
+        {
+            lock (m_traceFileLock)
+            {
+                m_traceOutput = (int)output;
+            }
+        }
+
+        /// <summary>
+        /// Sets the mask for tracing (thread safe).
+        /// </summary>
+        public void SetTraceMask(int masks)
+        {
+            TraceMask = masks;
+        }
+
+        /// <summary>
+        /// Returns Tracing class instance for event attaching.
+        /// </summary>
+        public Tracing Tracing => Tracing.Instance;
+
+        /// <summary>
+        /// Sets the path to the log file to use for tracing.
+        /// </summary>
+        public void SetTraceLog(string filePath, bool deleteExisting)
+        {
+            // turn tracing on.
+            lock (m_traceFileLock)
+            {
+                // check if tracing is being turned off.
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    m_traceFileName = string.Empty;
+                    return;
+                }
+
+                try
+                {
+                    m_traceFileName = Utils.GetAbsoluteFilePath(
+                        filePath,
+                        checkCurrentDirectory: true,
+                        createAlways: true,
+                        writable: true);
+                }
+                catch (Exception e)
+                {
+                    m_traceFileName = string.Empty;
+                    TraceWriteLine("Could not create log file. Error={0}", e.Message);
+                    return;
+                }
+
+                if (m_traceOutput == (int)Utils.TraceOutput.Off)
+                {
+                    m_traceOutput = (int)Utils.TraceOutput.FileOnly;
+                }
+
+                try
+                {
+                    var file = new FileInfo(m_traceFileName);
+
+                    if (deleteExisting && file.Exists)
+                    {
+                        file.Delete();
+                    }
+
+                    // write initial log message.
+                    TraceWriteLine(string.Empty);
+                    TraceWriteLine("{1} Logging started at {0}", DateTime.Now, new string('*', 25));
+                }
+                catch (Exception e)
+                {
+                    TraceWriteLine(e.Message);
+                }
+            }
+        }
+
+        /// <summary>
         /// Logger object
         /// </summary>
         internal class TraceLogger : ILogger, IDisposable
@@ -229,7 +308,6 @@ namespace Opc.Ua
             // append exception information.
             if (e != null)
             {
-#if ZOMBIE // Manual
                 if (e is ServiceResultException sre)
                 {
                     message.AppendFormat(
@@ -239,7 +317,6 @@ namespace Opc.Ua
                         sre.Message);
                 }
                 else
-#endif
                 {
                     message.AppendFormat(
                         CultureInfo.InvariantCulture,
@@ -262,6 +339,35 @@ namespace Opc.Ua
             }
 
             return message;
+        }
+
+        /// <summary>
+        /// Writes a trace statement.
+        /// </summary>
+        internal void TraceWriteLine(string message, params object[] args)
+        {
+            // null strings not supported.
+            if (string.IsNullOrEmpty(message))
+            {
+                return;
+            }
+
+            // format the message if format arguments provided.
+            string output = message;
+
+            if (args != null && args.Length > 0)
+            {
+                try
+                {
+                    output = string.Format(CultureInfo.InvariantCulture, message, args);
+                }
+                catch (Exception)
+                {
+                    output = message;
+                }
+            }
+
+            TraceWriteLine(output);
         }
 
         /// <summary>

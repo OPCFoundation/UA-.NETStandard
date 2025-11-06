@@ -58,6 +58,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Same as GetBrowseName
+        /// </summary>
+        /// <param name="identifier"></param>
+        /// <returns></returns>
+        public static string LookupSymbolicId(uint identifier)
+        {
+            return GetBrowseName(identifier);
+        }
+
+        /// <summary>
         /// Returns the UTF-8 browse name for the attribute.
         /// </summary>
         public static byte[] GetUtf8BrowseName(uint identifier)

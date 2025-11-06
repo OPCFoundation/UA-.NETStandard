@@ -116,12 +116,12 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(IsAbstract, value.IsAbstract))
+            if (!CoreUtils.IsEqual(IsAbstract, value.IsAbstract))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(DataTypeDefinition, value.DataTypeDefinition))
+            if (!CoreUtils.IsEqual(DataTypeDefinition, value.DataTypeDefinition))
             {
                 return false;
             }
@@ -140,8 +140,8 @@ namespace Opc.Ua
         {
             var clone = (DataTypeNode)base.MemberwiseClone();
 
-            clone.IsAbstract = (bool)Utils.Clone(IsAbstract);
-            clone.DataTypeDefinition = Utils.Clone(DataTypeDefinition);
+            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
+            clone.DataTypeDefinition = CoreUtils.Clone(DataTypeDefinition);
 
             return clone;
         }

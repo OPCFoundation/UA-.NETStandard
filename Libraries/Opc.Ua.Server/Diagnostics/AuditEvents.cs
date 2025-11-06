@@ -146,7 +146,7 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditWriteUpdateEvent(
             this IAuditEventServer server,
-            SystemContext systemContext,
+            ISystemContext systemContext,
             WriteValue writeValue,
             object oldValue,
             StatusCode statusCode,
@@ -158,7 +158,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (systemContext?.OperationContext == null || systemContext?.UserIdentity == null)
+            if (systemContext is not ISessionSystemContext session ||
+                session.UserIdentity == null)
             {
                 return;
             }
@@ -192,7 +193,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    systemContext?.UserIdentity?.DisplayName,
+                    session.UserIdentity?.DisplayName,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -1857,7 +1858,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    systemContext?.UserIdentity?.DisplayName,
+                    (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -2027,7 +2028,7 @@ namespace Opc.Ua.Server
             e.SetChildValue(
                 systemContext,
                 BrowseNames.ClientUserId,
-                systemContext?.UserIdentity?.DisplayName,
+                (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName,
                 false);
             e.SetChildValue(
                 systemContext,

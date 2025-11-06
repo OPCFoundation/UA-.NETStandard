@@ -9,6 +9,9 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>

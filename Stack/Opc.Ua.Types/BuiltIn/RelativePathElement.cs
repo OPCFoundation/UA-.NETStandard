@@ -119,22 +119,22 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(IsInverse, value.IsInverse))
+            if (!CoreUtils.IsEqual(IsInverse, value.IsInverse))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(IncludeSubtypes, value.IncludeSubtypes))
+            if (!CoreUtils.IsEqual(IncludeSubtypes, value.IncludeSubtypes))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(TargetName, value.TargetName))
+            if (!CoreUtils.IsEqual(TargetName, value.TargetName))
             {
                 return false;
             }
@@ -153,10 +153,10 @@ namespace Opc.Ua
         {
             RelativePathElement clone = (RelativePathElement)base.MemberwiseClone();
 
-            clone.ReferenceTypeId = Utils.Clone(ReferenceTypeId);
-            clone.IsInverse = (bool)Utils.Clone(IsInverse);
-            clone.IncludeSubtypes = (bool)Utils.Clone(IncludeSubtypes);
-            clone.TargetName = Utils.Clone(TargetName);
+            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
+            clone.IsInverse = (bool)CoreUtils.Clone(IsInverse);
+            clone.IncludeSubtypes = (bool)CoreUtils.Clone(IncludeSubtypes);
+            clone.TargetName = CoreUtils.Clone(TargetName);
 
             return clone;
         }
@@ -223,7 +223,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

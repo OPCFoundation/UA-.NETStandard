@@ -405,7 +405,6 @@ namespace Opc.Ua
             return typeInfo.ValueRank;
         }
 
-#if ZOMBIE
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
@@ -457,6 +456,7 @@ namespace Opc.Ua
                 case DataTypes.NormalizedString:
                 case DataTypes.NumericRange:
                 case DataTypes.TimeString:
+                case DataTypes.UriString:
                     return BuiltInType.String;
                 default:
                     var builtInType = (BuiltInType)Enum.ToObject(
@@ -469,7 +469,6 @@ namespace Opc.Ua
                     return builtInType;
             }
         }
-#endif
 
         /// <summary>
         /// Returns true if the built-in type is a numeric type.
@@ -573,7 +572,6 @@ namespace Opc.Ua
             return BuiltInType.Null;
         }
 
-#if NET_STANDARD_ASYNC
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
@@ -612,8 +610,7 @@ namespace Opc.Ua
 
             return BuiltInType.Null;
         }
-#endif
-#if ZOMBIE
+
         /// <summary>
         /// Returns the system type for the datatype.
         /// </summary>
@@ -687,9 +684,7 @@ namespace Opc.Ua
                 case DataTypes.Structure:
                     return typeof(ExtensionObject);
                 case DataTypes.Number:
-
                 case DataTypes.Integer:
-
                 case DataTypes.UInteger:
                     return typeof(Variant);
                 case DataTypes.Enumeration:
@@ -730,12 +725,13 @@ namespace Opc.Ua
                 case DataTypes.NormalizedString:
                 case DataTypes.NumericRange:
                 case DataTypes.TimeString:
+                case DataTypes.UriString:
                     goto case DataTypes.String;
                 default:
                     return factory.GetSystemType(datatypeId);
             }
         }
-#endif
+
         /// <summary>
         /// A constant representing an unknown type.
         /// </summary>
@@ -3659,7 +3655,7 @@ namespace Opc.Ua
                 return buffer.ToString();
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <summary>

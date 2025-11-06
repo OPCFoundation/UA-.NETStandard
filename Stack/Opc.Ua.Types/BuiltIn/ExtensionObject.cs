@@ -295,7 +295,7 @@ namespace Opc.Ua
             }
 
             TypeId = value.TypeId;
-            Body = Utils.Clone(value.Body);
+            Body = CoreUtils.Clone(value.Body);
         }
 
         /// <summary>
@@ -396,7 +396,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format(
+                        CoreUtils.Format(
                             "Cannot add an object with type '{0}' to an extension object.",
                             m_body.GetType().FullName));
                 }
@@ -429,7 +429,7 @@ namespace Opc.Ua
                     return false;
                 }
 
-                return Utils.IsEqual(m_body, value.m_body);
+                return CoreUtils.IsEqual(m_body, value.m_body);
             }
 
             return false;
@@ -555,7 +555,7 @@ namespace Opc.Ua
                 return "(null)";
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -759,7 +759,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
-                        Utils.Format("Did not read all of a extension object body: '{0}'", TypeId),
+                        CoreUtils.Format("Did not read all of a extension object body: '{0}'", TypeId),
                         e);
                 }
             }
@@ -903,7 +903,7 @@ namespace Opc.Ua
 
             foreach (ExtensionObject element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

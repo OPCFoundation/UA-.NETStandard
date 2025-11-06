@@ -2,8 +2,8 @@
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC;NET_STANDARD_OBSOLETE_SYNC;NET_STANDARD_OBSOLETE_APM</DefineConstants>
     <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC; OPCUA_EXCLUDE_FindServers_ASYNC; OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC; OPCUA_EXCLUDE_GetEndpoints_ASYNC; OPCUA_EXCLUDE_CreateSession_ASYNC; OPCUA_EXCLUDE_ActivateSession_ASYNC; OPCUA_EXCLUDE_CloseSession_ASYNC; OPCUA_EXCLUDE_Cancel_ASYNC; OPCUA_EXCLUDE_AddNodes_ASYNC; OPCUA_EXCLUDE_AddReferences_ASYNC; OPCUA_EXCLUDE_DeleteNodes_ASYNC; OPCUA_EXCLUDE_DeleteReferences_ASYNC; OPCUA_EXCLUDE_RegisterNodes_ASYNC; OPCUA_EXCLUDE_UnregisterNodes_ASYNC; OPCUA_EXCLUDE_QueryFirst_ASYNC; OPCUA_EXCLUDE_QueryNext_ASYNC; OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC; OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC; OPCUA_EXCLUDE_SetMonitoringMode_ASYNC; OPCUA_EXCLUDE_SetTriggering_ASYNC; OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC; OPCUA_EXCLUDE_CreateSubscription_ASYNC; OPCUA_EXCLUDE_ModifySubscription_ASYNC; OPCUA_EXCLUDE_SetPublishingMode_ASYNC; OPCUA_EXCLUDE_Republish_ASYNC; OPCUA_EXCLUDE_TransferSubscriptions_ASYNC; OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC; OPCUA_EXCLUDE_RegisterServer_ASYNC; OPCUA_EXCLUDE_RegisterServer2_ASYNC</DefineConstants>
-    <DefineConstants>$(DefineConstants);OPCUA_EXCLUDE_AttributeWriteMask; OPCUA_EXCLUDE_Argument; OPCUA_EXCLUDE_ArgumentCollection; OPCUA_EXCLUDE_IdType; OPCUA_EXCLUDE_IdTypeCollection; OPCUA_EXCLUDE_RolePermissionType; OPCUA_EXCLUDE_RolePermissionTypeCollection; OPCUA_EXCLUDE_PermissionType; OPCUA_EXCLUDE_ViewDescription; OPCUA_EXCLUDE_BrowseDescription; OPCUA_EXCLUDE_BrowseDescriptionCollection; OPCUA_EXCLUDE_StructureDefinition; OPCUA_EXCLUDE_StructureField; OPCUA_EXCLUDE_StructureFieldCollection; OPCUA_EXCLUDE_ReferenceNode; OPCUA_EXCLUDE_ReferenceNodeCollection; OPCUA_EXCLUDE_DataTypeDefinition; OPCUA_EXCLUDE_EnumDefinition; OPCUA_EXCLUDE_EnumField; OPCUA_EXCLUDE_EnumFieldCollection; OPCUA_EXCLUDE_EnumValueType; OPCUA_EXCLUDE_EnumValueTypeCollection; OPCUA_EXCLUDE_RelativePath; OPCUA_EXCLUDE_BrowseDirection; OPCUA_EXCLUDE_RelativePathElement; OPCUA_EXCLUDE_RelativePathElementCollection; OPCUA_EXCLUDE_NodeClass; OPCUA_EXCLUDE_Node; OPCUA_EXCLUDE_ViewNode; OPCUA_EXCLUDE_ObjectNode; OPCUA_EXCLUDE_MethodNode; OPCUA_EXCLUDE_TypeNode; OPCUA_EXCLUDE_ObjectTypeNode; OPCUA_EXCLUDE_DataTypeNode; OPCUA_EXCLUDE_VariableTypeNode; OPCUA_EXCLUDE_VariableNode</DefineConstants>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <DefineConstants>$(DefineConstants);OPCUA_EXCLUDE_AccessRestrictionType ;OPCUA_EXCLUDE_ReferenceDescription; OPCUA_EXCLUDE_ReferenceDescriptionCollection; OPCUA_EXCLUDE_AttributeWriteMask; OPCUA_EXCLUDE_Argument; OPCUA_EXCLUDE_ArgumentCollection; OPCUA_EXCLUDE_IdType; OPCUA_EXCLUDE_IdTypeCollection; OPCUA_EXCLUDE_RolePermissionType; OPCUA_EXCLUDE_RolePermissionTypeCollection; OPCUA_EXCLUDE_PermissionType; OPCUA_EXCLUDE_ViewDescription; OPCUA_EXCLUDE_BrowseDescription; OPCUA_EXCLUDE_BrowseDescriptionCollection; OPCUA_EXCLUDE_StructureDefinition; OPCUA_EXCLUDE_StructureType; OPCUA_EXCLUDE_StructureField; OPCUA_EXCLUDE_StructureFieldCollection; OPCUA_EXCLUDE_InstanceNode; OPCUA_EXCLUDE_ReferenceTypeNode; OPCUA_EXCLUDE_ReferenceNode; OPCUA_EXCLUDE_ReferenceNodeCollection; OPCUA_EXCLUDE_DataTypeDefinition; OPCUA_EXCLUDE_EnumDefinition; OPCUA_EXCLUDE_EnumField; OPCUA_EXCLUDE_EnumFieldCollection; OPCUA_EXCLUDE_EnumValueType; OPCUA_EXCLUDE_EnumValueTypeCollection; OPCUA_EXCLUDE_RelativePath; OPCUA_EXCLUDE_BrowseDirection; OPCUA_EXCLUDE_RelativePathElement; OPCUA_EXCLUDE_RelativePathElementCollection; OPCUA_EXCLUDE_NodeClass; OPCUA_EXCLUDE_Node; OPCUA_EXCLUDE_ViewNode; OPCUA_EXCLUDE_ObjectNode; OPCUA_EXCLUDE_MethodNode; OPCUA_EXCLUDE_TypeNode; OPCUA_EXCLUDE_ObjectTypeNode; OPCUA_EXCLUDE_DataTypeNode; OPCUA_EXCLUDE_VariableTypeNode; OPCUA_EXCLUDE_VariableNode</DefineConstants>
+    <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
     <AssemblyName>$(AssemblyPrefix).Core</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
@@ -23,21 +23,23 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Stack\State\BaseInstanceState.cs" />
-    <Compile Remove="Stack\State\BaseObjectState.cs" />
-    <Compile Remove="Stack\State\BaseObjectTypeState.cs" />
-    <Compile Remove="Stack\State\BaseTypeState.cs" />
-    <Compile Remove="Stack\State\BaseVariableState.cs" />
-    <Compile Remove="Stack\State\BaseVariableTypeState.cs" />
-    <Compile Remove="Stack\State\DataTypeState.cs" />
-    <Compile Remove="Stack\State\ISystemContext.cs" />
-    <Compile Remove="Stack\State\MethodState.cs" />
-    <Compile Remove="Stack\State\ModelCompilerExtension.cs" />
-    <Compile Remove="Stack\State\NodeBrowser.cs" />
-    <Compile Remove="Stack\State\NodeState.cs" />
-    <Compile Remove="Stack\State\NodeStateCollection.cs" />
-    <Compile Remove="Stack\State\ReferenceTypeState.cs" />
-    <Compile Remove="Stack\State\ViewState.cs" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
+    <None Remove="Schema\Opc.Ua.Types.bsd" />
+    <None Remove="Schema\Opc.Ua.Types.xsd" />
+    <None Remove="Types\Schemas\BuiltInTypes.bsd" />
+    <None Remove="Types\Schemas\StandardTypes.bsd" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
+    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
+    <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
+    <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
+    <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
+    <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" />
@@ -71,9 +73,7 @@
   </Target>
   <!-- Clean up the zip file -->
   <Target Name="RemoveZipNodeset2" AfterTargets="Clean" Condition="Exists('$(ZipNodeSet2XML)')">
-    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high">
-    </Message>
-    <Delete Files="$(ZipNodeSet2XML)">
-    </Delete>
+    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high"></Message>
+    <Delete Files="$(ZipNodeSet2XML)"></Delete>
   </Target>
 </Project>

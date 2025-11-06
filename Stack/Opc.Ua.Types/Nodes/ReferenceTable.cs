@@ -167,7 +167,7 @@ namespace Opc.Ua
         {
             if (format != null)
             {
-                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+                throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
             }
 
             return string.Format(formatProvider, "References {0}", m_references.Count);

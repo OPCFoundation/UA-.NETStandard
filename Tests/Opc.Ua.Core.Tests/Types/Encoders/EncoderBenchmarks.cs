@@ -149,7 +149,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public virtual void GlobalSetup()
         {
             // for validating benchmark tests
-            m_telemetry = new DefaultTelemetry();
+            m_telemetry = NUnitTelemetryContext.Create();
             m_context = new ServiceMessageContext(m_telemetry);
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });

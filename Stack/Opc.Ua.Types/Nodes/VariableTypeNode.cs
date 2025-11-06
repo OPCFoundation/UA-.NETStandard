@@ -164,27 +164,27 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(Value, value.Value))
+            if (!CoreUtils.IsEqual(Value, value.Value))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(DataType, value.DataType))
+            if (!CoreUtils.IsEqual(DataType, value.DataType))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(ValueRank, value.ValueRank))
+            if (!CoreUtils.IsEqual(ValueRank, value.ValueRank))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
+            if (!CoreUtils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(IsAbstract, value.IsAbstract))
+            if (!CoreUtils.IsEqual(IsAbstract, value.IsAbstract))
             {
                 return false;
             }
@@ -203,11 +203,11 @@ namespace Opc.Ua
         {
             var clone = (VariableTypeNode)base.MemberwiseClone();
 
-            clone.Value = (Variant)Utils.Clone(Value);
-            clone.DataType = Utils.Clone(DataType);
-            clone.ValueRank = (int)Utils.Clone(ValueRank);
-            clone.m_arrayDimensions = Utils.Clone(m_arrayDimensions);
-            clone.IsAbstract = (bool)Utils.Clone(IsAbstract);
+            clone.Value = (Variant)CoreUtils.Clone(Value);
+            clone.DataType = CoreUtils.Clone(DataType);
+            clone.ValueRank = (int)CoreUtils.Clone(ValueRank);
+            clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
+            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
 
             return clone;
         }
@@ -304,7 +304,7 @@ namespace Opc.Ua
             {
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
-                    Value = new Variant(Utils.Clone(value));
+                    Value = new Variant(CoreUtils.Clone(value));
                     return ServiceResult.Good;
                 case Attributes.DataType:
                     var dataType = (NodeId)value;

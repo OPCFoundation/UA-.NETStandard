@@ -111,5 +111,6 @@
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
   </Folder>
 </Solution>

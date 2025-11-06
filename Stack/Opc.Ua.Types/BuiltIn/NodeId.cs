@@ -89,7 +89,7 @@ namespace Opc.Ua
 
             NamespaceIndex = value.NamespaceIndex;
             IdType = value.IdType;
-            m_identifier = Utils.Clone(value.m_identifier);
+            m_identifier = CoreUtils.Clone(value.m_identifier);
         }
 
         /// <summary>
@@ -309,7 +309,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
+                    errorMessage ?? CoreUtils.Format("Cannot parse node id text: '{0}'", text));
             }
             return value;
         }
@@ -348,11 +348,11 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = Utils.Format("Invalid NodeId ({0}).", originalText);
+                    errorMessage = CoreUtils.Format("Invalid NodeId ({0}).", originalText);
                     return false;
                 }
 
-                string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
+                string namespaceUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
                 namespaceIndex =
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
@@ -360,7 +360,7 @@ namespace Opc.Ua
 
                 if (namespaceIndex < 0)
                 {
-                    errorMessage = Utils.Format("No mapping to NamespaceIndex for NamespaceUri ({0}).", namespaceUri);
+                    errorMessage = CoreUtils.Format("No mapping to NamespaceIndex for NamespaceUri ({0}).", namespaceUri);
                     return false;
                 }
 
@@ -373,7 +373,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = Utils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    errorMessage = CoreUtils.Format("Invalid ExpandedNodeId ({0}).", originalText);
                     return false;
                 }
 
@@ -436,12 +436,12 @@ namespace Opc.Ua
 
                         break;
                     default:
-                        errorMessage = Utils.Format("Unexpected IdType value {0}.", idType);
+                        errorMessage = CoreUtils.Format("Unexpected IdType value {0}.", idType);
                         return false;
                 }
             }
 
-            errorMessage = Utils.Format("Invalid NodeId Identifier ({0}).", originalText);
+            errorMessage = CoreUtils.Format("Invalid NodeId Identifier ({0}).", originalText);
             return false;
         }
 
@@ -470,7 +470,7 @@ namespace Opc.Ua
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         buffer.Append("nsu=")
-                            .Append(Utils.EscapeUri(namespaceUri))
+                            .Append(CoreUtils.EscapeUri(namespaceUri))
                             .Append(';');
                     }
                     else
@@ -824,7 +824,7 @@ namespace Opc.Ua
 
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
+                    errorMessage ?? CoreUtils.Format("Cannot parse node id text: '{0}'", text));
             }
             return value;
         }
@@ -885,7 +885,7 @@ namespace Opc.Ua
 
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? Utils.Format("Cannot parse node id text: '{0}'", text));
+                    errorMessage ?? CoreUtils.Format("Cannot parse node id text: '{0}'", text));
             }
             return value;
         }
@@ -942,7 +942,7 @@ namespace Opc.Ua
                         value = new NodeId(numericId, namespaceIndex);
                         return true;
                     }
-                    errorMessage = Utils.Format("Invalid numeric identifier: '{0}'", text);
+                    errorMessage = CoreUtils.Format("Invalid numeric identifier: '{0}'", text);
                     return false;
                 }
 
@@ -961,7 +961,7 @@ namespace Opc.Ua
                         value = new NodeId(guidId, namespaceIndex);
                         return true;
                     }
-                    errorMessage = Utils.Format("Invalid GUID identifier: '{0}'", text);
+                    errorMessage = CoreUtils.Format("Invalid GUID identifier: '{0}'", text);
                     return false;
                 }
 
@@ -976,7 +976,7 @@ namespace Opc.Ua
                     }
                     catch
                     {
-                        errorMessage = Utils.Format("Invalid base64 identifier: '{0}'", text);
+                        errorMessage = CoreUtils.Format("Invalid base64 identifier: '{0}'", text);
                         return false;
                     }
                 }
@@ -996,12 +996,12 @@ namespace Opc.Ua
                     return true;
                 }
 
-                errorMessage = Utils.Format("Invalid NodeId identifier. Missing valid identifier prefix ('i=', 's=', 'g=', 'b='): '{0}'", text);
+                errorMessage = CoreUtils.Format("Invalid NodeId identifier. Missing valid identifier prefix ('i=', 's=', 'g=', 'b='): '{0}'", text);
                 return false;
             }
             catch (Exception e)
             {
-                errorMessage = Utils.Format("Cannot parse node id text: '{0}': {1}", text, e.Message);
+                errorMessage = CoreUtils.Format("Cannot parse node id text: '{0}': {1}", text, e.Message);
                 return false;
             }
         }
@@ -1169,7 +1169,7 @@ namespace Opc.Ua
 
             m_identifier = idType switch
             {
-                IdType.Opaque => Utils.Clone(value),
+                IdType.Opaque => CoreUtils.Clone(value),
                 IdType.Guid => (Guid)value,
                 IdType.Numeric or IdType.String => value,
                 _ => throw ServiceResultException.Unexpected(
@@ -1456,7 +1456,7 @@ namespace Opc.Ua
                 return Format(formatProvider);
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -1901,7 +1901,7 @@ namespace Opc.Ua
                     byte[] id1 = (byte[])m_identifier;
                     byte[] id2 = (byte[])id;
 
-                    if (Utils.IsEqual(id1, id2))
+                    if (CoreUtils.IsEqual(id1, id2))
                     {
                         return 0;
                     }
@@ -2099,7 +2099,7 @@ namespace Opc.Ua
 
             foreach (NodeId element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

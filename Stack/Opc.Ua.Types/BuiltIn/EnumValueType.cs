@@ -112,17 +112,17 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(Value, value.Value))
+            if (!CoreUtils.IsEqual(Value, value.Value))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(DisplayName, value.DisplayName))
+            if (!CoreUtils.IsEqual(DisplayName, value.DisplayName))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(Description, value.Description))
+            if (!CoreUtils.IsEqual(Description, value.Description))
             {
                 return false;
             }
@@ -141,9 +141,9 @@ namespace Opc.Ua
         {
             var clone = (EnumValueType)base.MemberwiseClone();
 
-            clone.Value = (long)Utils.Clone(Value);
-            clone.DisplayName = Utils.Clone(DisplayName);
-            clone.Description = Utils.Clone(Description);
+            clone.Value = (long)CoreUtils.Clone(Value);
+            clone.DisplayName = CoreUtils.Clone(DisplayName);
+            clone.Description = CoreUtils.Clone(Description);
 
             return clone;
         }
@@ -208,7 +208,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

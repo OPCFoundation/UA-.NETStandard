@@ -36,7 +36,7 @@ namespace Opc.Ua
         {
             if (source is BaseVariableTypeState type)
             {
-                m_value = Utils.Clone(type.m_value);
+                m_value = CoreUtils.Clone(type.m_value);
                 m_dataType = type.m_dataType;
                 m_valueRank = type.m_valueRank;
                 m_arrayDimensions = null;
@@ -209,7 +209,7 @@ namespace Opc.Ua
 
             if (node is VariableTypeNode variableTypeNode)
             {
-                variableTypeNode.Value = new Variant(Utils.Clone(Value));
+                variableTypeNode.Value = new Variant(CoreUtils.Clone(Value));
                 variableTypeNode.DataType = DataType;
                 variableTypeNode.ValueRank = ValueRank;
                 variableTypeNode.ArrayDimensions = null;
@@ -519,7 +519,7 @@ namespace Opc.Ua
             // copy returned value.
             if (copyPolicy == VariableCopyPolicy.CopyOnRead)
             {
-                value = Utils.Clone(value);
+                value = CoreUtils.Clone(value);
             }
 
             return result;

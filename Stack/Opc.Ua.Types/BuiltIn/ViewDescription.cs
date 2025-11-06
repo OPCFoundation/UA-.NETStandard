@@ -113,17 +113,17 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(ViewId, value.ViewId))
+            if (!CoreUtils.IsEqual(ViewId, value.ViewId))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(Timestamp, value.Timestamp))
+            if (!CoreUtils.IsEqual(Timestamp, value.Timestamp))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(ViewVersion, value.ViewVersion))
+            if (!CoreUtils.IsEqual(ViewVersion, value.ViewVersion))
             {
                 return false;
             }
@@ -142,9 +142,9 @@ namespace Opc.Ua
         {
             var clone = (ViewDescription)base.MemberwiseClone();
 
-            clone.ViewId = Utils.Clone(ViewId);
-            clone.Timestamp = (DateTime)Utils.Clone(Timestamp);
-            clone.ViewVersion = (uint)Utils.Clone(ViewVersion);
+            clone.ViewId = CoreUtils.Clone(ViewId);
+            clone.Timestamp = (DateTime)CoreUtils.Clone(Timestamp);
+            clone.ViewVersion = (uint)CoreUtils.Clone(ViewVersion);
 
             return clone;
         }

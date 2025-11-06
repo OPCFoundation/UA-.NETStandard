@@ -101,12 +101,12 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(RoleId, value.RoleId))
+            if (!CoreUtils.IsEqual(RoleId, value.RoleId))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(Permissions, value.Permissions))
+            if (!CoreUtils.IsEqual(Permissions, value.Permissions))
             {
                 return false;
             }
@@ -125,8 +125,8 @@ namespace Opc.Ua
         {
             var clone = (RolePermissionType)base.MemberwiseClone();
 
-            clone.RoleId = Utils.Clone(RoleId);
-            clone.Permissions = (uint)Utils.Clone(Permissions);
+            clone.RoleId = CoreUtils.Clone(RoleId);
+            clone.Permissions = (uint)CoreUtils.Clone(Permissions);
 
             return clone;
         }
@@ -191,7 +191,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

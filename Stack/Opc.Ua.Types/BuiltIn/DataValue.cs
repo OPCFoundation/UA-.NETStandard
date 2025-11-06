@@ -82,7 +82,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_value.Value = Utils.Clone(value.m_value.Value);
+            m_value.Value = CoreUtils.Clone(value.m_value.Value);
             StatusCode = value.StatusCode;
             SourceTimestamp = value.SourceTimestamp;
             SourcePicoseconds = value.SourcePicoseconds;
@@ -224,7 +224,7 @@ namespace Opc.Ua
                     return false;
                 }
 
-                return Utils.IsEqual(m_value.Value, value.m_value.Value);
+                return CoreUtils.IsEqual(m_value.Value, value.m_value.Value);
             }
 
             return false;
@@ -268,7 +268,7 @@ namespace Opc.Ua
                     return false;
                 }
 
-                return Utils.IsEqual(m_value.Value, other.m_value.Value);
+                return CoreUtils.IsEqual(m_value.Value, other.m_value.Value);
             }
 
             return false;
@@ -308,7 +308,7 @@ namespace Opc.Ua
                 return string.Format(formatProvider, "{0}", m_value);
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -651,7 +651,7 @@ namespace Opc.Ua
 
             foreach (DataValue element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

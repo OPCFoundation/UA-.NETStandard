@@ -107,7 +107,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(EventNotifier, value.EventNotifier))
+            if (!CoreUtils.IsEqual(EventNotifier, value.EventNotifier))
             {
                 return false;
             }
@@ -126,7 +126,7 @@ namespace Opc.Ua
         {
             var clone = (ObjectNode)base.MemberwiseClone();
 
-            clone.EventNotifier = (byte)Utils.Clone(EventNotifier);
+            clone.EventNotifier = (byte)CoreUtils.Clone(EventNotifier);
 
             return clone;
         }

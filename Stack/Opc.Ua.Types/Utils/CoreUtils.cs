@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines various static utility functions.
     /// </summary>
-    public static partial class Utils
+    public static partial class CoreUtils
     {
         /// <summary>
         /// Suppresses any exceptions while disposing the object.
@@ -398,54 +398,6 @@ namespace Opc.Ua
                 Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
 
-#if ZOMBIE // Manual
-        /// <summary>
-        /// Checks if two identities are equal.
-        /// </summary>
-        public static bool IsEqualUserIdentity(
-            UserIdentityToken identity1,
-            UserIdentityToken identity2)
-        {
-            // check for reference equality.
-            if (ReferenceEquals(identity1, identity2))
-            {
-                return true;
-            }
-
-            if (identity1 == null || identity2 == null)
-            {
-                return false;
-            }
-
-            if (identity1 is AnonymousIdentityToken && identity2 is AnonymousIdentityToken)
-            {
-                return true;
-            }
-
-            if (identity1 is UserNameIdentityToken userName1 &&
-                identity2 is UserNameIdentityToken userName2)
-            {
-                return string.Equals(
-                    userName1.UserName,
-                    userName2.UserName,
-                    StringComparison.Ordinal);
-            }
-
-            if (identity1 is X509IdentityToken x509Token1 &&
-                identity2 is X509IdentityToken x509Token2)
-            {
-                return IsEqual(x509Token1.CertificateData, x509Token2.CertificateData);
-            }
-
-            if (identity1 is IssuedIdentityToken issuedToken1 &&
-                identity2 is IssuedIdentityToken issuedToken2)
-            {
-                return IsEqual(issuedToken1.DecryptedTokenData, issuedToken2.DecryptedTokenData);
-            }
-
-            return false;
-        }
-#endif
 
         /// <summary>
         /// Checks if two DateTime values are equal.
@@ -960,7 +912,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-            return typeof(Utils)
+            return typeof(CoreUtils)
                 .GetTypeInfo()
                 .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
                 .InformationalVersion;
@@ -971,7 +923,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblyBuildNumber()
         {
-            return typeof(Utils).GetTypeInfo().Assembly
+            return typeof(CoreUtils).GetTypeInfo().Assembly
                 .GetCustomAttribute<AssemblyFileVersionAttribute>()
                 .Version;
         }
@@ -1011,7 +963,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="doc">The XmlDocument.</param>
         /// <param name="xml">The Xml document string.</param>
-        internal static void LoadInnerXml(this XmlDocument doc, string xml)
+        public static void LoadInnerXml(this XmlDocument doc, string xml)
         {
             using var sreader = new StringReader(xml);
             using var reader = XmlReader.Create(sreader, DefaultXmlReaderSettings());

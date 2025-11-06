@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// <returns>
         /// True if the object is an instance of the specified type.
         /// </returns>
-        bool IsTypeOf(FilterContext context, NodeId typeDefinitionId);
+        bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId);
 
         /// <summary>
         /// Returns the value of an attribute identified by the operand.
@@ -44,7 +44,7 @@ namespace Opc.Ua
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
         object GetAttributeValue(
-            FilterContext context,
+            IFilterContext context,
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
@@ -64,13 +64,13 @@ namespace Opc.Ua
         /// <param name="context">The context to use when checking the biew.</param>
         /// <param name="viewId">The identifier for the view.</param>
         /// <returns>True if the instance is in the view.</returns>
-        bool IsInView(FilterContext context, NodeId viewId);
+        bool IsInView(IFilterContext context, NodeId viewId);
 
         /// <summary>
         /// Returns TRUE if the node is related to the current target.
         /// </summary>
         bool IsRelatedTo(
-            FilterContext context,
+            IFilterContext context,
             NodeId intermediateNodeId,
             NodeId sourceTypeId,
             NodeId targetTypeId,
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// Returns the list of nodes related to the current target.
         /// </summary>
         IList<NodeId> GetRelatedNodes(
-            FilterContext context,
+            IFilterContext context,
             NodeId intermediateNodeId,
             NodeId sourceTypeId,
             NodeId targetTypeId,
@@ -104,7 +104,7 @@ namespace Opc.Ua
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
         object GetRelatedAttributeValue(
-            FilterContext context,
+            IFilterContext context,
             NodeId typeDefinitionId,
             RelativePath relativePath,
             uint attributeId,
@@ -112,10 +112,25 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Filter context
+    /// Provides context information to used when searching the address space.
     /// </summary>
-    public interface FilterContext
+    public interface IFilterContext : IOperationContext
     {
+        /// <summary>
+        /// The namespace table to use when evaluating filters.
+        /// </summary>
+        /// <value>The namespace URIs.</value>
+        NamespaceTable NamespaceUris { get; }
 
+        /// <summary>
+        /// The type tree to use when evaluating filters.
+        /// </summary>
+        /// <value>The type tree.</value>
+        ITypeTable TypeTree { get; }
+
+        /// <summary>
+        /// Telemetry context for logging and tracing.
+        /// </summary>
+        ITelemetryContext Telemetry { get; }
     }
 }

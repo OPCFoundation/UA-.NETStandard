@@ -14,6 +14,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="Microsoft.Extensions.Logging" />

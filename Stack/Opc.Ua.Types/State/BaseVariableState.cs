@@ -436,7 +436,7 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    Utils.SilentDispose(decoder);
+                    CoreUtils.SilentDispose(decoder);
                 }
             }
 
@@ -871,7 +871,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    variableNode.Value = new Variant(Utils.Clone(Value));
+                    variableNode.Value = new Variant(CoreUtils.Clone(Value));
 
                     variableNode.DataType = DataType;
                     variableNode.ValueRank = ValueRank;
@@ -1573,7 +1573,7 @@ namespace Opc.Ua
             // copy returned value.
             if (CopyPolicy is VariableCopyPolicy.CopyOnRead or VariableCopyPolicy.Always)
             {
-                value = Utils.Clone(value);
+                value = CoreUtils.Clone(value);
             }
 
             // return the correct status code if no errors.
@@ -1969,7 +1969,7 @@ namespace Opc.Ua
             // copy passed in value.
             if (CopyPolicy is VariableCopyPolicy.CopyOnWrite or VariableCopyPolicy.Always)
             {
-                value = Utils.Clone(value);
+                value = CoreUtils.Clone(value);
             }
 
             NodeValueSimpleEventHandler onSimpleWriteValue = OnSimpleWriteValue;
@@ -2028,7 +2028,7 @@ namespace Opc.Ua
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
-        private ILogger m_logger = Utils.Null.Logger;
+        private ILogger m_logger = LoggerUtils.Null.Logger;
         private static readonly char[] s_commaSeparator = [','];
     }
 
@@ -2062,7 +2062,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.PropertyType);
+            SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.PropertyType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
@@ -2175,7 +2175,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
+            SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
@@ -2455,7 +2455,7 @@ namespace Opc.Ua
                 // apply copy policy
                 if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
                 {
-                    value = Utils.Clone(value);
+                    value = CoreUtils.Clone(value);
                 }
 
                 statusCode = StatusCodes.Good;
@@ -2479,7 +2479,7 @@ namespace Opc.Ua
 
                 if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
                 {
-                    valueToRead = Utils.Clone(currentValue);
+                    valueToRead = CoreUtils.Clone(currentValue);
                 }
                 else
                 {
@@ -2499,7 +2499,7 @@ namespace Opc.Ua
             {
                 if ((CopyPolicy & VariableCopyPolicy.CopyOnWrite) != 0)
                 {
-                    return Utils.Clone(valueToWrite);
+                    return CoreUtils.Clone(valueToWrite);
                 }
 
                 return valueToWrite;

@@ -45,7 +45,7 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
             m_reader = XmlReader.Create(
                 new StringReader(element.OuterXml),
-                Utils.DefaultXmlReaderSettings());
+                CoreUtils.DefaultXmlReaderSettings());
             m_nestingLevel = 0;
         }
 
@@ -577,7 +577,7 @@ namespace Opc.Ua
             var document = new XmlDocument();
 
             using (var stream = new StringReader(xmlString))
-            using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            using (var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings()))
             {
                 document.Load(reader);
             }
@@ -601,7 +601,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_reader);
+                CoreUtils.SilentDispose(m_reader);
                 m_reader = null;
             }
         }

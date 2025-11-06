@@ -94,7 +94,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_reader);
+                CoreUtils.SilentDispose(m_reader);
                 m_reader = null;
             }
         }
@@ -479,19 +479,19 @@ namespace Opc.Ua
         {
             long ticks = SafeReadInt64();
 
-            if (ticks >= (long.MaxValue - Utils.TimeBase.Ticks))
+            if (ticks >= (long.MaxValue - CoreUtils.TimeBase.Ticks))
             {
                 return DateTime.MaxValue;
             }
 
-            ticks += Utils.TimeBase.Ticks;
+            ticks += CoreUtils.TimeBase.Ticks;
 
             if (ticks >= DateTime.MaxValue.Ticks)
             {
                 return DateTime.MaxValue;
             }
 
-            if (ticks <= Utils.TimeBase.Ticks)
+            if (ticks <= CoreUtils.TimeBase.Ticks)
             {
                 return DateTime.MinValue;
             }
@@ -560,7 +560,7 @@ namespace Opc.Ua
                 }
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
                 using var stream = new StringReader(xmlString);
-                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
                 document.Load(reader);
             }
             catch (XmlException)

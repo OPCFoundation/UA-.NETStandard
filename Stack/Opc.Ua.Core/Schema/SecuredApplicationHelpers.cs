@@ -328,7 +328,7 @@ namespace Opc.Ua.Security
             MessageSecurityMode mode,
             string policyUri)
         {
-            return CalculateSecurityLevel(mode, policyUri, Utils.Fallback.Logger);
+            return CalculateSecurityLevel(mode, policyUri, LoggerUtils.Fallback.Logger);
         }
 
         /// <summary>

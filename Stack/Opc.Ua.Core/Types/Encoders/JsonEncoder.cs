@@ -3551,7 +3551,7 @@ namespace Opc.Ua
 
                 if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
-                    string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+                    string symbolicId = StatusCodes.LookupSymbolicId(value.CodeBits);
 
                     if (!string.IsNullOrEmpty(symbolicId))
                     {

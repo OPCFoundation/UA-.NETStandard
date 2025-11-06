@@ -545,7 +545,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            value = Utils.ToOpcUaUniversalTime(value);
+            value = CoreUtils.ToOpcUaUniversalTime(value);
 
             long ticks = value.Ticks;
 
@@ -557,7 +557,7 @@ namespace Opc.Ua
             // check for min value.
             else
             {
-                ticks -= Utils.TimeBase.Ticks;
+                ticks -= CoreUtils.TimeBase.Ticks;
 
                 if (ticks <= 0)
                 {
@@ -1046,7 +1046,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    Utils.Format(
+                    CoreUtils.Format(
                         "Cannot encode bodies of type '{0}' in extension objects.",
                         body.GetType().FullName));
             }
@@ -2337,7 +2337,7 @@ namespace Opc.Ua
                 default:
                     throw new ServiceResultException(
                         StatusCodes.BadEncodingError,
-                        Utils.Format("NodeId identifier type '{0}' not supported.", idType));
+                        CoreUtils.Format("NodeId identifier type '{0}' not supported.", idType));
             }
 
             return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
@@ -2597,7 +2597,7 @@ namespace Opc.Ua
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadEncodingError,
-                                    Utils.Format(
+                                    CoreUtils.Format(
                                         "Type '{0}' is not allowed in an Enumeration.",
                                         value.GetType().FullName));
                             }

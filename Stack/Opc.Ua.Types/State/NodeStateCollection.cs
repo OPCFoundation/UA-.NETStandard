@@ -72,7 +72,7 @@ namespace Opc.Ua
                 nodeSet.Add(node, nodeTable.NamespaceUris, nodeTable.ServerUris);
             }
 
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
             var serializer = new DataContractSerializer(typeof(NodeSet));
@@ -200,7 +200,7 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsXml(ISystemContext context, Stream ostrm, bool keepStreamOpen)
         {
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
 
             var messageContext = new ServiceMessageContext(context.Telemetry)
@@ -335,7 +335,7 @@ namespace Opc.Ua
                 Factory = context.EncodeableFactory
             };
 
-            using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
+            using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
             using var decoder = new XmlDecoder(null, reader, messageContext);
             var namespaceUris = new NamespaceTable();
 

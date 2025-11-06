@@ -117,12 +117,12 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(Executable, value.Executable))
+            if (!CoreUtils.IsEqual(Executable, value.Executable))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(UserExecutable, value.UserExecutable))
+            if (!CoreUtils.IsEqual(UserExecutable, value.UserExecutable))
             {
                 return false;
             }
@@ -141,8 +141,8 @@ namespace Opc.Ua
         {
             var clone = (MethodNode)base.MemberwiseClone();
 
-            clone.Executable = (bool)Utils.Clone(Executable);
-            clone.UserExecutable = (bool)Utils.Clone(UserExecutable);
+            clone.Executable = (bool)CoreUtils.Clone(Executable);
+            clone.UserExecutable = (bool)CoreUtils.Clone(UserExecutable);
 
             return clone;
         }

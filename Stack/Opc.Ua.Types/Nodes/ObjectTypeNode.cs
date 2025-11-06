@@ -107,7 +107,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(IsAbstract, value.IsAbstract))
+            if (!CoreUtils.IsEqual(IsAbstract, value.IsAbstract))
             {
                 return false;
             }
@@ -126,7 +126,7 @@ namespace Opc.Ua
         {
             var clone = (ObjectTypeNode)base.MemberwiseClone();
 
-            clone.IsAbstract = (bool)Utils.Clone(IsAbstract);
+            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
 
             return clone;
         }

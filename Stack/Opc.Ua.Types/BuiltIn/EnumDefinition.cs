@@ -112,7 +112,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(m_fields, value.m_fields))
+            if (!CoreUtils.IsEqual(m_fields, value.m_fields))
             {
                 return false;
             }
@@ -131,7 +131,7 @@ namespace Opc.Ua
         {
             var clone = (EnumDefinition)base.MemberwiseClone();
 
-            clone.m_fields = Utils.Clone(m_fields);
+            clone.m_fields = CoreUtils.Clone(m_fields);
 
             return clone;
         }
@@ -198,7 +198,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

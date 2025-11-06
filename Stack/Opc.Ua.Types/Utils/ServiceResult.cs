@@ -481,7 +481,7 @@ namespace Opc.Ua
                 return new ServiceResult(code, format);
             }
 
-            return new ServiceResult(code, Utils.Format(format, args));
+            return new ServiceResult(code, CoreUtils.Format(format, args));
         }
 
         /// <summary>
@@ -510,7 +510,7 @@ namespace Opc.Ua
                 return new ServiceResult(defaultCode, format, e);
             }
 
-            return new ServiceResult(defaultCode, Utils.Format(format, args), e);
+            return new ServiceResult(defaultCode, CoreUtils.Format(format, args), e);
         }
 
         /// <summary>
@@ -700,24 +700,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a formatted string with the contents of service result.
-        /// </summary>
-        public string ToLongString()
-        {
-            var buffer = new StringBuilder();
-            AppendLong(buffer);
-            return buffer.ToString();
-        }
-
-        /// <summary>
         /// Append to buffer
         /// </summary>
         /// <param name="buffer"></param>
         internal void Append(StringBuilder buffer)
         {
-#if ZOMBIE // Manual
-            buffer.Append(LookupSymbolicId(Code));
-#endif
+            buffer.AppendFormat(CultureInfo.InvariantCulture, "[{0:X}]", 0xFFFF0000 & Code);
+
             if (!string.IsNullOrEmpty(SymbolicId))
             {
                 if (!string.IsNullOrEmpty(NamespaceUri))
@@ -749,6 +738,16 @@ namespace Opc.Ua
                 buffer.AppendLine()
                     .Append(AdditionalInfo);
             }
+        }
+
+        /// <summary>
+        /// Returns a formatted string with the contents of service result.
+        /// </summary>
+        public string ToLongString()
+        {
+            var buffer = new StringBuilder();
+            AppendLong(buffer);
+            return buffer.ToString();
         }
 
         /// <summary>
@@ -841,7 +840,7 @@ namespace Opc.Ua
                     return exception.Message;
 #endif
                 }
-                return Utils.Format("[{0}] {1}",
+                return CoreUtils.Format("[{0}] {1}",
                     exception.GetType().Name,
 #if !DEBUG
                     exception.Message);
@@ -850,7 +849,7 @@ namespace Opc.Ua
 #endif
             }
 
-            return Utils.Format("[{0}]",
+            return CoreUtils.Format("[{0}]",
 #if !DEBUG
                 exception.GetType().Name);
 #else

@@ -1063,7 +1063,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_telemetry = new DefaultTelemetry();
+            m_telemetry = NUnitTelemetryContext.Create();
             m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }

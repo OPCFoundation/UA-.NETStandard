@@ -471,7 +471,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             ServiceResult error)
         {
-            return CreateDiagnosticInfo(server, context, error, Utils.Fallback.Logger);
+            return CreateDiagnosticInfo(server, context, error, LoggerUtils.Fallback.Logger);
         }
 
         /// <summary>

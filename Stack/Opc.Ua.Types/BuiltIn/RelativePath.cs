@@ -18,7 +18,7 @@ namespace Opc.Ua
     /// <summary>
     /// Relative path
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class RelativePath : IEncodeable, IJsonEncodeable
     {
         /// <summary>
@@ -145,7 +145,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(m_elements, value.m_elements))
+            if (!CoreUtils.IsEqual(m_elements, value.m_elements))
             {
                 return false;
             }
@@ -164,7 +164,7 @@ namespace Opc.Ua
         {
             RelativePath clone = (RelativePath)base.MemberwiseClone();
 
-            clone.m_elements = Utils.Clone(m_elements);
+            clone.m_elements = CoreUtils.Clone(m_elements);
 
             return clone;
         }

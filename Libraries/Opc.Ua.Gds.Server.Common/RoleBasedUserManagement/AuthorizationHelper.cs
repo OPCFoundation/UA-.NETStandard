@@ -70,7 +70,8 @@ namespace Opc.Ua.Gds.Server
                 bool selfAdmin = allowedRoles.Remove(GdsRole.ApplicationSelfAdmin);
 
                 //if true access is allowed
-                if (HasRole(context.UserIdentity, allowedRoles))
+                IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+                if (HasRole(userIdentity, allowedRoles))
                 {
                     return;
                 }
@@ -78,7 +79,7 @@ namespace Opc.Ua.Gds.Server
                 if (selfAdmin)
                 {
                     //if true access to own application is allowed
-                    if (CheckSelfAdminPrivilege(context.UserIdentity, applicationId))
+                    if (CheckSelfAdminPrivilege(userIdentity, applicationId))
                     {
                         return;
                     }
@@ -104,7 +105,8 @@ namespace Opc.Ua.Gds.Server
             IApplicationsDatabase applicationsDatabase)
         {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
-            if (HasRole(context.UserIdentity, roles))
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            if (HasRole(userIdentity, roles))
             {
                 return;
             }
@@ -113,7 +115,7 @@ namespace Opc.Ua.Gds.Server
                 certTypeMap != null &&
                 applicationsDatabase != null &&
                 CheckSelfAdminPrivilege(
-                    context.UserIdentity,
+                    userIdentity,
                     trustedStore,
                     certTypeMap,
                     applicationsDatabase))

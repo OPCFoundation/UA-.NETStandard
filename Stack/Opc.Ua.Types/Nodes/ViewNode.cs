@@ -117,12 +117,12 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(ContainsNoLoops, value.ContainsNoLoops))
+            if (!CoreUtils.IsEqual(ContainsNoLoops, value.ContainsNoLoops))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(EventNotifier, value.EventNotifier))
+            if (!CoreUtils.IsEqual(EventNotifier, value.EventNotifier))
             {
                 return false;
             }
@@ -141,8 +141,8 @@ namespace Opc.Ua
         {
             var clone = (ViewNode)base.MemberwiseClone();
 
-            clone.ContainsNoLoops = (bool)Utils.Clone(ContainsNoLoops);
-            clone.EventNotifier = (byte)Utils.Clone(EventNotifier);
+            clone.ContainsNoLoops = (bool)CoreUtils.Clone(ContainsNoLoops);
+            clone.EventNotifier = (byte)CoreUtils.Clone(EventNotifier);
 
             return clone;
         }

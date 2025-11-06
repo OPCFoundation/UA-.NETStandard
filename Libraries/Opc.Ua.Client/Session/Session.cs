@@ -237,7 +237,7 @@ namespace Opc.Ua.Client
             m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
 
             // create a context to use.
-            m_systemContext = new SystemContext(m_telemetry)
+            m_systemContext = new SessionSystemContext(m_telemetry)
             {
                 SystemHandle = this,
                 EncodeableFactory = Factory,
@@ -553,8 +553,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the context to use for filter operations.
         /// </summary>
-        public FilterContext FilterContext
-            => new(NamespaceUris, m_nodeCache.TypeTree, m_preferredLocales, m_telemetry);
+        public IFilterContext FilterContext
+            => new FilterContext(NamespaceUris, m_nodeCache.TypeTree, m_preferredLocales, m_telemetry);
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
@@ -4942,7 +4942,7 @@ namespace Opc.Ua.Client
 #endif
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
-        private readonly SystemContext m_systemContext;
+        private readonly SessionSystemContext m_systemContext;
         private NodeCache m_nodeCache;
         private readonly List<IUserIdentity> m_identityHistory = [];
         private byte[]? m_serverNonce;

@@ -53,7 +53,6 @@ namespace Opc.Ua
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
         NodeId FindSuperType(NodeId typeId);
 
-#if NET_STANDARD_ASYNC
         /// <summary>
         /// Returns the immediate supertype for the type.
         /// </summary>
@@ -69,7 +68,6 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
         Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
-#endif
 
         /// <summary>
         /// Returns the immediate subtypes for the type.

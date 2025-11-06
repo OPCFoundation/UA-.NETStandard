@@ -127,17 +127,17 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(IsAbstract, value.IsAbstract))
+            if (!CoreUtils.IsEqual(IsAbstract, value.IsAbstract))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(Symmetric, value.Symmetric))
+            if (!CoreUtils.IsEqual(Symmetric, value.Symmetric))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(InverseName, value.InverseName))
+            if (!CoreUtils.IsEqual(InverseName, value.InverseName))
             {
                 return false;
             }
@@ -156,9 +156,9 @@ namespace Opc.Ua
         {
             var clone = (ReferenceTypeNode)base.MemberwiseClone();
 
-            clone.IsAbstract = (bool)Utils.Clone(IsAbstract);
-            clone.Symmetric = (bool)Utils.Clone(Symmetric);
-            clone.InverseName = Utils.Clone(InverseName);
+            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
+            clone.Symmetric = (bool)CoreUtils.Clone(Symmetric);
+            clone.InverseName = CoreUtils.Clone(InverseName);
 
             return clone;
         }

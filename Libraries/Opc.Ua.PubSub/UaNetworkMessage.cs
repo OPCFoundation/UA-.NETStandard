@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
             m_metadata = null;
-            m_logger = logger ?? Utils.Fallback.Logger;
+            m_logger = logger ?? LoggerUtils.Fallback.Logger;
         }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = [];
             m_metadata = metadata;
-            m_logger = logger ?? Utils.Fallback.Logger;
+            m_logger = logger ?? LoggerUtils.Fallback.Logger;
         }
 
         /// <summary>

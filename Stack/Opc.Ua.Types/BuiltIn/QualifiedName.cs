@@ -305,7 +305,7 @@ namespace Opc.Ua
                 return builder.ToString();
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
@@ -462,7 +462,7 @@ namespace Opc.Ua
                         $"Invalid QualifiedName ({originalText}).");
                 }
 
-                string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
+                string namespaceUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
                 namespaceIndex = updateTables
                     ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
                     : context.NamespaceUris.GetIndex(namespaceUri);
@@ -524,7 +524,7 @@ namespace Opc.Ua
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         buffer.Append("nsu=")
-                            .Append(Utils.EscapeUri(namespaceUri))
+                            .Append(CoreUtils.EscapeUri(namespaceUri))
                             .Append(';');
                     }
                     else
@@ -662,7 +662,7 @@ namespace Opc.Ua
 
             foreach (QualifiedName element in this)
             {
-                clone.Add(Utils.Clone(element));
+                clone.Add(CoreUtils.Clone(element));
             }
 
             return clone;

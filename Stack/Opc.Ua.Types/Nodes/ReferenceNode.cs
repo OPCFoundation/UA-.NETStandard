@@ -121,17 +121,17 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(IsInverse, value.IsInverse))
+            if (!CoreUtils.IsEqual(IsInverse, value.IsInverse))
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(TargetId, value.TargetId))
+            if (!CoreUtils.IsEqual(TargetId, value.TargetId))
             {
                 return false;
             }
@@ -150,9 +150,9 @@ namespace Opc.Ua
         {
             var clone = (ReferenceNode)base.MemberwiseClone();
 
-            clone.ReferenceTypeId = Utils.Clone(ReferenceTypeId);
-            clone.IsInverse = (bool)Utils.Clone(IsInverse);
-            clone.TargetId = Utils.Clone(TargetId);
+            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
+            clone.IsInverse = (bool)CoreUtils.Clone(IsInverse);
+            clone.TargetId = CoreUtils.Clone(TargetId);
 
             return clone;
         }
@@ -167,10 +167,10 @@ namespace Opc.Ua
         {
             if (IsInverse)
             {
-                return Utils.Format("<!{0}>{1}", ReferenceTypeId, TargetId);
+                return CoreUtils.Format("<!{0}>{1}", ReferenceTypeId, TargetId);
             }
 
-            return Utils.Format("<{0}>{1}", ReferenceTypeId, TargetId);
+            return CoreUtils.Format("<{0}>{1}", ReferenceTypeId, TargetId);
         }
 
         /// <summary>
@@ -358,7 +358,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                clone.Add(Utils.Clone(this[ii]));
+                clone.Add(CoreUtils.Clone(this[ii]));
             }
 
             return clone;

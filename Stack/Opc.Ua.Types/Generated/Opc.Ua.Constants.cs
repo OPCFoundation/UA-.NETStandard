@@ -98,7 +98,25 @@ namespace Opc.Ua
 
         public const uint DiagnosticInfo = 25;
 
+        public const uint Image = 30;
+
+        public const uint Decimal = 50;
+
+        public const uint ImageBMP = 2000;
+
+        public const uint ImageGIF = 2001;
+
+        public const uint ImageJPG = 2002;
+
+        public const uint ImagePNG = 2003;
+
+        public const uint AudioDataType = 16307;
+
         public const uint Union = 12756;
+
+        public const uint UriString = 23751;
+
+        public const uint BitFieldMaskDataType = 11737;
 
         public const uint IdType = 256;
 
@@ -152,21 +170,49 @@ namespace Opc.Ua
 
         public const uint OptionSet = 12755;
 
+        public const uint NormalizedString = 12877;
+
+        public const uint DecimalString = 12878;
+
+        public const uint DurationString = 12879;
+
+        public const uint TimeString = 12880;
+
+        public const uint DateString = 12881;
+
         public const uint Duration = 290;
 
         public const uint UtcTime = 294;
 
+        public const uint LocaleId = 295;
+
+        public const uint TimeZoneDataType = 8912;
+
+        public const uint Index = 17588;
+
         public const uint IntegerId = 288;
+
+        public const uint VersionTime = 20998;
+
+        public const uint ApplicationInstanceCertificate = 311;
+
+        public const uint SessionAuthenticationToken = 388;
 
         public const uint ViewDescription = 511;
 
         public const uint BrowseDescription = 514;
+
+        public const uint ReferenceDescription = 518;
+
+        public const uint ContinuationPoint = 521;
 
         public const uint RelativePathElement = 537;
 
         public const uint RelativePath = 540;
 
         public const uint Counter = 289;
+
+        public const uint NumericRange = 291;
     }
 
     internal static partial class Objects
@@ -232,6 +278,8 @@ namespace Opc.Ua
 
         public const uint BrowseDescription_Encoding_DefaultBinary = 516;
 
+        public const uint ReferenceDescription_Encoding_DefaultBinary = 520;
+
         public const uint RelativePathElement_Encoding_DefaultBinary = 539;
 
         public const uint RelativePath_Encoding_DefaultBinary = 542;
@@ -279,6 +327,8 @@ namespace Opc.Ua
         public const uint ViewDescription_Encoding_DefaultXml = 512;
 
         public const uint BrowseDescription_Encoding_DefaultXml = 515;
+
+        public const uint ReferenceDescription_Encoding_DefaultXml = 519;
 
         public const uint RelativePathElement_Encoding_DefaultXml = 538;
 
@@ -328,6 +378,8 @@ namespace Opc.Ua
 
         public const uint BrowseDescription_Encoding_DefaultJson = 15180;
 
+        public const uint ReferenceDescription_Encoding_DefaultJson = 15182;
+
         public const uint RelativePathElement_Encoding_DefaultJson = 15188;
 
         public const uint RelativePath_Encoding_DefaultJson = 15189;
@@ -338,6 +390,8 @@ namespace Opc.Ua
         public const uint BaseObjectType = 58;
 
         public const uint DataTypeEncodingType = 76;
+
+        public const uint BaseEventType = 2041;
     }
 
     internal static partial class ReferenceTypes
@@ -516,11 +570,15 @@ namespace Opc.Ua
 
         public static readonly NodeId EnumField = new NodeId(Opc.Ua.DataTypes.EnumField);
 
+        public static readonly NodeId Duration = new NodeId(Opc.Ua.DataTypes.Duration);
+
         public static readonly NodeId OptionSet = new NodeId(Opc.Ua.DataTypes.OptionSet);
 
         public static readonly NodeId ViewDescription = new NodeId(Opc.Ua.DataTypes.ViewDescription);
 
         public static readonly NodeId BrowseDescription = new NodeId(Opc.Ua.DataTypes.BrowseDescription);
+
+        public static readonly NodeId ReferenceDescription = new NodeId(Opc.Ua.DataTypes.ReferenceDescription);
 
         public static readonly NodeId RelativePathElement = new NodeId(Opc.Ua.DataTypes.RelativePathElement);
 
@@ -588,6 +646,8 @@ namespace Opc.Ua
 
         public static readonly NodeId BrowseDescription_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BrowseDescription_Encoding_DefaultBinary);
 
+        public static readonly NodeId ReferenceDescription_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReferenceDescription_Encoding_DefaultBinary);
+
         public static readonly NodeId RelativePathElement_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.RelativePathElement_Encoding_DefaultBinary);
 
         public static readonly NodeId RelativePath_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.RelativePath_Encoding_DefaultBinary);
@@ -635,6 +695,8 @@ namespace Opc.Ua
         public static readonly NodeId ViewDescription_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ViewDescription_Encoding_DefaultXml);
 
         public static readonly NodeId BrowseDescription_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BrowseDescription_Encoding_DefaultXml);
+
+        public static readonly NodeId ReferenceDescription_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReferenceDescription_Encoding_DefaultXml);
 
         public static readonly NodeId RelativePathElement_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.RelativePathElement_Encoding_DefaultXml);
 
@@ -684,6 +746,8 @@ namespace Opc.Ua
 
         public static readonly NodeId BrowseDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowseDescription_Encoding_DefaultJson);
 
+        public static readonly NodeId ReferenceDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceDescription_Encoding_DefaultJson);
+
         public static readonly NodeId RelativePathElement_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RelativePathElement_Encoding_DefaultJson);
 
         public static readonly NodeId RelativePath_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RelativePath_Encoding_DefaultJson);
@@ -694,6 +758,8 @@ namespace Opc.Ua
         public static readonly NodeId BaseObjectType = new NodeId(Opc.Ua.ObjectTypes.BaseObjectType);
 
         public static readonly NodeId DataTypeEncodingType = new NodeId(Opc.Ua.ObjectTypes.DataTypeEncodingType);
+
+        public static readonly NodeId BaseEventType = new NodeId(Opc.Ua.ObjectTypes.BaseEventType);
     }
 
     internal static partial class ReferenceTypeIds
@@ -886,6 +952,8 @@ namespace Opc.Ua
 
         public const string PropertyType = "PropertyType";
 
+        public const string ReferenceDescription = "ReferenceDescription";
+
         public const string QualifiedName = "QualifiedName";
 
         public const string SByte = "SByte";
@@ -909,3 +977,5 @@ namespace Opc.Ua
         public const string XmlElement = "XmlElement";
     }
 }
+
+
