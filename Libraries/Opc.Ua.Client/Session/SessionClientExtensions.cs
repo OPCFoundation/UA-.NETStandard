@@ -641,16 +641,15 @@ namespace Opc.Ua.Client
         )> BrowseNextAsync(
             this ISessionClient session,
             RequestHeader? requestHeader,
-            ByteStringCollection? continuationPoints,
+            ByteStringCollection continuationPoints,
             bool releaseContinuationPoint,
             CancellationToken ct = default)
         {
             BrowseNextResponse response = await session.BrowseNextAsync(
-                    requestHeader,
-                    releaseContinuationPoint,
-                    continuationPoints,
-                    ct)
-                .ConfigureAwait(false);
+                requestHeader,
+                releaseContinuationPoint,
+                continuationPoints,
+                ct).ConfigureAwait(false);
 
             BrowseResultCollection results = response.Results;
             DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;

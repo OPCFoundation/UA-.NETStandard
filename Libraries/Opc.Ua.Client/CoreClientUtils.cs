@@ -148,6 +148,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
@@ -166,7 +167,8 @@ namespace Opc.Ua.Client
                 connection,
                 endpointConfiguration,
                 ct: ct).ConfigureAwait(false);
-            var url = new Uri(client.Endpoint.EndpointUrl);
+            var url = new Uri(client.Endpoint?.EndpointUrl ??
+                throw ServiceResultException.Unexpected("Endpoint missing"));
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
             return SelectEndpoint(
@@ -213,6 +215,7 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
@@ -230,8 +233,10 @@ namespace Opc.Ua.Client
                 uri,
                 endpointConfiguration,
                 ct: ct).ConfigureAwait(false);
+
             // Connect to the server's discovery endpoint and find the available configuration.
-            var url = new Uri(client.Endpoint.EndpointUrl);
+            var url = new Uri(client.Endpoint?.EndpointUrl ??
+                throw ServiceResultException.Unexpected("Endpoint missing"));
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
             EndpointDescription? selectedEndpoint = SelectEndpoint(

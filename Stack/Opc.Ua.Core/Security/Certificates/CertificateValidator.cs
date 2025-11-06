@@ -67,20 +67,8 @@ namespace Opc.Ua
         /// </summary>
         public event CertificateValidationEventHandler CertificateValidation
         {
-            add
-            {
-                lock (m_callbackLock)
-                {
-                    m_CertificateValidation += value;
-                }
-            }
-            remove
-            {
-                lock (m_callbackLock)
-                {
-                    m_CertificateValidation -= value;
-                }
-            }
+            add => m_CertificateValidation += value;
+            remove => m_CertificateValidation -= value;
         }
 
         /// <summary>
@@ -88,20 +76,8 @@ namespace Opc.Ua
         /// </summary>
         public event CertificateUpdateEventHandler CertificateUpdate
         {
-            add
-            {
-                lock (m_callbackLock)
-                {
-                    m_CertificateUpdate += value;
-                }
-            }
-            remove
-            {
-                lock (m_callbackLock)
-                {
-                    m_CertificateUpdate -= value;
-                }
-            }
+            add => m_CertificateUpdate += value;
+            remove => m_CertificateUpdate -= value;
         }
 
         /// <summary>
@@ -329,15 +305,13 @@ namespace Opc.Ua
 
             await UpdateAsync(securityConfiguration, applicationUri, ct).ConfigureAwait(false);
 
-            lock (m_callbackLock)
+            CertificateUpdateEventHandler callback = m_CertificateUpdate;
+            if (callback != null)
             {
-                if (m_CertificateUpdate != null)
-                {
-                    var args = new CertificateUpdateEventArgs(
-                        securityConfiguration,
-                        GetChannelValidator());
-                    m_CertificateUpdate(this, args);
-                }
+                var args = new CertificateUpdateEventArgs(
+                    securityConfiguration,
+                    GetChannelValidator());
+                callback(this, args);
             }
         }
 
@@ -579,11 +553,12 @@ namespace Opc.Ua
                 {
                     await InternalValidateAsync(chain, endpoint, ct).ConfigureAwait(false);
 
-                    // add to list of validated certificates.
-                    m_validatedCertificates[certificate.Thumbprint] = X509CertificateLoader
-                        .LoadCertificate(
-                            certificate.RawData);
-
+                    if (!m_validatedCertificates.ContainsKey(certificate.Thumbprint))
+                    {
+                        // add to list of validated certificates.
+                        m_validatedCertificates[certificate.Thumbprint] =
+                            X509CertificateLoader.LoadCertificate(certificate.RawData);
+                    }
                     return;
                 }
                 finally
@@ -902,49 +877,47 @@ namespace Opc.Ua
             string applicationErrorMsg = string.Empty;
 
             ServiceResult serviceResult = se.Result;
-            lock (m_callbackLock)
+            CertificateValidationEventHandler callback = m_CertificateValidation;
+            do
             {
-                do
+                accept = false;
+                if (callback != null)
                 {
-                    accept = false;
-                    if (m_CertificateValidation != null)
-                    {
-                        var args = new CertificateValidationEventArgs(serviceResult, certificate);
-                        m_CertificateValidation(this, args);
-                        if (args.AcceptAll)
-                        {
-                            accept = true;
-                            serviceResult = null;
-                            break;
-                        }
-                        applicationErrorMsg = args.ApplicationErrorMsg;
-                        accept = args.Accept;
-                    }
-                    else if (m_autoAcceptUntrustedCertificates &&
-                        serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
+                    var args = new CertificateValidationEventArgs(serviceResult, certificate);
+                    callback(this, args);
+                    if (args.AcceptAll)
                     {
                         accept = true;
-                        m_logger.LogInformation("Auto accepted certificate {Certificate}", certificate.AsLogSafeString());
+                        serviceResult = null;
+                        break;
                     }
+                    applicationErrorMsg = args.ApplicationErrorMsg;
+                    accept = args.Accept;
+                }
+                else if (m_autoAcceptUntrustedCertificates &&
+                    serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
+                {
+                    accept = true;
+                    m_logger.LogInformation("Auto accepted certificate {Certificate}", certificate.AsLogSafeString());
+                }
 
-                    if (accept)
+                if (accept)
+                {
+                    serviceResult = serviceResult.InnerResult;
+                }
+                else
+                {
+                    // report the rejected service result
+                    if (string.IsNullOrEmpty(applicationErrorMsg))
                     {
-                        serviceResult = serviceResult.InnerResult;
+                        se = new ServiceResultException(serviceResult);
                     }
                     else
                     {
-                        // report the rejected service result
-                        if (string.IsNullOrEmpty(applicationErrorMsg))
-                        {
-                            se = new ServiceResultException(serviceResult);
-                        }
-                        else
-                        {
-                            se = new ServiceResultException(applicationErrorMsg);
-                        }
+                        se = new ServiceResultException(applicationErrorMsg);
                     }
-                } while (accept && serviceResult != null);
-            }
+                }
+            } while (accept && serviceResult != null);
 
             // throw if rejected.
             if (!accept)
@@ -1953,7 +1926,7 @@ namespace Opc.Ua
 
         private static ServiceResult ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
         {
-            var applicationUri = endpoint?.Description?.Server?.ApplicationUri;
+            string applicationUri = endpoint?.Description?.Server?.ApplicationUri;
 
             // check that an ApplicatioUri is specified for the Endpoint
             if (string.IsNullOrEmpty(applicationUri))
@@ -1965,14 +1938,17 @@ namespace Opc.Ua
 
             // Check if the application URI matches any URI in the certificate
             // and get the list of certificate URIs in a single call
-            if (!X509Utils.CompareApplicationUriWithCertificate(serverCertificate, applicationUri, out var certificateApplicationUris))
+            if (!X509Utils.CompareApplicationUriWithCertificate(
+                serverCertificate,
+                applicationUri,
+                out IReadOnlyList<string> certificateApplicationUris))
             {
                 if (certificateApplicationUris.Count == 0)
                 {
                     return ServiceResult.Create(
-                            StatusCodes.BadCertificateUriInvalid,
-                            "The Server Certificate ({1}) does not contain an applicationUri.",
-                            serverCertificate.Subject);
+                        StatusCodes.BadCertificateUriInvalid,
+                        "The Server Certificate ({1}) does not contain an applicationUri.",
+                        serverCertificate.Subject);
                 }
 
                 return ServiceResult.Create(
@@ -2303,7 +2279,6 @@ namespace Opc.Ua
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
-        private readonly Lock m_callbackLock = new();
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private readonly Dictionary<string, X509Certificate2> m_validatedCertificates;

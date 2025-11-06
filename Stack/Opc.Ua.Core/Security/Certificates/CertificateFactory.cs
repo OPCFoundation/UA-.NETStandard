@@ -287,7 +287,7 @@ namespace Opc.Ua
                 }
             }
 
-            var applicationUris = X509Utils.GetApplicationUrisFromCertificate(certificate);
+            IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(certificate);
 
             // Subject Alternative Name
             var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);

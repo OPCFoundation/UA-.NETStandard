@@ -86,7 +86,6 @@ namespace Opc.Ua.Bindings
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
             m_random = new Random();
-            m_lastRequestId = 0;
             m_connectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
@@ -1356,9 +1355,14 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private WriteOperation BeginOperation(int timeout, AsyncCallback? callback, object? state)
         {
+            var requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
+            if (requestId == 0)
+            {
+                requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
+            }
             var operation = new WriteOperation(timeout, callback, state, m_logger)
             {
-                RequestId = Utils.IncrementIdentifier(ref m_lastRequestId)
+                RequestId = requestId
             };
             if (!m_requests.TryAdd(operation.RequestId, operation))
             {

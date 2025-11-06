@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -146,7 +144,7 @@ namespace Opc.Ua.Client
         private class Registration
         {
             public Registration(
-                string serverUri,
+                string? serverUri,
                 Uri endpointUrl,
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
                 : this(endpointUrl, onConnectionWaiting)
@@ -169,7 +167,9 @@ namespace Opc.Ua.Client
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
                 : this(endpointUrl, onConnectionWaiting)
             {
-                ServerUri = X509Utils.GetApplicationUrisFromCertificate(serverCertificate).FirstOrDefault();
+                IReadOnlyList<string> serverUris =
+                    X509Utils.GetApplicationUrisFromCertificate(serverCertificate);
+                ServerUri = serverUris.Count != 0 ? serverUris[0] : null;
             }
 
             private Registration(
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client
                 ReverseConnectStrategy = ReverseConnectStrategy.Once;
             }
 
-            public readonly string ServerUri;
+            public readonly string? ServerUri;
             public readonly Uri EndpointUrl;
             public readonly EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting;
             public ReverseConnectStrategy ReverseConnectStrategy;
@@ -192,7 +192,7 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use ReverseConnectManager(ITelemetryContext) instead.")]
         public ReverseConnectManager()
-            : this(null)
+            : this(null!)
         {
         }
 
@@ -233,7 +233,6 @@ namespace Opc.Ua.Client
             if (m_cts != null)
             {
                 Utils.SilentDispose(m_cts);
-                m_cts = null;
             }
             DisposeHosts();
         }
@@ -244,7 +243,7 @@ namespace Opc.Ua.Client
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
         protected virtual async void OnConfigurationChangedAsync(
-            object sender,
+            object? sender,
             ConfigurationWatcherEventArgs args)
         {
             try
@@ -385,7 +384,7 @@ namespace Opc.Ua.Client
             lock (m_lock)
             {
                 CloseHosts();
-                m_endpointUrls = null;
+                m_endpointUrls.Clear();
             }
         }
 
@@ -527,7 +526,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public async Task<ITransportWaitingConnection> WaitForConnectionAsync(
             Uri endpointUrl,
-            string serverUri,
+            string? serverUri,
             CancellationToken ct = default)
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
@@ -541,10 +540,11 @@ namespace Opc.Ua.Client
             {
                 if (ct == default)
                 {
-                    int waitTimeout =
-                        m_configuration.WaitTimeout > 0
-                            ? m_configuration.WaitTimeout
-                            : DefaultWaitTimeout;
+                    int waitTimeout = m_configuration?.WaitTimeout ?? 20000;
+                    if (waitTimeout <= 0)
+                    {
+                        waitTimeout = DefaultWaitTimeout;
+                    }
                     await Task.Delay(waitTimeout, ct).ConfigureAwait(false);
                 }
                 else
@@ -577,7 +577,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentNullException"><paramref name="endpointUrl"/> is <c>null</c>.</exception>
         public int RegisterWaitingConnection(
             Uri endpointUrl,
-            string serverUri,
+            string? serverUri,
             EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting,
             ReverseConnectStrategy reverseConnectStrategy)
         {
@@ -606,7 +606,7 @@ namespace Opc.Ua.Client
         {
             lock (m_registrationsLock)
             {
-                Registration toRemove = null;
+                Registration? toRemove = null;
                 foreach (Registration registration in m_registrations)
                 {
                     if (registration.GetHashCode() == hashCode)
@@ -695,7 +695,7 @@ namespace Opc.Ua.Client
         private async Task OnConnectionWaitingAsync(object sender, ConnectionWaitingEventArgs e)
         {
             int startTime = HiResClock.TickCount;
-            int endTime = startTime + m_configuration.HoldTime;
+            int endTime = startTime + (m_configuration?.HoldTime ?? 15000);
 
             bool matched = MatchRegistration(sender, e);
             while (!matched)
@@ -745,7 +745,7 @@ namespace Opc.Ua.Client
         /// <returns>true if a match was found.</returns>
         private bool MatchRegistration(object sender, ConnectionWaitingEventArgs e)
         {
-            Registration callbackRegistration = null;
+            Registration? callbackRegistration = null;
             bool found = false;
             lock (m_registrationsLock)
             {
@@ -808,9 +808,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised when a connection status changes.
         /// </summary>
-        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
+        private void OnConnectionStatusChanged(object? sender, ConnectionStatusEventArgs e)
         {
-            m_logger.LogInformation("Channel status: {EndpointUrl} {ChannelStatus} {Closed}", e.EndpointUrl, e.ChannelStatus, e.Closed);
+            m_logger.LogInformation(
+                "Channel status: {EndpointUrl} {ChannelStatus} {Closed}",
+                e.EndpointUrl,
+                e.ChannelStatus,
+                e.Closed);
         }
 
         /// <summary>
@@ -827,10 +831,10 @@ namespace Opc.Ua.Client
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-        private ConfigurationWatcher m_configurationWatcher;
+        private ConfigurationWatcher? m_configurationWatcher;
         private ApplicationType m_applicationType;
-        private Type m_configType;
-        private ReverseConnectClientConfiguration m_configuration;
+        private Type? m_configType;
+        private ReverseConnectClientConfiguration? m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
         private readonly List<Registration> m_registrations;

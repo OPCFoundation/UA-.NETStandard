@@ -13,6 +13,7 @@
 #nullable enable
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -311,27 +312,41 @@ namespace Opc.Ua.Bindings
                         "Channel is already open.");
                 }
                 SaveSettings(endpointUrl, settings);
-                m_channel = CreateChannel(m_telemetry, connection);
-                channel = m_channel;
-
-                // We hold the lock while connecting to not let send requests through.
-                try
-                {
-                    await channel.ConnectAsync(m_url!, OperationTimeout, ct).ConfigureAwait(false);
-                }
-                catch
-                {
-                    if (m_channel == channel)
-                    {
-                        m_channel = null; // Treat as not opened to allow OpenAsync again
-                        m_url = null;
-                    }
-                    throw;
-                }
+                channel = CreateChannel(m_telemetry, connection);
+                m_channel = channel;
             }
             finally
             {
                 m_connecting.Release();
+            }
+
+            //
+            // We do not hold the lock while connecting to let send requests get
+            // queued to the channel. The inner channel allows queueing during
+            // state connecting, which will then be played as soon as connect
+            // completes. Therefore it is safe to now call SendRequestAsync with
+            // the caveat that these requests may then fail if connect fails.
+            //
+            try
+            {
+                await channel.ConnectAsync(m_url!, OperationTimeout, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    Debug.Assert(m_channel == channel,
+                        "Should have thrown if m_channel was null");
+                    // Reset as not opened to allow OpenAsync again.
+                    m_channel = null;
+                    m_url = null;
+                    throw;
+                }
+                finally
+                {
+                    m_connecting.Release();
+                }
             }
         }
 

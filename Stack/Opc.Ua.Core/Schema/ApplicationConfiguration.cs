@@ -724,7 +724,7 @@ namespace Opc.Ua
             {
                 if (value == null || value.Count == 0)
                 {
-                    m_applicationCertificates = new CertificateIdentifierCollection();
+                    m_applicationCertificates = [];
                     return;
                 }
 
@@ -758,7 +758,7 @@ namespace Opc.Ua
                         }
                         // If certificates aren't loaded yet, compare by explicit thumbprint configuration
                         else if (!string.IsNullOrEmpty(newCertificates[i].Thumbprint) &&
-                                 !string.IsNullOrEmpty(newCertificates[j].Thumbprint))
+                            !string.IsNullOrEmpty(newCertificates[j].Thumbprint))
                         {
                             isDuplicate = newCertificates[i].Thumbprint.Equals(
                                 newCertificates[j].Thumbprint,
@@ -773,7 +773,7 @@ namespace Opc.Ua
                 }
 
                 m_applicationCertificates = newCertificates;
-                
+
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
             }
         }

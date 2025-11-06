@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
@@ -191,14 +192,14 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);
-            System.Collections.Generic.IList<string> domainNames = X509Utils
-                .GetDomainsFromCertificate(signedCert);
+            IList<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
             foreach (string domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            var applicationUri = X509Utils.GetApplicationUrisFromCertificate(signedCert).FirstOrDefault();
+            IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(signedCert);
+            string applicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
             Assert.True(testApp.ApplicationRecord.ApplicationUri == applicationUri);
         }
     }

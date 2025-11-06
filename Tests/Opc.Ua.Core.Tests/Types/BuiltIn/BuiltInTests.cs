@@ -961,7 +961,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(NodeId.TryParse(null, out result));
             Assert.AreEqual(NodeId.Null, result);
 
-            Assert.IsTrue(NodeId.TryParse("", out result));
+            Assert.IsTrue(NodeId.TryParse(string.Empty, out result));
             Assert.AreEqual(NodeId.Null, result);
         }
 
@@ -1001,8 +1001,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void NodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(Telemetry);
-            context.NamespaceUris = new NamespaceTable();
+            var context = new ServiceMessageContext(Telemetry)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
             context.NamespaceUris.Append("http://opcfoundation.org/UA/");
             context.NamespaceUris.Append("http://test.org/");
 
@@ -1024,7 +1026,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(NodeId.TryParse(context, null, out result));
             Assert.AreEqual(NodeId.Null, result);
 
-            Assert.IsTrue(NodeId.TryParse(context, "", out result));
+            Assert.IsTrue(NodeId.TryParse(context, string.Empty, out result));
             Assert.AreEqual(NodeId.Null, result);
         }
 
@@ -1085,7 +1087,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(ExpandedNodeId.TryParse(null, out result));
             Assert.AreEqual(ExpandedNodeId.Null, result);
 
-            Assert.IsTrue(ExpandedNodeId.TryParse("", out result));
+            Assert.IsTrue(ExpandedNodeId.TryParse(string.Empty, out result));
             Assert.AreEqual(ExpandedNodeId.Null, result);
         }
 
@@ -1119,9 +1121,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void ExpandedNodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(Telemetry);
-            context.NamespaceUris = new NamespaceTable();
-            context.ServerUris = new StringTable();
+            var context = new ServiceMessageContext(Telemetry)
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
             context.NamespaceUris.Append("http://opcfoundation.org/UA/");
             context.NamespaceUris.Append("http://test.org/");
             context.ServerUris.Append("urn:server1");
@@ -1155,7 +1159,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(ExpandedNodeId.TryParse(context, null, out result));
             Assert.AreEqual(ExpandedNodeId.Null, result);
 
-            Assert.IsTrue(ExpandedNodeId.TryParse(context, "", out result));
+            Assert.IsTrue(ExpandedNodeId.TryParse(context, string.Empty, out result));
             Assert.AreEqual(ExpandedNodeId.Null, result);
         }
     }

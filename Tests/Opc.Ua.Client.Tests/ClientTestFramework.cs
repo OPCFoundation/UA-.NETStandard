@@ -312,6 +312,8 @@ namespace Opc.Ua.Client.Tests
                 });
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
+            ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
+            ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;

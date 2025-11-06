@@ -456,11 +456,6 @@ namespace Opc.Ua
 
         /// <summary>
         /// Formats a expanded node id as a string.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Formats a ExpandedNodeId as a string.
-        /// <br/></para>
         /// <para>
         /// An example of this would be:
         /// <br/></para>
@@ -479,9 +474,10 @@ namespace Opc.Ua
         /// <br/>
         /// </para>
         /// <para>
-        /// Note: Only information already included in the ExpandedNodeId-Instance will be included in the result
+        /// Note: Only information already included in the ExpandedNodeId-Instance
+        /// will be included in the result
         /// </para>
-        /// </remarks>
+        /// </summary>
         public string Format(IFormatProvider formatProvider)
         {
             var buffer = new StringBuilder();
@@ -507,7 +503,14 @@ namespace Opc.Ua
             }
             else
             {
-                Format(formatProvider, buffer, null, IdType.Numeric, 0, NamespaceUri, ServerIndex);
+                Format(
+                    formatProvider,
+                    buffer,
+                    null,
+                    IdType.Numeric,
+                    0,
+                    NamespaceUri,
+                    ServerIndex);
             }
         }
 
@@ -619,26 +622,28 @@ namespace Opc.Ua
         /// Parses a ExpandedNodeId String and returns a NodeId object
         /// </remarks>
         /// <param name="text">The ExpandedNodeId value as a string.</param>
-        /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
+        /// <exception cref="ServiceResultException">Thrown under a variety
+        /// of circumstances, each time with a specific message.</exception>
         public static ExpandedNodeId Parse(string text)
         {
-            if (!InternalTryParse(text, out ExpandedNodeId value, out string errorMessage))
+            if (!InternalTryParse(text, out ExpandedNodeId value, out var error))
             {
-                throw new ServiceResultException(
+                throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? CoreUtils.Format("Cannot parse expanded node id text: '{0}'", text));
+                    "Cannot parse expanded node id text: '{0}' Error: {1}",
+                    text,
+                    error);
             }
             return value;
         }
 
         /// <summary>
-        /// Tries to parse an expanded node id string and returns true if successful.
+        /// Tries to parse an ExpandedNodeId String and returns an ExpandedNodeId
+        /// object if successful.
         /// </summary>
-        /// <remarks>
-        /// Tries to parse an ExpandedNodeId String and returns an ExpandedNodeId object if successful.
-        /// </remarks>
         /// <param name="text">The ExpandedNodeId value as a string.</param>
-        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
         /// <returns>True if the parsing was successful, false otherwise.</returns>
         public static bool TryParse(string text, out ExpandedNodeId value)
         {
@@ -646,15 +651,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Tries to parse an ExpandedNodeId String and returns an ExpandedNodeId
+        /// object if successful.
+        /// </summary>
+        /// <param name="text">The ExpandedNodeId value as a string.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
+        /// <param name="error">The error during parsing if false</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            string text,
+            out ExpandedNodeId value,
+            out NodeIdParseError error)
+        {
+            return InternalTryParse(text, out value, out error);
+        }
+
+        /// <summary>
         /// Internal try parse method that returns error message on failure.
         /// </summary>
         /// <param name="text">The ExpandedNodeId value as string.</param>
-        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
-        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
+        /// <param name="error">Error message if parsing fails.</param>
         /// <returns>True if parsing was successful, false otherwise.</returns>
-        private static bool InternalTryParse(string text, out ExpandedNodeId value, out string errorMessage)
+        private static bool InternalTryParse(
+            string text,
+            out ExpandedNodeId value,
+            out NodeIdParseError error)
         {
-            errorMessage = null;
+            error = NodeIdParseError.None;
             value = Null;
 
             if (string.IsNullOrEmpty(text))
@@ -675,13 +701,17 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        errorMessage = "Invalid server index.";
+                        error = NodeIdParseError.InvalidServerIndex;
                         return false;
                     }
 
-                    if (!uint.TryParse(text.Substring(4, index - 4), NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
+                    if (!uint.TryParse(
+                        text[4..index],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out serverIndex))
                     {
-                        errorMessage = "Invalid server index format.";
+                        error = NodeIdParseError.InvalidServerIndex;
                         return false;
                     }
 
@@ -695,7 +725,7 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        errorMessage = "Invalid namespace uri.";
+                        error = NodeIdParseError.InvalidNamespaceUri;
                         return false;
                     }
 
@@ -705,14 +735,18 @@ namespace Opc.Ua
                     text = text[(index + 1)..];
                 }
             }
-            catch (Exception e)
+            catch
             {
-                errorMessage = CoreUtils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
+                error = NodeIdParseError.Unexpected;
                 return false;
             }
 
             // parse the node id.
-            if (!NodeId.InternalTryParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri), out NodeId innerNodeId, out errorMessage))
+            if (!NodeId.InternalTryParse(
+                text,
+                serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri),
+                out NodeId innerNodeId,
+                out error))
             {
                 return false;
             }
@@ -729,15 +763,53 @@ namespace Opc.Ua
         /// <param name="context">The current context.</param>
         /// <param name="text">The text to parse.</param>
         /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
-        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
         /// <returns>True if the parsing was successful, false otherwise.</returns>
         public static bool TryParse(
             IServiceMessageContext context,
             string text,
-            out ExpandedNodeId value,
-            NodeIdParsingOptions options = null)
+            out ExpandedNodeId value)
+        {
+            return InternalTryParseWithContext(context, text, null, out value, out _);
+        }
+
+        /// <summary>
+        /// Tries to parse an ExpandedNodeId formatted as a string and converts
+        /// it to an ExpandedNodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options,
+            out ExpandedNodeId value)
         {
             return InternalTryParseWithContext(context, text, options, out value, out _);
+        }
+
+        /// <summary>
+        /// Tries to parse an ExpandedNodeId formatted as a string and converts
+        /// it to an ExpandedNodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
+        /// <param name="error">Parse error</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options,
+            out ExpandedNodeId value,
+            out NodeIdParseError error)
+        {
+            return InternalTryParseWithContext(context, text, options, out value, out error);
         }
 
         /// <summary>
@@ -747,17 +819,25 @@ namespace Opc.Ua
         /// <param name="text">The text to parse.</param>
         /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
         /// <returns>The local identifier.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
+        /// <exception cref="ServiceResultException">Thrown if the namespace URI
+        /// is not in the namespace table.</exception>
         public static ExpandedNodeId Parse(
             IServiceMessageContext context,
             string text,
             NodeIdParsingOptions options = null)
         {
-            if (!InternalTryParseWithContext(context, text, options, out ExpandedNodeId value, out string errorMessage))
+            if (!InternalTryParseWithContext(
+                context,
+                text,
+                options,
+                out ExpandedNodeId value,
+                out NodeIdParseError error))
             {
-                throw new ServiceResultException(
+                throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? CoreUtils.Format("Cannot parse expanded node id text: '{0}'", text));
+                    "Cannot parse expanded node id text: '{0}' Error: {1}",
+                    text,
+                    error);
             }
             return value;
         }
@@ -768,17 +848,18 @@ namespace Opc.Ua
         /// <param name="context">The current context.</param>
         /// <param name="text">The text to parse.</param>
         /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
-        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
-        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
+        /// <param name="error">Error message if parsing fails.</param>
         /// <returns>True if parsing was successful, false otherwise.</returns>
         private static bool InternalTryParseWithContext(
             IServiceMessageContext context,
             string text,
             NodeIdParsingOptions options,
             out ExpandedNodeId value,
-            out string errorMessage)
+            out NodeIdParseError error)
         {
-            errorMessage = null;
+            error = NodeIdParseError.None;
             value = Null;
 
             if (string.IsNullOrEmpty(text))
@@ -787,7 +868,6 @@ namespace Opc.Ua
                 return true;
             }
 
-            string originalText = text;
             int serverIndex = 0;
 
             if (text.StartsWith("svu=", StringComparison.Ordinal))
@@ -796,7 +876,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = CoreUtils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    error = NodeIdParseError.InvalidServerUriFormat;
                     return false;
                 }
 
@@ -808,7 +888,7 @@ namespace Opc.Ua
 
                 if (serverIndex < 0)
                 {
-                    errorMessage = CoreUtils.Format("No mapping to ServerIndex for ServerUri ({0}).", serverUri);
+                    error = NodeIdParseError.NoServerUriMapping;
                     return false;
                 }
 
@@ -821,7 +901,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = CoreUtils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    error = NodeIdParseError.InvalidServerUriFormat;
                     return false;
                 }
 
@@ -847,7 +927,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    errorMessage = CoreUtils.Format("Invalid ExpandedNodeId ({0}).", originalText);
+                    error = NodeIdParseError.InvalidNamespaceFormat;
                     return false;
                 }
 
@@ -860,7 +940,7 @@ namespace Opc.Ua
                 text = text[(index + 1)..];
             }
 
-            if (!NodeId.InternalTryParseWithContext(context, text, options, out NodeId nodeId, out errorMessage))
+            if (!NodeId.InternalTryParseWithContext(context, text, options, out NodeId nodeId, out error))
             {
                 return false;
             }
@@ -1370,20 +1450,20 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="text">The ExpandedNodeId value as a string.</param>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         private void InternalParse(string text)
         {
-            if (!InternalTryParseInstance(text, out string errorMessage))
+            if (!InternalTryParseAndSet(text, out NodeIdParseError error))
             {
                 // Check if this should be an ArgumentException based on the error message
-                if (errorMessage != null && (errorMessage.Contains("namespace Uri ('nsu=')") ||
-                    errorMessage.Contains("Missing valid identifier prefix")))
+                if (error is NodeIdParseError.InvalidNamespaceUri or NodeIdParseError.IdentifierMissing)
                 {
-                    throw new ArgumentException(errorMessage);
+                    throw new ArgumentException(error.ToString());
                 }
 
-                throw new ServiceResultException(
+                throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
-                    errorMessage ?? CoreUtils.Format("Cannot parse expanded node id text: '{0}'", text));
+                    "Cannot parse expanded node id text: '{0}' Error: {1}", text, error);
             }
         }
 
@@ -1391,11 +1471,10 @@ namespace Opc.Ua
         /// Tries to parse a expanded node id string and sets the properties on this instance.
         /// </summary>
         /// <param name="text">The ExpandedNodeId value as a string.</param>
-        /// <param name="errorMessage">Error message if parsing fails.</param>
+        /// <param name="error">Error message if parsing fails.</param>
         /// <returns>True if parsing was successful, false otherwise.</returns>
-        private bool InternalTryParseInstance(string text, out string errorMessage)
+        private bool InternalTryParseAndSet(string text, out NodeIdParseError error)
         {
-            errorMessage = null;
             uint serverIndex = 0;
             string namespaceUri = null;
 
@@ -1408,13 +1487,13 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        errorMessage = "Invalid server index.";
+                        error = NodeIdParseError.InvalidServerIndex;
                         return false;
                     }
 
-                    if (!uint.TryParse(text.Substring(4, index - 4), NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
+                    if (!uint.TryParse(text[4..index], NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
                     {
-                        errorMessage = "Invalid server index format.";
+                        error = NodeIdParseError.InvalidServerIndex;
                         return false;
                     }
 
@@ -1428,7 +1507,7 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        errorMessage = "Invalid namespace uri.";
+                        error = NodeIdParseError.InvalidNamespaceUri;
                         return false;
                     }
 
@@ -1438,14 +1517,18 @@ namespace Opc.Ua
                     text = text[(index + 1)..];
                 }
             }
-            catch (Exception e)
+            catch
             {
-                errorMessage = CoreUtils.Format("Cannot parse expanded node id text: '{0}': {1}", text, e.Message);
+                error = NodeIdParseError.Unexpected;
                 return false;
             }
 
             // parse the node id.
-            if (!NodeId.InternalTryParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri), out NodeId innerNodeId, out errorMessage))
+            if (!NodeId.InternalTryParse(
+                text,
+                serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri),
+                out NodeId innerNodeId,
+                out error))
             {
                 return false;
             }
