@@ -67,7 +67,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with the default values.
         /// </summary>
-        private LocalizedText()
+        public LocalizedText()
         {
             XmlEncodedLocale = null;
             XmlEncodedText = null;
@@ -162,67 +162,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the locale with a key, locale and text.
-        /// </summary>
-        /// <param name="key">A key used to look up the text for different locales</param>
-        /// <param name="locale">The locale for the text provides</param>
-        /// <param name="text">The localized text</param>
-        public LocalizedText(string key, string locale, string text)
-        {
-            XmlEncodedLocale = locale;
-            XmlEncodedText = text;
-
-            if (!string.IsNullOrEmpty(key))
-            {
-                TranslationInfo = new TranslationInfo(key, locale, text);
-            }
-        }
-
-        /// <summary>
-        /// Creates a LocalizedText object from a dictionary of translations.
-        /// The dictionary must contain at least one entry.
-        /// Results in a localized text using the "mul" locale.
-        /// </summary>
-        /// <param name="translations">key = locale, value = text</param>
-        public LocalizedText(IReadOnlyDictionary<string, string> translations)
-        {
-            Translations = translations;
-        }
-
-        /// <summary>
-        /// Creates a LocalizedText object from a dictionary of translations.
-        /// The dictionary must contain at least one entry.
-        /// Results in a localized text using the "mul" locale.
-        /// </summary>
-        /// <param name="key">A key used to look up the text for different locales</param>
-        /// <param name="translations">key = locale, value = text</param>
-        public LocalizedText(string key, IReadOnlyDictionary<string, string> translations)
-        {
-            Translations = translations;
-
-            if (!string.IsNullOrEmpty(key))
-            {
-                TranslationInfo = new TranslationInfo(key, XmlEncodedLocale, XmlEncodedText);
-            }
-        }
-
-        /// <summary>
         /// The locale used to create the text.
         /// </summary>
         public string Locale => XmlEncodedLocale;
 
         /// <inheritdoc/>
         [DataMember(Name = "Locale", Order = 1)]
-        internal string XmlEncodedLocale { get; set; }
+        public string XmlEncodedLocale { get; set; }
 
         /// <summary>
         /// The localized text.
         /// </summary>
         public string Text => XmlEncodedText;
 
+        /// <inheritdoc/>
+        [DataMember(Name = "Text", Order = 2)]
+        public string XmlEncodedText { get; set; }
+
         /// <summary>
         /// The decoded translations if the Localized Text is a mul locale.
-        /// If the LocalizedText is not a mul locale, this property will return a dictionary with one entry from the Text and Locale properties.
+        /// If the LocalizedText is not a mul locale, this property will return a
+        /// dictionary with one entry from the Text and Locale properties.
         /// If the translations property is set a mul locale will be created.
         /// Key = locale, value = text.
         /// </summary>
@@ -258,10 +218,6 @@ namespace Opc.Ua
                 m_translations = value;
             }
         }
-
-        /// <inheritdoc/>
-        [DataMember(Name = "Text", Order = 2)]
-        internal string XmlEncodedText { get; set; }
 
         /// <summary>
         /// A key that can be used to look to the localized text in different locales.

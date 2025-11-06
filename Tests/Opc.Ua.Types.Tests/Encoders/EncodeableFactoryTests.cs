@@ -59,6 +59,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly).Commit();
         }
 
+        public static readonly NodeId ReadRequestEncoding = new (631);
+
         /// <summary>
         /// Benchmark for lookup using dictionary
         /// </summary>
@@ -70,17 +72,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             for (int i = 0; i < 1000; i++)
             {
                 _ = m_builder.TryGetEncodeableType(
-                    new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary),
+                    new ExpandedNodeId(ReadRequestEncoding),
                     out IEncodeableType encodeableType);
-                Assert.NotNull(encodeableType);
+                Assert.Null(encodeableType);
                 _ = m_builder.TryGetEncodeableType(
                     new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary),
                     out encodeableType);
                 Assert.NotNull(encodeableType);
-                _ = m_builder.TryGetEncodeableType(
-                    new ExpandedNodeId(Guid.NewGuid()),
-                    out encodeableType);
-                Assert.Null(encodeableType);
             }
         }
 
@@ -91,21 +89,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeableFactoryLookupFromEncodeableFactory()
         {
+
             // lookup a type that exists and one that does not
             for (int i = 0; i < 1000; i++)
             {
                 _ = m_encodeableFactory.TryGetEncodeableType(
-                    new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary),
+                    new ExpandedNodeId(ReadRequestEncoding),
                     out IEncodeableType encodeableType);
-                Assert.NotNull(encodeableType);
-                _ = m_builder.TryGetEncodeableType(
+                Assert.Null(encodeableType);
+                _ = m_encodeableFactory.TryGetEncodeableType(
                     new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary),
                     out encodeableType);
                 Assert.NotNull(encodeableType);
-                _ = m_encodeableFactory.TryGetEncodeableType(
-                    new ExpandedNodeId(Guid.NewGuid()),
-                    out encodeableType);
-                Assert.Null(encodeableType);
             }
         }
 
@@ -563,18 +558,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        public void Integration_FactoryCanResolveReadRequest()
+        public void Integration_FactoryCanResolveArgument()
         {
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Act - Try to find ReadRequest type using proper ExpandedNodeId - wrap the uint constant
-            var readRequestEncodingId = new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary);
+            var readRequestEncodingId = new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary);
             bool found = factory.TryGetEncodeableType(readRequestEncodingId, out IEncodeableType encodeableType);
 
             // Assert
             Assert.True(found);
-            Assert.AreEqual(typeof(ReadRequest), encodeableType.Type);
+            Assert.AreEqual(typeof(Argument), encodeableType.Type);
         }
 
         [Test]
@@ -1306,7 +1301,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Act - Perform multiple lookups to verify frozen dictionary performance
-            var readRequestId = new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary);
+            var readRequestId = new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary);
             var nonExistentId = new ExpandedNodeId(Guid.NewGuid());
 
             // Time the lookups (though we won't assert on timing, just verify functionality)
@@ -1316,7 +1311,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Assert
             Assert.True(found1);
             Assert.NotNull(type1);
-            Assert.AreEqual(typeof(ReadRequest), type1.Type);
+            Assert.AreEqual(typeof(Argument), type1.Type);
 
             Assert.False(found2);
             Assert.Null(type2);

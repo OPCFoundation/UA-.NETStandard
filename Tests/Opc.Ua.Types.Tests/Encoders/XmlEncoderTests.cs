@@ -35,7 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
     /// Tests for the XML encoder and decoder class.

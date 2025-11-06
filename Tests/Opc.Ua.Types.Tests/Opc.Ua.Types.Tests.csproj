@@ -23,6 +23,7 @@
     </PackageReference>
     <PackageReference Include="System.IO.Compression" />
     <PackageReference Include="System.Private.Uri" />
+    <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
   <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
     <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>

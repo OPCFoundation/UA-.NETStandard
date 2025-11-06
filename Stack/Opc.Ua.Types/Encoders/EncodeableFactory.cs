@@ -487,9 +487,17 @@ namespace Opc.Ua
         static EncodeableFactory()
         {
             var factory = new EncodeableFactory();
-            factory.Builder
-                .AddEncodeableTypes(typeof(EncodeableFactory).Assembly)
-                .Commit();
+            // Load all well known types from the types assembly
+            IEncodeableFactoryBuilder builder = factory.Builder
+                .AddEncodeableTypes(typeof(EncodeableFactory).Assembly);
+
+            Assembly? core = CoreUtils.GetOpcUaCoreAssembly();
+            if (core != null)
+            {
+                builder = builder.AddEncodeableTypes(core);
+            }
+            // else: If not found we are running just with the types library
+            builder.Commit();
             Root = factory;
         }
 

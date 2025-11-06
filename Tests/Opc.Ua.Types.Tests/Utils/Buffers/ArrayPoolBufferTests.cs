@@ -30,8 +30,9 @@
 using System;
 using System.Buffers;
 using NUnit.Framework;
+using Opc.Ua.Buffers;
 
-namespace Opc.Ua.Buffers.Tests
+namespace Opc.Ua.Types.Buffers.Tests
 {
     /// <summary>
     /// Tests for <see cref="ArrayPoolBufferWriter{T}"/> where T is <see cref="byte"/>.

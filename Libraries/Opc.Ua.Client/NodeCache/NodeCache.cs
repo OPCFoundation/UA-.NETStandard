@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Client
             }
 
             var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(
                 context,
                 "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",

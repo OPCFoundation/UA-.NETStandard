@@ -633,15 +633,14 @@ namespace Opc.Ua
             return status.Code;
         }
 
-#if ZOMBIE // Manual
         /// <summary>
         /// Looks up the symbolic name for a status code.
         /// </summary>
+        [Obsolete("Unsupported. Use StatusCodes.LookupSymbolicId instead.")]
         public static string LookupSymbolicId(uint code)
         {
-            return StatusCodes.GetBrowseName(code & 0xFFFF0000);
+            return null;
         }
-#endif
 
         /// <summary>
         /// The status code associated with the result.
@@ -737,56 +736,6 @@ namespace Opc.Ua
             {
                 buffer.AppendLine()
                     .Append(AdditionalInfo);
-            }
-        }
-
-        /// <summary>
-        /// Returns a formatted string with the contents of service result.
-        /// </summary>
-        public string ToLongString()
-        {
-            var buffer = new StringBuilder();
-            AppendLong(buffer);
-            return buffer.ToString();
-        }
-
-        /// <summary>
-        /// Append details to string buffer
-        /// </summary>
-        /// <param name="buffer"></param>
-        internal void AppendLong(StringBuilder buffer)
-        {
-#if ZOMBIE // Manual
-            buffer.Append("Id: ")
-                .Append(StatusCodes.GetBrowseName(Code));
-#endif
-            if (!string.IsNullOrEmpty(SymbolicId))
-            {
-                buffer.AppendLine()
-                    .Append("SymbolicId: ")
-                    .Append(SymbolicId);
-            }
-
-            if (!LocalizedText.IsNullOrEmpty(LocalizedText))
-            {
-                buffer.AppendLine()
-                    .Append("Description: ")
-                    .Append(LocalizedText);
-            }
-
-            if (!string.IsNullOrEmpty(AdditionalInfo))
-            {
-                buffer.AppendLine()
-                    .Append(AdditionalInfo);
-            }
-
-            ServiceResult innerResult = InnerResult;
-
-            if (innerResult != null)
-            {
-                buffer.AppendLine()
-                    .AppendLine("===")
-                    .Append(innerResult.ToLongString());
             }
         }
 

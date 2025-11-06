@@ -138,21 +138,13 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResult InnerResult => Result.InnerResult;
 
-        /// <summary>
-        /// Returns a formatted string with the contents of exception.
-        /// </summary>
-        public string ToLongString()
-        {
-            var buffer = new StringBuilder();
-            buffer.AppendLine(Message);
-            Result.AppendLong(buffer);
-            return buffer.ToString();
-        }
-
         /// <inheritdoc/>
         public override string ToString()
         {
-            return ToLongString();
+            var buffer = new StringBuilder();
+            buffer.AppendLine(Message);
+            Result.Append(buffer);
+            return buffer.ToString();
         }
 
         /// <summary>

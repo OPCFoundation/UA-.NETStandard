@@ -431,7 +431,7 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                return new LocalizedText(translations);
+                return MulLocalizedText.Create(translations);
             }
             // single locale requested.
             else
@@ -492,15 +492,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Filter text by preferred locales.
         /// </summary>
-        /// <param name="defaultText"></param>
+        /// <param name="localizedText"></param>
         /// <param name="preferredLocales"></param>
         /// <returns></returns>
-        private LocalizedText FilterByPreferredLocales(LocalizedText defaultText, IList<string> preferredLocales)
+        protected virtual LocalizedText FilterByPreferredLocales(
+            LocalizedText localizedText,
+            IList<string> preferredLocales)
         {
-#if ZOMBIE
-            // TODO: Port from Localized text
-#endif
-            return defaultText;
+            return localizedText.FilterByPreferredLocales(preferredLocales);
         }
 
         /// <summary>

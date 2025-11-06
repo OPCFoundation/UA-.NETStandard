@@ -23,10 +23,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 { "de-DE", "Hallo" } };
 
             // Act
-            var localizedText = new LocalizedText(translations);
+            LocalizedText localizedText = MulLocalizedText.Create(translations);
 
             // Assert
-            Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
+            Assert.IsTrue(localizedText.IsMultiLanguage(), "Should be mul locale");
             Assert.AreEqual("mul", localizedText.Locale, "Locale should be 'mul'");
             Assert.IsNotNull(localizedText.Text, "Text should not be null");
             Assert.AreEqual(
@@ -48,10 +48,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var translations = new Dictionary<string, string>();
 
             // Act
-            var localizedText = new LocalizedText(translations);
+            LocalizedText localizedText = MulLocalizedText.Create(translations);
 
             // Assert
-            Assert.IsFalse(localizedText.IsMultiLanguage, "Should not be mul locale");
+            Assert.IsFalse(localizedText.IsMultiLanguage(), "Should not be mul locale");
             Assert.IsNull(
                 localizedText.Translations,
                 "Translations should be null for empty dictionary");
@@ -66,11 +66,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var translations = new Dictionary<string, string> { { "fr-FR", "Bonjour" } };
 
             // Act
-            var localizedText = new LocalizedText(translations);
+            LocalizedText localizedText = MulLocalizedText.Create(translations);
 
             // Assert
             Assert.IsFalse(
-                localizedText.IsMultiLanguage,
+                localizedText.IsMultiLanguage(),
                 "Should not be mul locale for single entry");
             Assert.AreEqual("fr-FR", localizedText.Locale, "Locale should be 'fr-FR'");
             Assert.AreEqual("Bonjour", localizedText.Text, "Text should be 'Bonjour'");
@@ -90,10 +90,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
-            var localizedText = new LocalizedText(mulLocale, jsonText);
+            LocalizedText localizedText = MulLocalizedText.Create(mulLocale, jsonText);
 
             // Assert
-            Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
+            Assert.IsTrue(localizedText.IsMultiLanguage(), "Should be mul locale");
             Assert.AreEqual("mul", localizedText.Locale, "Locale should be 'mul'");
             Assert.AreEqual(
                 jsonText,
@@ -126,10 +126,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
-            var localizedText = new LocalizedText(mulLocale, jsonText);
+            LocalizedText localizedText = MulLocalizedText.Create(mulLocale, jsonText);
 
             // Assert
-            Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
+            Assert.IsTrue(localizedText.IsMultiLanguage(), "Should be mul locale");
 
             //found locale returned
             LocalizedText singleUS = localizedText.FilterByPreferredLocales(s_preferredLocales);
@@ -155,7 +155,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             // All locales returned
             LocalizedText mul = localizedText.FilterByPreferredLocales(s_preferredLocalesArray2);
-            Assert.IsTrue(mul.IsMultiLanguage, "Should be mul locale");
+            Assert.IsTrue(mul.IsMultiLanguage(), "Should be mul locale");
             Assert.AreEqual(3, mul.Translations.Count, "Translations should have 3 entries");
             Assert.AreEqual("Hello", mul.Translations["en-US"]);
             Assert.AreEqual("Hallo", mul.Translations["de-DE"]);
@@ -171,10 +171,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void LocalizedText_SingleLocale_ReturnsPreferredTranslations()
         {
             // Act
-            var localizedText = new LocalizedText("de-DE", "Hallo");
+            LocalizedText localizedText = MulLocalizedText.Create("de-DE", "Hallo");
 
             // Assert
-            Assert.IsFalse(localizedText.IsMultiLanguage, "Should be mul locale");
+            Assert.IsFalse(localizedText.IsMultiLanguage(), "Should not be mul locale");
 
             //found locale returned
             LocalizedText singleDE = localizedText.FilterByPreferredLocales(s_preferredLocales);
@@ -202,10 +202,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 "{\"t\":[[\"en-US\"],[\"de-DE\",\"Hallo\", \"fr-FR\"],[]]}";
 
             // Act
-            var localizedText = new LocalizedText(mulLocale, jsonText);
+            LocalizedText localizedText = MulLocalizedText.Create(mulLocale, jsonText);
 
             // Assert
-            Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
+            Assert.IsTrue(localizedText.IsMultiLanguage(), "Should be mul locale");
             Assert.AreEqual(jsonText, localizedText.Text);
             Assert.IsNotNull(localizedText.Translations, "Translations should not be null");
         }
@@ -219,12 +219,12 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
-            var localizedText = new LocalizedText(mulLocale, jsonText);
-            var deepCopy = new LocalizedText(localizedText);
+            LocalizedText localizedText = MulLocalizedText.Create(mulLocale, jsonText);
+            LocalizedText deepCopy = localizedText.Copy();
 
             //Assert
-            Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
-            Assert.IsTrue(deepCopy.IsMultiLanguage, "Should be mul locale");
+            Assert.IsTrue(localizedText.IsMultiLanguage(), "Should be mul locale");
+            Assert.IsTrue(deepCopy.IsMultiLanguage(), "Should be mul locale");
             Assert.AreEqual(localizedText.Locale, deepCopy.Locale, "Locale should be the same");
             Assert.AreEqual(localizedText.Text, deepCopy.Text, "Text should be the same");
             Assert.AreEqual(

@@ -65,6 +65,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Suppresses any exceptions while disposing the object.
+        /// </summary>
+        /// <remarks>
+        /// Writes errors to trace output in DEBUG builds.
+        /// </remarks>
+        public static void SilentDispose(object objectToDispose)
+        {
+            var disposable = objectToDispose as IDisposable;
+            SilentDispose(disposable);
+        }
+
+        /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>
         public static DateTime TimeBase { get; } = new(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -969,6 +981,23 @@ namespace Opc.Ua
             using var reader = XmlReader.Create(sreader, DefaultXmlReaderSettings());
             doc.XmlResolver = null;
             doc.Load(reader);
+        }
+
+        /// <summary>
+        /// Get the opc ua core assembly to load manifest from or encodeable types
+        /// </summary>
+        /// <returns></returns>
+        public static Assembly GetOpcUaCoreAssembly()
+        {
+            // Find the core assembly with all generated core types if referenced
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly.FullName.StartsWith("Opc.Ua.Core,", StringComparison.Ordinal))
+                {
+                    return assembly;
+                }
+            }
+            return null;
         }
     }
 }

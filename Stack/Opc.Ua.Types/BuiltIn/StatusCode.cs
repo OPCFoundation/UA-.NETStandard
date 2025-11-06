@@ -420,15 +420,6 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-#if ZOMBIE // Manual
-                string text = StatusCodes.GetBrowseName(Code & 0xFFFF0000);
-
-                if (!string.IsNullOrEmpty(text))
-                {
-                    return string.Format(formatProvider, "{0}", text);
-                }
-#endif
-
                 return string.Format(formatProvider, "0x{0:X8}", Code);
             }
 
@@ -502,25 +493,26 @@ namespace Opc.Ua
             return code.Code;
         }
 
-#if ZOMBIE // Manual
         /// <summary>
         /// Looks up the symbolic name for a status code.
         /// </summary>
         /// <param name="code">The numeric error-code to convert to a textual description</param>
+        [Obsolete("Unsupported. Use StatusCodes.LookupSymbolicId instead.")]
+
         public static string LookupSymbolicId(uint code)
         {
-            return StatusCodes.GetBrowseName(code);
+            return null;
         }
 
         /// <summary>
         /// Looks up the Utf8 encoded symbolic name for a status code.
         /// </summary>
         /// <param name="code">The numeric error-code to convert to a textual description</param>
+        [Obsolete("Unsupported. Use StatusCodes.LookupSymbolicId instead.")]
         public static byte[] LookupUtf8SymbolicId(uint code)
         {
-            return StatusCodes.GetUtf8BrowseName(code);
+            return null;
         }
-#endif
 
         /// <summary>
         /// Returns true if the objects are not equal.

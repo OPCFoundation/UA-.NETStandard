@@ -32,11 +32,10 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace Opc.Ua.Core.Tests.Types.BuiltIn
+namespace Opc.Ua.Types.Tests.BuiltIn
 {
     /// <summary>
     /// Tests for the BuiltIn Types.
@@ -48,57 +47,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     [Parallelizable]
     public class BuiltInTests
     {
-        protected const int kRandomStart = 4840;
-        protected const int kRandomRepeats = 100;
-        protected RandomSource RandomSource { get; private set; }
-        protected DataGenerator DataGenerator { get; private set; }
-        protected ITelemetryContext Telemetry { get; private set; }
-
-        [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
-
-        [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
-
-        [SetUp]
-        protected void SetUp()
-        {
-            // ensure tests are reproducible, reset for every test
-            Telemetry = NUnitTelemetryContext.Create();
-            RandomSource = new RandomSource(kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource, Telemetry);
-        }
-
-        [TearDown]
-        protected void TearDown()
-        {
-        }
-
-        /// <summary>
-        /// Ensure repeated tests get different seed.
-        /// </summary>
-        protected void SetRepeatedRandomSeed()
-        {
-            int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
-            Telemetry = NUnitTelemetryContext.Create();
-            RandomSource = new RandomSource(randomSeed);
-            DataGenerator = new DataGenerator(RandomSource, Telemetry);
-        }
-
-        /// <summary>
-        /// Ensure tests are reproducible with same seed.
-        /// </summary>
-        protected void SetRandomSeed(int randomSeed)
-        {
-            Telemetry = NUnitTelemetryContext.Create();
-            RandomSource = new RandomSource(randomSeed + kRandomStart);
-            DataGenerator = new DataGenerator(RandomSource, Telemetry);
-        }
-
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
 #if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
@@ -111,51 +59,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 #endif
                 .Where(b => b is > BuiltInType.Null and < BuiltInType.DataValue)
         ];
-
-        /// <summary>
-        /// Initialize Variant with BuiltInType Scalar.
-        /// </summary>
-        [Theory]
-        [Repeat(kRandomRepeats)]
-        public void VariantScalarFromBuiltInType(BuiltInType builtInType)
-        {
-            SetRepeatedRandomSeed();
-            object randomData = DataGenerator.GetRandom(builtInType);
-            var variant1 = new Variant(randomData);
-            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            var variant2 = new Variant(randomData, TypeInfo.CreateScalar(builtInType));
-            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
-            var variant3 = new Variant(variant2);
-            Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
-            // implicit
-        }
-
-        /// <summary>
-        /// Initialize Variant with BuiltInType Array.
-        /// </summary>
-        [Theory]
-        [Repeat(kRandomRepeats)]
-        public void VariantArrayFromBuiltInType(BuiltInType builtInType, bool useBoundaryValues)
-        {
-            SetRepeatedRandomSeed();
-            object randomData = DataGenerator.GetRandomArray(
-                builtInType,
-                useBoundaryValues,
-                100,
-                false);
-            var variant1 = new Variant(randomData);
-            if (builtInType == BuiltInType.Byte)
-            {
-                // Without hint, byte array can not be distinguished from bytestring
-                Assert.AreEqual(BuiltInType.ByteString, variant1.TypeInfo.BuiltInType);
-            }
-            else
-            {
-                Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            }
-            var variant2 = new Variant(randomData, TypeInfo.CreateArray(builtInType));
-            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
-        }
 
         /// <summary>
         /// Variant constructor.
@@ -245,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 .Throws<FormatException>(() => extensionObject.ToString("123", null));
             Assert.NotNull(extensionObjectString);
             // clone
-            ExtensionObject clonedExtensionObject = Utils.Clone(extensionObject);
+            ExtensionObject clonedExtensionObject = CoreUtils.Clone(extensionObject);
             Assert.AreEqual(extensionObject, clonedExtensionObject);
             // IsEqual operator
             clonedExtensionObject.TypeId = new ExpandedNodeId(333);
@@ -267,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.NotNull(collection);
             collection = [.. collection];
             Assert.NotNull(collection);
-            collection = Utils.Clone(collection);
+            collection = CoreUtils.Clone(collection);
             // default value is null
             Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
         }
@@ -290,59 +193,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             Assert.IsTrue(diagnosticInfo.Equals(null));
             Assert.IsTrue(diagnosticInfo.IsNullDiagnosticInfo);
-        }
-
-        /// <summary>
-        /// Ensure nested service result is truncated.
-        /// </summary>
-        [Test]
-        public void DiagnosticInfoInnerDiagnostics()
-        {
-            var stringTable = new StringTable();
-            var serviceResult = new ServiceResult(
-                StatusCodes.BadAggregateConfigurationRejected,
-                "SymbolicId",
-                Namespaces.OpcUa,
-                new LocalizedText("The text", "en-us"),
-                new Exception("The inner exception."));
-            ILogger logger = Telemetry.CreateLogger<BuiltInTests>();
-            var diagnosticInfo = new DiagnosticInfo(
-                serviceResult,
-                DiagnosticsMasks.All,
-                true,
-                stringTable,
-                logger);
-            Assert.NotNull(diagnosticInfo);
-            Assert.AreEqual(0, diagnosticInfo.SymbolicId);
-            Assert.AreEqual(1, diagnosticInfo.NamespaceUri);
-            Assert.AreEqual(2, diagnosticInfo.Locale);
-            Assert.AreEqual(3, diagnosticInfo.LocalizedText);
-
-            // recursive inner diagnostics, ensure its truncated
-            for (int ii = 0; ii < DiagnosticInfo.MaxInnerDepth + 1; ii++)
-            {
-                serviceResult = new ServiceResult(serviceResult, serviceResult);
-            }
-            diagnosticInfo = new DiagnosticInfo(
-                serviceResult,
-                DiagnosticsMasks.All,
-                true,
-                stringTable,
-                logger);
-            Assert.NotNull(diagnosticInfo);
-            int depth = 0;
-            DiagnosticInfo innerDiagnosticInfo = diagnosticInfo;
-            Assert.NotNull(innerDiagnosticInfo);
-            while (innerDiagnosticInfo != null)
-            {
-                depth++;
-                innerDiagnosticInfo = innerDiagnosticInfo.InnerDiagnosticInfo;
-                if (depth > DiagnosticInfo.MaxInnerDepth)
-                {
-                    Assert.Null(innerDiagnosticInfo);
-                    break;
-                }
-            }
         }
 
         /// <summary>
@@ -370,7 +220,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 TypeInfo.GetBuiltInType(new NodeId((int)BuiltInType.Int32)));
             var toArray = matrix.ToArray();
             Assert.AreEqual(testArray, toArray);
-            Assert.True(Utils.IsEqual(testArray, toArray));
+            Assert.True(CoreUtils.IsEqual(testArray, toArray));
         }
 
         [Test]
@@ -457,6 +307,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.True(nodeGuid1 == (Uuid)id1);
             Assert.False(nodeGuid1.Equals(id2));
             Assert.False(nodeGuid1 == id2);
+
+            id.SetIdentifier("Test", IdType.Opaque);
 
             NUnit.Framework.Assert
                 .Throws<ArgumentException>(() => _ = new NodeId((object)123, 123));
@@ -695,77 +547,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
         [Theory]
         [TestCase(-1)]
-        [Repeat(100)]
-        public void NodeIdComparison(IdType idType)
-        {
-            NodeId nodeId;
-            switch (idType)
-            {
-                case IdType.Numeric:
-                    nodeId = new NodeId(
-                        DataGenerator.GetRandomUInt16(),
-                        DataGenerator.GetRandomByte());
-                    break;
-                case IdType.String:
-                    nodeId = new NodeId(DataGenerator.GetRandomString(), 0);
-                    break;
-                case IdType.Guid:
-                    nodeId = new NodeId(DataGenerator.GetRandomGuid());
-                    break;
-                case IdType.Opaque:
-                    nodeId = new NodeId(Ua.Nonce.CreateRandomNonceData(32));
-                    break;
-                default:
-                    nodeId = DataGenerator.GetRandomNodeId();
-                    break;
-            }
-            var nodeIdClone = (NodeId)nodeId.Clone();
-            Assert.AreEqual(nodeId, nodeIdClone);
-            Assert.AreEqual(nodeId.GetHashCode(), nodeIdClone.GetHashCode());
-            Assert.AreEqual(nodeIdClone.GetHashCode(), nodeIdClone.GetHashCode());
-            Assert.AreEqual(nodeId.GetHashCode(), nodeId.GetHashCode());
-            Assert.IsTrue(nodeId.Equals(nodeIdClone));
-            NodeId id = nodeId;
-            Assert.False(id < nodeId);
-            Assert.False(id > nodeId);
-            Assert.True(id == nodeId);
-
-            var dictionary = new Dictionary<NodeId, string> { { nodeId, "Test" } };
-            Assert.IsTrue(dictionary.ContainsKey(nodeId));
-            Assert.IsTrue(dictionary.ContainsKey(nodeIdClone));
-            Assert.IsTrue(dictionary.ContainsKey((NodeId)nodeIdClone.Clone()));
-            Assert.IsTrue(dictionary.TryGetValue(nodeId, out string value));
-
-            NUnit.Framework.Assert
-                .Throws<ArgumentException>(() => dictionary.Add(nodeIdClone, "TestClone"));
-
-            NodeId nodeId2;
-            switch (idType)
-            {
-                case IdType.Numeric:
-                    nodeId2 = new NodeId(
-                        DataGenerator.GetRandomUInt16(),
-                        DataGenerator.GetRandomByte());
-                    break;
-                case IdType.String:
-                    nodeId2 = new NodeId(DataGenerator.GetRandomString(), 0);
-                    break;
-                case IdType.Guid:
-                    nodeId2 = new NodeId(DataGenerator.GetRandomGuid());
-                    break;
-                case IdType.Opaque:
-                    nodeId2 = new NodeId(Ua.Nonce.CreateRandomNonceData(32));
-                    break;
-                default:
-                    nodeId2 = DataGenerator.GetRandomNodeId();
-                    break;
-            }
-            dictionary.Add(nodeId2, "TestClone");
-            Assert.AreEqual(2, dictionary.Distinct().ToList().Count);
-        }
-
-        [Theory]
-        [TestCase(-1)]
         [TestCase(100)]
         public void NullIdNodeIdComparison(IdType idType)
         {
@@ -999,7 +780,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void NodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(Telemetry)
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create())
             {
                 NamespaceUris = new NamespaceTable()
             };
@@ -1119,7 +900,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void ExpandedNodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(Telemetry)
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create())
             {
                 NamespaceUris = new NamespaceTable(),
                 ServerUris = new StringTable()

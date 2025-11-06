@@ -388,7 +388,7 @@ namespace Opc.Ua.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(
                 context,
                 "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",

@@ -3263,42 +3263,6 @@ namespace Opc.Ua
             }
         }
 
-#if ZOMBIE
-        /// <summary>
-        /// Updates the node with the values from an event notification.
-        /// </summary>
-        public virtual void UpdateValues(
-            ISystemContext context,
-            SimpleAttributeOperandCollection attributes,
-            EventFieldList values)
-        {
-            for (int ii = 0; ii < attributes.Count; ii++)
-            {
-                NodeState child = FindChild(context, attributes[ii].BrowsePath, 0);
-
-                if (child == null || values.EventFields.Count >= ii)
-                {
-                    continue;
-                }
-
-                if (child is BaseVariableState variableInstance)
-                {
-                    variableInstance.Value = values.EventFields[ii].Value;
-                    continue;
-                }
-
-                if (child is BaseObjectState objectInstance)
-                {
-                    var nodeId = values.EventFields[ii].Value as NodeId;
-
-                    if (nodeId != null)
-                    {
-                        objectInstance.NodeId = nodeId;
-                    }
-                }
-            }
-        }
-#endif
         /// <summary>
         /// Reads the values for a set of attributes.
         /// </summary>
