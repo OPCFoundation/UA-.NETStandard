@@ -11,6 +11,7 @@
 */
 
 using System;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

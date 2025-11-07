@@ -37,7 +37,7 @@ using Opc.Ua;
 namespace MemoryBuffer
 {
     #region MemoryTagState Class
-#if (!OPCUA_EXCLUDE_MemoryTagState)
+    #if (!OPCUA_EXCLUDE_MemoryTagState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -67,7 +67,7 @@ namespace MemoryBuffer
             return ValueRanks.Scalar;
         }
 
-#if (!OPCUA_EXCLUDE_InitializationStrings)
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94,7 +94,7 @@ namespace MemoryBuffer
            "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////xVggQICAAAAAQAVAAAA" +
            "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQHpAwEB6QPpAwAAABgBAf////8AAAAA";
         #endregion
-#endif
+        #endif
         #endregion
 
         #region Public Properties
@@ -155,11 +155,11 @@ namespace MemoryBuffer
         #endregion
     }
     #endregion
-#endif
+    #endif
     #endregion
 
     #region MemoryBufferState Class
-#if (!OPCUA_EXCLUDE_MemoryBufferState)
+    #if (!OPCUA_EXCLUDE_MemoryBufferState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -177,7 +177,7 @@ namespace MemoryBuffer
             return Opc.Ua.NodeId.Create(MemoryBuffer.ObjectTypes.MemoryBufferType, MemoryBuffer.Namespaces.MemoryBuffer, namespaceUris);
         }
 
-#if (!OPCUA_EXCLUDE_InitializationStrings)
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -206,7 +206,7 @@ namespace MemoryBuffer
            "YXJ0QWRkcmVzcwEB6wMALgBE6wMAAAcAAAAAAAf/////AQH/////AAAAABVgqQoCAAAAAQALAAAAU2l6" +
            "ZUluQnl0ZXMBAewDAC4AROwDAAAHABAAAAAH/////wEB/////wAAAAA=";
         #endregion
-#endif
+        #endif
         #endregion
 
         #region Public Properties
@@ -341,6 +341,6 @@ namespace MemoryBuffer
         private PropertyState<uint> m_sizeInBytes;
         #endregion
     }
-#endif
+    #endif
     #endregion
 }

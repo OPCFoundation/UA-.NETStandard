@@ -15,6 +15,7 @@ using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

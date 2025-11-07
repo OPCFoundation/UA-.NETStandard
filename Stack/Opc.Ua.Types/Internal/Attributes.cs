@@ -27,16 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Reflection;
-
-namespace Opc.Ua
+namespace Opc.Ua.Types
 {
     /// <summary>
     /// Attributes of opc ua nodes
     /// </summary>
     /// <exclude />
-    internal static partial class Attributes
+    internal static class Attributes
     {
         /// <summary>
         /// The canonical identifier for the node.
@@ -230,6 +227,20 @@ namespace Opc.Ua
                 default:
                     ThrowIfOutOfRange(attributeId);
                     return null;
+            }
+        }
+
+        /// <summary>
+        /// Throw if out of range
+        /// </summary>
+        /// <param name="attributeId"></param>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ThrowIfOutOfRange(uint attributeId)
+        {
+            if (attributeId is < NodeId or > AccessLevelEx)
+            {
+                throw ServiceResultException.Unexpected(
+                    $"Invalid attribute id {attributeId}. This attribute is not defined.");
             }
         }
     }

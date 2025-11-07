@@ -18,6 +18,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Types;
 #if NET6_0_OR_GREATER
 using System.Buffers;
 #endif

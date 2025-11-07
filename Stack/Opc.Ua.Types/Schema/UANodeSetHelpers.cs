@@ -17,6 +17,7 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Export
 {

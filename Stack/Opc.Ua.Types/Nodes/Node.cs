@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

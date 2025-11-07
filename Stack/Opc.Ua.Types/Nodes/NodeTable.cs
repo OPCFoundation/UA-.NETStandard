@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

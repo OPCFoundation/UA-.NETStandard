@@ -18,6 +18,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

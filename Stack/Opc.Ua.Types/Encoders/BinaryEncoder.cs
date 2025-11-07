@@ -19,6 +19,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Types;
 #if NET5_0_OR_GREATER
 using Opc.Ua.Buffers;
 #endif

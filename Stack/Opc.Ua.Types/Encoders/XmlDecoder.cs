@@ -17,6 +17,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

@@ -411,6 +411,7 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
             HasApplicationSecureAdminAccess(context, null);
@@ -420,6 +421,7 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(
             ISystemContext context,
             CertificateStoreIdentifier _)

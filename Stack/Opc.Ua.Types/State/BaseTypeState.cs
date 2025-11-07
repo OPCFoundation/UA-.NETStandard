@@ -11,6 +11,7 @@
 */
 
 using System.Collections.Generic;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

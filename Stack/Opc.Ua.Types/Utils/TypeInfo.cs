@@ -18,6 +18,8 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using Opc.Ua.Types;
+
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;

@@ -433,8 +433,8 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="publishedDataSetId">Id of the published data set to be removed.</param>
         /// <returns>
-        /// - StatusCode.Good"/> if operation is successful,
-        /// - StatusCode.BadNodeIdUnknown"/> otherwise.
+        /// - <see cref="StatusCodes.Good"/> if operation is successful,
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> otherwise.
         /// </returns>
         public StatusCode RemovePublishedDataSet(uint publishedDataSetId)
         {
@@ -458,8 +458,8 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="publishedDataSetDataType">The published data set to be removed.</param>
         /// <returns>
-        /// - StatusCode.Good"/> if operation is successful,
-        /// - StatusCode.BadNodeIdUnknown"/> otherwise.
+        /// - <see cref="StatusCodes.Good"/> if operation is successful,
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> otherwise.
         /// </returns>
         public StatusCode RemovePublishedDataSet(PublishedDataSetDataType publishedDataSetDataType)
         {
@@ -627,9 +627,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="pubSubConnectionDataType">The <see cref="PubSubConnectionDataType"/> object that configures the new connection.</param>
         /// <returns>
-        /// - StatusCode.Good if the connection was added with success.
-        /// - StatusCode.BadBrowseNameDuplicated if an Object with the name already exists.
-        /// - StatusCode.BadInvalidArgument if there was an error adding the connection.
+        /// - <see cref="StatusCodes.Good"/> The connection was added with success.
+        /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the connection.
         /// </returns>
         /// <exception cref="ArgumentException"></exception>
         public StatusCode AddConnection(PubSubConnectionDataType pubSubConnectionDataType)
@@ -728,9 +728,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="connectionId">Id of the connection to be removed.</param>
         /// <returns>
-        /// - StatusCode.Good if the Connection was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the Connection.
+        /// - <see cref="StatusCodes.Good"/> The Connection was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the Connection.
         /// </returns>
         public StatusCode RemoveConnection(uint connectionId)
         {
@@ -754,9 +754,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="pubSubConnectionDataType">The connection to be removed.</param>
         /// <returns>
-        /// - StatusCode.Good if the Connection was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the Connection.
+        /// - <see cref="StatusCodes.Good"/> The Connection was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the Connection.
         /// </returns>
         public StatusCode RemoveConnection(PubSubConnectionDataType pubSubConnectionDataType)
         {
@@ -813,9 +813,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Adds a writerGroup to the specified connection
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good if the WriterGroup was added with success.
-        /// - StatusCode.BadBrowseNameDuplicated if an Object with the name already exists.
-        /// - StatusCode.BadInvalidArgument if there was an error adding the WriterGroup.
+        /// - <see cref="StatusCodes.Good"/> The WriterGroup was added with success.
+        /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the WriterGroup.
         /// </returns>
         /// <exception cref="ArgumentException"></exception>
         public StatusCode AddWriterGroup(
@@ -913,9 +913,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Removes a WriterGroupDataType instance from current configuration specified by configId
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good if the WriterGroup was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the WriterGroup.
+        /// - <see cref="StatusCodes.Good"/> The WriterGroup was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the WriterGroup.
         /// </returns>
         public StatusCode RemoveWriterGroup(uint writerGroupId)
         {
@@ -938,9 +938,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="writerGroupDataType">Instance to remove</param>
         /// <returns>
-        /// - StatusCode.Good if the WriterGroup was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the WriterGroup.
+        /// - <see cref="StatusCodes.Good"/> The WriterGroup was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the WriterGroup.
         /// </returns>
         public StatusCode RemoveWriterGroup(WriterGroupDataType writerGroupDataType)
         {
@@ -1000,9 +1000,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Adds a DataSetWriter to the specified writer group
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good if the DataSetWriter was added with success.
-        /// - StatusCode.BadBrowseNameDuplicated if an Object with the name already exists.
-        /// - StatusCode.BadInvalidArgument if there was an error adding the DataSetWriter.
+        /// - <see cref="StatusCodes.Good"/> The DataSetWriter was added with success.
+        /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the DataSetWriter.
         /// </returns>
         /// <exception cref="ArgumentException"></exception>
         public StatusCode AddDataSetWriter(
@@ -1085,9 +1085,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Removes a DataSetWriterDataType instance from current configuration specified by configId
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good if the DataSetWriter was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the DataSetWriter.
+        /// - <see cref="StatusCodes.Good"/> The DataSetWriter was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the DataSetWriter.
         /// </returns>
         public StatusCode RemoveDataSetWriter(uint dataSetWriterId)
         {
@@ -1111,9 +1111,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="dataSetWriterDataType">Instance to remove</param>
         /// <returns>
-        /// - StatusCode.Good if the DataSetWriter was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the DataSetWriter.
+        /// - <see cref="StatusCodes.Good"/> The DataSetWriter was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the DataSetWriter.
         /// </returns>
         public StatusCode RemoveDataSetWriter(DataSetWriterDataType dataSetWriterDataType)
         {
@@ -1165,9 +1165,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Adds a readerGroup to the specified connection
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good if the ReaderGroup was added with success.
-        /// - StatusCode.BadBrowseNameDuplicated if an Object with the name already exists.
-        /// - StatusCode.BadInvalidArgument if there was an error adding the ReaderGroup.
+        /// - <see cref="StatusCodes.Good"/> The ReaderGroup was added with success.
+        /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the ReaderGroup.
         /// </returns>
         /// <exception cref="ArgumentException"></exception>
         public StatusCode AddReaderGroup(
@@ -1266,9 +1266,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Removes a ReaderGroupDataType instance from current configuration specified by configId
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good if the ReaderGroup was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the ReaderGroup.
+        /// - <see cref="StatusCodes.Good"/> The ReaderGroup was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the ReaderGroup.
         /// </returns>
         public StatusCode RemoveReaderGroup(uint readerGroupId)
         {
@@ -1290,9 +1290,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="readerGroupDataType">Instance to remove</param>
         /// <returns>
-        /// - StatusCode.Good if the ReaderGroup was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the ReaderGroup.
+        /// - <see cref="StatusCodes.Good"/> The ReaderGroup was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the ReaderGroup.
         /// </returns>
         public StatusCode RemoveReaderGroup(ReaderGroupDataType readerGroupDataType)
         {
@@ -1352,9 +1352,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Adds a DataSetReader to the specified reader group
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good if the DataSetReader was added with success.
-        /// - StatusCode.BadBrowseNameDuplicated" if An Object with the name already exists.
-        /// - StatusCode.BadInvalidArgument" if There was an error adding the DataSetReader.
+        /// - <see cref="StatusCodes.Good"/> The DataSetReader was added with success.
+        /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the DataSetReader.
         /// </returns>
         /// <exception cref="ArgumentException"></exception>
         public StatusCode AddDataSetReader(
@@ -1437,9 +1437,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// Removes a DataSetReaderDataType instance from current configuration specified by configId
         /// </summary>
         /// <returns>
-        /// - StatusCode.Good" if the DataSetWriter was removed with success.
-        /// - StatusCode.BadNodeIdUnknown" if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument" if there was an error removing the DataSetWriter.
+        /// - <see cref="StatusCodes.Good"/> The DataSetWriter was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the DataSetWriter.
         /// </returns>
         public StatusCode RemoveDataSetReader(uint dataSetReaderId)
         {
@@ -1463,9 +1463,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="dataSetReaderDataType">Instance to remove</param>
         /// <returns>
-        /// - StatusCode.Good if the DataSetWriter was removed with success.
-        /// - StatusCode.BadNodeIdUnknown if the GroupId is unknown.
-        /// - StatusCode.BadInvalidArgument if there was an error removing the DataSetWriter.
+        /// - <see cref="StatusCodes.Good"/> The DataSetWriter was removed with success.
+        /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
+        /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error removing the DataSetWriter.
         /// </returns>
         public StatusCode RemoveDataSetReader(DataSetReaderDataType dataSetReaderDataType)
         {
