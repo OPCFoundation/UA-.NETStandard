@@ -2701,7 +2701,7 @@ namespace Opc.Ua
                 {
                     if (!context.ContainsKey("Value"))
                     {
-                        fieldName = switches[(int)index];
+                        fieldName = switches[(int)(index-1)];
                     }
                     else
                     {
@@ -2723,7 +2723,7 @@ namespace Opc.Ua
                     if (index >= 0)
                     {
                         fieldName = ii.Key;
-                        return (uint)index;
+                        return (uint)(index + 1);
                     }
                 }
             }
