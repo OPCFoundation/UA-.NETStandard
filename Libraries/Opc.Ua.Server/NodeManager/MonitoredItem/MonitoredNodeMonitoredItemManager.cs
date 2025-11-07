@@ -149,6 +149,7 @@ namespace Opc.Ua.Server
             if (MonitoredNodes.TryGetValue(handle.NodeId, out MonitoredNode2 monitoredNode))
             {
                 monitoredNode.Remove(monitoredItem);
+                MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
