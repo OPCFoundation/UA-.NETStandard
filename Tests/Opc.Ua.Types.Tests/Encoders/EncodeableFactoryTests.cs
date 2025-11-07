@@ -60,6 +60,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly).Commit();
         }
 
+        private const int KNumberOfBootstrapEncodeableTypes = 96;
         public static readonly NodeId ReadRequestEncoding = new(631);
 
         /// <summary>
@@ -357,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
             var exceptions = new List<Exception>();
             const int threadCount = 10;
-            const int operationsPerThread = 100;
+            const int operationsPerThread = KNumberOfBootstrapEncodeableTypes;
 
             // Act
             var threads = new System.Threading.Thread[threadCount];
@@ -540,7 +541,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             builder.Commit();
 
             // Assert - Should have many OPC UA types
-            Assert.AreEqual(factory.KnownTypeIds.Count(), 100); // OPC UA has many built-in types
+            Assert.AreEqual(KNumberOfBootstrapEncodeableTypes, factory.KnownTypeIds.Count()); // OPC UA has many built-in types
         }
 
         [Test]
@@ -550,7 +551,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Assert - Create() should return factory with preloaded types
-            Assert.AreEqual(factory.KnownTypeIds.Count(), 100);
+            Assert.AreEqual(KNumberOfBootstrapEncodeableTypes, factory.KnownTypeIds.Count());
 
             // Should be able to find common OPC UA types like ReadRequest
             var knownTypesList = factory.KnownTypeIds.ToList();
@@ -1243,7 +1244,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             builder.Commit();
 
             // Assert - Should have only the core OPC UA types in this assembl
-            Assert.AreEqual(factory.KnownTypeIds.Count(), 100);
+            Assert.AreEqual(KNumberOfBootstrapEncodeableTypes, factory.KnownTypeIds.Count());
         }
 
         [Test]
@@ -1317,7 +1318,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.Null(type2);
 
             // Verify we have a substantial number of types (mentioned as ~1.5k in comments)
-            Assert.AreEqual(factory.KnownTypeIds.Count(), 100);
+            Assert.AreEqual(KNumberOfBootstrapEncodeableTypes, factory.KnownTypeIds.Count());
         }
 
         private IEncodeableFactoryBuilder m_builder;
