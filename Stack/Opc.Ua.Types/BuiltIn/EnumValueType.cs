@@ -105,9 +105,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            var value = encodeable as EnumValueType;
-
-            if (value == null)
+            if (encodeable is not EnumValueType value)
             {
                 return false;
             }
@@ -164,12 +162,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EnumValueTypeCollection(int capacity) : base(capacity)
+        public EnumValueTypeCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public EnumValueTypeCollection(IEnumerable<EnumValueType> collection) : base(collection)
+        public EnumValueTypeCollection(IEnumerable<EnumValueType> collection)
+            : base(collection)
         {
         }
 

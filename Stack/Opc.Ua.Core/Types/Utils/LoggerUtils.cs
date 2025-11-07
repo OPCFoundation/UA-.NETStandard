@@ -39,7 +39,6 @@
 #nullable enable
 
 using System;
-using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -74,7 +73,19 @@ namespace Opc.Ua
         static Utils()
         {
             TelemetryExtensions.InternalOnly__TelemetryHook =
-                () => DefaultTelemetry.Create(builder => builder.AddProvider(LoggerProvider));
+                () => new TraceLoggerTelemetry();
+        }
+
+        /// <summary>
+        /// Trace logger telemetry context
+        /// </summary>
+        internal class TraceLoggerTelemetry : TelemetryContextBase
+        {
+            public TraceLoggerTelemetry()
+                : base(Microsoft.Extensions.Logging.LoggerFactory.Create(
+                    builder => builder.AddProvider(LoggerProvider)))
+            {
+            }
         }
 
         /// <summary>

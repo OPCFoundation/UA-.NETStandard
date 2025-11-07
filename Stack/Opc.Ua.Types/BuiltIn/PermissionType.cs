@@ -128,6 +128,6 @@ namespace Opc.Ua
         /// Add node
         /// </summary>
         [EnumMember(Value = "AddNode_65536")]
-        AddNode = 65536,
+        AddNode = 65536
     }
 }

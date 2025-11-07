@@ -431,7 +431,7 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                return MulLocalizedText.Create(translations);
+                return new LocalizedText(translations);
             }
             // single locale requested.
             else
@@ -499,7 +499,7 @@ namespace Opc.Ua.Server
             LocalizedText localizedText,
             IList<string> preferredLocales)
         {
-            return localizedText.FilterByPreferredLocales(preferredLocales);
+            return localizedText?.FilterByPreferredLocales(preferredLocales);
         }
 
         /// <summary>

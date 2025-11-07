@@ -24,7 +24,7 @@ namespace Opc.Ua
         /// <summary>
         /// How to record activity of the client
         /// </summary>
-        public ClientTraceFlags ActivityTraceFlags { get; set; }
+        ClientTraceFlags ActivityTraceFlags { get; set; }
 
         /// <summary>
         /// The description of the endpoint.

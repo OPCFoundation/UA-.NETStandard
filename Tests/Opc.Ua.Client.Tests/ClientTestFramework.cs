@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
-        public (Type Type, ExpandedNodeId[] NodeIds)[] TestSetStaticMassNumeric { get; private set; }
+        public (Type Type, ExpandedNodeId[] NodeIds)[] TestSetStaticMassNumeric { get; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
         public ExpandedNodeId[] TestSetDataSimulation { get; }
         public ExpandedNodeId[] TestSetHistory { get; }

@@ -44,7 +44,7 @@ namespace Opc.Ua
         /// Opaque
         /// </summary>
         [EnumMember(Value = "Opaque_3")]
-        Opaque = 3,
+        Opaque = 3
     }
 
     /// <summary>
@@ -62,12 +62,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IdTypeCollection(int capacity) : base(capacity)
+        public IdTypeCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public IdTypeCollection(IEnumerable<IdType> collection) : base(collection)
+        public IdTypeCollection(IEnumerable<IdType> collection)
+            : base(collection)
         {
         }
 

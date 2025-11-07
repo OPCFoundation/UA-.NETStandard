@@ -10,11 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-
 namespace Opc.Ua
 {
-
     /// <summary>
     /// The base class for all folder nodes.
     /// </summary>

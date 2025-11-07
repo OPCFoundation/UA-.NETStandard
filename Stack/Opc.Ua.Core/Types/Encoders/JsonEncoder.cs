@@ -232,66 +232,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Encodes a session-less message to a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static void EncodeSessionLessMessage(
-            IEncodeable message,
-            Stream stream,
-            IServiceMessageContext context,
-            bool leaveOpen)
-        {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
-
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            // create encoder.
-            var encoder = new JsonEncoder(context, true, false, stream, leaveOpen);
-            try
-            {
-                long start = stream.Position;
-
-                // write the message.
-                var envelope = new SessionLessServiceMessage
-                {
-                    NamespaceUris = context.NamespaceUris,
-                    ServerUris = context.ServerUris,
-                    Message = message
-                };
-
-                envelope.Encode(encoder);
-
-                // check that the max message size was not exceeded.
-                if (context.MaxMessageSize > 0 &&
-                    context.MaxMessageSize < (int)(stream.Position - start))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "MaxMessageSize {0} < {1}",
-                        context.MaxMessageSize,
-                        (int)(stream.Position - start));
-                }
-
-                encoder.Close();
-            }
-            finally
-            {
-                if (leaveOpen)
-                {
-                    stream.Position = 0;
-                }
-                encoder.Dispose();
-            }
-        }
-
-        /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
@@ -3551,7 +3491,7 @@ namespace Opc.Ua
 
                 if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
-                    string symbolicId = StatusCodes.LookupSymbolicId(value.CodeBits);
+                    string symbolicId = value.ToSymbolicId();
 
                     if (!string.IsNullOrEmpty(symbolicId))
                     {

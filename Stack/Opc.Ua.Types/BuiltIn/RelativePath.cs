@@ -82,10 +82,7 @@ namespace Opc.Ua
         [DataMember(Name = "Elements", IsRequired = false, Order = 1)]
         public RelativePathElementCollection Elements
         {
-            get
-            {
-                return m_elements;
-            }
+            get => m_elements;
 
             set
             {
@@ -113,9 +110,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeableArray("Elements", Elements.ToArray(), typeof(RelativePathElement));
+            encoder.WriteEncodeableArray("Elements", [.. Elements], typeof(RelativePathElement));
 
             encoder.PopNamespace();
         }
@@ -123,7 +120,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             Elements = (RelativePathElementCollection)decoder.ReadEncodeableArray("Elements", typeof(RelativePathElement));
 
@@ -133,14 +130,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            RelativePath value = encodeable as RelativePath;
-
-            if (value == null)
+            if (encodeable is not RelativePath value)
             {
                 return false;
             }
@@ -162,7 +157,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            RelativePath clone = (RelativePath)base.MemberwiseClone();
+            var clone = (RelativePath)base.MemberwiseClone();
 
             clone.m_elements = CoreUtils.Clone(m_elements);
 

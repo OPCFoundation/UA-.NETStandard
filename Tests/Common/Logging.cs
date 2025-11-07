@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -61,13 +60,14 @@ namespace Opc.Ua.Tests
         private readonly Func<ITelemetryContext, T> m_factory;
     }
 
-    public sealed class NUnitTelemetryContext : DefaultTelemetry
+    public sealed class NUnitTelemetryContext : TelemetryContextBase
     {
         /// <summary>
         /// Create telemetry context
         /// </summary>
         private NUnitTelemetryContext(string context)
-            : base(builder => builder.AddProvider(new NUnitLoggerProvider(context)))
+            : base(Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder => builder.AddProvider(new NUnitLoggerProvider(context))))
         {
         }
 

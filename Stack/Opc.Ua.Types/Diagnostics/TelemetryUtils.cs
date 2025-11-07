@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// Telemetry utilities
     /// </summary>
-    public static partial class LoggerUtils
+    public static class LoggerUtils
     {
         /// <summary>
         /// Fallback logger
@@ -71,6 +71,39 @@ namespace Opc.Ua
             /// Get instance to a typed null logger
             /// </summary>
             public static new ILogger<T> Logger { get; } = new Null<T>();
+        }
+
+        /// <summary>
+        /// Null logger factory.
+        /// </summary>
+        internal sealed class NullLoggerFactory : ILoggerFactory
+        {
+            /// <inheritdoc/>
+            public void AddProvider(ILoggerProvider provider)
+            {
+            }
+
+            /// <inheritdoc/>
+            public ILogger CreateLogger(string categoryName)
+            {
+                return Null.Logger;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+            }
+        }
+
+        /// <summary>
+        /// Null logger telemetry context
+        /// </summary>
+        internal class NullTelemetryContext : TelemetryContextBase
+        {
+            public NullTelemetryContext()
+                : base(new NullLoggerFactory())
+            {
+            }
         }
 
         /// <summary>

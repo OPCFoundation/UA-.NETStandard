@@ -75,10 +75,7 @@ namespace Opc.Ua
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 5)]
         public UInt32Collection ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
@@ -155,9 +152,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            var value = encodeable as StructureField;
-
-            if (value == null)
+            if (encodeable is not StructureField value)
             {
                 return false;
             }
@@ -240,12 +235,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public StructureFieldCollection(int capacity) : base(capacity)
+        public StructureFieldCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public StructureFieldCollection(IEnumerable<StructureField> collection) : base(collection)
+        public StructureFieldCollection(IEnumerable<StructureField> collection)
+            : base(collection)
         {
         }
 

@@ -1714,7 +1714,7 @@ namespace Opc.Ua
         /// <param name="xml">The Xml document string.</param>
         internal static void LoadInnerXml(XmlDocument doc, string xml)
         {
-            CoreUtils.LoadInnerXml(doc, xml);
+            doc.LoadInnerXml(xml);
         }
 
         /// <summary>

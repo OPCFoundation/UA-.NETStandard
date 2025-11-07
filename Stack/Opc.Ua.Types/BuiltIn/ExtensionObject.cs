@@ -492,7 +492,7 @@ namespace Opc.Ua
 
                 if (m_body is string json)
                 {
-                    return string.Format(formatProvider, "{0}", json.ToString());
+                    return string.Format(formatProvider, "{0}", json);
                 }
 
                 if (m_body is IFormattable formattable)

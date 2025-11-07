@@ -78,7 +78,7 @@ namespace Opc.Ua.Schema.Xml
         public void Validate(Stream stream, ILogger logger)
         {
             var handler = new ValidationEventHandler((sender, e) => OnValidate(sender, e, logger));
-            using var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+            using var xmlReader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
             TargetSchema = XmlSchema.Read(xmlReader, handler);
 
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
@@ -90,7 +90,7 @@ namespace Opc.Ua.Schema.Xml
                 }
 
                 var fileInfo = new FileInfo(location);
-                XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+                XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
                 if (!fileInfo.Exists)
                 {
                     using var strm = new StreamReader(assembly.GetManifestResourceStream(location));
@@ -115,7 +115,7 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         public override string GetSchema(string typeName)
         {
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
 
             var ostrm = new MemoryStream();
             var writer = XmlWriter.Create(ostrm, settings);

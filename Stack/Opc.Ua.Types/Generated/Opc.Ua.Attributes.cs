@@ -33,7 +33,7 @@ using System.Reflection;
 namespace Opc.Ua
 {
     /// <summary>
-    /// A class that defines constants used by UA applications.
+    /// Attributes of opc ua nodes
     /// </summary>
     /// <exclude />
     internal static partial class Attributes

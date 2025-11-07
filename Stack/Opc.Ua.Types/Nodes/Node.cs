@@ -147,6 +147,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// User role permissions
+        /// </summary>
         /// <remarks />
         [DataMember(Name = "UserRolePermissions", IsRequired = false, Order = 9)]
         public RolePermissionTypeCollection UserRolePermissions
@@ -164,16 +167,21 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Access restrictions
+        /// </summary>
         /// <remarks />
         [DataMember(Name = "AccessRestrictions", IsRequired = false, Order = 10)]
         public ushort AccessRestrictions { get; set; }
 
+        /// <summary>
+        /// References
+        /// </summary>
         /// <remarks />
         [DataMember(Name = "References", IsRequired = false, Order = 11)]
         public ReferenceNodeCollection References
         {
             get => m_references;
-
             set
             {
                 m_references = value;
@@ -185,19 +193,19 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Node;
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Node_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Node_Encoding_DefaultXml;
 
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Node_Encoding_DefaultJson;
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -209,15 +217,15 @@ namespace Opc.Ua
             encoder.WriteLocalizedText("Description", Description);
             encoder.WriteUInt32("WriteMask", WriteMask);
             encoder.WriteUInt32("UserWriteMask", UserWriteMask);
-            encoder.WriteEncodeableArray("RolePermissions", RolePermissions.ToArray(), typeof(RolePermissionType));
-            encoder.WriteEncodeableArray("UserRolePermissions", UserRolePermissions.ToArray(), typeof(RolePermissionType));
+            encoder.WriteEncodeableArray("RolePermissions", [.. RolePermissions], typeof(RolePermissionType));
+            encoder.WriteEncodeableArray("UserRolePermissions", [.. UserRolePermissions], typeof(RolePermissionType));
             encoder.WriteUInt16("AccessRestrictions", AccessRestrictions);
-            encoder.WriteEncodeableArray("References", References.ToArray(), typeof(ReferenceNode));
+            encoder.WriteEncodeableArray("References", [.. References], typeof(ReferenceNode));
 
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -237,7 +245,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (ReferenceEquals(this, encodeable))
@@ -308,7 +316,7 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Node)MemberwiseClone();
@@ -796,12 +804,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public NodeCollection(int capacity) : base(capacity)
+        public NodeCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public NodeCollection(IEnumerable<Node> collection) : base(collection)
+        public NodeCollection(IEnumerable<Node> collection)
+            : base(collection)
         {
         }
 

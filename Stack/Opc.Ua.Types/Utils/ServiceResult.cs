@@ -31,6 +31,7 @@ namespace Opc.Ua
         private ServiceResult()
         {
             Code = StatusCodes.Good;
+            SymbolicId = nameof(StatusCodes.Good);
         }
 
         /// <summary>
@@ -69,8 +70,21 @@ namespace Opc.Ua
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(StatusCode code, ServiceResult innerResult)
+        public ServiceResult(
+            StatusCode code,
+            ServiceResult innerResult)
             : this(code, null, null, null, null, innerResult)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an object by specifying each property.
+        /// </summary>
+        public ServiceResult(
+            StatusCode code,
+            string symbolicId,
+            ServiceResult innerResult)
+            : this(code, symbolicId, null, null, null, innerResult)
         {
         }
 
@@ -154,6 +168,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Constructs an object by specifying each property.
+        /// </summary>
+        public ServiceResult(StatusCode code, string symbolicId, LocalizedText localizedText)
+            : this(code, symbolicId, null, localizedText, null, (ServiceResult)null)
+        {
+        }
+
+        /// <summary>
         /// Constructs an object from a StatusCode.
         /// </summary>
         public ServiceResult(uint code)
@@ -167,6 +189,23 @@ namespace Opc.Ua
         public ServiceResult(StatusCode status)
         {
             Code = status.Code;
+        }
+
+        /// <summary>
+        /// Constructs an object from a StatusCode.
+        /// </summary>
+        public ServiceResult(uint code, string symbolicId)
+            : this(new StatusCode(code), symbolicId)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an object from a StatusCode.
+        /// </summary>
+        public ServiceResult(StatusCode status, string symbolicId)
+        {
+            Code = status.Code;
+            SymbolicId = symbolicId;
         }
 
         /// <summary>
@@ -247,8 +286,26 @@ namespace Opc.Ua
         /// <remarks>
         /// The innerException is used to construct the innerResult.
         /// </remarks>
-        public ServiceResult(StatusCode code, LocalizedText localizedText, Exception innerException)
+        public ServiceResult(
+            StatusCode code,
+            LocalizedText localizedText,
+            Exception innerException)
             : this(code, null, null, localizedText, null, innerException)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an object by specifying each property.
+        /// </summary>
+        /// <remarks>
+        /// The innerException is used to construct the innerResult.
+        /// </remarks>
+        public ServiceResult(
+            StatusCode code,
+            string symbolicId,
+            LocalizedText localizedText,
+            Exception innerException)
+            : this(code, symbolicId, null, localizedText, null, innerException)
         {
         }
 
@@ -260,6 +317,17 @@ namespace Opc.Ua
         /// </remarks>
         public ServiceResult(StatusCode code, Exception innerException)
             : this(code, null, null, null, null, innerException)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an object by specifying each property.
+        /// </summary>
+        /// <remarks>
+        /// The innerException is used to construct the innerResult.
+        /// </remarks>
+        public ServiceResult(StatusCode code, string symbolicId, Exception innerException)
+            : this(code, symbolicId, null, null, null, innerException)
         {
         }
 
@@ -308,7 +376,8 @@ namespace Opc.Ua
         /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
-        /// The defaultCode and defaultLocalizedText parameters are ignored for ServiceResultExceptions.
+        /// The defaultCode and defaultLocalizedText parameters are
+        /// ignored for ServiceResultExceptions.
         /// </remarks>
         public ServiceResult(
             Exception exception,
@@ -322,7 +391,24 @@ namespace Opc.Ua
         /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
-        /// The code, symbolicId and namespaceUri parameters are ignored for ServiceResultExceptions.
+        /// The defaultCode, defaultSymbolicId and defaultLocalizedText
+        /// parameters are ignored for ServiceResultExceptions.
+        /// </remarks>
+        public ServiceResult(
+            Exception exception,
+            uint defaultCode,
+            string defaultSymbolicId,
+            LocalizedText defaultLocalizedText)
+            : this(exception, defaultCode, defaultSymbolicId, null, defaultLocalizedText)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an object from an exception.
+        /// </summary>
+        /// <remarks>
+        /// The defaultCode, defaultSymbolicId and defaultNamespaceUri
+        /// parameters are ignored for ServiceResultExceptions.
         /// </remarks>
         public ServiceResult(
             Exception exception,
@@ -334,7 +420,7 @@ namespace Opc.Ua
                   defaultCode,
                   defaultSymbolicId,
                   defaultNamespaceUri,
-                  GetDefaultMessage(exception, defaultCode))
+                  GetDefaultMessage(exception))
         {
         }
 
@@ -344,8 +430,11 @@ namespace Opc.Ua
         /// <remarks>
         /// The code parameter is ignored for ServiceResultExceptions.
         /// </remarks>
-        public ServiceResult(Exception exception, uint defaultCode)
-            : this(exception, defaultCode, null, null)
+        public ServiceResult(
+            Exception exception,
+            uint defaultCode,
+            string defaultSymbolicId = null)
+            : this(exception, defaultCode, defaultSymbolicId, null)
         {
         }
 
@@ -353,7 +442,7 @@ namespace Opc.Ua
         /// Constructs an object from an exception.
         /// </summary>
         public ServiceResult(Exception exception)
-            : this(exception, StatusCodes.Bad)
+            : this(exception, StatusCodes.Bad, nameof(StatusCodes.Bad))
         {
         }
 
@@ -364,8 +453,21 @@ namespace Opc.Ua
             StatusCode code,
             DiagnosticInfo diagnosticInfo,
             IList<string> stringTable)
+            : this(code, null, diagnosticInfo, stringTable)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a status code and a diagnostic info structure.
+        /// </summary>
+        public ServiceResult(
+            StatusCode code,
+            string defaultSymbolicId,
+            DiagnosticInfo diagnosticInfo,
+            IList<string> stringTable)
         {
             Code = (uint)code;
+            SymbolicId = defaultSymbolicId;
 
             if (diagnosticInfo != null)
             {
@@ -396,8 +498,22 @@ namespace Opc.Ua
             int index,
             DiagnosticInfoCollection diagnosticInfos,
             IList<string> stringTable)
+            : this(code, null, index, diagnosticInfos, stringTable)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a status code and a diagnostic info structure.
+        /// </summary>
+        public ServiceResult(
+            StatusCode code,
+            string defaultSymbolicId,
+            int index,
+            DiagnosticInfoCollection diagnosticInfos,
+            IList<string> stringTable)
         {
             Code = (uint)code;
+            SymbolicId = defaultSymbolicId;
 
             if (index >= 0 && diagnosticInfos != null && index < diagnosticInfos.Count)
             {
@@ -446,10 +562,24 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResult
         /// </summary>
+        public static ServiceResult Create(uint code, string symbolicId, TranslationInfo translation)
+        {
+            if (translation == null)
+            {
+                return new ServiceResult(code, symbolicId);
+            }
+
+            return new ServiceResult(code, symbolicId, new LocalizedText(translation));
+        }
+
+        /// <summary>
+        /// Creates a new instance of a ServiceResult
+        /// </summary>
         public static ServiceResult Create(
             Exception e,
             TranslationInfo translation,
-            uint defaultCode)
+            uint defaultCode,
+            string defaultSymbolicId = null)
         {
             // replace the default code with the one from the exception.
 
@@ -460,10 +590,10 @@ namespace Opc.Ua
 
             if (translation == null)
             {
-                return new ServiceResult(e, defaultCode);
+                return new ServiceResult(e, defaultCode, defaultSymbolicId);
             }
 
-            return new ServiceResult(defaultCode, new LocalizedText(translation), e);
+            return new ServiceResult(defaultCode, defaultSymbolicId, new LocalizedText(translation), e);
         }
 
         /// <summary>
@@ -479,6 +609,24 @@ namespace Opc.Ua
             if (args == null || args.Length == 0)
             {
                 return new ServiceResult(code, format);
+            }
+
+            return new ServiceResult(code, CoreUtils.Format(format, args));
+        }
+
+        /// <summary>
+        /// Creates a new instance of a ServiceResult
+        /// </summary>
+        public static ServiceResult Create(string symbolicId, uint code, string format, params object[] args)
+        {
+            if (format == null)
+            {
+                return new ServiceResult(code, symbolicId);
+            }
+
+            if (args == null || args.Length == 0)
+            {
+                return new ServiceResult(code, symbolicId, format);
             }
 
             return new ServiceResult(code, CoreUtils.Format(format, args));
@@ -511,6 +659,36 @@ namespace Opc.Ua
             }
 
             return new ServiceResult(defaultCode, CoreUtils.Format(format, args), e);
+        }
+
+        /// <summary>
+        /// Creates a new instance of a ServiceResult
+        /// </summary>
+        public static ServiceResult Create(
+            Exception e,
+            string defaultSymbolicId,
+            uint defaultCode,
+            string format,
+            params object[] args)
+        {
+            // replace the default code with the one from the exception.
+
+            if (e is ServiceResultException sre)
+            {
+                defaultCode = sre.StatusCode;
+            }
+
+            if (format == null)
+            {
+                return new ServiceResult(e, defaultCode, defaultSymbolicId);
+            }
+
+            if (args == null || args.Length == 0)
+            {
+                return new ServiceResult(defaultCode, defaultSymbolicId, format, e);
+            }
+
+            return new ServiceResult(defaultCode, defaultSymbolicId, CoreUtils.Format(format, args), e);
         }
 
         /// <summary>
@@ -605,7 +783,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a 32-bit code a ServiceResult object.
+        /// Converts a 32-bit code to a ServiceResult object.
         /// </summary>
         public static implicit operator ServiceResult(uint code)
         {
@@ -765,7 +943,7 @@ namespace Opc.Ua
         /// <summary>
         /// Extract a default message from an exception.
         /// </summary>
-        private static LocalizedText GetDefaultMessage(Exception exception, uint code)
+        private static LocalizedText GetDefaultMessage(Exception exception)
         {
             if (exception == null)
             {

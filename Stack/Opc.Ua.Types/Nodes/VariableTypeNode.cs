@@ -43,6 +43,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         /// <inheritdoc/>
         public VariableTypeNode()
         {

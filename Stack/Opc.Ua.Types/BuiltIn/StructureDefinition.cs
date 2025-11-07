@@ -66,10 +66,7 @@ namespace Opc.Ua
         [DataMember(Name = "Fields", IsRequired = false, Order = 4)]
         public StructureFieldCollection Fields
         {
-            get
-            {
-                return m_fields;
-            }
+            get => m_fields;
 
             set
             {
@@ -97,14 +94,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
-            base.Encode(encoder);
-
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
             encoder.WriteNodeId("DefaultEncodingId", DefaultEncodingId);
             encoder.WriteNodeId("BaseDataType", BaseDataType);
             encoder.WriteEnumerated("StructureType", StructureType);
-            encoder.WriteEncodeableArray("Fields", Fields.ToArray(), typeof(StructureField));
+            encoder.WriteEncodeableArray("Fields", [.. Fields], typeof(StructureField));
 
             encoder.PopNamespace();
         }
@@ -112,8 +107,6 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
-            base.Decode(decoder);
-
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             DefaultEncodingId = decoder.ReadNodeId("DefaultEncodingId");
@@ -132,9 +125,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            var value = encodeable as StructureDefinition;
-
-            if (value == null)
+            if (encodeable is not StructureDefinition value)
             {
                 return false;
             }
@@ -159,7 +150,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            return base.IsEqual(encodeable);
+            return true;
         }
 
         /// <inheritdoc/>
@@ -243,12 +234,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public StructureDefinitionCollection(int capacity) : base(capacity)
+        public StructureDefinitionCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public StructureDefinitionCollection(IEnumerable<StructureDefinition> collection) : base(collection)
+        public StructureDefinitionCollection(IEnumerable<StructureDefinition> collection)
+            : base(collection)
         {
         }
 

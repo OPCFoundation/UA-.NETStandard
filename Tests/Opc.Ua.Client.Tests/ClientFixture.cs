@@ -518,7 +518,7 @@ namespace Opc.Ua.Client.Tests
                 m_logger.LogError(
                     "Session '{SessionName}' keep alive error: {StatusCode}",
                     session.SessionName,
-                    e.Status);
+                    e.Status.ToLongString());
             }
         }
     }

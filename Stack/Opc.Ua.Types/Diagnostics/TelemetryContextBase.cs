@@ -27,21 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+#nullable enable
+
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 
-#nullable enable
-
 namespace Opc.Ua
 {
     /// <summary>
-    /// Default telemetry implementation
+    /// Base telemetry context implementation
     /// </summary>
-    public class DefaultTelemetry : ITelemetryContext
+    public class TelemetryContextBase : ITelemetryContext
     {
         /// <inheritdoc/>
         public ILoggerFactory LoggerFactory { get; }
@@ -49,24 +48,13 @@ namespace Opc.Ua
         /// <summary>
         /// Create default telemetry
         /// </summary>
-        protected DefaultTelemetry(Action<ILoggingBuilder> configure)
+        protected TelemetryContextBase(ILoggerFactory loggerFactory)
         {
-            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
-                .Create(configure);
+            LoggerFactory = loggerFactory;
 
             // Set the default Id format to W3C
             Activity.DefaultIdFormat = ActivityIdFormat.W3C;
             Activity.ForceDefaultIdFormat = true;
-        }
-
-        /// <summary>
-        /// Create default telemetry
-        /// </summary>
-        /// <param name="configure"></param>
-        /// <returns></returns>
-        public static ITelemetryContext Create(Action<ILoggingBuilder> configure)
-        {
-            return new DefaultTelemetry(configure);
         }
 
         /// <inheritdoc/>

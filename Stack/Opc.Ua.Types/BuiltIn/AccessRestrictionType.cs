@@ -50,6 +50,6 @@ namespace Opc.Ua
         /// Apply restrictions to browse
         /// </summary>
         [EnumMember(Value = "ApplyRestrictionsToBrowse_8")]
-        ApplyRestrictionsToBrowse = 8,
+        ApplyRestrictionsToBrowse = 8
     }
 }

@@ -92,31 +92,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Decodes a session-less message from a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
-        public static IEncodeable DecodeSessionLessMessage(
-            byte[] buffer,
-            IServiceMessageContext context)
-        {
-            if (buffer == null)
-            {
-                throw new ArgumentNullException(nameof(buffer));
-            }
-
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            using var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context);
-            // decode the actual message.
-            var message = new SessionLessServiceMessage();
-            message.Decode(decoder);
-            return message.Message;
-        }
-
-        /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
         public static IEncodeable DecodeMessage(

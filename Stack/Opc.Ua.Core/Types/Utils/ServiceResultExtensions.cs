@@ -11,9 +11,6 @@
 */
 
 using System.Text;
-#if !NETFRAMEWORK
-using Opc.Ua.Security.Certificates;
-#endif
 
 namespace Opc.Ua
 {

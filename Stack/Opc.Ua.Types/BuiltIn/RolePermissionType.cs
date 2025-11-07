@@ -147,12 +147,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public RolePermissionTypeCollection(int capacity) : base(capacity)
+        public RolePermissionTypeCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public RolePermissionTypeCollection(IEnumerable<RolePermissionType> collection) : base(collection)
+        public RolePermissionTypeCollection(IEnumerable<RolePermissionType> collection)
+            : base(collection)
         {
         }
 

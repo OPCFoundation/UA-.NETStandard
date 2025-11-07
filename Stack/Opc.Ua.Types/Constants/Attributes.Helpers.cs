@@ -10,16 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Reflection;
-using System.Collections.Generic;
-#if NET8_0_OR_GREATER
-using System.Collections.Frozen;
-#else
-using System.Collections.ObjectModel;
-using System.Linq;
-#endif
-
 namespace Opc.Ua
 {
     /// <summary>

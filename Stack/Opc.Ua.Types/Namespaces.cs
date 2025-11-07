@@ -42,5 +42,4 @@ namespace Opc.Ua
         /// </summary>
         public const string OpcUaXsd = "http://opcfoundation.org/UA/2008/02/Types.xsd";
     }
-
 }

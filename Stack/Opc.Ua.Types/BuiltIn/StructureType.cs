@@ -48,6 +48,6 @@ namespace Opc.Ua
         /// Union with subtyped values
         /// </summary>
         [EnumMember(Value = "UnionWithSubtypedValues_4")]
-        UnionWithSubtypedValues = 4,
+        UnionWithSubtypedValues = 4
     }
 }

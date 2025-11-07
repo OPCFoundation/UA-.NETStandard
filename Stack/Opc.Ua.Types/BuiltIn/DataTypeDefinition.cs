@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// Data type definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DataTypeDefinition : IEncodeable, IJsonEncodeable
+    public abstract class DataTypeDefinition : IEncodeable, IJsonEncodeable
     {
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeDefinition;
@@ -35,52 +35,16 @@ namespace Opc.Ua
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultJson;
 
         /// <inheritdoc/>
-        public virtual void Encode(IEncoder encoder)
-        {
-            encoder.PushNamespace(Namespaces.OpcUaXsd);
-
-            encoder.PopNamespace();
-        }
+        public abstract void Encode(IEncoder encoder);
 
         /// <inheritdoc/>
-        public virtual void Decode(IDecoder decoder)
-        {
-            decoder.PushNamespace(Namespaces.OpcUaXsd);
-
-            decoder.PopNamespace();
-        }
+        public abstract void Decode(IDecoder decoder);
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
-        {
-            if (ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            var value = encodeable as DataTypeDefinition;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            return true;
-        }
+        public abstract bool IsEqual(IEncodeable encodeable);
 
         /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return (DataTypeDefinition)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = (DataTypeDefinition)base.MemberwiseClone();
-
-            return clone;
-        }
+        public abstract object Clone();
     }
 
     /// <summary>
@@ -98,12 +62,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataTypeDefinitionCollection(int capacity) : base(capacity)
+        public DataTypeDefinitionCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public DataTypeDefinitionCollection(IEnumerable<DataTypeDefinition> collection) : base(collection)
+        public DataTypeDefinitionCollection(IEnumerable<DataTypeDefinition> collection)
+            : base(collection)
         {
         }
 

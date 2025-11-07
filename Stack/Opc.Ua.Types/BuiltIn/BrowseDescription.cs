@@ -19,7 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// Browse description
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class BrowseDescription : IEncodeable, IJsonEncodeable
     {
         /// <inheritdoc/>
@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
 
             encoder.WriteNodeId("NodeId", NodeId);
             encoder.WriteEnumerated("BrowseDirection", BrowseDirection);
@@ -116,7 +116,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
             BrowseDirection = (BrowseDirection)decoder.ReadEnumerated("BrowseDirection", typeof(BrowseDirection));
@@ -131,7 +131,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
@@ -183,7 +183,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            BrowseDescription clone = (BrowseDescription)base.MemberwiseClone();
+            var clone = (BrowseDescription)base.MemberwiseClone();
 
             clone.NodeId = CoreUtils.Clone(NodeId);
             clone.BrowseDirection = (BrowseDirection)CoreUtils.Clone(BrowseDirection);
@@ -201,7 +201,7 @@ namespace Opc.Ua
     /// </summary>
     [CollectionDataContract(
         Name = "ListOfBrowseDescription",
-        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        Namespace = Namespaces.OpcUaXsd,
         ItemName = "BrowseDescription")]
     public class BrowseDescriptionCollection : List<BrowseDescription>, ICloneable
     {
@@ -211,12 +211,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public BrowseDescriptionCollection(int capacity) : base(capacity)
+        public BrowseDescriptionCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public BrowseDescriptionCollection(IEnumerable<BrowseDescription> collection) : base(collection)
+        public BrowseDescriptionCollection(IEnumerable<BrowseDescription> collection)
+            : base(collection)
         {
         }
 
@@ -251,7 +253,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            BrowseDescriptionCollection clone = new BrowseDescriptionCollection(Count);
+            var clone = new BrowseDescriptionCollection(Count);
 
             for (int ii = 0; ii < Count; ii++)
             {

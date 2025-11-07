@@ -182,6 +182,6 @@ namespace Opc.Ua
         /// Access level ex
         /// </summary>
         [EnumMember(Value = "AccessLevelEx_33554432")]
-        AccessLevelEx = 33554432,
+        AccessLevelEx = 33554432
     }
 }

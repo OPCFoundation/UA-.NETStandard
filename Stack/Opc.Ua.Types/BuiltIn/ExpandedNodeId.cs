@@ -626,7 +626,7 @@ namespace Opc.Ua
         /// of circumstances, each time with a specific message.</exception>
         public static ExpandedNodeId Parse(string text)
         {
-            if (!InternalTryParse(text, out ExpandedNodeId value, out var error))
+            if (!InternalTryParse(text, out ExpandedNodeId value, out NodeIdParseError error))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,

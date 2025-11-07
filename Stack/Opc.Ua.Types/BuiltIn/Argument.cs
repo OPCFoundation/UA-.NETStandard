@@ -13,14 +13,13 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// Argument
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Argument : IEncodeable, IJsonEncodeable
     {
         /// <summary>
@@ -79,10 +78,7 @@ namespace Opc.Ua
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
         public UInt32Collection ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
@@ -122,7 +118,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
 
             encoder.WriteString("Name", Name);
             encoder.WriteNodeId("DataType", DataType);
@@ -136,7 +132,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             Name = decoder.ReadString("Name");
             DataType = decoder.ReadNodeId("DataType");
@@ -150,14 +146,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            Argument value = encodeable as Argument;
-
-            if (value == null)
+            if (encodeable is not Argument value)
             {
                 return false;
             }
@@ -190,16 +184,16 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Argument)MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            Argument clone = (Argument)base.MemberwiseClone();
+            var clone = (Argument)base.MemberwiseClone();
 
             clone.Name = CoreUtils.Clone(Name);
             clone.DataType = CoreUtils.Clone(DataType);
@@ -218,7 +212,7 @@ namespace Opc.Ua
     /// </summary>
     [CollectionDataContract(
         Name = "ListOfArgument",
-        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        Namespace = Namespaces.OpcUaXsd,
         ItemName = "Argument")]
     public class ArgumentCollection : List<Argument>, ICloneable
     {
@@ -228,12 +222,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArgumentCollection(int capacity) : base(capacity)
+        public ArgumentCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public ArgumentCollection(IEnumerable<Argument> collection) : base(collection)
+        public ArgumentCollection(IEnumerable<Argument> collection)
+            : base(collection)
         {
         }
 
@@ -268,7 +264,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            ArgumentCollection clone = new ArgumentCollection(Count);
+            var clone = new ArgumentCollection(Count);
 
             for (int ii = 0; ii < Count; ii++)
             {

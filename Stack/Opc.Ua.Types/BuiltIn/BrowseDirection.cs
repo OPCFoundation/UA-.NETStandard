@@ -17,7 +17,7 @@ namespace Opc.Ua
     /// <summary>
     /// Browse direction
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public enum BrowseDirection
     {
         /// <summary>
@@ -42,6 +42,6 @@ namespace Opc.Ua
         /// Invalid value
         /// </summary>
         [EnumMember(Value = "Invalid_3")]
-        Invalid = 3,
+        Invalid = 3
     }
 }

@@ -550,8 +550,8 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         protected static readonly string[][] WellKnownDictionaries =
         [
-            [Namespaces.OpcBinarySchema, "Opc.Ua.Types.Schemas.StandardTypes.bsd"],
-            [Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.bsd"],
+            [Namespaces.OpcBinarySchema, "Opc.Ua.Schema.StandardTypes.bsd"],
+            [Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Schema.BuiltInTypes.bsd"],
             [Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.bsd"]
         ];
 

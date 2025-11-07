@@ -119,7 +119,7 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
@@ -163,7 +163,8 @@ namespace Opc.Ua.Client.Tests
                                 {
                                     if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
                                     {
-                                        Assert.Fail("Monitored item reported bad status code: " +
+                                        NUnit.Framework.Assert.Fail(
+                                            "Monitored item reported bad status code: " +
                                             dv.DiagnosticInfo.InnerStatusCode +
                                             dv.DiagnosticInfo.LocalizedText);
                                     }

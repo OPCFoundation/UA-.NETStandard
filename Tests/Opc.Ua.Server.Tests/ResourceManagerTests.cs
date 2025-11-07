@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests
             var translations = new Dictionary<string, string> {
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" } };
-            var defaultText = MulLocalizedText.Create("greeting", translations);
+            var defaultText = new LocalizedText("greeting", translations);
 
             //Act
             LocalizedText resultText = resourceManager.Translate(
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests
                 { "de-DE", "Hallo" },
                 { "fr-FR", "Bonjour" }
             };
-            var defaultText = MulLocalizedText.Create("greeting", translations);
+            var defaultText = new LocalizedText("greeting", translations);
 
             //Act
             LocalizedText resultText = resourceManager.Translate(

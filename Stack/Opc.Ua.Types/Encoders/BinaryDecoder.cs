@@ -183,55 +183,6 @@ namespace Opc.Ua
             return decoder.DecodeMessage(expectedType);
         }
 
-#if ZOMBIE
-        /// <summary>
-        /// Decodes a session-less message from a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static IEncodeable DecodeSessionLessMessage(
-            byte[] buffer,
-            IServiceMessageContext context)
-        {
-            if (buffer == null)
-            {
-                throw new ArgumentNullException(nameof(buffer));
-            }
-
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            using var decoder = new BinaryDecoder(buffer, context);
-            // read the node id.
-            NodeId typeId = decoder.ReadNodeId(null);
-
-            // convert to absolute node id.
-            var absoluteId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
-
-            // lookup message session-less envelope type.
-            Type actualType = context.Factory.GetSystemType(absoluteId);
-
-            if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Cannot decode session-less service message with type id: {0}.",
-                    absoluteId);
-            }
-
-            // decode the actual message.
-            var message = new SessionLessServiceMessage();
-
-            message.Decode(decoder);
-
-            decoder.Close();
-
-            return message.Message;
-        }
-#endif
-
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>

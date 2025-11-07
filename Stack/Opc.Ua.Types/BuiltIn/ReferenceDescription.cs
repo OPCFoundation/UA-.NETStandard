@@ -103,7 +103,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
 
             encoder.WriteNodeId("ReferenceTypeId", ReferenceTypeId);
             encoder.WriteBoolean("IsForward", IsForward);
@@ -119,7 +119,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             ReferenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             IsForward = decoder.ReadBoolean("IsForward");
@@ -135,14 +135,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            ReferenceDescription value = encodeable as ReferenceDescription;
-
-            if (value == null)
+            if (encodeable is not ReferenceDescription value)
             {
                 return false;
             }
@@ -194,7 +192,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            ReferenceDescription clone = (ReferenceDescription)base.MemberwiseClone();
+            var clone = (ReferenceDescription)base.MemberwiseClone();
 
             clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
             clone.IsForward = (bool)CoreUtils.Clone(IsForward);
@@ -206,6 +204,7 @@ namespace Opc.Ua
 
             return clone;
         }
+
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -251,7 +250,7 @@ namespace Opc.Ua
     /// </summary>
     [CollectionDataContract(
         Name = "ListOfReferenceDescription",
-        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        Namespace = Namespaces.OpcUaXsd,
         ItemName = "ReferenceDescription")]
     public class ReferenceDescriptionCollection : List<ReferenceDescription>, ICloneable
     {
@@ -261,12 +260,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ReferenceDescriptionCollection(int capacity) : base(capacity)
+        public ReferenceDescriptionCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public ReferenceDescriptionCollection(IEnumerable<ReferenceDescription> collection) : base(collection)
+        public ReferenceDescriptionCollection(IEnumerable<ReferenceDescription> collection)
+            : base(collection)
         {
         }
 
@@ -275,10 +276,9 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new ReferenceDescriptionCollection(values);
+                return [.. values];
             }
-
-            return new ReferenceDescriptionCollection();
+            return [];
         }
 
         /// <inheritdoc/>
@@ -286,7 +286,7 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return values.ToArray();
+                return [.. values];
             }
 
             return null;
@@ -301,7 +301,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            ReferenceDescriptionCollection clone = new ReferenceDescriptionCollection(Count);
+            var clone = new ReferenceDescriptionCollection(Count);
 
             for (int ii = 0; ii < Count; ii++)
             {

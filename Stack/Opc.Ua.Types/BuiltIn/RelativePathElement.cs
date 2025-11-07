@@ -19,7 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// An element of a relative path
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class RelativePathElement : IEncodeable, IJsonEncodeable
     {
         /// <inheritdoc/>
@@ -81,7 +81,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
 
             encoder.WriteNodeId("ReferenceTypeId", ReferenceTypeId);
             encoder.WriteBoolean("IsInverse", IsInverse);
@@ -94,7 +94,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             ReferenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             IsInverse = decoder.ReadBoolean("IsInverse");
@@ -107,14 +107,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            RelativePathElement value = encodeable as RelativePathElement;
-
-            if (value == null)
+            if (encodeable is not RelativePathElement value)
             {
                 return false;
             }
@@ -151,7 +149,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            RelativePathElement clone = (RelativePathElement)base.MemberwiseClone();
+            var clone = (RelativePathElement)base.MemberwiseClone();
 
             clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
             clone.IsInverse = (bool)CoreUtils.Clone(IsInverse);
@@ -219,7 +217,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            RelativePathElementCollection clone = new RelativePathElementCollection(Count);
+            var clone = new RelativePathElementCollection(Count);
 
             for (int ii = 0; ii < Count; ii++)
             {

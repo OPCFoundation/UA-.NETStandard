@@ -18,7 +18,7 @@ namespace Opc.Ua
     /// <summary>
     /// View description
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ViewDescription : IEncodeable, IJsonEncodeable
     {
         /// <inheritdoc/>
@@ -79,7 +79,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
 
             encoder.WriteNodeId("ViewId", ViewId);
             encoder.WriteDateTime("Timestamp", Timestamp);
@@ -91,7 +91,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             ViewId = decoder.ReadNodeId("ViewId");
             Timestamp = decoder.ReadDateTime("Timestamp");
@@ -103,7 +103,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }

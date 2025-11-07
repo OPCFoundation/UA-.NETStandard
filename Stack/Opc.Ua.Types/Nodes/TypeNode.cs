@@ -45,55 +45,5 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.TypeNode_Encoding_DefaultJson;
-
-        /// <inheritdoc/>
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Namespaces.OpcUaXsd);
-
-            encoder.PopNamespace();
-        }
-
-        /// <inheritdoc/>
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Namespaces.OpcUaXsd);
-
-            decoder.PopNamespace();
-        }
-
-        /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            if (encodeable is not TypeNode value)
-            {
-                return false;
-            }
-
-            return base.IsEqual(encodeable);
-        }
-
-        /// <inheritdoc/>
-        public override object Clone()
-        {
-            return (TypeNode)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = (TypeNode)base.MemberwiseClone();
-
-            return clone;
-        }
     }
 }

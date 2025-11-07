@@ -69,7 +69,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -89,9 +89,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            var value = encodeable as EnumField;
-
-            if (value == null)
+            if (encodeable is not EnumField value)
             {
                 return false;
             }
@@ -136,12 +134,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EnumFieldCollection(int capacity) : base(capacity)
+        public EnumFieldCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public EnumFieldCollection(IEnumerable<EnumField> collection) : base(collection)
+        public EnumFieldCollection(IEnumerable<EnumField> collection)
+            : base(collection)
         {
         }
 

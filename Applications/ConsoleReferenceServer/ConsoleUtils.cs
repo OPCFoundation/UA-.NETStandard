@@ -108,8 +108,8 @@ namespace Quickstarts
         /// <param name="configuration">The application configuration.</param>
         /// <param name="context">The context name for the logger. </param>
         /// <param name="logConsole">Enable logging to the console.</param>
-        /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.<
-        /// /param>
+        /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.
+        /// </param>
         public void ConfigureLogging(
             ApplicationConfiguration configuration,
             string context,

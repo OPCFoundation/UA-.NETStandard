@@ -230,53 +230,6 @@ namespace Opc.Ua
             return encoder.CloseAndReturnBuffer();
         }
 
-#if ZOMBIE
-        /// <summary>
-        /// Encodes a session-less message to a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static void EncodeSessionLessMessage(
-            IEncodeable message,
-            Stream stream,
-            IServiceMessageContext context,
-            bool leaveOpen)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            // create encoder.
-            using var encoder = new BinaryEncoder(stream, context, leaveOpen);
-            long start = encoder.m_ostrm.Position;
-
-            // write the type id.
-            encoder.WriteNodeId(null, DataTypeIds.SessionlessInvokeRequestType);
-
-            // write the message.
-            var envelope = new SessionLessServiceMessage
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Message = message ?? throw new ArgumentNullException(nameof(message))
-            };
-
-            envelope.Encode(encoder);
-
-            // check that the max message size was not exceeded.
-            if (context.MaxMessageSize > 0 &&
-                context.MaxMessageSize < (int)(encoder.m_ostrm.Position - start))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxMessageSize {0} < {1}",
-                    context.MaxMessageSize,
-                    (int)(encoder.m_ostrm.Position - start));
-            }
-        }
-#endif
-
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>

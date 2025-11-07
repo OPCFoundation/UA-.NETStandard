@@ -13,24 +13,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
-#if !NETFRAMEWORK
-//using Opc.Ua.Security.Certificates;
+#if NETFRAMEWORK
+using System.Runtime.InteropServices;
 #endif
 
 namespace Opc.Ua
@@ -38,7 +29,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines various static utility functions.
     /// </summary>
-    public static partial class CoreUtils
+    public static class CoreUtils
     {
         /// <summary>
         /// Suppresses any exceptions while disposing the object.
@@ -409,7 +400,6 @@ namespace Opc.Ua
             throw new NotSupportedException(
                 Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
-
 
         /// <summary>
         /// Checks if two DateTime values are equal.

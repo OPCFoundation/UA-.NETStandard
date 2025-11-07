@@ -323,15 +323,14 @@ namespace Opc.Ua.Server
             {
                 if (subscription.Id == subscriptionId)
                 {
-                    if (context is ISessionSystemContext session &&
+                    if (context is not ServerSystemContext session ||
                         subscription.SessionId != session.SessionId)
                     {
                         // user tries to access subscription of different session
                         return StatusCodes.BadUserAccessDenied;
                     }
 
-                    subscription.ResendData(
-                        (OperationContext)((SystemContext)context)?.OperationContext);
+                    subscription.ResendData(session.OperationContext);
 
                     return ServiceResult.Good;
                 }

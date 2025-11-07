@@ -104,6 +104,6 @@ namespace Opc.Ua
         /// Constant
         /// </summary>
         [EnumMember(Value = "Constant_8192")]
-        Constant = 8192,
+        Constant = 8192
     }
 }

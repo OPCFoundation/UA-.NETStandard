@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema
+  xmlns="http://opcfoundation.org/UA/TypeDictionary/"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://opcfoundation.org/UA/TypeDictionary/"
+  elementFormDefault="qualified"
+> 
+  <xs:element name="Documentation">
+    <xs:complexType mixed="true">
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:any minOccurs="0" maxOccurs="unbounded"/>
+      </xs:choice>
+      <xs:anyAttribute/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="ImportDirective">
+    <xs:attribute name="Namespace" type="xs:string" use="optional" />
+    <xs:attribute name="Location" type="xs:string" use="optional" />
+  </xs:complexType>
+
+  <xs:element name="TypeDictionary">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="Documentation"  minOccurs="0" maxOccurs="1" />
+        <xs:element name="Import" type="ImportDirective" minOccurs="0" maxOccurs="unbounded" />
+        <xs:choice maxOccurs="unbounded">
+          <xs:element name="DataType" type="DataType" />
+          <xs:element name="TypeDeclaration" type="TypeDeclaration" />
+          <xs:element name="ComplexType" type="ComplexType" />
+          <xs:element name="EnumeratedType" type="EnumeratedType" />
+          <xs:element name="ServiceType" type="ServiceType" />
+          <xs:element name="Constant" type="Constant" />
+        </xs:choice>
+      </xs:sequence>
+      <xs:attribute name="TargetNamespace" type="xs:string" use="required" />
+      <xs:attribute name="TargetVersion" type="xs:string" use="required" />
+      <xs:attribute name="TargetPublicationDate" type="xs:dateTime" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:simpleType name="ReleaseStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Released" />
+      <xs:enumeration value="RC" />
+      <xs:enumeration value="Draft" />
+      <xs:enumeration value="Deprecated" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DataTypePurpose">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Normal" />
+      <xs:enumeration value="ServicesOnly" />
+      <xs:enumeration value="CodeGenerator" />
+      <xs:enumeration value="Testing" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="DataType">
+    <xs:sequence>
+      <xs:element ref="Documentation"  minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:NCName" use="required" />
+    <xs:attribute name="AllowArrays" type="xs:boolean" default="false" />
+    <xs:attribute name="NotInAddressSpace" type="xs:boolean" default="false" />
+    <xs:attribute name="Identifier" type="xs:int" use="optional" />
+    <xs:attribute name="PartNo" type="xs:unsignedInt" use="optional" default="0" />
+    <xs:attribute name="Category" type="xs:string" use="optional" default="" />
+    <xs:attribute name="ReleaseStatus" type="ReleaseStatus" use="optional" default="Released" />
+    <xs:attribute name="Purpose" type="DataTypePurpose" use="optional" default="Normal" />
+  </xs:complexType>
+
+  <xs:complexType name="TypeDeclaration">
+    <xs:complexContent>
+      <xs:extension base="DataType">
+        <xs:attribute name="SourceType" type="xs:QName" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:simpleType name="Severity">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="None" />
+      <xs:enumeration value="Good" />
+      <xs:enumeration value="Uncertain" />
+      <xs:enumeration value="Bad" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="Constant">
+    <xs:complexContent>
+      <xs:extension base="DataType">
+        <xs:sequence>
+          <xs:element name="Value" type="xs:string" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="Severity" type="Severity" default="None" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ComplexType">
+    <xs:complexContent>
+      <xs:extension base="DataType">
+        <xs:sequence>
+          <xs:element name="Field" type="FieldType" minOccurs="0" maxOccurs="unbounded" />
+        </xs:sequence>
+        <xs:attribute name="BaseType" type="xs:QName" />
+        <xs:attribute name="XmlEncodingId" type="xs:int" use="optional" default="0" />
+        <xs:attribute name="BinaryEncodingId" type="xs:int" use="optional" default="0" />
+        <xs:attribute name="IsAbstract" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="IsUnion" type="xs:boolean" default="false" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="DefaultValue">
+    <xs:sequence>
+      <xs:any minOccurs="0" processContents="lax"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="FieldType">
+    <xs:sequence>
+      <xs:element ref="Documentation"  minOccurs="0" maxOccurs="1" />
+      <xs:element name="ComplexType" type="ComplexType" minOccurs="0" />
+      <xs:element name="DefaultValue" type="DefaultValue" minOccurs="0" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:NCName" use="required" />
+    <xs:attribute name="DataType" type="xs:QName" />
+    <xs:attribute name="ValueRank" type="xs:int" default="-1" />
+    <xs:attribute name="IsOptional" type="xs:boolean" default="false" />
+    <xs:attribute name="AllowSubTypes" type="xs:boolean" default="false" />
+    <xs:attribute name="ReleaseStatus" type="ReleaseStatus" use="optional" default="Released" />
+  </xs:complexType>
+
+  <xs:complexType name="EnumeratedValue">
+    <xs:sequence>
+      <xs:element ref="Documentation"  minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:string" use="required" />
+    <xs:attribute name="Value" type="xs:int" use="optional" />
+    <xs:attribute name="BitMask" type="xs:string" use="optional" />
+    <xs:attribute name="ReleaseStatus" type="ReleaseStatus" use="optional" default="Released" />
+  </xs:complexType>
+
+  <xs:complexType name="EnumeratedType">
+    <xs:complexContent>
+      <xs:extension base="DataType">
+        <xs:sequence>
+          <xs:element name="Value" type="EnumeratedValue" maxOccurs="unbounded" />
+        </xs:sequence>
+        <xs:attribute name="IsOptionSet" type="xs:boolean" default="false" />
+        <xs:attribute name="BaseType" type="xs:QName" use="optional" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:simpleType name="InterfaceType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Session"></xs:enumeration>
+      <xs:enumeration value="SecureChannel"></xs:enumeration>
+      <xs:enumeration value="Discovery"></xs:enumeration>
+      <xs:enumeration value="Registration"></xs:enumeration>
+      <xs:enumeration value="Test"></xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="ServiceType">
+    <xs:complexContent>
+      <xs:extension base="DataType">
+        <xs:sequence>
+          <xs:element name="Request" minOccurs="0" maxOccurs="1">
+            <xs:complexType>
+              <xs:sequence minOccurs="0">
+                <xs:element name="Parameter" type="FieldType" minOccurs="0" maxOccurs="unbounded" />
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="Response" minOccurs="0" maxOccurs="1">
+            <xs:complexType>
+              <xs:sequence minOccurs="0">
+                <xs:element name="Parameter" type="FieldType" minOccurs="0" maxOccurs="unbounded" />
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="InterfaceType" type="InterfaceType" default="Session" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+</xs:schema>

@@ -314,12 +314,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ReferenceNodeCollection(int capacity) : base(capacity)
+        public ReferenceNodeCollection(int capacity)
+            : base(capacity)
         {
         }
 
         /// <inheritdoc/>
-        public ReferenceNodeCollection(IEnumerable<ReferenceNode> collection) : base(collection)
+        public ReferenceNodeCollection(IEnumerable<ReferenceNode> collection)
+            : base(collection)
         {
         }
 

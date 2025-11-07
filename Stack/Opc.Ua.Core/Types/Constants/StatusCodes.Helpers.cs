@@ -68,6 +68,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Same as get browsename
+        /// </summary>
+        /// <param name="statusCode"></param>
+        /// <returns></returns>
+        public static string ToSymbolicId(this StatusCode statusCode)
+        {
+            return GetBrowseName(statusCode.CodeBits);
+        }
+
+        /// <summary>
         /// Returns the UTF-8 browse name for the attribute.
         /// </summary>
         public static byte[] GetUtf8BrowseName(uint identifier)

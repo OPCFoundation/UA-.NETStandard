@@ -677,5 +677,4 @@ namespace Opc.Ua
             InverseReference = 0x04
         }
     }
-
 }

@@ -346,7 +346,6 @@ namespace Opc.Ua
                 return true;
             }
 
-            string originalText = text;
             int namespaceIndex = 0;
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
@@ -896,8 +895,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The current context.</param>
         /// <param name="text">The text to parse.</param>
-        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
         /// <param name="options">The options to use when parsing a NodeId.</param>
+        /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
         /// <returns>True if the parsing was successful, false otherwise.</returns>
         public static bool TryParse(
             IServiceMessageContext context,
@@ -913,9 +912,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The current context.</param>
         /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing a NodeId.</param>
         /// <param name="value">The parsed NodeId if successful, otherwise NodeId.Null.</param>
         /// <param name="error">Error information</param>
-        /// <param name="options">The options to use when parsing a NodeId.</param>
         /// <returns>True if the parsing was successful, false otherwise.</returns>
         public static bool TryParse(
             IServiceMessageContext context,

@@ -497,7 +497,7 @@ namespace Opc.Ua
         /// Looks up the symbolic name for a status code.
         /// </summary>
         /// <param name="code">The numeric error-code to convert to a textual description</param>
-        [Obsolete("Unsupported. Use StatusCodes.LookupSymbolicId instead.")]
+        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
 
         public static string LookupSymbolicId(uint code)
         {
@@ -508,7 +508,7 @@ namespace Opc.Ua
         /// Looks up the Utf8 encoded symbolic name for a status code.
         /// </summary>
         /// <param name="code">The numeric error-code to convert to a textual description</param>
-        [Obsolete("Unsupported. Use StatusCodes.LookupSymbolicId instead.")]
+        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
         public static byte[] LookupUtf8SymbolicId(uint code)
         {
             return null;

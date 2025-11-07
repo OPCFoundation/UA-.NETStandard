@@ -138,8 +138,10 @@ namespace Opc.Ua
         }
 
         private static ITelemetryContext Default => InternalOnly__TelemetryHook();
+
         private static readonly Lazy<ITelemetryContext> s_default =
-            new(() => DefaultTelemetry.Create(builder => { }), true);
+            new(() => new LoggerUtils.NullTelemetryContext(), true);
+
         private static Func<ITelemetryContext>? s_default1;
 
         /// <summary>
