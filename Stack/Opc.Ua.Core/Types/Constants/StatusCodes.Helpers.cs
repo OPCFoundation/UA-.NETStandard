@@ -72,8 +72,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="statusCode"></param>
         /// <returns></returns>
-        public static string ToSymbolicId(this StatusCode statusCode)
+        public static string GetSymbolicId(this StatusCode statusCode)
         {
+            if (!string.IsNullOrEmpty(statusCode.SymbolicId))
+            {
+                return statusCode.SymbolicId;
+            }
             return GetBrowseName(statusCode.CodeBits);
         }
 

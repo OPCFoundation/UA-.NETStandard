@@ -3491,7 +3491,7 @@ namespace Opc.Ua
 
                 if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
-                    string symbolicId = value.ToSymbolicId();
+                    string symbolicId = value.GetSymbolicId();
 
                     if (!string.IsNullOrEmpty(symbolicId))
                     {

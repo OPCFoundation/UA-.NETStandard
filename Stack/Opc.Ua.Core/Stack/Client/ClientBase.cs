@@ -465,7 +465,7 @@ namespace Opc.Ua
                 else
                 {
                     m_logger.LogError("{Activity}#{Handle} failed with {StatusCode} in {Elapsed}.",
-                        serviceName, requestHandle, statusCode.ToSymbolicId(), duration);
+                        serviceName, requestHandle, statusCode.GetSymbolicId(), duration);
                 }
             }
             if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
