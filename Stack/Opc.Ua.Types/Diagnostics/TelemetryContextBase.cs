@@ -60,18 +60,18 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Meter CreateMeter()
         {
-            (string name, string version) = GetAssemblyInfo();
+            (string name, string version) = GetAssemblyInfo(Assembly.GetCallingAssembly());
             return new Meter(name, version);
         }
 
         /// <inheritdoc/>
         public ActivitySource ActivitySource
-            => m_sources.GetOrAdd(GetAssemblyInfo(),
+            => m_sources.GetOrAdd(GetAssemblyInfo(Assembly.GetCallingAssembly()),
                     key => new ActivitySource(key.Item1, key.Item2));
 
-        private (string, string) GetAssemblyInfo()
+        private (string, string) GetAssemblyInfo(Assembly assembly)
         {
-            return m_cache.GetOrAdd(Assembly.GetExecutingAssembly(), GetAssemblyInfoCore);
+            return m_cache.GetOrAdd(assembly, GetAssemblyInfoCore);
             static (string, string) GetAssemblyInfoCore(Assembly assembly)
             {
                 string version = assembly
