@@ -29,7 +29,13 @@
 
 namespace Opc.Ua.Types
 {
-    internal static class Objects
+#if !INTERNAL
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public
+#else
+    internal
+#endif
+        static class Objects
     {
         public const uint ModellingRule_Mandatory = 78;
 

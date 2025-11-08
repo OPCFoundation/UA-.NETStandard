@@ -29,7 +29,13 @@
 
 namespace Opc.Ua.Types
 {
-    internal static class ReferenceTypeIds
+#if !INTERNAL
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public
+#else
+    internal
+#endif
+        static class ReferenceTypeIds
     {
         public static readonly NodeId References = new(ReferenceTypes.References);
 

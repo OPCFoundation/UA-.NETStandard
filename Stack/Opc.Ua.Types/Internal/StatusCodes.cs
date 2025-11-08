@@ -33,7 +33,13 @@ namespace Opc.Ua.Types
     /// A class that defines constants used by UA applications.
     /// </summary>
     /// <exclude />
-    internal static class StatusCodes
+#if !INTERNAL
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public
+#else
+    internal
+#endif
+        static class StatusCodes
     {
         /// <summary>
         /// The operation completed successfully.

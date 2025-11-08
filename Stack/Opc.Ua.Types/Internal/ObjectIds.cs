@@ -29,7 +29,13 @@
 
 namespace Opc.Ua.Types
 {
-    internal static class ObjectIds
+#if !INTERNAL
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public
+#else
+    internal
+#endif
+        static class ObjectIds
     {
         public static readonly NodeId ModellingRule_Mandatory = new(Objects.ModellingRule_Mandatory);
 

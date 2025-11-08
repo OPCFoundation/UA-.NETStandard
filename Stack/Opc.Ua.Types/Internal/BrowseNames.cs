@@ -27,11 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable 1591
-
-namespace Opc.Ua
+namespace Opc.Ua.Types
 {
-    internal static class BrowseNames
+#if !INTERNAL
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public
+#else
+    internal
+#endif
+        static class BrowseNames
     {
         public const string AlarmGroupMember = "AlarmGroupMember";
 

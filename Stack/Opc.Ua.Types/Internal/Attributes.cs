@@ -33,7 +33,12 @@ namespace Opc.Ua.Types
     /// Attributes of opc ua nodes
     /// </summary>
     /// <exclude />
-    internal static class Attributes
+#if !INTERNAL
+    public
+#else
+    internal
+#endif
+        static class Attributes
     {
         /// <summary>
         /// The canonical identifier for the node.

@@ -31,7 +31,13 @@
 
 namespace Opc.Ua.Types
 {
-    internal static class DataTypeIds
+#if !INTERNAL
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public
+#else
+    internal
+#endif
+        static class DataTypeIds
     {
         public static readonly NodeId BaseDataType = new(DataTypes.BaseDataType);
 
