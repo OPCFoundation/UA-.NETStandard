@@ -960,7 +960,8 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
 
                 // Act & Assert - Empty files cannot be memory-mapped from disk
                 ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(() => vfs.OpenRead(tempFile));
-                Assert.That(exception.Message, Contains.Substring("must be a non-negative and non-zero value"));
+                Assert.That(exception.Message,
+                    Contains.Substring("must be a non-negative and non-zero value").Or.Contains("A positive number is required"));
             }
             finally
             {

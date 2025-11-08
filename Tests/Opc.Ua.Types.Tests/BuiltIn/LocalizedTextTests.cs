@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -15,8 +16,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     public class LocalizedTextTests
     {
         [Test]
-        public void MultiLanguageDictionaryCreatesCorretMulLocale()
+        public void MultiLanguageDictionaryCreatesCorrectMulLocale()
         {
+            IgnoreNetStandard20();
+
             // Arrange
             var translations = new Dictionary<string, string> {
                 { "en-US", "Hello" },
@@ -44,6 +47,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EmptyDictionaryCreatesNullText()
         {
+            IgnoreNetStandard20();
+
             // Arrange
             var translations = new Dictionary<string, string>();
 
@@ -62,6 +67,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void SingleLocaleDictionaryCreatesLocaleAndTextDirectly()
         {
+            IgnoreNetStandard20();
+
             // Arrange
             var translations = new Dictionary<string, string> { { "fr-FR", "Bonjour" } };
 
@@ -84,6 +91,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LocalizedText_MulLocale_WithThreeTranslations_ParsesCorrectly()
         {
+            IgnoreNetStandard20();
+
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -120,6 +129,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LocalizedText_MulLocale_ReturnsPreferredTranslations()
         {
+            IgnoreNetStandard20();
+
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -196,6 +207,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LocalizedText_MulLocale_InvalidJson()
         {
+            IgnoreNetStandard20();
+
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -213,6 +226,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LocalizedText_MulLocale_DeepCopy()
         {
+            IgnoreNetStandard20();
+
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -243,6 +258,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 localizedText.Translations["fr-FR"],
                 deepCopy.Translations["fr-FR"],
                 "French translation should be the same");
+        }
+
+        [Conditional("NET_STANDARD_TESTS")]
+        private static void IgnoreNetStandard20()
+        {
+            NUnit.Framework.Assert.Ignore("Mul locale is not supported on .net standard");
         }
     }
 }
