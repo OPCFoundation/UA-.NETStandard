@@ -238,12 +238,7 @@ namespace Opc.Ua
             /// <param name="createFromFile"></param>
             public VirtualFile(string filePath, bool createFromFile)
             {
-                if (filePath == null)
-                {
-                    throw new ArgumentNullException(nameof(filePath));
-                }
-
-                Path = filePath;
+                Path = filePath ?? throw new ArgumentNullException(nameof(filePath));
                 MappedFromDisk = createFromFile;
 
                 if (!createFromFile)

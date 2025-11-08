@@ -2089,8 +2089,9 @@ namespace Opc.Ua
                     exception = eofStream;
                 }
                 catch (ServiceResultException sre)
-                    when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
-                        .BadDecodingError)
+                    when (sre.StatusCode is
+                    StatusCodes.BadEncodingLimitsExceeded or
+                    StatusCodes.BadDecodingError)
                 {
                     errorMessage = sre.Message;
                     exception = sre;

@@ -83,12 +83,11 @@ namespace Opc.Ua
             /// </summary>
             public static ILogger Logger =>
 #if DEBUG
-                Null.Logger;
+                LoggerUtils.Null.Logger;
 #else
                 LoggerProvider.CreateLogger(nameof(Fallback));
 #endif
         }
-
 
         static Utils()
         {

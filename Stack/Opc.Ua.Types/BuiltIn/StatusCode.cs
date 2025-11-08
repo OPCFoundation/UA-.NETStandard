@@ -24,8 +24,8 @@ namespace Opc.Ua
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The StatusCode is defined in <b>OPC UA Specifications Part 4: Services, section 7.22</b>
-    /// titled <b>StatusCode</b>.<br/>
+    /// The StatusCode is defined in <b>OPC UA Specifications Part 4: Services,
+    /// section 7.22</b> titled <b>StatusCode</b>.<br/>
     /// <br/></para>
     /// <para>
     /// A numeric code that is used to describe the result of a service or operation. The
@@ -42,12 +42,14 @@ namespace Opc.Ua
     /// <item><b>0 - 7</b>:<br/>
     /// InfoBits. Additional information bits that qualify the status code.</item>
     /// <item><b>8 - 9</b>:<br/>
-    /// The type of information contained in the info bits. These bits have the following meanings:<br/>
+    /// The type of information contained in the info bits. These bits have the following
+    /// meanings:<br/>
     ///     <list type="bullet">
     ///         <item>Binary Representation <b>00</b>:<br/>
     ///         The info bits are not used and must be set to zero.</item>
     ///         <item>Binary Representation <b>01</b>:<br/>
-    ///         The status code and its info bits are associated with a data value returned from the Server.</item>
+    ///         The status code and its info bits are associated with a data value returned
+    ///         from the Server.</item>
     ///         <item>Binary Representation <b>10</b> or <b>11</b>:<br/>
     ///         Reserved for future use. The info bits must be ignored.</item>
     ///     </list>
@@ -55,21 +57,41 @@ namespace Opc.Ua
     /// <item><b>10 - 13</b>:<br/>
     /// Reserved for future use. Must always be zero.</item>
     /// <item><b>14</b>:
-    /// Indicates that the semantics of the associated data value have changed. Clients should not process the data value until they re-read the metadata associated with the Variable.
-    /// Servers should set this bit if the metadata has changed in way that could case application errors if the Client does not re-read the metadata. For example, a change to the engineering units could create problems if the Client uses the value to perform calculations.
-    /// [UA Part 8] defines the conditions where a Server must set this bit for a DA Variable. Other specifications may define additional conditions. A Server may define other conditions that cause this bit to be set.
-    /// This bit only has meaning for status codes returned as part of a data change Notification. Status codes used in other contexts must always set this bit to zero.</item>
+    /// Indicates that the semantics of the associated data value have changed. Clients
+    /// should not process the data value until they re-read the metadata associated with
+    /// the Variable.
+    /// Servers should set this bit if the metadata has changed in way that could case
+    /// application errors if the Client does not re-read the metadata.
+    /// For example, a change to the engineering units could create problems if the Client
+    /// uses the value to perform calculations.
+    /// [UA Part 8] defines the conditions where a Server must set this bit for a DA Variable.
+    /// Other specifications may define additional conditions. A Server may define
+    /// other conditions that cause this bit to be set.
+    /// This bit only has meaning for status codes returned as part of a data change
+    /// Notification.
+    /// Status codes used in other contexts must always set this bit to zero.</item>
     /// <item><b>15</b>:<br/>
-    /// Indicates that the structure of the associated data value has changed since the last Notification. Clients should not process the data value unless they re-read the metadata.
-    /// Servers must set this bit if the DataTypeEncoding used for a Variable changes. Clause 7.14 describes how the DataTypeEncoding is specified for a Variable.
-    /// The bit is also set if the data type Attribute of the Variable changes. A Variable with data type BaseDataType does not require the bit to be set when the data type changes.
-    /// Servers must also set this bit if the length of a fixed length array Variable changes.
-    /// This bit is provided to warn Clients that parse complex data values that their parsing routines could fail because the serialized form of the data value has changed.
-    /// This bit only has meaning for status codes returned as part of a data change Notification. Status codes used in other contexts must always set this bit to zero.</item>
+    /// Indicates that the structure of the associated data value has changed since
+    /// the last Notification.
+    /// Clients should not process the data value unless they re-read the metadata.
+    /// Servers must set this bit if the DataTypeEncoding used for a Variable changes.
+    /// Clause 7.14 describes how the DataTypeEncoding is specified for a Variable.
+    /// The bit is also set if the data type Attribute of the Variable changes.
+    /// A Variable with data type BaseDataType does not require the bit to be set when
+    /// the data type changes.
+    /// Servers must also set this bit if the length of a fixed length array Variable
+    /// changes.
+    /// This bit is provided to warn Clients that parse complex data values that
+    /// their parsing routines could fail because the serialized form of the data value
+    /// has changed.
+    /// This bit only has meaning for status codes returned as part of a data change
+    /// Notification.
+    /// Status codes used in other contexts must always set this bit to zero.</item>
     /// <item><b>16 - 27</b>:<br/>
     /// The code is a numeric value assigned to represent different conditions.
-    /// Each code has a symbolic name and a numeric value. All descriptions in the UA specification refer
-    /// to the symbolic name. [UA Part 6] maps the symbolic names onto a numeric value.</item>
+    /// Each code has a symbolic name and a numeric value. All descriptions in the UA
+    /// specification refer to the symbolic name. [UA Part 6] maps the symbolic names
+    /// onto a numeric value.</item>
     /// <item><b>28 - 29</b>:<br/>
     /// Reserved for future use. Must always be zero.</item>
     /// <item><b>30 - 31</b>:<br/>
@@ -77,13 +99,17 @@ namespace Opc.Ua
     /// These bits have the following meanings:<br/>
     ///     <list type="bullet">
     ///         <item>Binary Representation <b>00</b>:<br/>
-    ///         Indicates that the operation was successful and the associated results may be used.</item>
+    ///         Indicates that the operation was successful and the associated results
+    ///         may be used.</item>
     ///         <item>Binary Representation <b>01</b>:<br/>
-    ///         Indicates that the operation was partially successful and that associated results may not be suitable for some purposes.</item>
+    ///         Indicates that the operation was partially successful and that
+    ///         associated results may not be suitable for some purposes.</item>
     ///         <item>Binary Representation <b>10</b>:<br/>
-    ///         Indicates that the operation failed and any associated results cannot be used.</item>
+    ///         Indicates that the operation failed and any associated results
+    ///         cannot be used.</item>
     ///         <item>Binary Representation <b>11</b>:<br/>
-    ///         Reserved for future use. All Clients should treat a status code with this severity as �Bad�.</item>
+    ///         Reserved for future use. All Clients should treat a status code with
+    ///         this severity as "Bad".</item>
     ///     </list>
     /// </item>
     /// </list>
@@ -91,18 +117,22 @@ namespace Opc.Ua
     /// </remarks>
     [DataContract(Name = "StatusCode", Namespace = Namespaces.OpcUaXsd)]
     public struct StatusCode :
-        IComparable,
         IFormattable,
+        IComparable,
         IComparable<StatusCode>,
-        IEquatable<StatusCode>
+        IComparable<uint>,
+        IEquatable<StatusCode>,
+        IEquatable<uint>
     {
         /// <summary>
         /// Initializes the object with a numeric value.
         /// </summary>
         /// <param name="code">The numeric code to apply to this status code</param>
-        public StatusCode(uint code)
+        /// <param name="symbolicId">The optional symbol</param>
+        public StatusCode(uint code, string symbolicId = null)
         {
             Code = code;
+            SymbolicId = symbolicId;
         }
 
         /// <summary>
@@ -114,34 +144,60 @@ namespace Opc.Ua
         /// will be used.
         /// </remarks>
         /// <param name="e">The exception to convert to a status code</param>
-        /// <param name="defaultCode">The default code to apply if the routine cannot determine the code from the Exception</param>
-        public StatusCode(Exception e, uint defaultCode)
+        /// <param name="defaultCode">The default code to apply if the routine cannot
+        /// determine the code from the Exception</param>
+        /// <param name="symbolicId">The optional symbol</param>
+        public StatusCode(Exception e, uint defaultCode, string symbolicId)
         {
             if (e is ServiceResultException sre)
             {
-                Code = sre.StatusCode;
+                this = sre.StatusCode;
             }
             else
             {
                 Code = defaultCode;
+                SymbolicId = symbolicId;
+            }
+        }
+
+        /// <summary>
+        /// Initializes the object from an exception.
+        /// </summary>
+        /// <remarks>
+        /// Initializes the object from an exception and a numeric code. The numeric code
+        /// will be determined from the Exception if possible, otherwise the value passed in
+        /// will be used.
+        /// </remarks>
+        /// <param name="e">The exception to convert to a status code</param>
+        /// <param name="defaultCode">The default code to apply if the routine cannot
+        /// determine the code from the Exception</param>
+        public StatusCode(Exception e, StatusCode defaultCode)
+        {
+            if (e is ServiceResultException sre)
+            {
+                this = sre.StatusCode;
+            }
+            else
+            {
+                this = defaultCode;
             }
         }
 
         /// <summary>
         /// The entire 32-bit status value.
         /// </summary>
-        /// <remarks>
-        /// The entire 32-bit status value.
-        /// </remarks>
         [DataMember(Name = "Code", Order = 1, IsRequired = false)]
         public uint Code { get; set; }
 
         /// <summary>
+        /// The symbolic name for the code bits of the status code.
+        /// This value is not serialized and lost on deserialization.
+        /// </summary>
+        public string SymbolicId { get; }
+
+        /// <summary>
         /// The 16 code bits of the status code.
         /// </summary>
-        /// <remarks>
-        /// The 16 code bits of the status code.
-        /// </remarks>
         public readonly uint CodeBits => Code & 0xFFFF0000;
 
         /// <summary>
@@ -372,10 +428,7 @@ namespace Opc.Ua
             return this;
         }
 
-        /// <summary>
-        /// Compares the instance to another object.
-        /// </summary>
-        /// <param name="obj">The object to compare to *this* object</param>
+        /// <inheritdoc/>
         public readonly int CompareTo(object obj)
         {
             // compare codes
@@ -387,7 +440,7 @@ namespace Opc.Ua
             // check for null.
             if (obj == null)
             {
-                return +1;
+                return 1;
             }
 
             // check for status code.
@@ -400,14 +453,18 @@ namespace Opc.Ua
             return -1;
         }
 
-        /// <summary>
-        /// Compares the instance to another object.
-        /// </summary>
-        /// <param name="other">The StatusCode to compare to *this* object</param>
+        /// <inheritdoc/>
         public readonly int CompareTo(StatusCode other)
         {
             // check for status code.
-            return Code.CompareTo(other.Code);
+            return CompareTo(other.Code);
+        }
+
+        /// <inheritdoc/>
+        public readonly int CompareTo(uint other)
+        {
+            // check for status code.
+            return Code.CompareTo(other);
         }
 
         /// <summary>
@@ -420,53 +477,53 @@ namespace Opc.Ua
         {
             if (format == null)
             {
+                if (!string.IsNullOrEmpty(SymbolicId))
+                {
+                    return string.Format(formatProvider, "{0} [0x{1:X8}]", SymbolicId, Code);
+                }
                 return string.Format(formatProvider, "0x{0:X8}", Code);
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the object.
-        /// </summary>
-        /// <param name="obj">The object to compare to *this* object</param>
+        /// <inheritdoc/>
         public override readonly bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the object.
-        /// </summary>
-        /// <param name="other">The StatusCode to compare to *this* object</param>
+        /// <inheritdoc/>
         public readonly bool Equals(StatusCode other)
         {
             return CompareTo(other) == 0;
         }
 
-        /// <summary>
-        /// Returns a unique hashcode for the object.
-        /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the object.
-        /// </remarks>
+        /// <inheritdoc/>
+        public readonly bool Equals(uint other)
+        {
+            return CompareTo(other) == 0;
+        }
+
+        /// <inheritdoc/>
         public override readonly int GetHashCode()
         {
             return Code.GetHashCode();
         }
 
-        /// <summary>
-        /// Converts the value to a human readable string.
-        /// </summary>
-        /// <remarks>
-        /// Converts the value to a human readable string.
-        /// </remarks>
+        /// <inheritdoc/>
         public override readonly string ToString()
         {
             var buffer = new StringBuilder();
 
-            buffer.AppendFormat(CultureInfo.InvariantCulture, "{0:X8}", 0xFFFF0000 & Code);
-
+            if (!string.IsNullOrEmpty(SymbolicId))
+            {
+                buffer.Append(SymbolicId);
+            }
+            else
+            {
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0:X8}", 0xFFFF0000 & Code);
+            }
             if ((0x0000FFFF & Code) != 0)
             {
                 buffer.AppendFormat(CultureInfo.InvariantCulture, " [Flags: {0:X4}]", 0x0000FFFF & Code);
@@ -552,6 +609,26 @@ namespace Opc.Ua
         public static bool operator !=(StatusCode a, uint b)
         {
             return !(a == b);
+        }
+
+        /// <summary>
+        /// Returns true if the object a is less than object b.
+        /// </summary>
+        /// <param name="a">The first value being compared</param>
+        /// <param name="b">The second value being compared to</param>
+        public static bool operator <(StatusCode a, uint b)
+        {
+            return a.CompareTo(b) < 0;
+        }
+
+        /// <summary>
+        /// Returns true if the object a is greater than object b.
+        /// </summary>
+        /// <param name="a">The first value being compared</param>
+        /// <param name="b">The second value being compared to</param>
+        public static bool operator >(StatusCode a, uint b)
+        {
+            return a.CompareTo(b) > 0;
         }
 
         /// <summary>

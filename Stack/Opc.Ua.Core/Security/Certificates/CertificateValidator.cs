@@ -1551,7 +1551,6 @@ namespace Opc.Ua
                 sresult = new ServiceResult(
                     StatusCodes.BadCertificateUntrusted,
                     null,
-                    null,
                     message,
                     null,
                     sresult);
@@ -1581,7 +1580,6 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         StatusCodes.BadCertificateUntrusted,
                         null,
-                        null,
                         message,
                         null,
                         sresult);
@@ -1596,7 +1594,6 @@ namespace Opc.Ua
                     endpointUrl.IdnHost);
                 sresult = new ServiceResult(
                     StatusCodes.BadCertificateHostNameInvalid,
-                    null,
                     null,
                     message,
                     null,
@@ -1614,7 +1611,6 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         StatusCodes.BadCertificateUseNotAllowed,
                         null,
-                        null,
                         "Usage of ECDSA certificate is not allowed.",
                         null,
                         sresult);
@@ -1624,7 +1620,6 @@ namespace Opc.Ua
             {
                 sresult = new ServiceResult(
                     StatusCodes.BadCertificateUseNotAllowed,
-                    null,
                     null,
                     "Usage of RSA certificate is not allowed.",
                     null,
@@ -1637,7 +1632,6 @@ namespace Opc.Ua
             {
                 sresult = new ServiceResult(
                     StatusCodes.BadCertificatePolicyCheckFailed,
-                    null,
                     null,
                     "SHA1 signed certificates are not trusted.",
                     null,
@@ -1662,7 +1656,6 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         StatusCodes.BadCertificatePolicyCheckFailed,
                         null,
-                        null,
                         "Certificate doesn't meet minimum signature algorithm length requirement.",
                         null,
                         sresult);
@@ -1676,7 +1669,6 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         StatusCodes.BadCertificatePolicyCheckFailed,
                         null,
-                        null,
                         "Certificate doesn't meet minimum key length requirement.",
                         null,
                         sresult);
@@ -1688,7 +1680,6 @@ namespace Opc.Ua
                 const string message = "Certificate chain validation incomplete.";
                 sresult = new ServiceResult(
                     StatusCodes.BadCertificateChainIncomplete,
-                    null,
                     null,
                     message,
                     null,
@@ -1736,7 +1727,6 @@ namespace Opc.Ua
                         sresult = new ServiceResult(
                             StatusCodes.BadCertificateIssuerRevocationUnknown,
                             null,
-                            null,
                             message,
                             null,
                             sresult);
@@ -1748,7 +1738,6 @@ namespace Opc.Ua
                             kvp.Key);
                         sresult = new ServiceResult(
                             kvp.Value.StatusCode,
-                            null,
                             null,
                             message,
                             null,
@@ -1767,7 +1756,6 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         StatusCodes.BadCertificateRevocationUnknown,
                         null,
-                        null,
                         message,
                         null,
                         sresult);
@@ -1781,7 +1769,6 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         StatusCodes.BadCertificateIssuerRevoked,
                         null,
-                        null,
                         message,
                         null,
                         sresult);
@@ -1794,7 +1781,6 @@ namespace Opc.Ua
                     string message = CertificateMessage("Certificate is revoked.", kvp.Key);
                     sresult = new ServiceResult(
                         StatusCodes.BadCertificateRevoked,
-                        null,
                         null,
                         message,
                         null,

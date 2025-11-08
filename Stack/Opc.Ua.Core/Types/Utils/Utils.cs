@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -21,7 +20,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -30,6 +28,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 #if !NETFRAMEWORK
+using System.Runtime.InteropServices;
 using Opc.Ua.Security.Certificates;
 #endif
 
@@ -1269,7 +1268,7 @@ namespace Opc.Ua
         public static T Clone<T>(T value)
             where T : class
         {
-            return CoreUtils.Clone<T>(value);
+            return CoreUtils.Clone(value);
         }
 
         /// <summary>
@@ -1353,7 +1352,7 @@ namespace Opc.Ua
         public static bool IsEqual<T>(IEnumerable<T> value1, IEnumerable<T> value2)
             where T : IEquatable<T>
         {
-            return CoreUtils.IsEqual<T>(value1, value2);
+            return CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>

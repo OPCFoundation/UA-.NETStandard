@@ -1454,7 +1454,6 @@ namespace Opc.Ua.Server
                 {
                     error = new ServiceResult(
                         error.StatusCode.SetSemanticsChanged(true),
-                        error.SymbolicId,
                         error.NamespaceUri,
                         error.LocalizedText,
                         error.AdditionalInfo,
@@ -1476,7 +1475,6 @@ namespace Opc.Ua.Server
                 {
                     error = new ServiceResult(
                         error.StatusCode.SetStructureChanged(true),
-                        error.SymbolicId,
                         error.NamespaceUri,
                         error.LocalizedText,
                         error.AdditionalInfo,

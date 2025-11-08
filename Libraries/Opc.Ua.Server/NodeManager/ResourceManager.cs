@@ -147,7 +147,6 @@ namespace Opc.Ua.Server
             // construct new service result.
             return new ServiceResult(
                 result.StatusCode,
-                result.SymbolicId,
                 result.NamespaceUri,
                 translatedText,
                 result.AdditionalInfo,

@@ -33,7 +33,6 @@ using System.Linq;
 using System.Reflection;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Types;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.Encoders
@@ -60,8 +59,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             m_encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly).Commit();
         }
 
-        private const int KNumberOfBootstrapEncodeableTypes = 24; // Change when adding more IEncodeable
-        private const int KNumberOfBootstrapFactoryEntries = KNumberOfBootstrapEncodeableTypes * 4;
+        /// <summary>
+        /// Change when adding more IEncodeable
+        /// </summary>
+        private const int kNumberOfBootstrapEncodeableTypes = 24;
+        private const int kNumberOfBootstrapFactoryEntries = kNumberOfBootstrapEncodeableTypes * 4;
         public static readonly NodeId ReadRequestEncoding = new(631);
 
         /// <summary>
@@ -359,7 +361,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
             var exceptions = new List<Exception>();
             const int threadCount = 10;
-            const int operationsPerThread = KNumberOfBootstrapFactoryEntries;
+            const int operationsPerThread = kNumberOfBootstrapFactoryEntries;
 
             // Act
             var threads = new System.Threading.Thread[threadCount];
@@ -542,7 +544,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             builder.Commit();
 
             // Assert - Should have many OPC UA types
-            Assert.AreEqual(KNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count()); // OPC UA has many built-in types
+            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count()); // OPC UA has many built-in types
         }
 
         [Test]
@@ -552,7 +554,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Assert - Create() should return factory with preloaded types
-            Assert.AreEqual(KNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
+            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
 
             // Should be able to find common OPC UA types like ReadRequest
             var knownTypesList = factory.KnownTypeIds.ToList();
@@ -1245,7 +1247,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             builder.Commit();
 
             // Assert - Should have only the core OPC UA types in this assembl
-            Assert.AreEqual(KNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
+            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
         }
 
         [Test]
@@ -1319,7 +1321,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Null(type2);
 
             // Verify we have a substantial number of types (mentioned as ~1.5k in comments)
-            Assert.AreEqual(KNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
+            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
         }
 
         private IEncodeableFactoryBuilder m_builder;

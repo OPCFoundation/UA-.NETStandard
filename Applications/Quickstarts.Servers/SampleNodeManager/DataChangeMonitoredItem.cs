@@ -846,7 +846,6 @@ namespace Opc.Ua.Sample
                 {
                     error = new ServiceResult(
                         error.StatusCode.SetSemanticsChanged(true),
-                        error.SymbolicId,
                         error.NamespaceUri,
                         error.LocalizedText,
                         error.AdditionalInfo,
@@ -868,7 +867,6 @@ namespace Opc.Ua.Sample
                 {
                     _ = new ServiceResult(
                         error.StatusCode.SetStructureChanged(true),
-                        error.SymbolicId,
                         error.NamespaceUri,
                         error.LocalizedText,
                         error.AdditionalInfo,

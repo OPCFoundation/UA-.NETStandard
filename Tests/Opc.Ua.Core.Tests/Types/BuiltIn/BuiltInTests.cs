@@ -300,8 +300,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             var stringTable = new StringTable();
             var serviceResult = new ServiceResult(
-                StatusCodes.BadAggregateConfigurationRejected,
-                "SymbolicId",
+                new StatusCode(StatusCodes.BadAggregateConfigurationRejected, "SymbolicId"),
                 Namespaces.OpcUa,
                 new LocalizedText("The text", "en-us"),
                 new Exception("The inner exception."));

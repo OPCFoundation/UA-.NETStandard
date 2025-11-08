@@ -1667,7 +1667,8 @@ namespace Opc.Ua.Gds.Tests
                     case StatusCodes.BadCertificateUntrusted:
                         break;
                     default:
-                        Assert.Fail($"Got unexpected status code {StatusCodes.GetBrowseName(certificateStatus.Code)}, but should get a BadCertificate* error");
+                        NUnit.Framework.Assert.Fail(
+                            $"Got unexpected status code {StatusCodes.GetBrowseName(certificateStatus.Code)}, but should get a BadCertificate* error");
                         break;
                 }
                 Assert.NotNull(validityTime);

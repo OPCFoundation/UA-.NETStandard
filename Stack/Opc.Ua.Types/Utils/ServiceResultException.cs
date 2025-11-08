@@ -29,7 +29,7 @@ namespace Opc.Ua
         public ServiceResultException()
             : base(Strings.DefaultMessage)
         {
-            Result = StatusCodes.Bad;
+            Result = ServiceResult.Bad;
         }
 
         /// <summary>
@@ -38,13 +38,13 @@ namespace Opc.Ua
         public ServiceResultException(string message)
             : base(message)
         {
-            Result = StatusCodes.Bad;
+            Result = ServiceResult.Bad;
         }
 
         /// <summary>
         /// Initializes the exception with a message and an exception.
         /// </summary>
-        public ServiceResultException(Exception e, uint defaultCode)
+        public ServiceResultException(Exception e, StatusCode defaultCode)
             : base(e.Message, e)
         {
             Result = ServiceResult.Create(e, defaultCode, string.Empty);
@@ -56,13 +56,13 @@ namespace Opc.Ua
         public ServiceResultException(string message, Exception e)
             : base(message, e)
         {
-            Result = StatusCodes.Bad;
+            Result = ServiceResult.Bad;
         }
 
         /// <summary>
         /// Initializes the exception with a status code.
         /// </summary>
-        public ServiceResultException(uint statusCode)
+        public ServiceResultException(StatusCode statusCode)
             : base(GetMessage(statusCode))
         {
             Result = new ServiceResult(statusCode);
@@ -71,7 +71,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a status code and a message.
         /// </summary>
-        public ServiceResultException(uint statusCode, string message)
+        public ServiceResultException(StatusCode statusCode, string message)
             : base(message)
         {
             Result = new ServiceResult(statusCode, message);
@@ -80,7 +80,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a status code and an inner exception.
         /// </summary>
-        public ServiceResultException(uint statusCode, Exception e)
+        public ServiceResultException(StatusCode statusCode, Exception e)
             : base(GetMessage(statusCode), e)
         {
             Result = new ServiceResult(statusCode, e);
@@ -89,7 +89,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a status code, a message and an inner exception.
         /// </summary>
-        public ServiceResultException(uint statusCode, string message, Exception e)
+        public ServiceResultException(StatusCode statusCode, string message, Exception e)
             : base(message, e)
         {
             Result = new ServiceResult(statusCode, message, e);
@@ -101,13 +101,18 @@ namespace Opc.Ua
         public ServiceResultException(ServiceResult status)
             : base(GetMessage(status))
         {
-            Result = status ?? new ServiceResult(StatusCodes.Bad);
+            Result = status ?? ServiceResult.Bad;
         }
 
         /// <summary>
         /// The identifier for the status code.
         /// </summary>
-        public uint StatusCode => Result.Code;
+        public uint StatusCode => Result.StatusCode.Code;
+
+        /// <summary>
+        /// The identifier for the status code.
+        /// </summary>
+        public StatusCode Code => Result.StatusCode;
 
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
