@@ -328,7 +328,8 @@ namespace Opc.Ua.Security
             MessageSecurityMode mode,
             string policyUri)
         {
-            return CalculateSecurityLevel(mode, policyUri, LoggerUtils.Fallback.Logger);
+            ILogger logger = AmbientMessageContext.Telemetry.CreateLogger<SecuredApplication>();
+            return CalculateSecurityLevel(mode, policyUri, logger);
         }
 
         /// <summary>

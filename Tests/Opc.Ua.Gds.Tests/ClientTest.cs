@@ -1661,8 +1661,15 @@ namespace Opc.Ua.Gds.Tests
             {
                 (StatusCode certificateStatus, DateTime validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
                     application.Certificate).ConfigureAwait(false);
-                Assert.IsTrue(
-                    ((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
+                switch (certificateStatus.Code)
+                {
+                    case StatusCodes.BadCertificateInvalid:
+                    case StatusCodes.BadCertificateUntrusted:
+                        break;
+                    default:
+                        Assert.Fail($"Got unexpected status code {StatusCodes.GetBrowseName(certificateStatus.Code)}, but should get a BadCertificate* error");
+                        break;
+                }
                 Assert.NotNull(validityTime);
             }
         }

@@ -115,7 +115,13 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable)
-            : this(result, diagnosticsMask, serviceLevel, stringTable, 0, LoggerUtils.Fallback.Logger)
+            : this(
+                  result,
+                  diagnosticsMask,
+                  serviceLevel,
+                  stringTable,
+                  0,
+                  AmbientMessageContext.Telemetry.CreateLogger<DiagnosticInfo>())
         {
         }
 
@@ -128,7 +134,12 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable)
-            : this(exception, diagnosticsMask, serviceLevel, stringTable, LoggerUtils.Fallback.Logger)
+            : this(
+                  exception,
+                  diagnosticsMask,
+                  serviceLevel,
+                  stringTable,
+                  AmbientMessageContext.Telemetry.CreateLogger<DiagnosticInfo>())
         {
         }
 

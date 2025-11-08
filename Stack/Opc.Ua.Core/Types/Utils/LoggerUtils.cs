@@ -39,6 +39,7 @@
 #nullable enable
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -69,6 +70,25 @@ namespace Opc.Ua
         /// Global default logger provider
         /// </summary>
         internal static TraceLoggerProvider LoggerProvider { get; } = new();
+
+        /// <summary>
+        /// Fallback logger
+        /// </summary>
+        [Experimental("UA_NETStandard_1")]
+        public static class Fallback
+        {
+            /// <summary>
+            /// Get an instance of the fallback logger. In debug builds
+            /// the null logger is returned which emits debug checks on usage.
+            /// </summary>
+            public static ILogger Logger =>
+#if DEBUG
+                Null.Logger;
+#else
+                LoggerProvider.CreateLogger(nameof(Fallback));
+#endif
+        }
+
 
         static Utils()
         {

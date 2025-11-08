@@ -721,7 +721,8 @@ namespace Opc.Ua
             }
             catch (Exception e) when (!throwOnError)
             {
-                LoggerUtils.Fallback.Logger.LogError(e, "Could not get absolute path for {FileName}", filePath);
+                ILogger logger = AmbientMessageContext.Telemetry.CreateLogger("Utils");
+                logger.LogError(e, "Could not get absolute path for {FileName}", filePath);
                 return null;
             }
         }
@@ -762,7 +763,8 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    LoggerUtils.Fallback.Logger.LogTrace(e, "Could not find installed file: {FileName}", fileName);
+                    ILogger logger = AmbientMessageContext.Telemetry.CreateLogger("Utils");
+                    logger.LogDebug(e, "Could not find installed file: {FileName}", fileName);
                 }
 
                 if (path != null)

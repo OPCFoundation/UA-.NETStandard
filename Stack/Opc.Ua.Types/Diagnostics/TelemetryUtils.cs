@@ -44,24 +44,6 @@ namespace Opc.Ua
     public static class LoggerUtils
     {
         /// <summary>
-        /// Fallback logger
-        /// </summary>
-        [Experimental("UA_NETStandard_1")]
-        public static class Fallback
-        {
-            /// <summary>
-            /// Get an instance of the fallback logger. In debug builds
-            /// the null logger is returned which emits debug checks on usage.
-            /// </summary>
-            public static ILogger Logger =>
-#if DEBUG
-                Null.Logger;
-#else
-                LoggerProvider.CreateLogger(nameof(Fallback));
-#endif
-        }
-
-        /// <summary>
         /// Typed null logger
         /// </summary>
         /// <typeparam name="T"></typeparam>

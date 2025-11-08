@@ -611,9 +611,7 @@ namespace Opc.Ua
             catch
             {
                 // TODO: Need to wire a logger here
-                ITelemetryContext telemetry = AmbientMessageContext.Telemetry;
-                ILogger logger = telemetry != null ?
-                     telemetry.CreateLogger<LocalizedText>() : LoggerUtils.Fallback.Logger;
+                ILogger logger = AmbientMessageContext.Telemetry.CreateLogger<LocalizedText>();
                 logger.LogDebug("Failed to parse mul locale JSON text: {Text}", XmlEncodedText);
                 return null; // Return null if parsing fails
             }
