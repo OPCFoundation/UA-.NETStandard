@@ -3316,8 +3316,8 @@ namespace Opc.Ua.Server
 
             // create new result object.
             var result = new ServiceResult(
-                new StatusCode(e.StatusCode, e.SymbolicId),
                 e.NamespaceUri,
+                new StatusCode(e.StatusCode, e.SymbolicId),
                 translatedText,
                 e.AdditionalInfo,
                 innerResult);

@@ -92,7 +92,7 @@ namespace Opc.Ua
         public ServiceResultException(StatusCode statusCode, string message, Exception e)
             : base(message, e)
         {
-            Result = new ServiceResult(statusCode, message, e);
+            Result = new ServiceResult(message, statusCode, e);
         }
 
         /// <summary>

@@ -1453,8 +1453,8 @@ namespace Opc.Ua.Server
                 if (error != null)
                 {
                     error = new ServiceResult(
-                        error.StatusCode.SetSemanticsChanged(true),
                         error.NamespaceUri,
+                        error.StatusCode.SetSemanticsChanged(true),
                         error.LocalizedText,
                         error.AdditionalInfo,
                         error.InnerResult);
@@ -1474,8 +1474,8 @@ namespace Opc.Ua.Server
                 if (error != null)
                 {
                     error = new ServiceResult(
-                        error.StatusCode.SetStructureChanged(true),
                         error.NamespaceUri,
+                        error.StatusCode.SetStructureChanged(true),
                         error.LocalizedText,
                         error.AdditionalInfo,
                         error.InnerResult);

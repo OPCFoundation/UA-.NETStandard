@@ -146,8 +146,8 @@ namespace Opc.Ua.Server
 
             // construct new service result.
             return new ServiceResult(
-                result.StatusCode,
                 result.NamespaceUri,
+                result.StatusCode,
                 translatedText,
                 result.AdditionalInfo,
                 Translate(preferredLocales, result.InnerResult));

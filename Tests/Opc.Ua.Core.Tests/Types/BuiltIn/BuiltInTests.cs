@@ -300,8 +300,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             var stringTable = new StringTable();
             var serviceResult = new ServiceResult(
-                new StatusCode(StatusCodes.BadAggregateConfigurationRejected, "SymbolicId"),
                 Namespaces.OpcUa,
+                new StatusCode(StatusCodes.BadAggregateConfigurationRejected, "SymbolicId"),
                 new LocalizedText("The text", "en-us"),
                 new Exception("The inner exception."));
             ILogger logger = Telemetry.CreateLogger<BuiltInTests>();

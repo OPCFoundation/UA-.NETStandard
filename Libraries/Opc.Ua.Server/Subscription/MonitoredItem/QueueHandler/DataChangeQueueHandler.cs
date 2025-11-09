@@ -359,8 +359,8 @@ namespace Opc.Ua.Server
 
                 // have to copy before updating because the ServiceResult is invariant.
                 error = new ServiceResult(
-                    status,
                     error.NamespaceUri,
+                    status,
                     error.LocalizedText,
                     error.AdditionalInfo,
                     error.InnerResult);

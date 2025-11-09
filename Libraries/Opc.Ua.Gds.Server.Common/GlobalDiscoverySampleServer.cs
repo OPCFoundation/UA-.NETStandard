@@ -155,8 +155,8 @@ namespace Opc.Ua.Gds.Server
                     // create an exception with a vendor defined sub-code.
                     throw new ServiceResultException(
                         new ServiceResult(
-                            new StatusCode(StatusCodes.BadUserAccessDenied, "NoWriteAllowed"),
                             Namespaces.OpcUaGds,
+                            new StatusCode(StatusCodes.BadUserAccessDenied, "NoWriteAllowed"),
                             new LocalizedText(info)));
                 }
 
@@ -326,8 +326,8 @@ namespace Opc.Ua.Gds.Server
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
                     new ServiceResult(
-                        new StatusCode(result.Code, info.Key),
                         LoadServerProperties().ProductUri,
+                        new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
             }
         }

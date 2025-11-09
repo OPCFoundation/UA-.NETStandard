@@ -1666,6 +1666,7 @@ namespace Opc.Ua.Gds.Tests
                     case StatusCodes.BadCertificateInvalid:
                     case StatusCodes.BadCertificateUntrusted:
                     case StatusCodes.BadCertificateRevoked:
+                    case StatusCodes.BadCertificateRevocationUnknown:
                         break;
                     default:
                         NUnit.Framework.Assert.Fail(

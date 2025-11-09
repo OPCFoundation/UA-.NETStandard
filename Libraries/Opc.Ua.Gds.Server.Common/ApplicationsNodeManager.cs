@@ -1253,7 +1253,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (Uri.CheckHostName(domainName) == UriHostNameType.Unknown)
                     {
-                        return new ServiceResult(
+                        return ServiceResult.Create(
                             StatusCodes.BadInvalidArgument,
                             "The domainName ({0}) is not a valid DNS Name or IPAddress.",
                             domainName);

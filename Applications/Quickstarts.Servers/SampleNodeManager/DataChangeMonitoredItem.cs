@@ -845,8 +845,8 @@ namespace Opc.Ua.Sample
                 if (error != null)
                 {
                     error = new ServiceResult(
-                        error.StatusCode.SetSemanticsChanged(true),
                         error.NamespaceUri,
+                        error.StatusCode.SetSemanticsChanged(true),
                         error.LocalizedText,
                         error.AdditionalInfo,
                         error.InnerResult);
@@ -861,16 +861,6 @@ namespace Opc.Ua.Sample
                 if (value != null)
                 {
                     value.StatusCode = value.StatusCode.SetStructureChanged(true);
-                }
-
-                if (error != null)
-                {
-                    _ = new ServiceResult(
-                        error.StatusCode.SetStructureChanged(true),
-                        error.NamespaceUri,
-                        error.LocalizedText,
-                        error.AdditionalInfo,
-                        error.InnerResult);
                 }
 
                 m_structureChanged = false;
