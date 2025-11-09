@@ -24,7 +24,7 @@ namespace Opc.Ua
     /// A class that combines the status code and diagnostic info structures.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public record class ServiceResult
+    public class ServiceResult
     {
         /// <summary>
         /// Constructs an object by specifying each property.
@@ -106,6 +106,14 @@ namespace Opc.Ua
             LocalizedText = localizedText;
             AdditionalInfo = additionalInfo;
             InnerResult = innerResult;
+        }
+
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        internal ServiceResult()
+        {
+            StatusCode = new StatusCode(StatusCodes.Good, nameof(StatusCodes.Good));
         }
 
         /// <summary>
@@ -501,12 +509,7 @@ namespace Opc.Ua
 
             if (e is ServiceResultException sre)
             {
-                return sre.Result with
-                {
-                    LocalizedText = translation == null ?
-                        sre.Result.LocalizedText :
-                        new LocalizedText(translation)
-                };
+                defaultCode = sre.StatusCode;
             }
 
             if (translation == null)
@@ -544,16 +547,11 @@ namespace Opc.Ua
             string format,
             params object[] args)
         {
+            // replace the default code with the one from the exception.
+
             if (e is ServiceResultException sre)
             {
-                return sre.Result with
-                {
-                    LocalizedText = format == null ?
-                        sre.Result.LocalizedText :
-                        args == null || args.Length == 0 ?
-                            new LocalizedText(format) :
-                            new LocalizedText(CoreUtils.Format(format, args))
-                };
+                defaultCode = sre.StatusCode;
             }
 
             if (format == null)
@@ -563,10 +561,10 @@ namespace Opc.Ua
 
             if (args == null || args.Length == 0)
             {
-                return new ServiceResult(defaultCode, format, e);
+                return new ServiceResult(defaultCode, null, format, e);
             }
 
-            return new ServiceResult(defaultCode, CoreUtils.Format(format, args), e);
+            return new ServiceResult(defaultCode, null, CoreUtils.Format(format, args), e);
         }
 
         /// <summary>
