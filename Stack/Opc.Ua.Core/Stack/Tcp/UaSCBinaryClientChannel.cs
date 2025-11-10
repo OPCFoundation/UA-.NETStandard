@@ -195,8 +195,6 @@ namespace Opc.Ua.Bindings
                 }
                 await operation.EndAsync(int.MaxValue, ct: ct).ConfigureAwait(false);
 
-                OperationCompleted(operation);
-
                 SendQueuedOperations();
             }
             catch (Exception e)
@@ -213,6 +211,10 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadTcpInternalError,
                     "Fatal error during connect."));
                 throw;
+            }
+            finally
+            {
+                OperationCompleted(operation);
             }
         }
 
@@ -283,7 +285,7 @@ namespace Opc.Ua.Bindings
                         throw new ServiceResultException(StatusCodes.BadConnectionClosed);
                     }
 
-                    m_logger.LogTrace("ChannelId {ChannelId}: BeginSendRequest()", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: BeginSendRequest()", ChannelId);
 
                     if (m_reconnecting)
                     {
@@ -325,7 +327,7 @@ namespace Opc.Ua.Bindings
                 throw ServiceResultException.Unexpected("Endpoint not defined.");
             }
 
-            m_logger.LogTrace("ChannelId {ChannelId}: SendHelloMessage()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: SendHelloMessage()", ChannelId);
 
             byte[]? buffer = BufferManager.TakeBuffer(SendBufferSize, "SendHelloMessage");
 
@@ -372,7 +374,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessAcknowledgeMessage(ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessAcknowledgeMessage()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessAcknowledgeMessage()", ChannelId);
 
             // check state.
             if (State != TcpChannelState.Connecting)
@@ -561,7 +563,7 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse()", ChannelId);
 
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
@@ -771,7 +773,7 @@ namespace Opc.Ua.Bindings
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
             {
-                //m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage", ChannelId);
+                m_logger.LogDebug("ChannelId {ChannelId}: ProcessResponseMessage", ChannelId);
                 return ProcessResponseMessage(messageType, messageChunk);
             }
 
@@ -780,25 +782,25 @@ namespace Opc.Ua.Bindings
                 // check for acknowledge.
                 if (messageType == TcpMessageType.Acknowledge)
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessAcknowledgeMessage", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessAcknowledgeMessage", ChannelId);
                     return ProcessAcknowledgeMessage(messageChunk);
                 }
                 // check for error.
                 else if (messageType == TcpMessageType.Error)
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessErrorMessage", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessErrorMessage", ChannelId);
                     return ProcessErrorMessage(messageChunk);
                 }
                 // process open secure channel repsonse.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse", ChannelId);
                     return ProcessOpenSecureChannelResponse(messageType, messageChunk);
                 }
                 // process a response to a close request.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage (close)", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessResponseMessage (close)", ChannelId);
                     return ProcessResponseMessage(messageType, messageChunk);
                 }
 
@@ -1031,8 +1033,6 @@ namespace Opc.Ua.Bindings
                         // Complete handshake
                         await operation.EndAsync(int.MaxValue).ConfigureAwait(false);
 
-                        OperationCompleted(operation);
-
                         SendQueuedOperations();
                     }
                     catch (Exception e)
@@ -1052,6 +1052,8 @@ namespace Opc.Ua.Bindings
                     }
                     finally
                     {
+                        OperationCompleted(operation);
+
                         m_reconnecting = false;
                     }
                 }
@@ -1082,7 +1084,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    m_logger.LogTrace("ChannelId {ChannelId}: OnHandshakeComplete", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: OnHandshakeComplete", ChannelId);
 
                     m_handshakeOperation.End(int.MaxValue);
 
@@ -1431,7 +1433,7 @@ namespace Opc.Ua.Bindings
 
             if (!m_requests.TryRemove(operation.RequestId, out _))
             {
-                m_logger.LogWarning(
+                m_logger.LogDebug(
                     "Could not remove requestId {RequestId} from list of pending operations.",
                     operation.RequestId);
             }
@@ -1515,7 +1517,7 @@ namespace Opc.Ua.Bindings
                     OperationCompleted(m_handshakeOperation);
                 }
 
-                m_logger.LogTrace("ChannelId {ChannelId}: Close", ChannelId);
+                m_logger.LogDebug("ChannelId {ChannelId}: Close", ChannelId);
 
                 // attempt a graceful shutdown.
                 if (State == TcpChannelState.Open)
@@ -1547,7 +1549,7 @@ namespace Opc.Ua.Bindings
                 error = ReadErrorMessageBody(decoder);
             }
 
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessErrorMessage({ServiceResult})", ChannelId, error);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessErrorMessage({ServiceResult})", ChannelId, error);
 
             // check if a handshake is in progress
             if (m_handshakeOperation != null)
@@ -1568,7 +1570,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private void SendCloseSecureChannelRequest(WriteOperation operation)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: SendCloseSecureChannelRequest()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: SendCloseSecureChannelRequest()", ChannelId);
 
             // suppress reconnects if an error occurs.
             m_waitBetweenReconnects = Timeout.Infinite;
@@ -1612,7 +1614,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private bool ProcessResponseMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessResponseMessage()", ChannelId);
 
             ArraySegment<byte> messageBody;
 
