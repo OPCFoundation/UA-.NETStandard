@@ -309,11 +309,11 @@ namespace Opc.Ua.Bindings
                         serverSecret);
 
 #if DEBUG
-                    m_logger.LogTrace("Length={Length}", Utils.ToHexString(length));
-                    m_logger.LogTrace("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogTrace("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogTrace("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
-                    m_logger.LogTrace("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
+                    m_logger.LogDebug("Length={Length}", Utils.ToHexString(length));
+                    m_logger.LogDebug("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogDebug("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogDebug("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
+                    m_logger.LogDebug("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
 #endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
@@ -340,11 +340,11 @@ namespace Opc.Ua.Bindings
                         serverSecret);
 
 #if DEBUG
-                    m_logger.LogTrace("Length={Length}", Utils.ToHexString(length));
-                    m_logger.LogTrace("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogTrace("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogTrace("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
-                    m_logger.LogTrace("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
+                    m_logger.LogDebug("Length={Length}", Utils.ToHexString(length));
+                    m_logger.LogDebug("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogDebug("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogDebug("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
+                    m_logger.LogDebug("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
 #endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
@@ -368,11 +368,11 @@ namespace Opc.Ua.Bindings
                         serverSecret);
 
 #if DEBUG
-                    m_logger.LogTrace("Length={Length}", Utils.ToHexString(length));
-                    m_logger.LogTrace("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogTrace("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogTrace("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
-                    m_logger.LogTrace("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
+                    m_logger.LogDebug("Length={Length}", Utils.ToHexString(length));
+                    m_logger.LogDebug("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogDebug("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
+                    m_logger.LogDebug("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
+                    m_logger.LogDebug("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
 #endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);

@@ -291,7 +291,7 @@ namespace Opc.Ua
                 if (zeroCompFails)
                 {
                     /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                    logger.LogTrace(
+                    logger.LogDebug(
                         "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.",
                         i,
                         dimCollection);

@@ -138,7 +138,7 @@ namespace Opc.Ua.Bindings
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
 
-                m_logger.LogTrace(
+                m_logger.LogDebug(
                     "{Channel} SOCKET ATTACHED: {SocketHandle:X8}, ChannelId={ChannelId}",
                     ChannelName,
                     Socket.Handle,
@@ -374,7 +374,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendErrorMessage(ServiceResult error)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: SendErrorMessage={Status}", ChannelId, error.StatusCode);
+            m_logger.LogDebug("ChannelId {ChannelId}: SendErrorMessage={Status}", ChannelId, error.StatusCode);
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
 
@@ -410,7 +410,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            m_logger.LogTrace(
+            m_logger.LogDebug(
                 "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
                 ChannelId,
                 requestId,
@@ -497,7 +497,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            m_logger.LogTrace(
+            m_logger.LogDebug(
                 "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
                 ChannelId,
                 requestId,

@@ -2372,7 +2372,7 @@ namespace Opc.Ua
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogTrace(ex, "Error reading xml element for Variant.");
+                            m_logger.LogDebug(ex, "Error reading xml element for Variant.");
                             value = new Variant(StatusCodes.BadDecodingError);
                         }
                         break;

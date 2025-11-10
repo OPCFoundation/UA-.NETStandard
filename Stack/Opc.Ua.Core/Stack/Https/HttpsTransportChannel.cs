@@ -393,9 +393,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (CryptographicException ce)
                     {
-                        m_logger.LogTrace(
-                            "Copy of the private key for https was denied: {Message}",
-                            ce.Message);
+                        m_logger.LogError(ce, "Copy of the private key for https was denied");
                     }
 #endif
                     PropertyInfo? certProperty = handler.GetType().GetProperty("ClientCertificates");

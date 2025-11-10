@@ -1581,15 +1581,15 @@ namespace Opc.Ua
                 if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    m_server.m_logger.LogTrace("Server halted.");
                     return;
                 }
 
-                //check if we can accept more requests
+                // check if we can accept more requests
                 if (m_queuedRequestsCount >= m_maxRequestCount)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    m_server.m_logger.LogTrace("Too many operations. Active threads: {Count}", m_activeThreadCount);
+                    // TODO: make a metric
+                    m_server.m_logger.LogDebug("Too many operations. Active threads: {Count}", m_activeThreadCount);
                     return;
                 }
                 // Optionally scale up workers if needed
@@ -1601,7 +1601,7 @@ namespace Opc.Ua
                         m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
                     }
                 }
-                //Enqueue requests
+                // Enqueue requests
                 m_queue.Enqueue(request);
                 Interlocked.Increment(ref m_queuedRequestsCount);
                 m_queueSignal.Release();
