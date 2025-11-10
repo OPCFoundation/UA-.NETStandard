@@ -20,7 +20,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: refserver
   DOCKERSIGN: false
-    
+
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
@@ -37,12 +37,12 @@ jobs:
     - uses: actions/checkout@v5
       with:
         fetch-depth: 0
-        
+
     - name: Set up .NET 8
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '8.x'
-        
+
     - name: Set Version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
@@ -86,7 +86,7 @@ jobs:
 
     - name: Prepare Release tags
       if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
-      run: | 
+      run: |
         echo TAG_RELEASE=,${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }},${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }},${{ env.IMAGE_REPOSITORY }}:release >> $GITHUB_ENV
 
     # Extract metadata (tags, labels) for Docker
