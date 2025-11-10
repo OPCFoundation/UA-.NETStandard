@@ -8,9 +8,6 @@
     <IsPackable>true</IsPackable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
-    <!-- currently the packages based on bouncy castle exposes additional API
-         so package validation is disabled to pass the build -->
-    <EnablePackageValidation>false</EnablePackageValidation>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
