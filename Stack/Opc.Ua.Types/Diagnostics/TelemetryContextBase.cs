@@ -60,18 +60,18 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Meter CreateMeter()
         {
-            (string name, string version) = GetAssemblyInfo(Assembly.GetCallingAssembly());
+            (string name, string version) = GetAssemblyInfo();
             return new Meter(name, version);
         }
 
         /// <inheritdoc/>
         public ActivitySource ActivitySource
-            => m_sources.GetOrAdd(GetAssemblyInfo(Assembly.GetCallingAssembly()),
+            => s_sources.GetOrAdd(GetAssemblyInfo(),
                     key => new ActivitySource(key.Item1, key.Item2));
 
-        private (string, string) GetAssemblyInfo(Assembly assembly)
+        private static (string, string) GetAssemblyInfo()
         {
-            return m_cache.GetOrAdd(assembly, GetAssemblyInfoCore);
+            return s_cache.GetOrAdd(Assembly.GetCallingAssembly(), GetAssemblyInfoCore);
             static (string, string) GetAssemblyInfoCore(Assembly assembly)
             {
                 string version = assembly
@@ -83,7 +83,7 @@ namespace Opc.Ua
             }
         }
 
-        private readonly ConcurrentDictionary<(string, string), ActivitySource> m_sources = [];
-        private readonly ConcurrentDictionary<Assembly, (string, string)> m_cache = [];
+        private static readonly ConcurrentDictionary<(string, string), ActivitySource> s_sources = [];
+        private static readonly ConcurrentDictionary<Assembly, (string, string)> s_cache = [];
     }
 }
