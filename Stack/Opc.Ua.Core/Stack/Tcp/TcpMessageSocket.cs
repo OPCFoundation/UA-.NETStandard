@@ -306,6 +306,16 @@ namespace Opc.Ua.Bindings
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "Failed to connect a socket to {IdnHost}:{Port} (DnsHost: {Host}).",
+                    endpointUrl.IdnHost,
+                    port,
+                    endpointUrl.DnsSafeHost);
+                throw;
+            }
             finally
             {
                 if (socket != null)
