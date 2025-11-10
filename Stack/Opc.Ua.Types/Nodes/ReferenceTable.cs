@@ -894,10 +894,10 @@ namespace Opc.Ua
 
         /// <summary>
         /// Stores the references for a particular reference type.
+        /// Note that the target lists are not ordered and are returned in arbitrary order.
         /// </summary>
         private class ReferenceTypeEntry
         {
-            // Note that the target lists are not ordered and are returned in arbitrary order.
             public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> ForwardTargets { get; set; }
             public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> ForwardExternalTargets { get; set; }
             public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> InverseTargets { get; set; }

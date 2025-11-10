@@ -36,17 +36,13 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Builds a Certificate.
     /// </summary>
-    public abstract class CertificateBuilderBase
-        : IX509Certificate,
-            ICertificateBuilder,
-
-            ICertificateBuilderIssuer,
-
-            ICertificateBuilderCreateForRSAAny,
-            ICertificateBuilderCreateForECDsa,
-            ICertificateBuilderECDsaPublicKey,
-            ICertificateBuilderECCParameter,
-            ICertificateBuilderCreateForECDsaAny
+    public abstract class CertificateBuilderBase :
+        IX509Certificate,
+        ICertificateBuilder,
+        ICertificateBuilderIssuer,
+        ICertificateBuilderCreateForRSAAny,
+        ICertificateBuilderCreateForECDsa,
+        ICertificateBuilderCreateForECDsaAny
     {
         /// <summary>
         /// Initialize a Certificate builder.

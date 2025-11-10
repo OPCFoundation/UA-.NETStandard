@@ -435,8 +435,6 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
                 var subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
 
-                X509Certificate2 certificate;
-
                 ICertificateBuilder builder = CertificateBuilder
                     .Create(subjectName)
                     .AddExtension(
@@ -444,7 +442,7 @@ namespace Opc.Ua.Gds.Server
                     .SetNotBefore(yesterday)
                     .SetLifeTime(Configuration.DefaultCertificateLifetime);
 
-                certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+                return TryGetECCCurve(certificateType, out ECCurve curve)
                     ? builder
                         .SetIssuer(signingKey)
                         .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
@@ -455,8 +453,6 @@ namespace Opc.Ua.Gds.Server
                         .SetIssuer(signingKey)
                         .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
                         .CreateForRSA();
-
-                return certificate;
             }
             catch (Exception ex) when (ex is not ServiceResultException)
             {

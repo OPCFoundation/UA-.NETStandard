@@ -35,6 +35,7 @@ using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NETFRAMEWORK
 using Org.BouncyCastle.X509;
+#endif
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -486,4 +487,3 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
     }
 }
-#endif

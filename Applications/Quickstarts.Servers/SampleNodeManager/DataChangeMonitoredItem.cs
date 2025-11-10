@@ -842,16 +842,6 @@ namespace Opc.Ua.Sample
                     value.StatusCode = value.StatusCode.SetSemanticsChanged(true);
                 }
 
-                if (error != null)
-                {
-                    error = new ServiceResult(
-                        error.NamespaceUri,
-                        error.StatusCode.SetSemanticsChanged(true),
-                        error.LocalizedText,
-                        error.AdditionalInfo,
-                        error.InnerResult);
-                }
-
                 m_semanticsChanged = false;
             }
 
