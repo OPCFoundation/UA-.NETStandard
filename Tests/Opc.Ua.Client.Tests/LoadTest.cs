@@ -109,7 +109,7 @@ namespace Opc.Ua.Client.Tests
             var sessions = new ConcurrentBag<ISession>();
             var subscriptions = new ConcurrentBag<Subscription>();
             var valueChanges = new ConcurrentDictionary<NodeId, int>();
-            var monitoredItems = new List<MonitoredItem>();
+            var monitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
             var clientHandles = new ConcurrentDictionary<uint, NodeId>();
             var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                                 valueChanges.TryAdd(nodeId, 0);
                                 clientHandles.TryAdd(item.ClientHandle, nodeId);
 
-                                monitoredItems.Add(item);
+                                monitoredItems.TryAdd(item.ClientHandle, item);
                                 subscription.AddItem(item);
                             }
 

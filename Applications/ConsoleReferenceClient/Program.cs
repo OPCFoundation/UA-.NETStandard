@@ -77,6 +77,7 @@ namespace Quickstarts.ConsoleReferenceClient
             byte[] userCertificatePassword = null;
             bool logConsole = false;
             bool appLog = false;
+            bool fileLog = false;
             bool renewCertificate = false;
             bool loadTypes = false;
             bool managedbrowseall = false;
@@ -127,6 +128,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
+                { "f|file", "log to file", f => fileLog = f != null },
                 {
                     "p|password=",
                     "optional password for private key",
@@ -329,6 +331,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     config,
                     applicationName,
                     logConsole,
+                    fileLog,
+                    appLog,
                     LogLevel.Information);
 
                 // delete old certificate
