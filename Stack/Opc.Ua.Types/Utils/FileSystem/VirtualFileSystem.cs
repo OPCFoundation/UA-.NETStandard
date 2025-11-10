@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace Opc.Ua
 {
@@ -247,7 +248,7 @@ namespace Opc.Ua
                     Created = LastWrite = DateTime.UtcNow;
 
                     File = MemoryMappedFile.CreateNew(
-                        Guid.NewGuid().ToString(),
+                        GetMapName(),
                         1 * 1024 * 1204,
                         MemoryMappedFileAccess.ReadWrite,
                         MemoryMappedFileOptions.DelayAllocatePages,
@@ -262,20 +263,27 @@ namespace Opc.Ua
 #if MAP_FILE
                     File = MemoryMappedFile.CreateFromFile(
                         new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite),
-                        Guid.NewGuid().ToString(),
+                        GetMapName(),
                         Length,
                         MemoryMappedFileAccess.ReadWrite,
                         HandleInheritability.None,
                         false);
 #else // Copy file - avoid sharing issues
                     File = MemoryMappedFile.CreateNew(
-                        Guid.NewGuid().ToString(),
+                        GetMapName(),
                         Length,
                         MemoryMappedFileAccess.ReadWrite,
                         MemoryMappedFileOptions.DelayAllocatePages,
                         HandleInheritability.None);
                     SetContent(System.IO.File.ReadAllBytes(filePath));
 #endif
+                }
+
+                static string GetMapName()
+                {
+                    return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                            Guid.NewGuid().ToString() :
+                            null;
                 }
             }
 
