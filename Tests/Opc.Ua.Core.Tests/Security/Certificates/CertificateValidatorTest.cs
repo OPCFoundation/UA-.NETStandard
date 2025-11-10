@@ -41,9 +41,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-#if NETCOREAPP2_1 || !ECC_SUPPORT
-using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
-#endif
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -56,11 +53,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateValidatorTest
     {
-#if ECC_SUPPORT
         [DatapointSource]
         public static readonly ECCurveHashPair[] ECCurveHashPairs = CertificateTestsForECDsa
             .GetECCurveHashPairs();
-#endif
 
         public const string RootCASubject = "CN=Root CA Test Cert, O=OPC Foundation";
 
@@ -1069,7 +1064,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 byte[] pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-#if NET5_0_OR_GREATER && ECC_SUPPORT
+#if NET5_0_OR_GREATER
                 ArgumentException exception = NUnit.Framework.Assert.Throws<ArgumentException>(() =>
                     CertificateFactory.CreateCertificateWithPEMPrivateKey(
                         new X509Certificate2(appCert),
@@ -1078,7 +1073,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-#if NET5_0_OR_GREATER && ECC_SUPPORT
+#if NET5_0_OR_GREATER
         /// <summary>
         /// Verify the PEM Writer, no password.
         /// </summary>
@@ -1566,7 +1561,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Test that Hash sizes lower than public key sizes of certificates are not valid
         /// </summary>
@@ -1601,7 +1595,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.Null(innerResult);
             }
         }
-#endif
 
         /// <summary>
         /// Test auto accept.

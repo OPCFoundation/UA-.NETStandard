@@ -181,10 +181,7 @@ namespace Opc.Ua.Gds.Client
             {
                 if (Certificate != null)
                 {
-#if ECC_SUPPORT
                     // TODO  use X509Utils.GetPublicKeySize(Certificate); everywhere
-
-#endif
                     return X509Utils.GetRSAPublicKeySize(Certificate);
                 }
 

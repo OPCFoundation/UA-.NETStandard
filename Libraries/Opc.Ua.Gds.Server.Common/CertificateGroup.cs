@@ -271,13 +271,10 @@ namespace Opc.Ua.Gds.Server
                     subjectName,
                     domainNames)
                 .SetIssuer(signingKey);
-#if ECC_SUPPORT
+
             using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder.CreateForRSA();
-#else
-            using X509Certificate2 certificate = builder.CreateForRSA();
-#endif
 
             byte[] privateKey;
             if (privateKeyFormat == "PFX")
@@ -447,7 +444,6 @@ namespace Opc.Ua.Gds.Server
                     .SetNotBefore(yesterday)
                     .SetLifeTime(Configuration.DefaultCertificateLifetime);
 
-#if ECC_SUPPORT
                 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                     ? builder
                         .SetIssuer(signingKey)
@@ -459,14 +455,6 @@ namespace Opc.Ua.Gds.Server
                         .SetIssuer(signingKey)
                         .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
                         .CreateForRSA();
-#else
-                certificate = builder
-                    .SetHashAlgorithm(
-                        X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
-                    .SetIssuer(signingKey)
-                    .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                    .CreateForRSA();
-#endif
 
                 return certificate;
             }
@@ -507,7 +495,6 @@ namespace Opc.Ua.Gds.Server
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetCAConstraint();
 
-#if ECC_SUPPORT
             using X509Certificate2 certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder
@@ -515,13 +502,6 @@ namespace Opc.Ua.Gds.Server
                         X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                     .SetRSAKeySize(Configuration.CACertificateKeySize)
                     .CreateForRSA();
-#else
-            using X509Certificate2 certificate = builder
-                .SetHashAlgorithm(
-                    X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
-                .SetRSAKeySize(Configuration.CACertificateKeySize)
-                .CreateForRSA();
-#endif
 
             await certificate.AddToStoreAsync(
                 AuthoritiesStore,
@@ -691,7 +671,6 @@ namespace Opc.Ua.Gds.Server
             return updatedCRL;
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// GetTheEccCurve of the CertificateGroups CertificateType
         /// </summary>
@@ -722,7 +701,6 @@ namespace Opc.Ua.Gds.Server
                     certificateType == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
             }
         }
-#endif
 
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the provided CertificateStore

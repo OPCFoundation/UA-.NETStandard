@@ -36,76 +36,64 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// The certificate builder interface.
     /// </summary>
-    public interface ICertificateBuilder
-        : ICertificateBuilderConfig,
-            ICertificateBuilderPublicKey,
-            ICertificateBuilderSetIssuer,
-            ICertificateBuilderParameter,
-            ICertificateBuilderCreateForRSA,
-            IX509Certificate;
+    public interface ICertificateBuilder :
+        ICertificateBuilderConfig,
+        ICertificateBuilderPublicKey,
+        ICertificateBuilderSetIssuer,
+        ICertificateBuilderParameter,
+        ICertificateBuilderCreateForRSA,
+        IX509Certificate;
 
     /// <summary>
     /// The interface to set an issuer.
     /// </summary>
-    public interface ICertificateBuilderIssuer
-        : ICertificateBuilderPublicKey,
-            ICertificateBuilderCreateForRSA,
-            ICertificateBuilderParameter,
-            ICertificateBuilderCreateGenerator;
+    public interface ICertificateBuilderIssuer :
+        ICertificateBuilderPublicKey,
+        ICertificateBuilderCreateForRSA,
+        ICertificateBuilderParameter,
+        ICertificateBuilderCreateGenerator;
 
     /// <summary>
     /// The interface to set a public key.
     /// </summary>
-    public interface ICertificateBuilderPublicKey : ICertificateBuilderRSAPublicKey
-#if ECC_SUPPORT
-            , ICertificateBuilderECDsaPublicKey
-#endif
-    ;
+    public interface ICertificateBuilderPublicKey :
+        ICertificateBuilderRSAPublicKey,
+        ICertificateBuilderECDsaPublicKey;
 
     /// <summary>
     /// The interface to set key parameters.
     /// </summary>
-    public interface ICertificateBuilderParameter : ICertificateBuilderRSAParameter
-#if ECC_SUPPORT
-            , ICertificateBuilderECCParameter
-#endif
-    ;
+    public interface ICertificateBuilderParameter :
+        ICertificateBuilderRSAParameter,
+        ICertificateBuilderECCParameter;
 
     /// <summary>
     /// The interface to create a certificate.
     /// </summary>
-    public interface ICertificateBuilderCreate : ICertificateBuilderCreateForRSA
-#if ECC_SUPPORT
-            , ICertificateBuilderCreateForECDsa
-#endif
-    ;
+    public interface ICertificateBuilderCreate :
+        ICertificateBuilderCreateForRSA,
+        ICertificateBuilderCreateForECDsa;
 
     /// <summary>
     /// The interface to use a signature generator.
     /// </summary>
-    public interface ICertificateBuilderCreateGenerator
-        : ICertificateBuilderCreateForRSAGenerator
-#if ECC_SUPPORT
-            ,
-            ICertificateBuilderCreateForECDsaGenerator
-#endif
-    ;
+    public interface ICertificateBuilderCreateGenerator :
+        ICertificateBuilderCreateForRSAGenerator,
+        ICertificateBuilderCreateForECDsaGenerator;
 
     /// <summary>
     /// The interface to create a RSA based certificate.
     /// </summary>
-    public interface ICertificateBuilderCreateForRSAAny
-        : ICertificateBuilderCreateForRSA,
-            ICertificateBuilderCreateForRSAGenerator;
+    public interface ICertificateBuilderCreateForRSAAny :
+        ICertificateBuilderCreateForRSA,
+        ICertificateBuilderCreateForRSAGenerator;
 
-#if ECC_SUPPORT
     /// <summary>
     /// The interface to create a ECDSA based certificate.
     /// </summary>
-    public interface ICertificateBuilderCreateForECDsaAny
-        : ICertificateBuilderCreateForECDsa,
-            ICertificateBuilderCreateForECDsaGenerator;
-#endif
+    public interface ICertificateBuilderCreateForECDsaAny :
+        ICertificateBuilderCreateForECDsa,
+        ICertificateBuilderCreateForECDsaGenerator;
 
     /// <summary>
     /// The interface to set the mandatory certificate
@@ -237,7 +225,6 @@ namespace Opc.Ua.Security.Certificates
         ICertificateBuilderCreateForRSAAny SetRSAKeySize(ushort keySize);
     }
 
-#if ECC_SUPPORT
     /// <summary>
     /// The interface to select the ECCurve.
     /// </summary>
@@ -249,7 +236,6 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="curve">The ECCurve.</param>
         ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve);
     }
-#endif
 
     /// <summary>
     /// The interface to set a RSA public key for a certificate.
@@ -269,7 +255,6 @@ namespace Opc.Ua.Security.Certificates
         ICertificateBuilderCreateForRSAAny SetRSAPublicKey(RSA publicKey);
     }
 
-#if ECC_SUPPORT
     /// <summary>
     /// The interface to set a ECDSA public key for a certificate.
     /// </summary>
@@ -287,7 +272,6 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="publicKey">The ECDsa public key.</param>
         ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(ECDsa publicKey);
     }
-#endif
 
     /// <summary>
     /// The interface to create a certificate using the RSA algorithm.
@@ -313,7 +297,6 @@ namespace Opc.Ua.Security.Certificates
         X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
     }
 
-#if ECC_SUPPORT
     /// <summary>
     /// The interface to create a certificate using the ECDSA algorithm.
     /// </summary>
@@ -337,5 +320,4 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed certificate.</returns>
         X509Certificate2 CreateForECDsa(X509SignatureGenerator generator);
     }
-#endif
 }

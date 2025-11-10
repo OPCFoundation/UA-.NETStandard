@@ -2138,7 +2138,6 @@ namespace Opc.Ua
                 StatusCodes.BadCertificateUntrusted
             ]);
 
-#if ECC_SUPPORT
         /// <summary>
         /// Dictionary of named curves and their bit sizes.
         /// </summary>
@@ -2152,7 +2151,6 @@ namespace Opc.Ua
             { ECCurve.NamedCurves.brainpoolP256r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.7", 256 }, // BrainpoolP256r1
             { ECCurve.NamedCurves.brainpoolP384r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.11", 384 } // BrainpoolP384r1
         };
-#endif
 
         /// <summary>
         /// Find the domain in a certificate in the
@@ -2213,7 +2211,6 @@ namespace Opc.Ua
             return domainFound;
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Returns if the certificate is secure enough for the profile.
         /// </summary>
@@ -2246,7 +2243,6 @@ namespace Opc.Ua
 
             throw new NotSupportedException("Unsupported curve type.");
         }
-#endif
 
         /// <summary>
         /// Flag to protect setting by application

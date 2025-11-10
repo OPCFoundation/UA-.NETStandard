@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if ECC_SUPPORT
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -36,7 +35,6 @@ using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NETFRAMEWORK
 using Org.BouncyCastle.X509;
-#endif
 
 namespace Opc.Ua.Security.Certificates.Tests
 {

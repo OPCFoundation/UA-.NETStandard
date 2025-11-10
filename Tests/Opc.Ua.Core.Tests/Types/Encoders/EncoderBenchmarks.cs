@@ -180,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected BufferManager m_bufferManager;
     }
 
-#if NET6_0_OR_GREATER && ECC_SUPPORT
+#if NET6_0_OR_GREATER
     /// <summary>
     /// Helper class to test ArraySegmentStream without Span support.
     /// </summary>

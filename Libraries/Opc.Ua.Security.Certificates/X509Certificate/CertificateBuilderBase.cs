@@ -42,14 +42,11 @@ namespace Opc.Ua.Security.Certificates
 
             ICertificateBuilderIssuer,
 
-            ICertificateBuilderCreateForRSAAny
-#if ECC_SUPPORT
-            ,
+            ICertificateBuilderCreateForRSAAny,
             ICertificateBuilderCreateForECDsa,
             ICertificateBuilderECDsaPublicKey,
             ICertificateBuilderECCParameter,
             ICertificateBuilderCreateForECDsaAny
-#endif
     {
         /// <summary>
         /// Initialize a Certificate builder.
@@ -114,13 +111,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
 
-#if ECC_SUPPORT
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForECDsa();
 
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForECDsa(X509SignatureGenerator generator);
-#endif
 
         /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumberLength(int length)
@@ -239,7 +234,6 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-#if ECC_SUPPORT
         /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve)
         {
@@ -262,7 +256,6 @@ namespace Opc.Ua.Security.Certificates
             m_ecdsaPublicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
             return this;
         }
-#endif
 
         /// <inheritdoc/>
         public abstract ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey);
@@ -282,8 +275,6 @@ namespace Opc.Ua.Security.Certificates
             IssuerName = issuerCertificate.SubjectName;
             return this;
         }
-
-#if ECC_SUPPORT
 
         /// <summary>
         /// Set the hash algorithm depending on the curve size
@@ -308,7 +299,6 @@ namespace Opc.Ua.Security.Certificates
                 SetHashAlgorithm(HashAlgorithmName.SHA512);
             }
         }
-#endif
 
         /// <summary>
         /// The issuer CA certificate.
@@ -389,7 +379,6 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private protected int m_keySize;
 
-#if ECC_SUPPORT
         /// <summary>
         /// The ECDsa public to use when if a certificate is signed.
         /// </summary>
@@ -399,6 +388,5 @@ namespace Opc.Ua.Security.Certificates
         /// The ECCurve to use.
         /// </summary>
         private protected ECCurve? m_curve;
-#endif
     }
 }

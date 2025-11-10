@@ -290,14 +290,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-#if ECC_SUPPORT
                 m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
-#endif
                 m_eccUserTokenNonce = null;
             }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Create new ECC ephemeral key
         /// </summary>
@@ -323,7 +320,6 @@ namespace Opc.Ua.Server
                 return key;
             }
         }
-#endif
 
         /// <summary>
         /// Returns the session's endpoint
@@ -1284,11 +1280,8 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;
-
         private Nonce m_serverNonce;
-#if ECC_SUPPORT
         private string m_eccUserTokenSecurityPolicyUri;
-#endif
         private Nonce m_eccUserTokenNonce;
         private readonly X509Certificate2Collection m_clientIssuerCertificates;
         private readonly int m_maxHistoryContinuationPoints;

@@ -325,8 +325,6 @@ namespace Opc.Ua.Gds.Server
                     {
                         Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
-                    // ECC / V1.05
-#if ECC_SUPPORT
                     },
                     {
                         Ua.ObjectTypeIds.EccApplicationCertificateType,
@@ -356,7 +354,6 @@ namespace Opc.Ua.Gds.Server
                     {
                         Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType,
                         nameof(Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType)
-#endif
 #endif
                     }
                 };
@@ -1843,7 +1840,6 @@ namespace Opc.Ua.Gds.Server
                 Utils.IsEqual(
                     certificateType,
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) ||
-#if ECC_SUPPORT
                 Utils.IsEqual(
                     certificateType,
                     Ua.ObjectTypeIds.EccApplicationCertificateType) ||
@@ -1865,8 +1861,7 @@ namespace Opc.Ua.Gds.Server
                     Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType) ||
                 Utils.IsEqual(
                     certificateType,
-                    Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType)
-#endif
+                    Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType) ||
 #endif
                     false))
             {

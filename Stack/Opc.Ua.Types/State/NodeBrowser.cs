@@ -47,7 +47,8 @@ namespace Opc.Ua
             BrowseDirection browseDirection,
             QualifiedName browseName,
             IEnumerable<IReference> additionalReferences,
-            bool internalOnly)
+            bool internalOnly,
+            bool allowDuplicateReferences = false)
         {
             SystemContext = context;
             View = view;
@@ -57,7 +58,9 @@ namespace Opc.Ua
             BrowseName = browseName;
             InternalOnly = internalOnly;
             m_references = [];
-            m_index = 0;
+            m_seenReferences = allowDuplicateReferences ?
+                null :
+                new(ReferenceEqualityComparer.Instance);
 
             // add any additional references if they meet the criteria.
             if (additionalReferences != null)
@@ -66,7 +69,7 @@ namespace Opc.Ua
                 {
                     if (IsRequired(reference.ReferenceTypeId, reference.IsInverse))
                     {
-                        m_references.Add(reference);
+                        AddReference(reference);
                     }
                 }
             }
@@ -181,7 +184,7 @@ namespace Opc.Ua
         {
             lock (DataLock)
             {
-                m_references.Add(reference);
+                AddReference(reference);
             }
         }
 
@@ -201,7 +204,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                m_references.Add(new NodeStateReference(referenceTypeId, isInverse, target));
+                AddReference(new NodeStateReference(referenceTypeId, isInverse, target));
             }
         }
 
@@ -212,7 +215,7 @@ namespace Opc.Ua
         {
             lock (DataLock)
             {
-                m_references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId));
+                AddReference(new NodeStateReference(referenceTypeId, isInverse, targetId));
             }
         }
 
@@ -256,8 +259,25 @@ namespace Opc.Ua
         /// </summary>
         public bool InternalOnly { get; }
 
+        /// <summary>
+        /// Indicates that the browser can return duplicate references during browse.
+        /// </summary>
+        public bool CanProduceDuplicateReferences => m_seenReferences == null;
+
+        /// <summary>
+        /// Ensure unique references are added.
+        /// </summary>
+        private void AddReference(IReference reference)
+        {
+            if (m_seenReferences == null || m_seenReferences.Add(reference))
+            {
+                m_references.Add(reference);
+            }
+        }
+
         private IReference m_pushBack;
         private readonly List<IReference> m_references;
+        private readonly HashSet<IReference> m_seenReferences;
         private int m_index;
     }
 

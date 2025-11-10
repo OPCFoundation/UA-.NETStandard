@@ -1164,26 +1164,22 @@ namespace Opc.Ua.Configuration
                     StorePath = storePath,
                     SubjectName = subjectName,
                     CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                },
+                new CertificateIdentifier
+                {
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
+                },
+                new CertificateIdentifier
+                {
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.EccNistP384ApplicationCertificateType
                 }
             };
-#if ECC_SUPPORT
-            certificateIdentifiers.AddRange(
-                [
-                    new CertificateIdentifier
-                    {
-                        StoreType = storeType,
-                        StorePath = storePath,
-                        SubjectName = subjectName,
-                        CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
-                    },
-                    new CertificateIdentifier
-                    {
-                        StoreType = storeType,
-                        StorePath = storePath,
-                        SubjectName = subjectName,
-                        CertificateType = ObjectTypeIds.EccNistP384ApplicationCertificateType
-                    }
-                ]);
 
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -1207,7 +1203,6 @@ namespace Opc.Ua.Configuration
                         }
                     ]);
             }
-#endif
             return certificateIdentifiers;
         }
 

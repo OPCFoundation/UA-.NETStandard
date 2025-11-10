@@ -2066,7 +2066,6 @@ namespace Opc.Ua
             }
             switch (identifier)
             {
-#if ECC_SUPPORT
                 case ObjectTypes.EccApplicationCertificateType:
                     return true;
                 case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
@@ -2083,7 +2082,6 @@ namespace Opc.Ua
                         .Value;
                 // case ObjectTypes.EccCurve25519ApplicationCertificateType:
                 // case ObjectTypes.EccCurve448ApplicationCertificateType:
-#endif
                 case ObjectTypes.ApplicationCertificateType:
                 case ObjectTypes.RsaMinApplicationCertificateType:
                 case ObjectTypes.RsaSha256ApplicationCertificateType:
@@ -2095,7 +2093,6 @@ namespace Opc.Ua
             }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Check if known curve is supported by platform
         /// </summary>
@@ -2137,7 +2134,6 @@ namespace Opc.Ua
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1))
             }
         };
-#endif
 
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.

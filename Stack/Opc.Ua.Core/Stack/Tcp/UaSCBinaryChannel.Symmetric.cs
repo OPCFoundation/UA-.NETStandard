@@ -238,7 +238,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-#if ECC_SUPPORT
         private void DeriveKeysWithHKDF(
             HashAlgorithmName algorithmName,
             byte[] salt,
@@ -270,7 +269,6 @@ namespace Opc.Ua.Bindings
                 token.ClientInitializationVector = iv;
             }
         }
-#endif
 
         /// <summary>
         /// Computes the keys for a token.
@@ -288,7 +286,6 @@ namespace Opc.Ua.Bindings
             HashAlgorithmName algorithmName = HashAlgorithmName.SHA256;
             switch (SecurityPolicyUri)
             {
-#if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 {
@@ -379,7 +376,6 @@ namespace Opc.Ua.Bindings
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
                     break;
                 }
-#endif
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                     algorithmName = HashAlgorithmName.SHA1;
@@ -1486,7 +1482,6 @@ namespace Opc.Ua.Bindings
         }
 #endif
 
-#if ECC_SUPPORT
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");
         private static readonly byte[] s_hkdfServerLabel = Encoding.UTF8.GetBytes("opcua-server");
         private static readonly byte[] s_hkdfAes128SignOnlyKeyLength = BitConverter.GetBytes(
@@ -1499,7 +1494,6 @@ namespace Opc.Ua.Bindings
             (ushort)96);
         private static readonly byte[] s_hkdfChaCha20Poly1305KeyLength = BitConverter.GetBytes(
             (ushort)76);
-#endif
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
     }

@@ -209,7 +209,6 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 DiscardTokens();
-#if ECC_SUPPORT
                 if (m_localNonce != null)
                 {
                     m_localNonce.Dispose();
@@ -221,7 +220,6 @@ namespace Opc.Ua.Bindings
                     m_remoteNonce.Dispose();
                     m_remoteNonce = null;
                 }
-#endif
             }
         }
 

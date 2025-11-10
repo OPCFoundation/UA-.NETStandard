@@ -4839,7 +4839,6 @@ namespace Opc.Ua.Client
             {
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
-#if ECC_SUPPORT
                     if (ii.Key == "ECDHKey")
                     {
                         if (ii.Value.TypeInfo == TypeInfo.Scalars.StatusCode)
@@ -4872,7 +4871,6 @@ namespace Opc.Ua.Client
                             m_userTokenSecurityPolicyUri,
                             key.PublicKey);
                     }
-#endif
                 }
             }
         }

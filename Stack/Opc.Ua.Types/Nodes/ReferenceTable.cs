@@ -382,6 +382,57 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Compare reference equality
+    /// </summary>
+    public sealed class ReferenceEqualityComparer : IEqualityComparer<IReference>
+    {
+        /// <summary>
+        /// Get an instance of the reference equality comparer.
+        /// </summary>
+        public static ReferenceEqualityComparer Instance { get; } = new ReferenceEqualityComparer();
+
+        /// <inheritdoc/>
+        public bool Equals(IReference x, IReference y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+
+            if (x == null || y == null)
+            {
+                return false;
+            }
+
+            if (!CoreUtils.IsEqual(x.TargetId, y.TargetId))
+            {
+                return false;
+            }
+
+            if (!CoreUtils.IsEqual(x.ReferenceTypeId, y.ReferenceTypeId))
+            {
+                return false;
+            }
+
+            if (!CoreUtils.IsEqual(x.IsInverse, y.IsInverse))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(IReference obj)
+        {
+            return HashCode.Combine(
+                obj.TargetId,
+                obj.ReferenceTypeId,
+                obj.IsInverse);
+        }
+    }
+
+    /// <summary>
     /// A dictionary designed to provide efficient lookups for references.
     /// </summary>
     /// <typeparam name="T"></typeparam>
@@ -846,10 +897,11 @@ namespace Opc.Ua
         /// </summary>
         private class ReferenceTypeEntry
         {
-            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> ForwardTargets;
-            public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> ForwardExternalTargets;
-            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> InverseTargets;
-            public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> InverseExternalTargets;
+            // Note that the target lists are not ordered and are returned in arbitrary order.
+            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> ForwardTargets { get; set; }
+            public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> ForwardExternalTargets { get; set; }
+            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> InverseTargets { get; set; }
+            public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> InverseExternalTargets { get; set; }
 
             /// <summary>
             /// Whether the entry is empty.

@@ -535,12 +535,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             PEMWriter.ExportCertificateAsPEM(certificate);
             if (certificate.HasPrivateKey)
             {
-#if NETFRAMEWORK || NETCOREAPP2_1 || !ECC_SUPPORT
+#if NETFRAMEWORK
                 // The implementation based on bouncy castle has no support to export with password
                 password = null;
 #endif
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
-#if NET5_0_OR_GREATER && ECC_SUPPORT
+#if NET5_0_OR_GREATER
                 PEMWriter.ExportRSAPrivateKeyAsPEM(certificate);
 #endif
             }

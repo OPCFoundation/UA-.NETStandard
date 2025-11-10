@@ -36,9 +36,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-#if ECC_SUPPORT
 using System.Security.Cryptography;
-#endif
 
 namespace Opc.Ua.Configuration
 {
@@ -935,11 +933,6 @@ namespace Opc.Ua.Configuration
             }
             else
             {
-#if !ECC_SUPPORT
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "The Ecc certificate type is not supported.");
-#else
                 ECCurve? curve =
                     EccUtils.GetCurveFromCertificateTypeId(id.CertificateType)
                     ?? throw new ServiceResultException(
@@ -952,7 +945,6 @@ namespace Opc.Ua.Configuration
                     "Certificate {Certificate} created for {Curve}.",
                     id.Certificate.AsLogSafeString(),
                     curve.Value.Oid.FriendlyName);
-#endif
             }
 
             ICertificatePasswordProvider passwordProvider = configuration
