@@ -223,10 +223,20 @@ namespace Opc.Ua.Bindings
             object? state)
         {
             Task t = socket.ConnectAsync(endpointUrl);
-            t.GetAwaiter().OnCompleted(() => callback?.Invoke(
-                socket,
-                new TcpMessageSocketConnectAsyncEventArgs(t, state)));
+            t.GetAwaiter().OnCompleted(
+                () => OnCompleted(socket, callback, state, t));
             return !t.IsFaulted;
+
+            static void OnCompleted(
+                IMessageSocket socket,
+                EventHandler<IMessageSocketAsyncEventArgs> callback,
+                object? state,
+                Task t)
+            {
+                callback?.Invoke(
+                    socket,
+                    new TcpMessageSocketConnectAsyncEventArgs(t, state));
+            }
         }
 
         /// <summary>

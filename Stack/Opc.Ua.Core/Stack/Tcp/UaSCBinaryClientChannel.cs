@@ -151,7 +151,19 @@ namespace Opc.Ua.Bindings
                 // check if configured to use a proxy.
                 if (EndpointDescription != null && EndpointDescription.ProxyUrl != null)
                 {
-                    m_via = EndpointDescription.ProxyUrl;
+                    m_logger.LogInformation(
+                        "CLIENTCHANNEL SOCKET CONNECTING to {Url} via {Proxy}: ChannelId={ChannelId}",
+                        url,
+                        EndpointDescription.ProxyUrl,
+                        ChannelId);
+                    m_via = url = EndpointDescription.ProxyUrl;
+                }
+                else
+                {
+                    m_logger.LogInformation(
+                        "CLIENTCHANNEL SOCKET CONNECTING to {Url}: ChannelId={ChannelId}",
+                        url,
+                        ChannelId);
                 }
 
                 // do not attempt reconnect on failure.
@@ -185,9 +197,11 @@ namespace Opc.Ua.Bindings
                 }
                 else if (socket != null)
                 {
-                    await socket.ConnectAsync(m_via, ct).ConfigureAwait(false);
+                    await socket.ConnectAsync(url, ct).ConfigureAwait(false);
+
                     m_logger.LogInformation(
-                        "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId}",
+                        "CLIENTCHANNEL SOCKET CONNECTED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                        url,
                         Socket?.Handle,
                         ChannelId);
 
@@ -200,7 +214,8 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.LogError(e,
-                    "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId}",
+                    "CLIENTCHANNEL SOCKET CONNECT FAILED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                    url,
                     Socket?.Handle,
                     ChannelId);
 
