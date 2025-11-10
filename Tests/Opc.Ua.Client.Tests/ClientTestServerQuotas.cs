@@ -171,7 +171,6 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
 
-            _ = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)
             {
                 NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");

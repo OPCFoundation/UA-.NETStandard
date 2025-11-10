@@ -325,8 +325,6 @@ namespace Opc.Ua.Gds.Server
                     {
                         Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
-                    // ECC / V1.05
-#if ECC_SUPPORT
                     },
                     {
                         Ua.ObjectTypeIds.EccApplicationCertificateType,
@@ -356,7 +354,6 @@ namespace Opc.Ua.Gds.Server
                     {
                         Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType,
                         nameof(Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType)
-#endif
 #endif
                     }
                 };
@@ -1253,7 +1250,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (Uri.CheckHostName(domainName) == UriHostNameType.Unknown)
                     {
-                        return new ServiceResult(
+                        return ServiceResult.Create(
                             StatusCodes.BadInvalidArgument,
                             "The domainName ({0}) is not a valid DNS Name or IPAddress.",
                             domainName);
@@ -1265,6 +1262,7 @@ namespace Opc.Ua.Gds.Server
                 domainNames = GetDefaultDomainNames(application);
             }
 
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             requestId = m_request.StartNewKeyPairRequest(
                 applicationId,
                 certificateGroup.Configuration.Id,
@@ -1273,7 +1271,7 @@ namespace Opc.Ua.Gds.Server
                 domainNames,
                 privateKeyFormat,
                 privateKeyPassword?.ToCharArray(),
-                context.UserIdentity?.DisplayName);
+                userIdentity?.DisplayName);
 
             if (m_autoApprove)
             {
@@ -1362,12 +1360,13 @@ namespace Opc.Ua.Gds.Server
             await certificateGroup.VerifySigningRequestAsync(application, certificateRequest, cancellationToken).ConfigureAwait(false);
 
             // store request in the queue for approval
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             result.RequestId = m_request.StartSigningRequest(
                 applicationId,
                 certificateGroup.Configuration.Id,
                 certificateTypeNameId,
                 certificateRequest,
-                context.UserIdentity?.DisplayName);
+                userIdentity?.DisplayName);
 
             if (m_autoApprove)
             {
@@ -1841,7 +1840,6 @@ namespace Opc.Ua.Gds.Server
                 Utils.IsEqual(
                     certificateType,
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) ||
-#if ECC_SUPPORT
                 Utils.IsEqual(
                     certificateType,
                     Ua.ObjectTypeIds.EccApplicationCertificateType) ||
@@ -1863,8 +1861,7 @@ namespace Opc.Ua.Gds.Server
                     Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType) ||
                 Utils.IsEqual(
                     certificateType,
-                    Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType)
-#endif
+                    Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType) ||
 #endif
                     false))
             {

@@ -1946,7 +1946,6 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Open a session on a channel using ECC encrypted UserCertificateIdentityToken
         /// </summary>
@@ -2024,7 +2023,6 @@ namespace Opc.Ua.Client.Tests
                 }
             }
         }
-#endif
 
         /// <summary>
         /// Happy SetSubscriptionDurable

@@ -76,11 +76,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (IsECDsaSignature(certWithPublicKey))
             {
-#if ECC_SUPPORT
                 return VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
-#else
-                throw new NotSupportedException("This platform does not support ECC.");
-#endif
             }
 
             return VerifyRSAKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
@@ -252,7 +248,6 @@ namespace Opc.Ua.Security.Certificates
             };
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Verify ECDsa key pair of two certificates.
         /// </summary>
@@ -307,6 +302,5 @@ namespace Opc.Ua.Security.Certificates
             byte[] signature = ecdsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256);
             return ecdsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256);
         }
-#endif
     }
 }

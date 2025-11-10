@@ -34,7 +34,7 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Buffers.Tests
+namespace Opc.Ua.Types.Buffers.Tests
 {
     /// <summary>
     /// Tests for <see cref="ArrayPoolBufferWriter{T}"/> where T is <see cref="byte"/>.

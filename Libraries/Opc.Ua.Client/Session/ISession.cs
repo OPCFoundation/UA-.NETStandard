@@ -198,7 +198,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the context to use for filter operations.
         /// </summary>
-        FilterContext FilterContext { get; }
+        IFilterContext FilterContext { get; }
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.

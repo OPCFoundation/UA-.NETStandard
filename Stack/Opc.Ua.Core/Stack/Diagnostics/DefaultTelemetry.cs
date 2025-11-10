@@ -28,10 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
-using System.Reflection;
 using Microsoft.Extensions.Logging;
 
 #nullable enable
@@ -41,30 +37,15 @@ namespace Opc.Ua
     /// <summary>
     /// Default telemetry implementation
     /// </summary>
-    public sealed class DefaultTelemetry : ITelemetryContext
+    public sealed class DefaultTelemetry : TelemetryContextBase
     {
-        /// <inheritdoc/>
-        public ILoggerFactory LoggerFactory { get; }
-
-        /// <summary>
-        /// Create default telemetry
-        /// </summary>
-        public DefaultTelemetry()
-            : this(builder => builder.AddProvider(Utils.LoggerProvider))
-        {
-        }
-
         /// <summary>
         /// Create default telemetry
         /// </summary>
         private DefaultTelemetry(Action<ILoggingBuilder> configure)
+            : base(Microsoft.Extensions.Logging.LoggerFactory
+                .Create(configure))
         {
-            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
-                .Create(configure);
-
-            // Set the default Id format to W3C
-            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
-            Activity.ForceDefaultIdFormat = true;
         }
 
         /// <summary>
@@ -76,34 +57,5 @@ namespace Opc.Ua
         {
             return new DefaultTelemetry(configure);
         }
-
-        /// <inheritdoc/>
-        public Meter CreateMeter()
-        {
-            (string name, string version) = GetAssemblyInfo();
-            return new Meter(name, version);
-        }
-
-        /// <inheritdoc/>
-        public ActivitySource ActivitySource
-            => m_sources.GetOrAdd(GetAssemblyInfo(),
-                    key => new ActivitySource(key.Item1, key.Item2));
-
-        private (string, string) GetAssemblyInfo()
-        {
-            return m_cache.GetOrAdd(Assembly.GetExecutingAssembly(), GetAssemblyInfoCore);
-            static (string, string) GetAssemblyInfoCore(Assembly assembly)
-            {
-                string version = assembly
-                    .GetCustomAttribute<AssemblyFileVersionAttribute>()?
-                    .Version ??
-                    "1.0.0";
-                string name = assembly.FullName ?? "Opc.Ua";
-                return (name, version);
-            }
-        }
-
-        private readonly ConcurrentDictionary<(string, string), ActivitySource> m_sources = [];
-        private readonly ConcurrentDictionary<Assembly, (string, string)> m_cache = [];
     }
 }

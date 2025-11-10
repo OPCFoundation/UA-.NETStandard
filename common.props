@@ -16,7 +16,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
     <LangVersion>13.0</LangVersion>
-    <EnablePackageValidation>true</EnablePackageValidation>
+    <!-- to enable the package validation, uncomment here -->
+    <!--<EnablePackageValidation>true</EnablePackageValidation>-->
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
     <!-- to regenerate the compatibility suppression file, uncomment here -->

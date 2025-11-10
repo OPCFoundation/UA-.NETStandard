@@ -30,7 +30,7 @@ namespace Opc.Ua
         class FilterEvaluator
     {
         private readonly ContentFilter m_filter;
-        private readonly FilterContext m_context;
+        private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
         private readonly ILogger m_logger;
 
@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// <param name="filter"></param>
         /// <param name="context"></param>
         /// <param name="target"></param>
-        public FilterEvaluator(ContentFilter filter, FilterContext context, IFilterTarget target)
+        public FilterEvaluator(ContentFilter filter, IFilterContext context, IFilterTarget target)
         {
             m_filter = filter;
             m_context = context;
@@ -2351,7 +2351,7 @@ namespace Opc.Ua
         /// <returns>Returns true, false or null.</returns>
         public static bool Evaluate(
             this ContentFilter filter,
-            FilterContext context,
+            IFilterContext context,
             IFilterTarget target)
         {
             // check if nothing to do.

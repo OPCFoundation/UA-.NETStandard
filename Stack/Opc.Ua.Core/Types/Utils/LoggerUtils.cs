@@ -39,9 +39,10 @@
 #nullable enable
 
 using System;
-using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
@@ -69,6 +70,42 @@ namespace Opc.Ua
         /// Global default logger provider
         /// </summary>
         internal static TraceLoggerProvider LoggerProvider { get; } = new();
+
+        /// <summary>
+        /// Fallback logger
+        /// </summary>
+        [Experimental("UA_NETStandard_1")]
+        public static class Fallback
+        {
+            /// <summary>
+            /// Get an instance of the fallback logger. In debug builds
+            /// the null logger is returned which emits debug checks on usage.
+            /// </summary>
+            public static ILogger Logger =>
+#if DEBUG
+                LoggerUtils.Null.Logger;
+#else
+                LoggerProvider.CreateLogger(nameof(Fallback));
+#endif
+        }
+
+        static Utils()
+        {
+            TelemetryExtensions.InternalOnly__TelemetryHook =
+                () => new TraceLoggerTelemetry();
+        }
+
+        /// <summary>
+        /// Trace logger telemetry context
+        /// </summary>
+        internal class TraceLoggerTelemetry : TelemetryContextBase
+        {
+            public TraceLoggerTelemetry()
+                : base(Microsoft.Extensions.Logging.LoggerFactory.Create(
+                    builder => builder.AddProvider(LoggerProvider)))
+            {
+            }
+        }
 
         /// <summary>
         /// The possible trace output mechanisms.
@@ -185,84 +222,6 @@ namespace Opc.Ua
                 buffer.Append(" (with Private Key)");
             }
             return buffer.ToString();
-        }
-
-        /// <summary>
-        /// Append the exception and all nested exception with no indent
-        /// </summary>
-        public static StringBuilder AppendException(
-            this StringBuilder buffer,
-            Exception exception)
-        {
-            return AppendException(buffer, exception, string.Empty);
-        }
-
-        /// <summary>
-        /// Append the exception and all nested exception with indent
-        /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="exception"/> or <paramref name="indent"/> is <c>null</c>.
-        /// </exception>
-        public static StringBuilder AppendException(
-            this StringBuilder buffer,
-            Exception exception,
-            string indent)
-        {
-            if (exception == null)
-            {
-                throw new ArgumentNullException(nameof(exception));
-            }
-            if (indent == null)
-            {
-                throw new ArgumentNullException(nameof(indent));
-            }
-            for (int i = 0; i < 100; i++)
-            {
-                if (i > 0)
-                {
-                    buffer
-                        .AppendLine()
-                        .Append(indent)
-                        .Append(">>>> (Inner #")
-                        .Append(i)
-                        .AppendLine(") >>>>");
-                }
-
-                buffer
-                    .Append(indent)
-                    .Append('[')
-                    .Append(exception.GetType().Name)
-                    .Append(']')
-                    .Append(' ')
-                    .Append(exception.Message ?? "(No message)");
-
-                if (!string.IsNullOrEmpty(exception.StackTrace))
-                {
-                    AddStackTrace(buffer, exception.StackTrace, indent);
-                }
-
-                if (exception.InnerException == null)
-                {
-                    break;
-                }
-                exception = exception.InnerException;
-            }
-            return buffer;
-
-            static void AddStackTrace(StringBuilder buffer, string stackTrace, string indent)
-            {
-                string[] trace = stackTrace.Split(Environment.NewLine.ToCharArray());
-                for (int ii = 0; ii < trace.Length; ii++)
-                {
-                    if (!string.IsNullOrEmpty(trace[ii]))
-                    {
-                        buffer
-                            .AppendLine()
-                            .Append(indent)
-                            .AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
-                    }
-                }
-            }
         }
     }
 }

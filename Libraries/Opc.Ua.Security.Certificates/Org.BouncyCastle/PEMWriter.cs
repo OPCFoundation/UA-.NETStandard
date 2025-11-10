@@ -73,7 +73,6 @@ namespace Opc.Ua.Security.Certificates
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
                 return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
-#if ECC_SUPPORT
             else
             {
                 if (!password.IsEmpty && !password.IsWhiteSpace())
@@ -91,9 +90,6 @@ namespace Opc.Ua.Security.Certificates
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
                 return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
-#else
-            throw new ArgumentException("ExportPrivateKeyAsPEM not supported on this platform."); // Only on NETSTANDARD2_0
-#endif
         }
 
         /// <summary>

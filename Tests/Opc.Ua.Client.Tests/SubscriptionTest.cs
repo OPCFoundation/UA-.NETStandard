@@ -439,7 +439,6 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(enabled, !failed);
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Open a session on a channel, then reconnect (activate)
         /// the same session on a new channel with saved session secrets.
@@ -467,7 +466,6 @@ namespace Opc.Ua.Client.Tests
                 sequentialPublishing,
                 sendInitialValues);
         }
-#endif
 
         /// <summary>
         /// Open a session on a channel, then reconnect (activate)
@@ -479,9 +477,7 @@ namespace Opc.Ua.Client.Tests
         [Order(352)]
         public Task ReconnectWithSavedSessionSecretsOnlyAsync(
             [Values(SecurityPolicies.None,
-#if ECC_SUPPORT
                 SecurityPolicies.ECC_nistP256,
-#endif
                 SecurityPolicies.Basic256Sha256)]
                 string securityPolicy,
             [Values(true, false)] bool anonymous,

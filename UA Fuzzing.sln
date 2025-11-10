@@ -102,6 +102,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Encoders.Fuzz.Tools", "Fuzz
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Encoders.Fuzz.Tests", "Fuzzing\Encoders\Fuzz.Tests\Opc.Ua.Encoders.Fuzz.Tests.csproj", "{85BA7E81-EC35-4507-A6A0-D74061178A22}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opc.Ua.Types", "Stack\Opc.Ua.Types\Opc.Ua.Types.csproj", "{1A3E53FF-C13F-78A9-22B0-2045136C1904}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -233,6 +235,18 @@ Global
 		{85BA7E81-EC35-4507-A6A0-D74061178A22}.Release|x64.Build.0 = Release|Any CPU
 		{85BA7E81-EC35-4507-A6A0-D74061178A22}.Release|x86.ActiveCfg = Release|Any CPU
 		{85BA7E81-EC35-4507-A6A0-D74061178A22}.Release|x86.Build.0 = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x64.Build.0 = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x86.Build.0 = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x64.ActiveCfg = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x64.Build.0 = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x86.ActiveCfg = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -256,6 +270,7 @@ Global
 		{2CA57432-9B51-40A5-804B-D927897E7DAF} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
 		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
 		{85BA7E81-EC35-4507-A6A0-D74061178A22} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904} = {2DC9F7F3-6698-4875-88A3-50678170A810}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {33FA5BCB-C827-4D44-AECF-F51342DFE64A}

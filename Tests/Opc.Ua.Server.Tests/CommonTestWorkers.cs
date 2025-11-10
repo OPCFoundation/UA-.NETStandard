@@ -958,8 +958,8 @@ namespace Opc.Ua.Server.Tests
             Assert.IsTrue(subscriptionIds.Contains(publishedId));
             Assert.AreEqual(1, notificationMessage.NotificationData.Count);
             string statusMessage = notificationMessage.NotificationData[0].ToString();
-            Assert.IsTrue(
-                statusMessage.Contains("GoodSubscriptionTransferred", StringComparison.Ordinal));
+            // Should contain GoodSubscriptionTransferred status code
+            Assert.AreEqual("{0x002D0000 | }", statusMessage);
 
             // static node, do not acknowledge
             if (availableSequenceNumbers != null)

@@ -465,7 +465,7 @@ namespace Opc.Ua
                 else
                 {
                     m_logger.LogError("{Activity}#{Handle} failed with {StatusCode} in {Elapsed}.",
-                        serviceName, requestHandle, statusCode, duration);
+                        serviceName, requestHandle, statusCode.GetSymbolicId(), duration);
                 }
             }
             if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
@@ -723,7 +723,7 @@ namespace Opc.Ua
         /// <summary>
         /// Logger to be used by the client inheritance chain
         /// </summary>
-        protected ILogger m_logger { get; set; } = Utils.Null.Logger;
+        protected ILogger m_logger { get; set; } = LoggerUtils.Null.Logger;
 
         /// <summary>
         /// Meter to be used by the client inheritance chain

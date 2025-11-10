@@ -346,8 +346,13 @@ namespace Opc.Ua.Server.Tests
                         attempt < maxAttempts)
                     {
                         // Retry for transient connection errors (can happen on busy CI environments)
-                        logger.LogWarning(e, "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
-                            attempt + 1, maxAttempts, delayMs, e.StatusCode);
+                        logger.LogWarning(
+                            e,
+                            "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
+                            attempt + 1,
+                            maxAttempts,
+                            delayMs,
+                            e.Code);
                         await Task.Delay(delayMs).ConfigureAwait(false);
                     }
                 }

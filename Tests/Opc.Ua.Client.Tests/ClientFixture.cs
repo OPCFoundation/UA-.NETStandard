@@ -456,7 +456,8 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging)
         {
-            string expectedName = m_telemetry.GetActivitySource().Name;
+            ActivitySource activitySource = m_telemetry.GetActivitySource();
+            string expectedName = activitySource.Name;
 
             if (disableActivityLogging)
             {
@@ -518,7 +519,7 @@ namespace Opc.Ua.Client.Tests
                 m_logger.LogError(
                     "Session '{SessionName}' keep alive error: {StatusCode}",
                     session.SessionName,
-                    e.Status);
+                    e.Status.ToLongString());
             }
         }
     }

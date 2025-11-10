@@ -496,7 +496,7 @@ namespace Opc.Ua
         /// <returns>The display name for the current user.</returns>
         protected string GetCurrentUserId(ISystemContext context)
         {
-            if (context is IOperationContext operationContext &&
+            if (context is ISessionOperationContext operationContext &&
                 operationContext.UserIdentity != null)
             {
                 return operationContext.UserIdentity.DisplayName;

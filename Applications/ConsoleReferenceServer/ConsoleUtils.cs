@@ -42,8 +42,6 @@ using Opc.Ua;
 using Serilog;
 using Serilog.Events;
 using Serilog.Templates;
-using Microsoft.Extensions.Logging.Abstractions;
-
 #if NET5_0_OR_GREATER
 using Microsoft.Extensions.Configuration;
 #endif

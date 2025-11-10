@@ -74,6 +74,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     out IEncodeableType encodeableType);
                 Assert.NotNull(encodeableType);
                 _ = m_builder.TryGetEncodeableType(
+                    new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary),
+                    out encodeableType);
+                Assert.NotNull(encodeableType);
+                _ = m_builder.TryGetEncodeableType(
                     new ExpandedNodeId(Guid.NewGuid()),
                     out encodeableType);
                 Assert.Null(encodeableType);
@@ -93,6 +97,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 _ = m_encodeableFactory.TryGetEncodeableType(
                     new ExpandedNodeId(ObjectIds.ReadRequest_Encoding_DefaultBinary),
                     out IEncodeableType encodeableType);
+                Assert.NotNull(encodeableType);
+                _ = m_builder.TryGetEncodeableType(
+                    new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary),
+                    out encodeableType);
                 Assert.NotNull(encodeableType);
                 _ = m_encodeableFactory.TryGetEncodeableType(
                     new ExpandedNodeId(Guid.NewGuid()),

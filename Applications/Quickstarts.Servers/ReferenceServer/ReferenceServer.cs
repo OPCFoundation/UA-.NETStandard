@@ -385,9 +385,8 @@ namespace Quickstarts.ReferenceServer
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
                     new ServiceResult(
-                        StatusCodes.BadUserAccessDenied,
-                        "InvalidPassword",
                         LoadServerProperties().ProductUri,
+                        new StatusCode(StatusCodes.BadUserAccessDenied, "InvalidPassword"),
                         new LocalizedText(info)));
             }
             return new RoleBasedIdentity(
@@ -441,9 +440,8 @@ namespace Quickstarts.ReferenceServer
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
                     new ServiceResult(
-                        result,
-                        info.Key,
                         LoadServerProperties().ProductUri,
+                        new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
             }
         }
@@ -493,9 +491,8 @@ namespace Quickstarts.ReferenceServer
 
                 throw new ServiceResultException(
                     new ServiceResult(
-                        result,
-                        info.Key,
                         LoadServerProperties().ProductUri,
+                        new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
             }
         }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if ECC_SUPPORT
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -488,4 +487,3 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
     }
 }
-#endif

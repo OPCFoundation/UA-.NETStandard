@@ -19,6 +19,7 @@ namespace Opc.Ua.Test
     /// <summary>
     /// Compares values taking into account semantically equivalent values that would fail the simple IsEqual test.
     /// </summary>
+    [Obsolete("Not supported anymore and will be removed in a future release.")]
     public class DataComparer
     {
         /// <summary>

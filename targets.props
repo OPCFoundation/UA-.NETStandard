@@ -30,6 +30,7 @@
         <TestsTargetFrameworks>net472</TestsTargetFrameworks>
         <LibTargetFrameworks>net472</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net472</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>net472</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>net472</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net472</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -41,10 +42,11 @@
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>netstandard2.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>netstandard2.0</LibCoreTargetFrameworks>
+        <LibTargetFrameworks>netstandard2.1</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>netstandard2.1</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>netstandard2.0</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>netstandard2.0</HttpsTargetFrameworks>
+        <HttpsTargetFrameworks>netstandard2.1</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
     <When Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
@@ -55,6 +57,7 @@
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.1</LibTargetFrameworks>
         <LibCoreTargetFrameworks>netstandard2.1</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>netstandard2.1</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
         <HttpsTargetFrameworks>netstandard2.1</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -66,6 +69,7 @@
         <TestsTargetFrameworks>net48</TestsTargetFrameworks>
         <LibTargetFrameworks>net48</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net48</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>net48</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>net48</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net48</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -77,6 +81,7 @@
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net8.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net8.0</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>net8.0</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>net8.0</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net8.0</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -88,6 +93,7 @@
         <TestsTargetFrameworks>net9.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net9.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net9.0</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>net9.0</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>net9.0</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net9.0</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -99,6 +105,7 @@
         <TestsTargetFrameworks>net10.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net10.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net10.0</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>net10.0</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>net10.0</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net10.0</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -108,10 +115,11 @@
         <AppTargetFrameworks>net9.0;net8.0;net48</AppTargetFrameworks>
         <AppTargetFramework>net9.0</AppTargetFramework>
         <TestsTargetFrameworks>net472;net48;net8.0;net9.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0</LibCoreTargetFrameworks>
+        <LibTargetFrameworks>net472;net48;netstandard2.1;net8.0;net9.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net472;net48;netstandard2.1;net8.0;net9.0</LibCoreTargetFrameworks>
+        <LibTypesTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>net472;net48;netstandard2.1;net8.0;net9.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0</HttpsTargetFrameworks>
+        <HttpsTargetFrameworks>net472;net48;netstandard2.1;net8.0;net9.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </Otherwise>
   </Choose>

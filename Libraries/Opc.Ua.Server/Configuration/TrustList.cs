@@ -153,7 +153,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_readMode = mode == OpenFileMode.Read;
-                m_sessionId = context.SessionId;
+                m_sessionId = (context as ISessionSystemContext)?.SessionId;
                 fileHandle = ++m_fileHandle;
 
                 var trustList = new TrustListDataType { SpecifiedLists = (uint)masks };
@@ -249,7 +249,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadUserAccessDenied,
@@ -290,7 +291,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
                     return StatusCodes.BadUserAccessDenied;
                 }
@@ -316,7 +318,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
                     return StatusCodes.BadUserAccessDenied;
                 }
@@ -355,7 +358,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
                     return StatusCodes.BadUserAccessDenied;
                 }

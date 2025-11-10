@@ -300,9 +300,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             var stringTable = new StringTable();
             var serviceResult = new ServiceResult(
-                StatusCodes.BadAggregateConfigurationRejected,
-                "SymbolicId",
                 Namespaces.OpcUa,
+                new StatusCode(StatusCodes.BadAggregateConfigurationRejected, "SymbolicId"),
                 new LocalizedText("The text", "en-us"),
                 new Exception("The inner exception."));
             ILogger logger = Telemetry.CreateLogger<BuiltInTests>();
@@ -457,8 +456,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.True(nodeGuid1 == (Uuid)id1);
             Assert.False(nodeGuid1.Equals(id2));
             Assert.False(nodeGuid1 == id2);
-
-            id.SetIdentifier("Test", IdType.Opaque);
 
             NUnit.Framework.Assert
                 .Throws<ArgumentException>(() => _ = new NodeId((object)123, 123));

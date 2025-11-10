@@ -277,7 +277,8 @@ namespace Opc.Ua.Server
             {
                 if (subscription.Id == subscriptionId)
                 {
-                    if (subscription.SessionId != context.SessionId)
+                    if (context is ISessionSystemContext session &&
+                        subscription.SessionId != session.SessionId)
                     {
                         // user tries to access subscription of different session
                         return StatusCodes.BadUserAccessDenied;
@@ -322,14 +323,14 @@ namespace Opc.Ua.Server
             {
                 if (subscription.Id == subscriptionId)
                 {
-                    if (subscription.SessionId != context.SessionId)
+                    if (context is not ServerSystemContext session ||
+                        subscription.SessionId != session.SessionId)
                     {
                         // user tries to access subscription of different session
                         return StatusCodes.BadUserAccessDenied;
                     }
 
-                    subscription.ResendData(
-                        (OperationContext)((SystemContext)context)?.OperationContext);
+                    subscription.ResendData(session.OperationContext);
 
                     return ServiceResult.Good;
                 }
@@ -386,7 +387,7 @@ namespace Opc.Ua.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(
                 context,
                 "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
@@ -1489,7 +1490,8 @@ namespace Opc.Ua.Server
             ISystemContext context,
             int index)
         {
-            if ((sessionId != context.SessionId) && !HasApplicationSecureAdminAccess(context))
+            if ((sessionId != (context as ISessionSystemContext)?.SessionId) &&
+                !HasApplicationSecureAdminAccess(context))
             {
                 list[index] = default;
             }
@@ -1512,7 +1514,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                adminUser = (node.NodeId == context.SessionId) ||
+                adminUser = (node.NodeId == (context as ISessionSystemContext)?.SessionId) ||
                     HasApplicationSecureAdminAccess(context);
             }
 
@@ -1655,10 +1657,9 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         private static bool HasApplicationSecureAdminAccess(ISystemContext context)
         {
-            if (context is SystemContext { OperationContext: OperationContext operationContext })
+            if (context is SessionSystemContext { OperationContext: OperationContext operationContext } session)
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
                     MessageSecurityMode.SignAndEncrypt)
@@ -1666,7 +1667,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;
+                IUserIdentity user = session.UserIdentity as RoleBasedIdentity;
 
                 return user != null &&
                     user.TokenType != UserTokenType.Anonymous &&

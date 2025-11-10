@@ -1,0 +1,897 @@
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation Corporate Members in good-standing
+     - GPL V2: everybody else
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System;
+using System.Collections.Generic;
+using Opc.Ua.Types;
+
+namespace Opc.Ua
+{
+    /// <summary>
+    /// The base class for all variable type nodes.
+    /// </summary>
+    public abstract class BaseVariableTypeState : BaseTypeState
+    {
+        /// <summary>
+        /// Initializes the instance with its default attribute values.
+        /// </summary>
+        protected BaseVariableTypeState()
+            : base(NodeClass.VariableType)
+        {
+            m_valueRank = ValueRanks.Any;
+        }
+
+        /// <summary>
+        /// Initializes the instance from another instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            if (source is BaseVariableTypeState type)
+            {
+                m_value = CoreUtils.Clone(type.m_value);
+                m_dataType = type.m_dataType;
+                m_valueRank = type.m_valueRank;
+                m_arrayDimensions = null;
+
+                if (type.m_arrayDimensions != null)
+                {
+                    m_arrayDimensions = new ReadOnlyList<uint>(type.m_arrayDimensions, true);
+                }
+            }
+
+            m_value = ExtractValueFromVariant(context, m_value, false);
+
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Sets the value to its default value if it is not valid.
+        /// </summary>
+        protected virtual object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
+        {
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            var clone = (BaseTypeState)Activator.CreateInstance(GetType());
+            return CloneChildren(clone);
+        }
+
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public object Value
+        {
+            get => m_value;
+            set
+            {
+                if (!ReferenceEquals(m_value, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Value;
+                }
+
+                m_value = value;
+            }
+        }
+
+        /// <summary>
+        /// The value of the variable as a Variant.
+        /// </summary>
+        public Variant WrappedValue
+        {
+            get => new(m_value);
+            set => Value = ExtractValueFromVariant(null, value.Value, false);
+        }
+
+        /// <summary>
+        /// The data type for the variable value.
+        /// </summary>
+        public NodeId DataType
+        {
+            get => m_dataType;
+            set
+            {
+                if (!ReferenceEquals(m_dataType, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_dataType = value;
+            }
+        }
+
+        /// <summary>
+        /// The number of array dimensions permitted for the variable value.
+        /// </summary>
+        public int ValueRank
+        {
+            get => m_valueRank;
+            set
+            {
+                if (m_valueRank != value)
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_valueRank = value;
+            }
+        }
+
+        /// <summary>
+        /// The number of dimensions for an array values with one or more fixed dimensions.
+        /// </summary>
+        public ReadOnlyList<uint> ArrayDimensions
+        {
+            get => m_arrayDimensions;
+            set
+            {
+                if (!ReferenceEquals(m_arrayDimensions, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_arrayDimensions = value;
+            }
+        }
+
+        /// <summary>
+        /// Raised when the Value attribute is read.
+        /// </summary>
+        public NodeValueSimpleEventHandler OnSimpleReadValue;
+
+        /// <summary>
+        /// Raised when the Value attribute is written.
+        /// </summary>
+        public NodeValueSimpleEventHandler OnSimpleWriteValue;
+
+        /// <summary>
+        /// Raised when the DataType attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<NodeId> OnReadDataType;
+
+        /// <summary>
+        /// Raised when the DataType attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<NodeId> OnWriteDataType;
+
+        /// <summary>
+        /// Raised when the ValueRank attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<int> OnReadValueRank;
+
+        /// <summary>
+        /// Raised when the ValueRank attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<int> OnWriteValueRank;
+
+        /// <summary>
+        /// Raised when the ArrayDimensions attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<IList<uint>> OnReadArrayDimensions;
+
+        /// <summary>
+        /// Raised when the ArrayDimensions attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<IList<uint>> OnWriteArrayDimensions;
+
+        /// <summary>
+        /// Exports a copy of the node to a node table.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="node">The node.</param>
+        protected override void Export(ISystemContext context, Node node)
+        {
+            base.Export(context, node);
+
+            if (node is VariableTypeNode variableTypeNode)
+            {
+                variableTypeNode.Value = new Variant(CoreUtils.Clone(Value));
+                variableTypeNode.DataType = DataType;
+                variableTypeNode.ValueRank = ValueRank;
+                variableTypeNode.ArrayDimensions = null;
+
+                if (ArrayDimensions != null)
+                {
+                    variableTypeNode.ArrayDimensions = [.. ArrayDimensions];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Saves the attributes from the stream.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="encoder">The encoder wrapping the stream to write.</param>
+        public override void Save(ISystemContext context, XmlEncoder encoder)
+        {
+            base.Save(context, encoder);
+
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            if (m_value != null)
+            {
+                encoder.WriteVariant("Value", WrappedValue);
+            }
+
+            if (!NodeId.IsNull(DataType))
+            {
+                encoder.WriteNodeId("DataType", DataType);
+            }
+
+            if (ValueRank != ValueRanks.Any)
+            {
+                encoder.WriteInt32("ValueRank", ValueRank);
+            }
+
+            if (ArrayDimensions != null)
+            {
+                encoder.WriteString(
+                    "ArrayDimensions",
+                    BaseVariableState.ArrayDimensionsToXml(ArrayDimensions));
+            }
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary>
+        /// Updates the attributes from the stream.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="decoder">The decoder wrapping the stream to read.</param>
+        public override void Update(ISystemContext context, XmlDecoder decoder)
+        {
+            base.Update(context, decoder);
+
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            if (decoder.Peek("Value"))
+            {
+                WrappedValue = decoder.ReadVariant("Value");
+            }
+
+            if (decoder.Peek("DataType"))
+            {
+                DataType = decoder.ReadNodeId("DataType");
+            }
+
+            if (decoder.Peek("ValueRank"))
+            {
+                ValueRank = decoder.ReadInt32("ValueRank");
+            }
+
+            if (decoder.Peek("ArrayDimensions"))
+            {
+                ArrayDimensions = BaseVariableState.ArrayDimensionsFromXml(
+                    decoder.ReadString("ArrayDimensions"));
+            }
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary>
+        /// Returns a mask which indicates which attributes have non-default value.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <returns>A mask the specifies the available attributes.</returns>
+        public override AttributesToSave GetAttributesToSave(ISystemContext context)
+        {
+            AttributesToSave attributesToSave = base.GetAttributesToSave(context);
+
+            if (!WrappedValue.IsNull)
+            {
+                attributesToSave |= AttributesToSave.Value;
+            }
+
+            if (!NodeId.IsNull(m_dataType))
+            {
+                attributesToSave |= AttributesToSave.DataType;
+            }
+
+            if (m_valueRank != ValueRanks.Any)
+            {
+                attributesToSave |= AttributesToSave.ValueRank;
+            }
+
+            if (m_arrayDimensions != null)
+            {
+                attributesToSave |= AttributesToSave.ArrayDimensions;
+            }
+
+            return attributesToSave;
+        }
+
+        /// <summary>
+        /// Saves object in an binary stream.
+        /// </summary>
+        /// <param name="context">The context user.</param>
+        /// <param name="encoder">The encoder to write to.</param>
+        /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
+        {
+            base.Save(context, encoder, attributesToSave);
+
+            if ((attributesToSave & AttributesToSave.Value) != 0)
+            {
+                encoder.WriteVariant(null, WrappedValue);
+            }
+
+            if ((attributesToSave & AttributesToSave.DataType) != 0)
+            {
+                encoder.WriteNodeId(null, m_dataType);
+            }
+
+            if ((attributesToSave & AttributesToSave.ValueRank) != 0)
+            {
+                encoder.WriteInt32(null, m_valueRank);
+            }
+
+            if ((attributesToSave & AttributesToSave.ArrayDimensions) != 0)
+            {
+                encoder.WriteUInt32Array(null, m_arrayDimensions);
+            }
+        }
+
+        /// <summary>
+        /// Updates the specified context.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="decoder">The decoder.</param>
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
+        {
+            base.Update(context, decoder, attributesToLoad);
+
+            if ((attributesToLoad & AttributesToSave.Value) != 0)
+            {
+                WrappedValue = decoder.ReadVariant(null);
+            }
+
+            if ((attributesToLoad & AttributesToSave.DataType) != 0)
+            {
+                m_dataType = decoder.ReadNodeId(null);
+            }
+
+            if ((attributesToLoad & AttributesToSave.ValueRank) != 0)
+            {
+                m_valueRank = decoder.ReadInt32(null);
+            }
+
+            if ((attributesToLoad & AttributesToSave.ArrayDimensions) != 0)
+            {
+                UInt32Collection arrayDimensions = decoder.ReadUInt32Array(null);
+
+                if (arrayDimensions != null && arrayDimensions.Count > 0)
+                {
+                    m_arrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
+                }
+                else
+                {
+                    m_arrayDimensions = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads the value for any non-value attribute.
+        /// </summary>
+        protected override ServiceResult ReadNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            ref object value)
+        {
+            ServiceResult result = null;
+
+            switch (attributeId)
+            {
+                case Attributes.DataType:
+                    NodeId dataType = m_dataType;
+
+                    NodeAttributeEventHandler<NodeId> onReadDataType = OnReadDataType;
+
+                    if (onReadDataType != null)
+                    {
+                        result = onReadDataType(context, this, ref dataType);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = dataType;
+                    }
+
+                    return result;
+                case Attributes.ValueRank:
+                    int valueRank = m_valueRank;
+
+                    NodeAttributeEventHandler<int> onReadValueRank = OnReadValueRank;
+
+                    if (onReadValueRank != null)
+                    {
+                        result = onReadValueRank(context, this, ref valueRank);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = valueRank;
+                    }
+
+                    return result;
+                case Attributes.ArrayDimensions:
+                    IList<uint> arrayDimensions = m_arrayDimensions;
+
+                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions
+                        = OnReadArrayDimensions;
+
+                    if (onReadArrayDimensions != null)
+                    {
+                        result = onReadArrayDimensions(context, this, ref arrayDimensions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = arrayDimensions;
+                    }
+
+                    return result;
+                default:
+                    return base.ReadNonValueAttribute(context, attributeId, ref value);
+            }
+        }
+
+        /// <summary>
+        /// Reads the value for the value attribute.
+        /// </summary>
+        protected override ServiceResult ReadValueAttribute(
+            ISystemContext context,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref DateTime sourceTimestamp)
+        {
+            value = m_value;
+
+            ServiceResult result = ServiceResult.Good;
+
+            VariableCopyPolicy copyPolicy = VariableCopyPolicy.CopyOnRead;
+
+            // use default behavior.
+            if (OnSimpleReadValue != null)
+            {
+                result = OnSimpleReadValue(context, this, ref value);
+
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+
+                copyPolicy = VariableCopyPolicy.Never;
+            }
+            else
+            {
+                // check if a valid value exists.
+                if (value == null)
+                {
+                    return StatusCodes.BadAttributeIdInvalid;
+                }
+            }
+
+            // apply the index range and encoding.
+            result = BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                context,
+                indexRange,
+                dataEncoding,
+                ref value);
+
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+
+            // copy returned value.
+            if (copyPolicy == VariableCopyPolicy.CopyOnRead)
+            {
+                value = CoreUtils.Clone(value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Write the value for any non-value attribute.
+        /// </summary>
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
+        {
+            ServiceResult result = null;
+
+            switch (attributeId)
+            {
+                case Attributes.DataType:
+                    if (value is not NodeId dataType)
+                    {
+                        return StatusCodes.BadTypeMismatch;
+                    }
+
+                    if ((WriteMask & AttributeWriteMask.DataType) == 0)
+                    {
+                        return StatusCodes.BadNotWritable;
+                    }
+
+                    NodeAttributeEventHandler<NodeId> onWriteDataType = OnWriteDataType;
+
+                    if (onWriteDataType != null)
+                    {
+                        result = onWriteDataType(context, this, ref dataType);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        DataType = dataType;
+                    }
+
+                    return result;
+                case Attributes.ValueRank:
+                    int? valueRankRef = value as int?;
+
+                    if (valueRankRef == null)
+                    {
+                        return StatusCodes.BadTypeMismatch;
+                    }
+
+                    if ((WriteMask & AttributeWriteMask.ValueRank) == 0)
+                    {
+                        return StatusCodes.BadNotWritable;
+                    }
+
+                    int valueRank = valueRankRef.Value;
+
+                    NodeAttributeEventHandler<int> onWriteValueRank = OnWriteValueRank;
+
+                    if (onWriteValueRank != null)
+                    {
+                        result = onWriteValueRank(context, this, ref valueRank);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        ValueRank = valueRank;
+                    }
+
+                    return result;
+                case Attributes.ArrayDimensions:
+                    var arrayDimensions = value as IList<uint>;
+
+                    if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
+                    {
+                        return StatusCodes.BadNotWritable;
+                    }
+
+                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions
+                        = OnWriteArrayDimensions;
+
+                    if (onWriteArrayDimensions != null)
+                    {
+                        result = onWriteArrayDimensions(context, this, ref arrayDimensions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        if (arrayDimensions != null)
+                        {
+                            m_arrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
+                        }
+                        else
+                        {
+                            ArrayDimensions = null;
+                        }
+                    }
+
+                    return result;
+                default:
+                    return base.WriteNonValueAttribute(context, attributeId, value);
+            }
+        }
+
+        /// <summary>
+        /// Write the value for the value attribute.
+        /// </summary>
+        protected override ServiceResult WriteValueAttribute(
+            ISystemContext context,
+            NumericRange indexRange,
+            object value,
+            StatusCode statusCode,
+            DateTime sourceTimestamp)
+        {
+            ServiceResult result = null;
+
+            if ((WriteMask & AttributeWriteMask.ValueForVariableType) == 0)
+            {
+                return StatusCodes.BadNotWritable;
+            }
+
+            // ensure the source timestamp has a valid value.
+            if (sourceTimestamp == DateTime.MinValue)
+            {
+                sourceTimestamp = DateTime.UtcNow;
+            }
+
+            // index range writes not supported.
+            if (indexRange != NumericRange.Empty)
+            {
+                return StatusCodes.BadIndexRangeInvalid;
+            }
+
+            // verify data type.
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
+                value,
+                m_dataType,
+                m_valueRank,
+                context.NamespaceUris,
+                context.TypeTable);
+
+            if (typeInfo == null || typeInfo == TypeInfo.Unknown)
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            // check for simple write value handler.
+            if (OnSimpleWriteValue != null)
+            {
+                result = OnSimpleWriteValue(context, this, ref value);
+
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+            }
+
+            // update cached values.
+            Value = value;
+
+            return ServiceResult.Good;
+        }
+
+        private object m_value;
+        private NodeId m_dataType;
+        private int m_valueRank;
+        private ReadOnlyList<uint> m_arrayDimensions;
+    }
+
+    /// <summary>
+    /// A base class for all data variable type nodes.
+    /// </summary>
+    public class BaseDataVariableTypeState : BaseVariableTypeState
+    {
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public BaseDataVariableTypeState()
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new BaseDataVariableTypeState();
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            SuperTypeId = NodeId.Create(
+                VariableTypes.BaseVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            NodeId = NodeId.Create(
+                VariableTypes.BaseDataVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            BrowseName = QualifiedName.Create(
+                BrowseNames.BaseDataVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            DisplayName = new LocalizedText(
+                BrowseNames.BaseDataVariableType,
+                string.Empty,
+                BrowseNames.BaseDataVariableType);
+            Description = null;
+            WriteMask = AttributeWriteMask.None;
+            UserWriteMask = AttributeWriteMask.None;
+            IsAbstract = false;
+            Value = null;
+            DataType = NodeId.Create(
+                DataTypes.BaseDataType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            ValueRank = ValueRanks.Any;
+            ArrayDimensions = null;
+        }
+    }
+
+    /// <summary>
+    /// A typed base class for all data variable type nodes.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
+    {
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public BaseDataVariableTypeState()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default;
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Sets the value to its default value if it is not valid.
+        /// </summary>
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
+        {
+            return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
+        }
+
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
+            set => base.Value = value;
+        }
+    }
+
+    /// <summary>
+    /// A base class for all property variable type nodes.
+    /// </summary>
+    public class PropertyTypeState : BaseVariableTypeState
+    {
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PropertyTypeState()
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public static NodeState Construct(NodeState parent)
+        {
+            return new PropertyTypeState();
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            SuperTypeId = NodeId.Create(
+                VariableTypes.BaseVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            NodeId = NodeId.Create(
+                VariableTypes.PropertyType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            BrowseName = QualifiedName.Create(
+                BrowseNames.PropertyType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            DisplayName = new LocalizedText(
+                BrowseNames.PropertyType,
+                string.Empty,
+                BrowseNames.PropertyType);
+            Description = null;
+            WriteMask = AttributeWriteMask.None;
+            UserWriteMask = AttributeWriteMask.None;
+            IsAbstract = false;
+            Value = null;
+            DataType = NodeId.Create(
+                DataTypes.BaseDataType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            ValueRank = ValueRanks.Any;
+            ArrayDimensions = null;
+        }
+    }
+
+    /// <summary>
+    /// A typed base class for all property variable type nodes.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class PropertyTypeState<T> : PropertyTypeState
+    {
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PropertyTypeState()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default;
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Sets the value to its default value if it is not valid.
+        /// </summary>
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
+        {
+            return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
+        }
+
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
+            set => base.Value = value;
+        }
+    }
+}

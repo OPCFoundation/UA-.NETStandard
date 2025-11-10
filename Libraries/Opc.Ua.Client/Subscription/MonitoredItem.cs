@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
             State = template.State;
             ClientHandle = 0;
             AttributesModified = true;
-            m_logger ??= Utils.Null.Logger;
+            m_logger ??= LoggerUtils.Null.Logger;
 
             string displayName = template.DisplayName;
             if (displayName != null)
@@ -1064,7 +1064,7 @@ namespace Opc.Ua.Client
         private static uint s_globalClientHandle;
         private NodeId m_resolvedNodeId = NodeId.Null;
         private Subscription? m_subscription;
-        private ILogger m_logger = Utils.Null.Logger;
+        private ILogger m_logger = LoggerUtils.Null.Logger;
         private readonly Lock m_cache = new();
         private MonitoredItemDataCache? m_dataCache;
         private MonitoredItemEventCache? m_eventCache;

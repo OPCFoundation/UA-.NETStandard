@@ -70,7 +70,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderArraySegmentStreamNoSpanTest()
         {
-#if NET6_0_OR_GREATER && ECC_SUPPORT
+#if NET6_0_OR_GREATER
             using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList);
 #else
             using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderArraySegmentStreamNoSpan()
         {
-#if NET6_0_OR_GREATER && ECC_SUPPORT
+#if NET6_0_OR_GREATER
             using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList);
 #else
             using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
