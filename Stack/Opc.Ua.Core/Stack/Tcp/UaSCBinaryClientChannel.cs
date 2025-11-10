@@ -86,7 +86,6 @@ namespace Opc.Ua.Bindings
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
             m_random = new Random();
-            m_connectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
             m_socketFactory = socketFactory;
@@ -138,6 +137,7 @@ namespace Opc.Ua.Bindings
             }
 
             WriteOperation operation;
+            IMessageSocket? socket;
             lock (DataLock)
             {
                 if (State != TcpChannelState.Closed)
@@ -151,7 +151,19 @@ namespace Opc.Ua.Bindings
                 // check if configured to use a proxy.
                 if (EndpointDescription != null && EndpointDescription.ProxyUrl != null)
                 {
-                    m_via = EndpointDescription.ProxyUrl;
+                    m_logger.LogInformation(
+                        "CLIENTCHANNEL SOCKET CONNECTING to {Url} via {Proxy}: ChannelId={ChannelId}",
+                        url,
+                        EndpointDescription.ProxyUrl,
+                        ChannelId);
+                    m_via = url = EndpointDescription.ProxyUrl;
+                }
+                else
+                {
+                    m_logger.LogInformation(
+                        "CLIENTCHANNEL SOCKET CONNECTING to {Url}: ChannelId={ChannelId}",
+                        url,
+                        ChannelId);
                 }
 
                 // do not attempt reconnect on failure.
@@ -165,34 +177,49 @@ namespace Opc.Ua.Bindings
                 // set the state.
                 ChannelStateChanged(TcpChannelState.Connecting, ServiceResult.Good);
 
-                if (ReverseSocket)
-                {
-                    if (Socket != null)
-                    {
-                        // send the hello message as response to the reverse hello message.
-                        SendHelloMessage(operation);
-                    }
-                }
-                else
+                if (!ReverseSocket)
                 {
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    Socket.BeginConnect(m_via, m_connectCallback, operation);
                 }
+                socket = Socket;
             }
             try
             {
+                if (socket == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadNotConnected,
+                        "Could not create or get connected socket.");
+                }
+                else if (ReverseSocket)
+                {
+                    // send the hello message as response to the reverse hello message.
+                    SendHelloMessage(operation);
+                }
+                else if (socket != null)
+                {
+                    await socket.ConnectAsync(url, ct).ConfigureAwait(false);
+
+                    m_logger.LogInformation(
+                        "CLIENTCHANNEL SOCKET CONNECTED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                        url,
+                        Socket?.Handle,
+                        ChannelId);
+
+                    CompleteConnect(operation);
+                }
                 await operation.EndAsync(int.MaxValue, ct: ct).ConfigureAwait(false);
-                m_logger.LogInformation(
-                    "CLIENTCHANNEL SOCKET CONNECTED: {Handle:X8}, ChannelId={ChannelId}",
-                    Socket?.Handle,
-                    ChannelId);
+
+                SendQueuedOperations();
             }
             catch (Exception e)
             {
                 m_logger.LogError(e,
-                    "CLIENTCHANNEL SOCKET CONNECT FAILED: {Handle:X8}, ChannelId={ChannelId}",
+                    "CLIENTCHANNEL SOCKET CONNECT FAILED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                    url,
                     Socket?.Handle,
                     ChannelId);
+
+                operation.Fault(StatusCodes.BadNotConnected);
 
                 Shutdown(ServiceResult.Create(
                     e,
@@ -203,8 +230,6 @@ namespace Opc.Ua.Bindings
             finally
             {
                 OperationCompleted(operation);
-
-                SendQueuedOperations();
             }
         }
 
@@ -275,7 +300,7 @@ namespace Opc.Ua.Bindings
                         throw new ServiceResultException(StatusCodes.BadConnectionClosed);
                     }
 
-                    m_logger.LogTrace("ChannelId {ChannelId}: BeginSendRequest()", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: BeginSendRequest()", ChannelId);
 
                     if (m_reconnecting)
                     {
@@ -317,7 +342,7 @@ namespace Opc.Ua.Bindings
                 throw ServiceResultException.Unexpected("Endpoint not defined.");
             }
 
-            m_logger.LogTrace("ChannelId {ChannelId}: SendHelloMessage()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: SendHelloMessage()", ChannelId);
 
             byte[]? buffer = BufferManager.TakeBuffer(SendBufferSize, "SendHelloMessage");
 
@@ -364,7 +389,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessAcknowledgeMessage(ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessAcknowledgeMessage()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessAcknowledgeMessage()", ChannelId);
 
             // check state.
             if (State != TcpChannelState.Connecting)
@@ -553,7 +578,7 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse()", ChannelId);
 
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
@@ -763,7 +788,7 @@ namespace Opc.Ua.Bindings
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
             {
-                //m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage", ChannelId);
+                m_logger.LogDebug("ChannelId {ChannelId}: ProcessResponseMessage", ChannelId);
                 return ProcessResponseMessage(messageType, messageChunk);
             }
 
@@ -772,25 +797,25 @@ namespace Opc.Ua.Bindings
                 // check for acknowledge.
                 if (messageType == TcpMessageType.Acknowledge)
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessAcknowledgeMessage", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessAcknowledgeMessage", ChannelId);
                     return ProcessAcknowledgeMessage(messageChunk);
                 }
                 // check for error.
                 else if (messageType == TcpMessageType.Error)
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessErrorMessage", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessErrorMessage", ChannelId);
                     return ProcessErrorMessage(messageChunk);
                 }
                 // process open secure channel repsonse.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessOpenSecureChannelResponse", ChannelId);
                     return ProcessOpenSecureChannelResponse(messageType, messageChunk);
                 }
                 // process a response to a close request.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                 {
-                    //m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage (close)", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: ProcessResponseMessage (close)", ChannelId);
                     return ProcessResponseMessage(messageType, messageChunk);
                 }
 
@@ -866,25 +891,8 @@ namespace Opc.Ua.Bindings
             return false;
         }
 
-        /// <summary>
-        /// Called when the socket is connected.
-        /// </summary>
-        private void OnConnectComplete(object? sender, IMessageSocketAsyncEventArgs e)
+        private void CompleteConnect(WriteOperation operation)
         {
-            var operation = (WriteOperation?)e.UserToken;
-
-            // ConnectAsync may call in with a null UserToken, ignore
-            if (operation == null)
-            {
-                return;
-            }
-
-            if (e.IsSocketError)
-            {
-                operation.Fault(StatusCodes.BadNotConnected);
-                return;
-            }
-
             lock (DataLock)
             {
                 try
@@ -918,7 +926,7 @@ namespace Opc.Ua.Bindings
         /// Called when it is time to do a handshake.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void OnScheduledHandshake(object? state)
+        private async void OnScheduledHandshake(object? state)
         {
             if (m_via == null)
             {
@@ -931,6 +939,8 @@ namespace Opc.Ua.Bindings
                     ChannelId,
                     CurrentToken?.TokenId);
 
+                IMessageSocket? socket = null;
+                WriteOperation? operation = null;
                 lock (DataLock)
                 {
                     // check if renewing a token.
@@ -978,12 +988,16 @@ namespace Opc.Ua.Bindings
                     // close the socket and reconnect.
                     State = TcpChannelState.Closed;
 
+                    // Discard the current handshake timer
+                    Utils.SilentDispose(m_handshakeTimer);
+                    m_handshakeTimer = null;
+
                     // dispose of the tokens.
                     uint channelId = ChannelId;
                     ChannelId = 0;
                     DiscardTokens();
 
-                    IMessageSocket socket = Socket;
+                    socket = Socket;
                     if (socket != null)
                     {
                         Socket = null;
@@ -992,6 +1006,7 @@ namespace Opc.Ua.Bindings
                             channelId,
                             socket.Handle);
                         socket.Close();
+                        socket = null;
                     }
 
                     // set the state.
@@ -1006,12 +1021,55 @@ namespace Opc.Ua.Bindings
                             null);
 
                         State = TcpChannelState.Connecting;
-                        Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+                        socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+
+                        operation = m_handshakeOperation;
+                        Socket = socket;
 
                         // set the state.
                         ChannelStateChanged(TcpChannelState.Connecting, ServiceResult.Good);
+                    }
+                }
 
-                        Socket.BeginConnect(m_via, m_connectCallback, m_handshakeOperation);
+                // Reconnect
+                if (socket != null && operation != null)
+                {
+                    try
+                    {
+                        await socket.ConnectAsync(m_via).ConfigureAwait(false);
+                        m_logger.LogInformation(
+                            "CLIENTCHANNEL SOCKET RECONNECTED: {Handle:X8}, ChannelId={ChannelId}",
+                            socket.Handle,
+                            ChannelId);
+
+                        // Complete connect
+                        CompleteConnect(operation);
+
+                        // Complete handshake
+                        await operation.EndAsync(int.MaxValue).ConfigureAwait(false);
+
+                        SendQueuedOperations();
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.LogError(e,
+                            "CLIENTCHANNEL SOCKET RECONNECT FAILED: {Handle:X8}, ChannelId={ChannelId}",
+                            Socket?.Handle,
+                            ChannelId);
+
+                        operation.Fault(StatusCodes.BadNotConnected);
+
+                        Shutdown(ServiceResult.Create(
+                            e,
+                            StatusCodes.BadTcpInternalError,
+                            "Fatal error during connect."));
+                        throw;
+                    }
+                    finally
+                    {
+                        OperationCompleted(operation);
+
+                        m_reconnecting = false;
                     }
                 }
             }
@@ -1029,7 +1087,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a token is renewed.
         /// </summary>
-        private void OnHandshakeComplete(IAsyncResult result)
+        private void OnHandshakeComplete(IAsyncResult? result)
         {
             lock (DataLock)
             {
@@ -1041,7 +1099,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    m_logger.LogTrace("ChannelId {ChannelId}: OnHandshakeComplete", ChannelId);
+                    m_logger.LogDebug("ChannelId {ChannelId}: OnHandshakeComplete", ChannelId);
 
                     m_handshakeOperation.End(int.MaxValue);
 
@@ -1390,7 +1448,7 @@ namespace Opc.Ua.Bindings
 
             if (!m_requests.TryRemove(operation.RequestId, out _))
             {
-                m_logger.LogWarning(
+                m_logger.LogDebug(
                     "Could not remove requestId {RequestId} from list of pending operations.",
                     operation.RequestId);
             }
@@ -1474,7 +1532,7 @@ namespace Opc.Ua.Bindings
                     OperationCompleted(m_handshakeOperation);
                 }
 
-                m_logger.LogTrace("ChannelId {ChannelId}: Close", ChannelId);
+                m_logger.LogDebug("ChannelId {ChannelId}: Close", ChannelId);
 
                 // attempt a graceful shutdown.
                 if (State == TcpChannelState.Open)
@@ -1506,7 +1564,7 @@ namespace Opc.Ua.Bindings
                 error = ReadErrorMessageBody(decoder);
             }
 
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessErrorMessage({ServiceResult})", ChannelId, error);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessErrorMessage({ServiceResult})", ChannelId, error);
 
             // check if a handshake is in progress
             if (m_handshakeOperation != null)
@@ -1527,7 +1585,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private void SendCloseSecureChannelRequest(WriteOperation operation)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: SendCloseSecureChannelRequest()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: SendCloseSecureChannelRequest()", ChannelId);
 
             // suppress reconnects if an error occurs.
             m_waitBetweenReconnects = Timeout.Infinite;
@@ -1571,7 +1629,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private bool ProcessResponseMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
-            m_logger.LogTrace("ChannelId {ChannelId}: ProcessResponseMessage()", ChannelId);
+            m_logger.LogDebug("ChannelId {ChannelId}: ProcessResponseMessage()", ChannelId);
 
             ArraySegment<byte> messageBody;
 
@@ -1685,7 +1743,6 @@ namespace Opc.Ua.Bindings
         private Timer? m_handshakeTimer;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
-        private readonly EventHandler<IMessageSocketAsyncEventArgs> m_connectCallback;
         private readonly IMessageSocketFactory m_socketFactory;
         private readonly TimerCallback m_startHandshake;
         private readonly AsyncCallback m_handshakeComplete;

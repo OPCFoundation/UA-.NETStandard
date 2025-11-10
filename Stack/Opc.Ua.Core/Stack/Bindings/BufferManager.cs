@@ -162,7 +162,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            m_logger.LogTrace(
+            m_logger.LogDebug(
                 "{0:X}:TakeBuffer({1:X},{2:X},{3},{4})",
                 this.GetHashCode(),
                 buffer.GetHashCode(),
@@ -200,7 +200,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        m_logger.LogTrace(
+                        m_logger.LogDebug(
                             "{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
                             m_name,
                             allocation.Id,
@@ -211,7 +211,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            m_logger.LogTrace(
+            m_logger.LogDebug(
                 "{0:X}:TransferBuffer({1:X},{2:X},{3})",
                 this.GetHashCode(),
                 buffer.GetHashCode(),
@@ -232,7 +232,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
-            m_logger.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            m_logger.LogDebug("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[^1] = kCookieLocked;
         }
@@ -249,7 +249,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
-            m_logger.LogTrace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            m_logger.LogDebug("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[^1] = kCookieUnlocked;
         }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Bindings
             Debug.Assert(owner != null);
 
 #if TRACE_MEMORY
-            m_logger.LogTrace(
+            m_logger.LogDebug(
                 "{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})",
                 this.GetHashCode(),
                 buffer.GetHashCode(),
@@ -301,7 +301,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        m_logger.LogTrace(
+                        m_logger.LogDebug(
                             "{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
                             m_name,
                             allocation.Id,
@@ -313,7 +313,7 @@ namespace Opc.Ua.Bindings
 
                 m_allocations.Remove(id);
 
-                m_logger.LogTrace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
+                m_logger.LogDebug("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
 
                 foreach (KeyValuePair<int, Allocation> current in m_allocations)
                 {
@@ -332,7 +332,7 @@ namespace Opc.Ua.Bindings
                     {
                         if (allocation.Reported < age)
                         {
-                            m_logger.LogTrace(
+                            m_logger.LogDebug(
                                 "{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
                                 m_name,
                                 allocation.Id,

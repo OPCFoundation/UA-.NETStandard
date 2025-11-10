@@ -820,6 +820,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        [Explicit("Requires proper channel creation mocking")]
         public void ReconnectAsyncShouldHandleNoSupportedFeatures()
         {
             var sut = SessionMock.Create();

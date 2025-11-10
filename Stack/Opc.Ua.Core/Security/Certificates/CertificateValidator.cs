@@ -1008,8 +1008,8 @@ namespace Opc.Ua
 
                 try
                 {
-                    m_logger.LogTrace(
-                        "Writing rejected certificate chain to: {RefjectedCertificateStore}",
+                    m_logger.LogDebug(
+                        "Writing rejected certificate chain to: {RejectedCertificateStore}",
                         rejectedCertificateStore);
 
                     ICertificateStore store = rejectedCertificateStore.OpenStore(m_telemetry);
@@ -1035,10 +1035,9 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogTrace(
-                    "Could not write certificate to directory: {RejectedStore} Error:{Message}",
-                    rejectedCertificateStore,
-                    e.Message);
+                m_logger.LogDebug(e,
+                    "Could not write certificate to directory: {RejectedStore}",
+                    rejectedCertificateStore);
             }
         }
 
