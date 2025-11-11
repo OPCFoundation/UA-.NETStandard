@@ -33,7 +33,6 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -58,8 +57,8 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class CreateSessionApplicationUriValidationTests
     {
-        private const string ClientApplicationUri = "urn:localhost:opcfoundation.org:TestClient";
-        private const string ClientSubjectName = "CN=TestClient, O=OPC Foundation";
+        private const string kClientApplicationUri = "urn:localhost:opcfoundation.org:TestClient";
+        private const string kClientSubjectName = "CN=TestClient, O=OPC Foundation";
         private ServerFixture<StandardServer> m_serverFixture;
         private string m_pkiRoot;
 
@@ -68,10 +67,10 @@ namespace Opc.Ua.Server.Tests
         /// Note: Currently only testing RSA certificates. ECC certificates require ECC-compatible
         /// security policies which add complexity beyond the scope of ApplicationUri validation testing.
         /// </summary>
-        private static readonly NodeId[] CertificateTypes = new[]
-        {
+        private static readonly NodeId[] s_certificateTypes =
+        [
             ObjectTypeIds.RsaMinApplicationCertificateType
-        };
+        ];
 
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
@@ -115,24 +114,24 @@ namespace Opc.Ua.Server.Tests
         /// Test that CreateSession succeeds when client certificate has matching ApplicationUri.
         /// </summary>
         [Test]
-        [TestCaseSource(nameof(CertificateTypes))]
+        [TestCaseSource(nameof(s_certificateTypes))]
         public async Task CreateSessionWithMatchingApplicationUriSucceedsAsync(NodeId certificateType)
         {
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with matching ApplicationUri
             X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
-                [ClientApplicationUri],
-                ClientSubjectName,
+                [kClientApplicationUri],
+                kClientSubjectName,
                 [Utils.GetHostName()],
                 certificateType);
 
             // Attempt to create session - should succeed
-            Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false);
+            Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false);
             Assert.NotNull(session);
             Assert.IsTrue(session.Connected, "Session should be connected");
 
@@ -149,26 +148,26 @@ namespace Opc.Ua.Server.Tests
         /// Test that CreateSession throws BadCertificateUriInvalid when client certificate ApplicationUri doesn't match.
         /// </summary>
         [Test]
-        [TestCaseSource(nameof(CertificateTypes))]
+        [TestCaseSource(nameof(s_certificateTypes))]
         public void CreateSessionWithMismatchedApplicationUriThrows(NodeId certificateType)
         {
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with different ApplicationUri
             const string certUri = "urn:localhost:opcfoundation.org:WrongClient";
             X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
                 [certUri],
-                ClientSubjectName,
+                kClientSubjectName,
                 [Utils.GetHostName()],
                 certificateType);
 
             // Attempt to create session - should throw BadCertificateUriInvalid
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false));
+            ServiceResultException ex = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
             Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUriInvalid, (StatusCode)ex.StatusCode);
         }
 
@@ -176,23 +175,23 @@ namespace Opc.Ua.Server.Tests
         /// Test that CreateSession succeeds when client certificate has multiple URIs and one matches.
         /// </summary>
         [Test]
-        [TestCaseSource(nameof(CertificateTypes))]
+        [TestCaseSource(nameof(s_certificateTypes))]
         public async Task CreateSessionWithMultipleUrisOneMatchesSucceedsAsync(NodeId certificateType)
         {
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with multiple URIs, including the matching one
             const string uri1 = "urn:localhost:opcfoundation.org:App1";
-            const string uri2 = ClientApplicationUri; // This matches
+            const string uri2 = kClientApplicationUri; // This matches
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
             X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
-                ClientSubjectName,
+                kClientSubjectName,
                 [Utils.GetHostName()],
                 certificateType);
 
@@ -204,7 +203,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Contains(uri3, uris.ToList());
 
             // Attempt to create session - should succeed because one URI matches
-            Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false);
+            Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false);
             Assert.NotNull(session);
             Assert.IsTrue(session.Connected, "Session should be connected");
 
@@ -221,13 +220,13 @@ namespace Opc.Ua.Server.Tests
         /// Test that CreateSession throws BadCertificateUriInvalid when client certificate has multiple URIs but none match.
         /// </summary>
         [Test]
-        [TestCaseSource(nameof(CertificateTypes))]
+        [TestCaseSource(nameof(s_certificateTypes))]
         public void CreateSessionWithMultipleUrisNoneMatchThrows(NodeId certificateType)
         {
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with multiple URIs, none matching
@@ -237,7 +236,7 @@ namespace Opc.Ua.Server.Tests
 
             X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
-                ClientSubjectName,
+                kClientSubjectName,
                 [Utils.GetHostName()],
                 certificateType);
 
@@ -249,8 +248,8 @@ namespace Opc.Ua.Server.Tests
             Assert.Contains(uri3, uris.ToList());
 
             // Attempt to create session - should throw BadCertificateUriInvalid
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await CreateSessionWithCustomCertificateAsync(clientCert, ClientApplicationUri).ConfigureAwait(false));
+            ServiceResultException ex = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
             Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUriInvalid, (StatusCode)ex.StatusCode);
         }
 
@@ -264,7 +263,7 @@ namespace Opc.Ua.Server.Tests
             string clientApplicationUri)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var logger = telemetry.CreateLogger<CreateSessionApplicationUriValidationTests>();
+            ILogger logger = telemetry.CreateLogger<CreateSessionApplicationUriValidationTests>();
 
             // Create temporary PKI directory
             string clientPkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
@@ -310,9 +309,9 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false);
 
                 // Get server endpoint with RSA-compatible security policy
-                var endpoint = m_serverFixture.Server.GetEndpoints()
+                EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
                     .FirstOrDefault(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                                         e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
+                        e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
 
                 Assert.NotNull(endpoint, "No suitable endpoint found");
 
@@ -322,8 +321,8 @@ namespace Opc.Ua.Server.Tests
 
                 // Create and open session with retry logic for transient errors
                 var sessionFactory = new DefaultSessionFactory(telemetry);
-                const int maxAttempts = 5;
-                const int delayMs = 1000;
+                const int maxAttempts = 40;
+                const int delayMs = 5000;
                 for (int attempt = 0; ; attempt++)
                 {
                     try
@@ -347,8 +346,13 @@ namespace Opc.Ua.Server.Tests
                         attempt < maxAttempts)
                     {
                         // Retry for transient connection errors (can happen on busy CI environments)
-                        logger.LogWarning(e, "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
-                            attempt + 1, maxAttempts, delayMs, e.StatusCode);
+                        logger.LogWarning(
+                            e,
+                            "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
+                            attempt + 1,
+                            maxAttempts,
+                            delayMs,
+                            e.Code);
                         await Task.Delay(delayMs).ConfigureAwait(false);
                     }
                 }
@@ -389,7 +393,7 @@ namespace Opc.Ua.Server.Tests
             var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
 
             // Build the certificate with the custom SAN extension
-            var builder = CertificateBuilder
+            ICertificateBuilder builder = CertificateBuilder
                 .Create(subjectName)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)

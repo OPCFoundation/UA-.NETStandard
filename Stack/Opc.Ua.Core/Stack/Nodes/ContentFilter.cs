@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <returns>The result of validation.</returns>
-        public Result Validate(FilterContext context)
+        public Result Validate(IFilterContext context)
         {
             var result = new Result(null);
 
@@ -469,7 +469,7 @@ namespace Opc.Ua
         /// <param name="index">The index.</param>
         /// <returns>The results of the validation.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual ContentFilter.ElementResult Validate(FilterContext context, int index)
+        public virtual ContentFilter.ElementResult Validate(IFilterContext context, int index)
         {
             var result = new ContentFilter.ElementResult(null);
 
@@ -776,7 +776,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="index">The index.</param>
         /// <returns>the result of the validation</returns>
-        public virtual ServiceResult Validate(FilterContext context, int index)
+        public virtual ServiceResult Validate(IFilterContext context, int index)
         {
             return ServiceResult.Create(
                 StatusCodes.BadEventFilterInvalid,
@@ -851,7 +851,7 @@ namespace Opc.Ua
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="relativePath">The relative path.</param>
         public AttributeOperand(
-            FilterContext context,
+            IFilterContext context,
             ExpandedNodeId nodeId,
             RelativePath relativePath)
         {
@@ -871,7 +871,7 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute identifier.</param>
         /// <param name="indexRange">The index range.</param>
         public AttributeOperand(
-            FilterContext context,
+            IFilterContext context,
             ExpandedNodeId typeDefinitionId,
             string browsePath,
             uint attributeId,
@@ -952,7 +952,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="index">The index.</param>
         /// <returns>The result of the validation.</returns>
-        public override ServiceResult Validate(FilterContext context, int index)
+        public override ServiceResult Validate(IFilterContext context, int index)
         {
             Validated = false;
 
@@ -1105,7 +1105,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="index">The index.</param>
         /// <returns>The result of the validation</returns>
-        public override ServiceResult Validate(FilterContext context, int index)
+        public override ServiceResult Validate(IFilterContext context, int index)
         {
             if (index < 0)
             {
@@ -1196,7 +1196,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="index">The index.</param>
         /// <returns>The result of the validation</returns>
-        public override ServiceResult Validate(FilterContext context, int index)
+        public override ServiceResult Validate(IFilterContext context, int index)
         {
             if (m_value.Value == null)
             {

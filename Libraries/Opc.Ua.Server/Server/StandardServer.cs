@@ -625,7 +625,7 @@ namespace Opc.Ua.Server
                             m_logger);
                     }
                 }
-#if ECC_SUPPORT
+
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;
@@ -634,7 +634,7 @@ namespace Opc.Ua.Server
                 {
                     parameters = CreateSessionProcessAdditionalParameters(session, parameters);
                 }
-#endif
+
                 await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
@@ -695,12 +695,11 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT
                 if (parameters != null)
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
-#endif
+
                 return new CreateSessionResponse
                 {
                     ResponseHeader = responseHeader,
@@ -752,7 +751,6 @@ namespace Opc.Ua.Server
             }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Process additional parameters during the ECC session creation and set the session's UserToken security policy
         /// </summary>
@@ -825,7 +823,6 @@ namespace Opc.Ua.Server
 
             return response;
         }
-#endif
 
         /// <summary>
         /// Invokes the ActivateSession service.
@@ -979,12 +976,10 @@ namespace Opc.Ua.Server
 
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
-#if ECC_SUPPORT
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
-#endif
 
                 m_logger.LogInformation("Server - SESSION ACTIVATED.");
 
@@ -997,12 +992,10 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT
                 if (parameters != null)
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
-#endif
                 return new ActivateSessionResponse
                 {
                     ResponseHeader = responseHeader,
@@ -3589,9 +3582,8 @@ namespace Opc.Ua.Server
 
             // create new result object.
             var result = new ServiceResult(
-                e.StatusCode,
-                e.SymbolicId,
                 e.NamespaceUri,
+                new StatusCode(e.StatusCode, e.SymbolicId),
                 translatedText,
                 e.AdditionalInfo,
                 innerResult);

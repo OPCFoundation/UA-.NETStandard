@@ -100,6 +100,7 @@
   <Folder Name="/Stack/">
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
+    <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
@@ -110,5 +111,6 @@
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
   </Folder>
 </Solution>

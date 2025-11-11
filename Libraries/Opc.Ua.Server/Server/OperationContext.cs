@@ -35,7 +35,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Stores information used while a thread is completing an operation on behalf of a client.
     /// </summary>
-    public class OperationContext : IOperationContext
+    public class OperationContext : ISessionOperationContext
     {
         /// <summary>
         /// Initializes the context with a session.

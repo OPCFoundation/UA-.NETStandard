@@ -58,11 +58,11 @@ namespace Opc.Ua
                 };
             }
 
-            if (context.UserIdentity != null)
+            if (context is ISessionSystemContext sessionContext && sessionContext.UserIdentity != null)
             {
                 m_clientUserId = new PropertyState<string>(this)
                 {
-                    Value = context.UserIdentity.DisplayName
+                    Value = sessionContext.UserIdentity.DisplayName
                 };
             }
         }

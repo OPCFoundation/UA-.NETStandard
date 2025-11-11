@@ -1202,7 +1202,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            if (subscription.SessionId != context.SessionId)
+            if (subscription.SessionId != (context as ISessionSystemContext)?.SessionId)
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;

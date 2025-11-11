@@ -245,7 +245,7 @@ namespace Quickstarts
                         endpointConfiguration);
 
                     // Create the session factory. - we could take it as parameter or as member
-                    var sessionFactory = new TraceableSessionFactory(m_telemetry);
+                    var sessionFactory = new DefaultSessionFactory(m_telemetry);
 
                     // Create the session
                     ISession session = await sessionFactory

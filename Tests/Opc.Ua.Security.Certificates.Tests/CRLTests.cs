@@ -111,7 +111,6 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-#if ECC_SUPPORT
             ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
@@ -125,14 +124,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             // RSA Certificate
             else
             {
-#endif
                 m_issuerCert = CertificateBuilder
                     .Create("CN=Root CA, O=OPC Foundation")
                     .SetCAConstraint()
                     .CreateForRSA();
-#if ECC_SUPPORT
             }
-#endif
         }
 
         /// <summary>
@@ -209,13 +205,11 @@ namespace Opc.Ua.Security.Certificates.Tests
                 crlBuilder.CrlExtensions.Add(m_issuerCert.BuildAuthorityKeyIdentifier());
             }
             IX509CRL i509Crl;
-#if ECC_SUPPORT
             if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
                 i509Crl = crlBuilder.CreateForECDsa(m_issuerCert);
             }
             else
-#endif
             {
                 i509Crl = crlBuilder.CreateForRSA(m_issuerCert);
             }
@@ -276,7 +270,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.CrlExtensions.Add(m_issuerCert.BuildAuthorityKeyIdentifier());
 
             IX509CRL ix509Crl;
-#if ECC_SUPPORT
             if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
                 using ECDsa ecdsa = m_issuerCert.GetECDsaPrivateKey();
@@ -284,7 +277,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                 ix509Crl = crlBuilder.CreateSignature(generator);
             }
             else
-#endif
             {
                 using RSA rsa = m_issuerCert.GetRSAPrivateKey();
                 var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);

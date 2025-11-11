@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -182,10 +181,7 @@ namespace Opc.Ua.Gds.Client
             {
                 if (Certificate != null)
                 {
-#if ECC_SUPPORT
                     // TODO  use X509Utils.GetPublicKeySize(Certificate); everywhere
-
-#endif
                     return X509Utils.GetRSAPublicKeySize(Certificate);
                 }
 
@@ -203,7 +199,9 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return X509Utils.GetApplicationUrisFromCertificate(Certificate).FirstOrDefault();
+                        IReadOnlyList<string> applicationUris
+                            = X509Utils.GetApplicationUrisFromCertificate(Certificate);
+                        return applicationUris.Count > 0 ? applicationUris[0] : null;
                     }
                     catch (Exception e)
                     {

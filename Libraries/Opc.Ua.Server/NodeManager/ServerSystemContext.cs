@@ -32,7 +32,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class ServerSystemContext : SystemContext
+    public class ServerSystemContext : SessionSystemContext
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.

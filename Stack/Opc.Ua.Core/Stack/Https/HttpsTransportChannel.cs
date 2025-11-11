@@ -202,6 +202,9 @@ namespace Opc.Ua.Bindings
             }
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
             HttpClient client = m_client ?? throw BadNotConnected();
+            using Activity? activity = m_telemetry.StartActivity();
+            using var cts = new CancellationTokenSource(OperationTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
             {
                 var content = new ByteArrayContent(
@@ -218,15 +221,11 @@ namespace Opc.Ua.Bindings
                         EndpointDescription.SecurityPolicyUri);
                 }
 
-                HttpResponseMessage response;
-                using (var cts = new CancellationTokenSource(OperationTimeout))
-                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                    cts.Token,
-                    ct))
-                {
-                    response = await client.PostAsync(m_url, content, linkedCts.Token)
-                        .ConfigureAwait(false);
-                }
+                HttpResponseMessage response = await client.PostAsync(
+                    m_url,
+                    content,
+                    linkedCts.Token).ConfigureAwait(false);
+
                 response.EnsureSuccessStatusCode();
 
 #if NET6_0_OR_GREATER
@@ -269,17 +268,29 @@ namespace Opc.Ua.Bindings
                 m_logger.LogError(hre, "Exception sending HTTPS request.");
                 throw;
             }
-            catch (TaskCanceledException tce)
+            catch (OperationCanceledException e)
             {
-                m_logger.LogError(tce, "Send request cancelled.");
-                throw ServiceResultException.Create(
-                    StatusCodes.BadRequestTimeout,
-                    "Https request was cancelled.");
+                if (cts.IsCancellationRequested)
+                {
+                    m_logger.LogError(
+                        e,
+                        "Send request timed out after {OperationTimeout}ms.",
+                        OperationTimeout);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadRequestTimeout,
+                        "Https request timed out after {0}.",
+                        OperationTimeout);
+                }
+                throw;
             }
             catch (Exception ex) when (ex is not ServiceResultException)
             {
                 m_logger.LogError(ex, "Exception sending HTTPS request.");
-                throw ServiceResultException.Create(StatusCodes.BadUnknownResponse, ex.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnknownResponse,
+                    ex,
+                    "Error sending request: {0}",
+                    ex.Message);
             }
         }
 
@@ -301,6 +312,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="url">The server url.</param>
         /// <param name="settings">The settings for the transport channel.</param>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             if (m_disposed)
@@ -381,9 +393,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (CryptographicException ce)
                     {
-                        m_logger.LogTrace(
-                            "Copy of the private key for https was denied: {Message}",
-                            ce.Message);
+                        m_logger.LogError(ce, "Copy of the private key for https was denied");
                     }
 #endif
                     PropertyInfo? certProperty = handler.GetType().GetProperty("ClientCertificates");

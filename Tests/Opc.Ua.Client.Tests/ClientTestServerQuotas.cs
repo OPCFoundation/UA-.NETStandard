@@ -147,7 +147,7 @@ namespace Opc.Ua.Client.Tests
         [Order(200)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
-            var theSession = (Session)((TraceableSession)Session).Session;
+            ISession theSession = Session;
 
             int namespaceIndex = theSession.NamespaceUris.GetIndex(
                 "http://opcfoundation.org/Quickstarts/ReferenceServer");
@@ -171,7 +171,6 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
 
-            _ = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)
             {
                 NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");

@@ -13,6 +13,7 @@
     <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore</tags>
     <dependencies>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Types.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Security.Certificates.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug" version="$version$"/>

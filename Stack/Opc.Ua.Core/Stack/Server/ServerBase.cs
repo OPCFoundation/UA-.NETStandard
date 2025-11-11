@@ -1425,9 +1425,10 @@ namespace Opc.Ua
                     .GetInstanceCertificate(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
+                IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
+                    instanceCertificate);
                 // it is ok to pick the first here since it is only a fallback value
-                configuration.ApplicationUri = X509Utils.GetApplicationUrisFromCertificate(
-                    instanceCertificate).FirstOrDefault();
+                configuration.ApplicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
 
                 if (string.IsNullOrEmpty(configuration.ApplicationUri))
                 {
@@ -1565,6 +1566,20 @@ namespace Opc.Ua
                 m_queuedRequestsCount = 0;
                 m_stopped = false;
 
+                ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
+
+                ThreadPool.SetMinThreads(
+                    Math.Max(minThreadCount, m_minThreadCount),
+                    Math.Max(minCompletionPortThreads, m_minThreadCount)
+                );
+
+                ThreadPool.GetMaxThreads(out maxThreadCount, out int maxCompletionPortThreads);
+
+                ThreadPool.SetMaxThreads(
+                    Math.Max(maxThreadCount, m_maxThreadCount),
+                    Math.Max(maxCompletionPortThreads, m_maxThreadCount)
+                );
+
                 // Start worker tasks
                 for (int i = 0; i < m_minThreadCount; i++)
                 {
@@ -1618,15 +1633,15 @@ namespace Opc.Ua
                 if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    m_server.m_logger.LogTrace("Server halted.");
                     return;
                 }
 
-                //check if we can accept more requests
+                // check if we can accept more requests
                 if (m_queuedRequestsCount >= m_maxRequestCount)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    m_server.m_logger.LogTrace("Too many operations. Active threads: {Count}", m_activeThreadCount);
+                    // TODO: make a metric
+                    m_server.m_logger.LogDebug("Too many operations. Active threads: {Count}", m_activeThreadCount);
                     return;
                 }
                 // Optionally scale up workers if needed
@@ -1638,7 +1653,7 @@ namespace Opc.Ua
                         m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
                     }
                 }
-                //Enqueue requests
+                // Enqueue requests
                 m_queue.Enqueue(request);
                 Interlocked.Increment(ref m_queuedRequestsCount);
                 m_queueSignal.Release();
@@ -1715,7 +1730,7 @@ namespace Opc.Ua
         /// deriving from this class.
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; private set; } = Utils.Null.Logger;
+        protected ILogger m_logger { get; private set; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
         private IServiceMessageContext m_messageContext;

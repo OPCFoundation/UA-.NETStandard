@@ -32,20 +32,14 @@ namespace Opc.Ua
     /// Represents a cryptographic nonce used for secure communication.
     /// </summary>
     [Serializable]
-#if ECC_SUPPORT
     public class Nonce : IDisposable, ISerializable
-#else
-    public class Nonce : ISerializable
-#endif
     {
         /// <summary>
         /// Constructor
         /// </summary>
         private Nonce()
         {
-#if ECC_SUPPORT
             m_ecdh = null;
-#endif
 #if CURVE25519
             m_bcKeyPair = null;
 #endif
@@ -56,7 +50,6 @@ namespace Opc.Ua
         /// </summary>
         public byte[] Data { get; private set; }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Derives a key from the remote nonce, using the specified salt, hash algorithm, and length.
         /// </summary>
@@ -165,7 +158,6 @@ namespace Opc.Ua
 
             return Data;
         }
-#endif
 
         /// <summary>
         /// Creates a nonce for the specified security policy URI and nonce length.
@@ -182,7 +174,6 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-#if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256);
                 case SecurityPolicies.ECC_nistP384:
@@ -191,18 +182,11 @@ namespace Opc.Ua
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1);
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
-
-#endif
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
-                {
                     return CreateNonceForCurve25519();
-                }
-
                 case SecurityPolicies.ECC_curve448:
-                {
                     return CreateNonceForCurve448();
-                }
 #endif
                 default:
                     uint rsaNonceLength = GetNonceLength(securityPolicyUri);
@@ -233,7 +217,6 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-#if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
                 case SecurityPolicies.ECC_nistP384:
@@ -242,7 +225,6 @@ namespace Opc.Ua
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
-#endif
                 case SecurityPolicies.ECC_curve25519:
                     return CreateNonceForCurve25519(nonceData);
                 case SecurityPolicies.ECC_curve448:
@@ -388,7 +370,6 @@ namespace Opc.Ua
             return new Nonce { Data = nonceData };
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Creates a new Nonce instance with the specified ECC curve and nonce data.
         /// </summary>
@@ -445,7 +426,6 @@ namespace Opc.Ua
 
             return new Nonce { Data = senderNonce, m_ecdh = ecdh };
         }
-#endif
 
 #if CURVE25519
         /// <summary>
@@ -494,7 +474,6 @@ namespace Opc.Ua
         /// </summary>
         protected Nonce(SerializationInfo info, StreamingContext context)
         {
-#if ECC_SUPPORT
             string curveName = info.GetString("CurveName");
 
             if (curveName != null)
@@ -510,15 +489,10 @@ namespace Opc.Ua
                 };
                 m_ecdh = ECDiffieHellman.Create(ecParams);
             }
-#endif
             Data = (byte[])info.GetValue("Data", typeof(byte[]));
         }
 
-#if ECC_SUPPORT
         private ECDiffieHellman m_ecdh;
-
-#endif
-
 #if CURVE25519
         private AsymmetricCipherKeyPair m_bcKeyPair;
 #endif
@@ -526,7 +500,6 @@ namespace Opc.Ua
         private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
         private static uint s_minNonceLength = 32;
 
-#if ECC_SUPPORT
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -547,14 +520,12 @@ namespace Opc.Ua
                 m_ecdh = null;
             }
         }
-#endif
 
         /// <summary>
         /// Custom serialization
         /// </summary>
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-#if ECC_SUPPORT
             if (m_ecdh != null)
             {
                 ECParameters ecParams = m_ecdh.ExportParameters(false);
@@ -568,7 +539,6 @@ namespace Opc.Ua
                 info.AddValue("QX", null);
                 info.AddValue("QY", null);
             }
-#endif
             info.AddValue("Data", Data);
         }
     }

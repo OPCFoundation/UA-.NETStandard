@@ -291,17 +291,17 @@ namespace Opc.Ua.Bindings
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
-                        m_logger.LogTrace(
-                            Utils.TraceMasks.ServiceDetail,
-                            "ChannelId {Id}: ProcessRequestMessage",
-                            ChannelId);
+                        // m_logger.LogTrace(
+                        //     Utils.TraceMasks.ServiceDetail,
+                        //     "ChannelId {Id}: ProcessRequestMessage",
+                        //     ChannelId);
                         return ProcessRequestMessage(messageType, messageChunk);
                     }
 
                     // check for hello.
                     if (messageType == TcpMessageType.Hello)
                     {
-                        m_logger.LogTrace(
+                        m_logger.LogDebug(
                             Utils.TraceMasks.ServiceDetail,
                             "ChannelId {Id}: ProcessHelloMessage",
                             ChannelId);
@@ -311,7 +311,7 @@ namespace Opc.Ua.Bindings
                     // process open secure channel repsonse.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
-                        m_logger.LogTrace(
+                        m_logger.LogDebug(
                             Utils.TraceMasks.ServiceDetail,
                             "ChannelId {Id}: ProcessOpenSecureChannelRequest",
                             ChannelId);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Bindings
                     // process close secure channel response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                     {
-                        m_logger.LogTrace(
+                        m_logger.LogDebug(
                             Utils.TraceMasks.ServiceDetail,
                             "ChannelId {Id}: ProcessCloseSecureChannelRequest",
                             ChannelId);
@@ -853,7 +853,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            m_logger.LogTrace("ChannelId {Id}: SendOpenSecureChannelResponse()", ChannelId);
+            m_logger.LogDebug("ChannelId {Id}: SendOpenSecureChannelResponse()", ChannelId);
 
             var response = new OpenSecureChannelResponse();
 
@@ -1117,7 +1117,11 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                // m_logger.LogTrace("ChannelId {Id}: ProcessRequestMessage RequestId {RequestId}", ChannelId, requestId);
+                // m_logger.LogTrace(
+                //      "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId}",
+                //      ChannelId,
+                //      requestId);
+
                 if (DiscoveryOnly &&
                     GetSavedChunksTotalSize() == 0 &&
                     !ValidateDiscoveryServiceCall(
@@ -1214,10 +1218,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
-                m_logger.LogTrace(
-                    "ChannelId {ChannelId}: SendResponse {RequestId}",
-                    ChannelId,
-                    requestId);
+                // m_logger.LogTrace(
+                //     "ChannelId {ChannelId}: SendResponse {RequestId}",
+                //     ChannelId,
+                //     requestId);
                 BufferCollection buffers = null;
 
                 try

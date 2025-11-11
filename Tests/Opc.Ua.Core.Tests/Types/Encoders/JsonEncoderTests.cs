@@ -1063,7 +1063,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_telemetry = new DefaultTelemetry();
+            m_telemetry = NUnitTelemetryContext.Create();
             m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
@@ -1890,7 +1890,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
                 CultureInfo.InvariantCulture);
-#if ECC_SUPPORT && (NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER)
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
             JsonEncoder.ConvertUniversalTimeToString(
                 testDateTime,

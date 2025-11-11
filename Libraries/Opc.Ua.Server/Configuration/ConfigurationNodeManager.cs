@@ -35,12 +35,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
+using System.Security.Cryptography;
 using System.Diagnostics;
 #if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
-#endif
-#if ECC_SUPPORT
-using System.Security.Cryptography;
 #endif
 
 namespace Opc.Ua.Server
@@ -426,7 +424,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             CertificateStoreIdentifier _)
         {
-            if (context is SystemContext { OperationContext: OperationContext operationContext })
+            if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
                     MessageSecurityMode.SignAndEncrypt)
@@ -598,7 +596,7 @@ namespace Opc.Ua.Server
                 var updateCertificate = new UpdateCertificateData
                 {
                     IssuerCollection = newIssuerCollection,
-                    SessionId = context.SessionId
+                    SessionId = (context as ISessionSystemContext)?.SessionId
                 };
                 try
                 {
@@ -981,18 +979,12 @@ namespace Opc.Ua.Server
             }
             else
             {
-#if !ECC_SUPPORT
-                throw new ServiceResultException(
-                    StatusCodes.BadNotSupported,
-                    "The Ecc certificate type is not supported.");
-#else
                 ECCurve? curve =
                     EccUtils.GetCurveFromCertificateTypeId(certificateTypeId)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
                         "The Ecc certificate type is not supported.");
                 certificate = certificateBuilder.SetECCurve(curve.Value).CreateForECDsa();
-#endif
             }
 
             certificateGroup.TemporaryApplicationCertificate = certificate;

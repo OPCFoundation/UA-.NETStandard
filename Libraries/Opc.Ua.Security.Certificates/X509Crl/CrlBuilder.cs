@@ -277,7 +277,6 @@ namespace Opc.Ua.Security.Certificates
             return CreateSignature(generator);
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Create the CRL with signature for ECDsa.
         /// </summary>
@@ -288,7 +287,6 @@ namespace Opc.Ua.Security.Certificates
             var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
             return CreateSignature(generator);
         }
-#endif
 
         /// <summary>
         /// Constructs Certificate Revocation List raw data in X509 ASN format.

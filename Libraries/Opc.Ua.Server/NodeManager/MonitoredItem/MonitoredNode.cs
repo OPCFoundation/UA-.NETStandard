@@ -236,11 +236,12 @@ namespace Opc.Ua.Server
                 lock (NodeManager.Lock)
                 {
                     // enqueue event
-                    if (context?.SessionId != null &&
+                    if (context is ISessionSystemContext session &&
+                        session.SessionId != null &&
                         monitoredItem?.Session?.Id?.Identifier != null)
                     {
                         if (monitoredItem.Session.Id.Identifier
-                            .Equals(context.SessionId.Identifier))
+                            .Equals(session.SessionId.Identifier))
                         {
                             monitoredItem?.QueueEvent(e);
                         }

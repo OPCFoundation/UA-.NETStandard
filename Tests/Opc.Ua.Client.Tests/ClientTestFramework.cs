@@ -75,6 +75,7 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
+        public (Type Type, ExpandedNodeId[] NodeIds)[] TestSetStaticMassNumeric { get; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
         public ExpandedNodeId[] TestSetDataSimulation { get; }
         public ExpandedNodeId[] TestSetHistory { get; }
@@ -88,6 +89,7 @@ namespace Opc.Ua.Client.Tests
             m_logger = Telemetry.CreateLogger<ClientTestFramework>();
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
+            TestSetStaticMassNumeric = CommonTestWorkers.NodeIdTestSetStaticMassNumeric;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
             TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
             TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
@@ -310,6 +312,8 @@ namespace Opc.Ua.Client.Tests
                 });
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
+            ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
+            ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
@@ -390,6 +394,30 @@ namespace Opc.Ua.Client.Tests
         {
             return [.. TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
                 .Where(n => n != null)];
+        }
+
+        /// <summary>
+        /// Return a test set of nodes with static character.
+        /// 100 of each numeric data type.
+        /// </summary>
+        /// <param name="namespaceUris">The namespace table used in the session.</param>
+        /// <returns>The list of static test nodes.</returns>
+        public IDictionary<NodeId, Type> GetTestSetStaticMassNumeric(NamespaceTable namespaceUris)
+        {
+            var result = new Dictionary<NodeId, Type>();
+            foreach ((Type Type, ExpandedNodeId[] NodeIds) entry in TestSetStaticMassNumeric)
+            {
+                Type type = entry.Type;
+                foreach (ExpandedNodeId expandedNodeId in entry.NodeIds)
+                {
+                    var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
+                    if (nodeId != null)
+                    {
+                        result[nodeId] = type;
+                    }
+                }
+            }
+            return result;
         }
 
         /// <summary>

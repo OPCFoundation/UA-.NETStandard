@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,7 +56,7 @@ namespace Opc.Ua
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="ct">Token to use to cancel the operation.</param>
         /// <returns>Returns null if the node does not exist.</returns>
-        ValueTask<INode> FindAsync(
+        ValueTask<INode?> FindAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default);
 
@@ -71,7 +73,7 @@ namespace Opc.Ua
         /// <returns>
         /// Returns null if the source does not exist or if there is no matching target.
         /// </returns>
-        ValueTask<INode> FindAsync(
+        ValueTask<INode?> FindAsync(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -142,7 +144,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public INode Find(ExpandedNodeId nodeId)
+        public INode? Find(ExpandedNodeId nodeId)
         {
             return m_table.FindAsync(nodeId)
                 .AsTask()
@@ -151,7 +153,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public INode Find(
+        public INode? Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,

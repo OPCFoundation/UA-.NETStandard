@@ -56,7 +56,7 @@ namespace Opc.Ua
             m_callback = callback;
             AsyncState = callbackData;
             m_deadline = DateTime.MinValue;
-            m_logger = logger ?? Utils.Null.Logger;
+            m_logger = logger ?? LoggerUtils.Null.Logger;
             m_cts = cts;
 
             if (timeout > 0)
@@ -260,7 +260,7 @@ namespace Opc.Ua
                 catch (ObjectDisposedException ode)
                 {
                     // ignore
-                    m_logger.LogTrace(
+                    m_logger.LogDebug(
                         ode,
                         "Unexpected error handling OperationCompleted for AsyncResult operation.");
                 }
@@ -284,7 +284,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    m_logger.LogTrace(
+                    m_logger.LogDebug(
                         e,
                         "Unexpected error handling dispose of timer for AsyncResult operation.");
                 }
@@ -314,7 +314,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    m_logger.LogTrace(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
+                    m_logger.LogDebug(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
                 }
             }
         }
@@ -332,7 +332,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogTrace(
+                m_logger.LogDebug(
                     e,
                     "Unexpected error handling timeout for ChannelAsyncResult operation.");
             }

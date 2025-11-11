@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                SessionFactory = new TraceableSessionFactory(telemetry)
+                SessionFactory = new DefaultSessionFactory(telemetry)
                 {
                     ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
                 };
@@ -360,7 +360,7 @@ namespace Opc.Ua.Client.Tests
         /// <param name="endpoint">The configured endpoint</param>
         public ISession CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
         {
-            return SessionFactory.Create(Config, channel, endpoint, null);
+            return SessionFactory.Create(channel, Config, endpoint, null);
         }
 
         /// <summary>
@@ -456,7 +456,8 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging)
         {
-            string expectedName = m_telemetry.GetActivitySource().Name;
+            ActivitySource activitySource = m_telemetry.GetActivitySource();
+            string expectedName = activitySource.Name;
 
             if (disableActivityLogging)
             {
@@ -518,7 +519,7 @@ namespace Opc.Ua.Client.Tests
                 m_logger.LogError(
                     "Session '{SessionName}' keep alive error: {StatusCode}",
                     session.SessionName,
-                    e.Status);
+                    e.Status.ToLongString());
             }
         }
     }

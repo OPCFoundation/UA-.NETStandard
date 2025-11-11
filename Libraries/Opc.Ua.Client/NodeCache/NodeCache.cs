@@ -46,12 +46,15 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public NodeCache(ISession session, ITelemetryContext telemetry)
+        public NodeCache(INodeCacheContext context, ITelemetryContext telemetry)
         {
-            m_session = session ?? throw new ArgumentNullException(nameof(session));
+            m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = telemetry.CreateLogger<NodeCache>();
-            m_typeTree = new TypeTable(m_session.NamespaceUris);
-            m_nodes = new NodeTable(m_session.NamespaceUris, m_session.ServerUris, m_typeTree);
+            m_typeTree = new TypeTable(m_context.NamespaceUris);
+            m_nodes = new NodeTable(
+                m_context.NamespaceUris,
+                m_context.ServerUris,
+                m_typeTree);
             m_uaTypesLoaded = false;
             m_cacheLock = new ReaderWriterLockSlim();
         }
@@ -63,7 +66,6 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                m_session = null;
                 m_cacheLock?.Dispose();
             }
         }
@@ -76,10 +78,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public NamespaceTable NamespaceUris => m_session.NamespaceUris;
+        public NamespaceTable NamespaceUris => m_context.NamespaceUris;
 
         /// <inheritdoc/>
-        public StringTable ServerUris => m_session.ServerUris;
+        public StringTable ServerUris => m_context.ServerUris;
 
         /// <inheritdoc/>
         IAsyncTypeTable IAsyncNodeTable.TypeTree => this;
@@ -90,7 +92,7 @@ namespace Opc.Ua.Client
         public ITypeTable TypeTree => this.AsTypeTable();
 
         /// <inheritdoc/>
-        public async ValueTask<INode> FindAsync(
+        public async ValueTask<INode?> FindAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
@@ -138,7 +140,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<INode>> FindAsync(
+        public async Task<IList<INode?>> FindAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct = default)
         {
@@ -149,7 +151,7 @@ namespace Opc.Ua.Client
             }
 
             int count = nodeIds.Count;
-            var nodes = new List<INode>(count);
+            var nodes = new List<INode?>(count);
             var fetchNodeIds = new ExpandedNodeIdCollection();
 
             int ii;
@@ -169,7 +171,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do not return temporary nodes created after a Browse().
-                if (node != null && node?.GetType() != typeof(Node))
+                if (node != null && node.GetType() != typeof(Node))
                 {
                     nodes.Add(node);
                 }
@@ -186,7 +188,7 @@ namespace Opc.Ua.Client
             }
 
             // fetch missing nodes from server.
-            IList<Node> fetchedNodes;
+            IList<Node?> fetchedNodes;
             try
             {
                 fetchedNodes = await FetchNodesAsync(fetchNodeIds, ct).ConfigureAwait(false);
@@ -199,7 +201,7 @@ namespace Opc.Ua.Client
             }
 
             ii = 0;
-            foreach (Node fetchedNode in fetchedNodes)
+            foreach (Node? fetchedNode in fetchedNodes)
             {
                 while (ii < count && nodes[ii] != null)
                 {
@@ -221,7 +223,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<INode> FindAsync(
+        public async ValueTask<INode?> FindAsync(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -252,7 +254,7 @@ namespace Opc.Ua.Client
 
             foreach (IReference reference in references)
             {
-                INode target = await FindAsync(reference.TargetId, ct)
+                INode? target = await FindAsync(reference.TargetId, ct)
                     .ConfigureAwait(false);
 
                 if (target == null)
@@ -275,11 +277,11 @@ namespace Opc.Ua.Client
             ExpandedNodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
-                return null;
+                return NodeId.Null;
             }
 
             m_cacheLock.EnterReadLock();
@@ -325,7 +327,7 @@ namespace Opc.Ua.Client
 
             foreach (IReference reference in references)
             {
-                INode target =
+                INode? target =
                     await FindAsync(reference.TargetId, ct).ConfigureAwait(false);
 
                 if (target == null)
@@ -344,11 +346,11 @@ namespace Opc.Ua.Client
             NodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
-                return null;
+                return NodeId.Null;
             }
 
             m_cacheLock.EnterReadLock();
@@ -363,9 +365,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<Node> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        public async Task<Node?> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            var localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris);
 
             if (localId == null)
             {
@@ -373,13 +375,13 @@ namespace Opc.Ua.Client
             }
 
             // fetch node from server.
-            Node source = await m_session.ReadNodeAsync(localId, ct).ConfigureAwait(false);
+            Node source = await m_context.FetchNodeAsync(null, localId, ct: ct).ConfigureAwait(false);
 
             try
             {
                 // fetch references from server.
-                ReferenceDescriptionCollection references = await m_session
-                    .FetchReferencesAsync(localId, ct)
+                ReferenceDescriptionCollection references = await m_context
+                    .FetchReferencesAsync(null, localId, ct)
                     .ConfigureAwait(false);
 
                 m_cacheLock.EnterUpgradeableReadLock();
@@ -427,7 +429,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<Node>> FetchNodesAsync(
+        public async Task<IList<Node?>> FetchNodesAsync(
             IList<ExpandedNodeId> nodeIds,
             CancellationToken ct)
         {
@@ -438,14 +440,14 @@ namespace Opc.Ua.Client
             }
 
             var localIds = new NodeIdCollection(
-                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
+                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris)));
 
             // fetch nodes and references from server.
-            (IList<Node> sourceNodes, IList<ServiceResult> readErrors) = await m_session
-                .ReadNodesAsync(localIds, NodeClass.Unspecified, ct: ct)
+            (IReadOnlyList<Node> sourceNodes, IReadOnlyList<ServiceResult> readErrors) = await m_context
+                .FetchNodesAsync(null, localIds, NodeClass.Unspecified, ct: ct)
                 .ConfigureAwait(false);
-            (IList<ReferenceDescriptionCollection> referenceCollectionList, IList<ServiceResult> fetchErrors) =
-                await m_session.FetchReferencesAsync(localIds, ct).ConfigureAwait(false);
+            (IReadOnlyList<ReferenceDescriptionCollection> referenceCollectionList, IReadOnlyList<ServiceResult> fetchErrors) =
+                await m_context.FetchReferencesAsync(null, localIds, ct).ConfigureAwait(false);
 
             int ii = 0;
             for (ii = 0; ii < count; ii++)
@@ -496,7 +498,7 @@ namespace Opc.Ua.Client
                 InternalWriteLockedAttach(sourceNodes[ii]);
             }
 
-            return sourceNodes;
+            return [.. sourceNodes];
         }
 
         /// <inheritdoc/>
@@ -530,9 +532,9 @@ namespace Opc.Ua.Client
             var targetIds = new ExpandedNodeIdCollection(
                 references.Select(reference => reference.TargetId));
 
-            IList<INode> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
+            IList<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
 
-            foreach (INode target in result)
+            foreach (INode? target in result)
             {
                 if (target != null)
                 {
@@ -556,8 +558,8 @@ namespace Opc.Ua.Client
                 return targets;
             }
             var targetIds = new ExpandedNodeIdCollection();
-            IList<INode> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
-            foreach (INode source in sources)
+            IList<INode?> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
+            foreach (INode? source in sources)
             {
                 if (source is not Node node)
                 {
@@ -583,8 +585,8 @@ namespace Opc.Ua.Client
                 }
             }
 
-            IList<INode> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
-            foreach (INode target in result)
+            IList<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
+            foreach (INode? target in result)
             {
                 if (target != null)
                 {
@@ -605,11 +607,11 @@ namespace Opc.Ua.Client
             }
 
             // follow the tree.
-            ILocalNode subType = source;
+            ILocalNode? subType = source;
 
             while (subType != null)
             {
-                ILocalNode superType = null;
+                ILocalNode? superType = null;
 
                 // Get super type (should be 1 or none)
                 IList<INode> references = await FindReferencesAsync(
@@ -641,7 +643,7 @@ namespace Opc.Ua.Client
             ExpandedNodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
@@ -664,7 +666,7 @@ namespace Opc.Ua.Client
             NodeId typeId,
             CancellationToken ct = default)
         {
-            INode type = await FindAsync(typeId, ct).ConfigureAwait(false);
+            INode? type = await FindAsync(typeId, ct).ConfigureAwait(false);
 
             if (type == null)
             {
@@ -736,7 +738,7 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            ILocalNode supertype = subtype;
+            ILocalNode? supertype = subtype;
 
             while (supertype != null)
             {
@@ -781,7 +783,7 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            ILocalNode supertype = subtype;
+            ILocalNode? supertype = subtype;
 
             while (supertype != null)
             {
@@ -811,11 +813,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask<QualifiedName> FindReferenceTypeNameAsync(
+        public ValueTask<QualifiedName?> FindReferenceTypeNameAsync(
             NodeId referenceTypeId,
             CancellationToken ct = default)
         {
-            QualifiedName typeName;
+            QualifiedName? typeName;
             m_cacheLock.EnterReadLock();
             try
             {
@@ -825,7 +827,7 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-            return new ValueTask<QualifiedName>(typeName);
+            return new ValueTask<QualifiedName?>(typeName);
         }
 
         /// <inheritdoc/>
@@ -1032,7 +1034,7 @@ namespace Opc.Ua.Client
 
             if (references.Count > 0)
             {
-                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_session.NamespaceUris);
+                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_context.NamespaceUris);
             }
 
             return NodeId.Null;
@@ -1064,7 +1066,7 @@ namespace Opc.Ua.Client
 
             if (references.Count > 0)
             {
-                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_session.NamespaceUris);
+                return ExpandedNodeId.ToNodeId(references[0].TargetId, m_context.NamespaceUris);
             }
 
             return NodeId.Null;
@@ -1079,7 +1081,7 @@ namespace Opc.Ua.Client
             }
 
             var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(
                 context,
                 "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
@@ -1122,7 +1124,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<string> GetDisplayTextAsync(
+        public async ValueTask<string?> GetDisplayTextAsync(
             INode node,
             CancellationToken ct = default)
         {
@@ -1138,7 +1140,7 @@ namespace Opc.Ua.Client
                 return node.ToString();
             }
 
-            string displayText = null;
+            string? displayText = null;
 
             // use the modelling rule to determine which parent to follow.
             NodeId modellingRule = target.ModellingRule;
@@ -1165,7 +1167,7 @@ namespace Opc.Ua.Client
                 // use the first parent if modelling rule is new.
                 if (modellingRule == Objects.ModellingRule_Mandatory)
                 {
-                    displayText = await GetDisplayTextAsync(
+                    displayText = parent == null ? null : await GetDisplayTextAsync(
                         parent,
                         ct).ConfigureAwait(false);
                     break;
@@ -1192,7 +1194,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<string> GetDisplayTextAsync(
+        public async ValueTask<string?> GetDisplayTextAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
@@ -1201,7 +1203,7 @@ namespace Opc.Ua.Client
                 return string.Empty;
             }
 
-            INode node = await FindAsync(
+            INode? node = await FindAsync(
                 nodeId,
                 ct).ConfigureAwait(false);
 
@@ -1216,7 +1218,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<string> GetDisplayTextAsync(
+        public async ValueTask<string?> GetDisplayTextAsync(
             ReferenceDescription reference,
             CancellationToken ct = default)
         {
@@ -1225,7 +1227,7 @@ namespace Opc.Ua.Client
                 return string.Empty;
             }
 
-            INode node = await FindAsync(
+            INode? node = await FindAsync(
                 reference.NodeId,
                 ct).ConfigureAwait(false);
 
@@ -1237,18 +1239,6 @@ namespace Opc.Ua.Client
             }
 
             return reference.ToString();
-        }
-
-        /// <inheritdoc/>
-        public NodeId BuildBrowsePath(
-            ILocalNode node,
-            IList<QualifiedName> browsePath)
-        {
-            NodeId typeId = null;
-
-            browsePath.Add(node.BrowseName);
-
-            return typeId;
         }
 
         private void InternalWriteLockedAttach(ILocalNode node)
@@ -1267,7 +1257,7 @@ namespace Opc.Ua.Client
 
         private readonly ReaderWriterLockSlim m_cacheLock = new();
         private readonly ILogger m_logger;
-        private ISession m_session;
+        private readonly INodeCacheContext m_context;
         private readonly TypeTable m_typeTree;
         private readonly NodeTable m_nodes;
         private bool m_uaTypesLoaded;

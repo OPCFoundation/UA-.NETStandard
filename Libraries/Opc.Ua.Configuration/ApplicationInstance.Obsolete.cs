@@ -32,9 +32,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-#if ECC_SUPPORT
-#endif
-
 namespace Opc.Ua.Configuration
 {
     /// <summary>

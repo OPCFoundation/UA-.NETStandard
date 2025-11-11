@@ -22,6 +22,11 @@ namespace Opc.Ua
     public interface IClientBase : IDisposable
     {
         /// <summary>
+        /// How to record activity of the client
+        /// </summary>
+        ClientTraceFlags ActivityTraceFlags { get; set; }
+
+        /// <summary>
         /// The description of the endpoint.
         /// </summary>
         EndpointDescription Endpoint { get; }

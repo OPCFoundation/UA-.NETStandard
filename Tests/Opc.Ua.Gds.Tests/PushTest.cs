@@ -70,7 +70,6 @@ namespace Opc.Ua.Gds.Tests
                 SecurityPolicies.Aes256_Sha256_RsaPss,
                 null
             },
-#if ECC_SUPPORT
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType),
@@ -99,7 +98,6 @@ namespace Opc.Ua.Gds.Tests
                 SecurityPolicies.ECC_brainpoolP384r1,
                 ECCurve.NamedCurves.brainpoolP384r1
             }
-#endif
         ];
 
         public PushTest(string certificateTypeString, NodeId certificateType, string securityPolicyUri, ECCurve? curve)
@@ -759,7 +757,6 @@ namespace Opc.Ua.Gds.Tests
 
             X509Certificate2 newCert;
 
-#if ECC_SUPPORT
             ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
@@ -776,7 +773,6 @@ namespace Opc.Ua.Gds.Tests
             // RSA Certificate
             else
             {
-#endif
                 newCert = CertificateFactory
                     .CreateCertificate(
                         m_applicationRecord.ApplicationUri,
@@ -784,9 +780,7 @@ namespace Opc.Ua.Gds.Tests
                         m_selfSignedServerCert.Subject + "1",
                         null)
                     .CreateForRSA();
-#if ECC_SUPPORT
             }
-#endif
 
             byte[] privateKey = null;
             if (keyFormat == "PFX")
@@ -1285,7 +1279,6 @@ namespace Opc.Ua.Gds.Tests
             var certificateStoreIdentifier = new CertificateStoreIdentifier(tempStorePath, false);
             Assert.IsTrue(EraseStore(certificateStoreIdentifier, telemetry));
             const string subjectName = "CN=CA Test Cert, O=OPC Foundation";
-#if ECC_SUPPORT
             ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
@@ -1301,21 +1294,19 @@ namespace Opc.Ua.Gds.Tests
             // RSA Certificate
             else
             {
-#endif
                 m_caCert = await CertificateFactory
                     .CreateCertificate(null, null, subjectName, null)
                     .SetCAConstraint()
                     .CreateForRSA()
                     .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)
                     .ConfigureAwait(false);
-#if ECC_SUPPORT
             }
-#endif
 
             // initialize cert revocation list (CRL)
             X509CRL caCrl = await CertificateGroup
                 .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert, null, m_telemetry)
                 .ConfigureAwait(false);
+            Assert.That(caCrl, Is.Not.Null);
         }
 
         private static bool EraseStore(CertificateStoreIdentifier storeIdentifier, ITelemetryContext telemetry)

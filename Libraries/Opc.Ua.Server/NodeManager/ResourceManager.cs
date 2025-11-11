@@ -146,9 +146,8 @@ namespace Opc.Ua.Server
 
             // construct new service result.
             return new ServiceResult(
-                result.StatusCode,
-                result.SymbolicId,
                 result.NamespaceUri,
+                result.StatusCode,
                 translatedText,
                 result.AdditionalInfo,
                 Translate(preferredLocales, result.InnerResult));
@@ -316,7 +315,7 @@ namespace Opc.Ua.Server
             LocalizedText defaultText,
             TranslationInfo info)
         {
-            defaultText = defaultText?.FilterByPreferredLocales(preferredLocales);
+            defaultText = FilterByPreferredLocales(defaultText, preferredLocales);
 
             bool isMultilanguageRequested =
                 preferredLocales?.Count > 0 &&
@@ -487,6 +486,19 @@ namespace Opc.Ua.Server
                 // construct translated localized text.
                 return new LocalizedText(culture.Name, formattedText) { TranslationInfo = info };
             }
+        }
+
+        /// <summary>
+        /// Filter text by preferred locales.
+        /// </summary>
+        /// <param name="localizedText"></param>
+        /// <param name="preferredLocales"></param>
+        /// <returns></returns>
+        protected virtual LocalizedText FilterByPreferredLocales(
+            LocalizedText localizedText,
+            IList<string> preferredLocales)
+        {
+            return localizedText?.FilterByPreferredLocales(preferredLocales);
         }
 
         /// <summary>

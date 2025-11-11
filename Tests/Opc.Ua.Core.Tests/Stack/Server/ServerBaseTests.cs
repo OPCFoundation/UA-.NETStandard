@@ -302,7 +302,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                             securityConfiguration.SecurityMode,
                             securityConfiguration.SecurityPolicyUri,
-                            Utils.Null.Logger)
+                            LoggerUtils.Null.Logger)
                     };
                     endpoint.UserIdentityTokens = GetUserTokenPolicies(configuration, endpoint);
                     m_endpoints.Add(endpoint);

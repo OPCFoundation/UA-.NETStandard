@@ -471,7 +471,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             ServiceResult error)
         {
-            return CreateDiagnosticInfo(server, context, error, Utils.Fallback.Logger);
+            ILogger logger = AmbientMessageContext.Telemetry.CreateLogger("ServerUtils");
+            return CreateDiagnosticInfo(server, context, error, logger);
         }
 
         /// <summary>

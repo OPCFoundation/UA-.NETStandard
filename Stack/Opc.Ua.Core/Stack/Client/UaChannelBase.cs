@@ -240,7 +240,7 @@ namespace Opc.Ua
         /// new logger from telemetry context.
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; private set; } = Utils.Null.Logger;
+        protected ILogger m_logger { get; private set; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
         private readonly ITelemetryContext m_telemetry;

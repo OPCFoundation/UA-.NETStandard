@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 VariableIds.OpcUa_BinarySchema,
                 await GetTestDataDictionaryNodeIdAsync().ConfigureAwait(false) };
 
-            var theSession = (Session)((TraceableSession)Session).Session;
+            ISession theSession = Session;
 
             foreach (NodeId dataDictionaryId in dictionaryIds)
             {

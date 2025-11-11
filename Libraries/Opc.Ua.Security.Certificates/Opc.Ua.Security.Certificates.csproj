@@ -8,11 +8,12 @@
     <IsPackable>true</IsPackable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
-    <!-- currently the packages based on bouncy castle exposes additional API
-         so package validation is disabled to pass the build -->
-    <EnablePackageValidation>false</EnablePackageValidation>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
@@ -23,22 +24,14 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="BouncyCastle.Cryptography" />
   </ItemGroup>
-  <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
   <ItemGroup>
-    <PackageReference Include="PolySharp" PrivateAssets="All" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
-  <PropertyGroup>
-    <PolySharpUsePublicAccessibilityForGeneratedTypes>true</PolySharpUsePublicAccessibilityForGeneratedTypes>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
-  </PropertyGroup>
-  <!-- Choose which platforms support ECC -->
-  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
   </PropertyGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

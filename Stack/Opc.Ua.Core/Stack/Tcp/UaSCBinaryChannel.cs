@@ -209,7 +209,6 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 DiscardTokens();
-#if ECC_SUPPORT
                 if (m_localNonce != null)
                 {
                     m_localNonce.Dispose();
@@ -221,7 +220,6 @@ namespace Opc.Ua.Bindings
                     m_remoteNonce.Dispose();
                     m_remoteNonce = null;
                 }
-#endif
             }
         }
 
@@ -847,7 +845,7 @@ namespace Opc.Ua.Bindings
             {
                 if (Interlocked.Exchange(ref m_state, (int)value) != (int)value)
                 {
-                    m_logger.LogTrace("ChannelId {ChannelId}: in {State} state.", ChannelId, value);
+                    m_logger.LogDebug("ChannelId {ChannelId}: in {State} state.", ChannelId, value);
                 }
             }
         }

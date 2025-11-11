@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                mi = new MonitoredItem
+                mi = new MonitoredItem(Session.MessageContext.Telemetry)
                 {
                     AttributeId = Attributes.Value,
                     StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
@@ -298,7 +298,7 @@ namespace Opc.Ua.Client.Tests
 
             uint id = subscription.Id;
 
-            var mi = new MonitoredItem
+            var mi = new MonitoredItem(Session.MessageContext.Telemetry)
             {
                 AttributeId = Attributes.Value,
                 StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
@@ -798,7 +798,7 @@ namespace Opc.Ua.Client.Tests
             return values;
         }
 
-        private static MonitoredItem CreateEventMonitoredItem(uint queueSize)
+        private MonitoredItem CreateEventMonitoredItem(uint queueSize)
         {
             var whereClause = new ContentFilter();
 
@@ -815,7 +815,7 @@ namespace Opc.Ua.Client.Tests
                         Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
                 ]);
 
-            return new MonitoredItem
+            return new MonitoredItem(Session.MessageContext.Telemetry)
             {
                 AttributeId = Attributes.EventNotifier,
                 StartNodeId = ObjectIds.Server,

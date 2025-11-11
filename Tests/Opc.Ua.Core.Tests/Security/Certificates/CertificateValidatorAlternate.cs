@@ -44,9 +44,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
-#if !ECC_SUPPORT
-using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
-#endif
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -96,13 +93,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
-#if NETCOREAPP2_1_OR_GREATER && !ECC_SUPPORT && !NET_STANDARD_TESTS
-            // this test cannot create the required certs on macOS with legacy bouncy castle support
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                Assert.Ignore("Creating the alternate certificates via Pfx is not supported on mac OS.");
-            }
-#endif
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             const string crlName = "root.crl";

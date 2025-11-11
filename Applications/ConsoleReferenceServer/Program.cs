@@ -64,6 +64,7 @@ namespace Quickstarts.ReferenceServer
             bool autoAccept = false;
             bool logConsole = false;
             bool appLog = false;
+            bool fileLog = false;
             bool renewCertificate = false;
             bool shadowConfig = false;
             bool samplingGroups = false;
@@ -81,6 +82,7 @@ namespace Quickstarts.ReferenceServer
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
+                { "f|file", "log to file", f => fileLog = f != null },
                 { "p|password=", "optional password for private key", p => password = p.ToCharArray() },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
@@ -94,7 +96,7 @@ namespace Quickstarts.ReferenceServer
             };
 
             using var telemetry = new ConsoleTelemetry();
-            ILogger logger = Utils.Null.Logger;
+            ILogger logger = LoggerUtils.Null.Logger;
             try
             {
                 // parse command line and set options
@@ -144,7 +146,7 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // setup the logging
-                telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, LogLevel.Information);
+                telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, fileLog, appLog, LogLevel.Information);
 
                 // check or renew the certificate
                 logger.LogInformation("Check the certificate.");
