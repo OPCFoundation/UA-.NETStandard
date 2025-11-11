@@ -19,6 +19,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Schema;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Schema.Xml
 {

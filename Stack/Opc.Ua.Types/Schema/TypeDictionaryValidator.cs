@@ -32,6 +32,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.IO;
 using System;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Schema
 {
@@ -43,7 +44,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
-        public TypeDictionaryValidator(string resourcePath)
+        public TypeDictionaryValidator()
         {
             SetResourcePaths(s_wellKnownDictionaries);
         }
@@ -51,7 +52,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Intializes the object with a file table.
         /// </summary>
-        public TypeDictionaryValidator(Dictionary<string, string> fileTable, string resourcePath)
+        public TypeDictionaryValidator(Dictionary<string, string> fileTable)
             : base(fileTable)
         {
             SetResourcePaths(s_wellKnownDictionaries);
@@ -61,11 +62,6 @@ namespace Opc.Ua.Schema
         /// The dictionary that was validated.
         /// </summary>
         public TypeDictionary Dictionary { get; private set; }
-
-        /// <summary>
-        /// The location of the embedded resources.
-        /// </summary>
-        public string EmbeddedResourcePath { get; set; }
 
         /// <summary>
         /// Finds the data type with the specified name.

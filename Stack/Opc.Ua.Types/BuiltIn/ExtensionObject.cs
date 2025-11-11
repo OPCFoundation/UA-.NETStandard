@@ -48,7 +48,7 @@ namespace Opc.Ua
     /// <code lang="C#">
     /// //First, we will define a very simple class object that will represent
     /// //some real-world process.
-    /// class simpleClass : IEncodeable
+    /// class SimpleClass : IEncodeable
     /// {
     ///
     ///     //fields
@@ -108,8 +108,6 @@ namespace Opc.Ua
     ///         DatetimeProperty = SimpleClassInstance.DatetimeProperty;
     ///     }
     ///
-    ///     #region IEncodeable Members
-    ///
     ///     public ExpandedNodeId TypeId
     ///     {
     ///         get
@@ -144,17 +142,10 @@ namespace Opc.Ua
     ///         return (encodeable.Equals(this));
     ///     }
     ///
-    ///     #endregion
-    ///
-    ///     #region ICloneable Members
-    ///
     ///     public new object MemberwiseClone()
     ///     {
     ///         return (new simpleClass(this));
     ///     }
-    ///
-    ///     #endregion
-    ///
     /// }
     ///
     /// public void EncodeExample()

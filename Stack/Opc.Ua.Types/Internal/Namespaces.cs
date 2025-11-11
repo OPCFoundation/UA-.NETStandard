@@ -10,12 +10,18 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-namespace Opc.Ua
+namespace Opc.Ua.Types
 {
     /// <summary>
     /// Defines well-known namespaces.
     /// </summary>
-    internal static class Namespaces
+#if !INTERNAL
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public
+#else
+    internal
+#endif
+    static class Namespaces
     {
         /// <summary>
         /// The XML Schema Instance namespace.

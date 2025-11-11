@@ -16,6 +16,7 @@ using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml.Serialization;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

@@ -1,0 +1,852 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema
+  targetNamespace="http://opcfoundation.org/UA/ModelDesign.xsd"
+  elementFormDefault="qualified"
+  xmlns="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:mstns="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:html="http://www.w3.org/1999/xhtml"
+>
+  <xs:element name="ModelDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+        The root element for the information model.<html:br />
+
+        This scheme allows information modellers to defined UA type in a machine readable form. This
+        definition can be used to generate code and documentation.<html:br />
+
+        The file is expected to contain a number of types and their instance declarations. Objects which are
+        unique in the address space can also be defined.<html:br />
+
+        A validator is available verify consistancy of the model generator and to create suitable values
+        for optional information. Once the design is validated it can be passed to a generator which
+        creates different types of code or documentation.<html:br />
+
+        This XSD File contains comments describing the available scheme for defining models.  the comments
+        provide an explination of the scheme, they do not explain the concept that is being model.  It is assumed
+        that the modeller is familur with thiese concepts via the UA specifications.
+
+        A XML file used for generating a model must start with a  Model definition
+        The below list is a list of the valid constructs where each construct map to a model concept in UA
+        definition using these construct must be assigned to a UA namespace, by the use of the TargetNamespace
+        attribute, they can further be assigned to an XML namespace and have a default Locale assigned.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Namespaces" type="NamespaceTable" minOccurs="0" />
+        <xs:element name="PermissionSets" type="ListOfRolePermissionSet" minOccurs="0" />
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="ObjectType" type="ObjectTypeDesign" minOccurs="0" />
+          <xs:element name="VariableType" type="VariableTypeDesign" minOccurs="0" />
+          <xs:element name="ReferenceType" type="ReferenceTypeDesign" minOccurs="0" />
+          <xs:element name="DataType" type="DataTypeDesign" minOccurs="0" />
+          <xs:element name="Method" type="MethodDesign" minOccurs="0" />
+          <xs:element name="Object" type="ObjectDesign" minOccurs="0" />
+          <xs:element name="Variable" type="VariableDesign" minOccurs="0" />
+          <xs:element name="Property" type="PropertyDesign" minOccurs="0" />
+          <xs:element name="Dictionary" type="DictionaryDesign" minOccurs="0" />
+          <xs:element name="View" type="ViewDesign" minOccurs="0" />
+        </xs:choice>
+        <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0" />
+      </xs:sequence>
+      <xs:attribute name="TargetNamespace" type="xs:string" use="required" />
+      <xs:attribute name="TargetVersion" type="xs:string" use="optional" />
+      <xs:attribute name="TargetPublicationDate" type="xs:dateTime" use="optional" />
+      <xs:attribute name="TargetXmlNamespace" type="xs:string" use="optional" />
+      <xs:attribute name="DefaultLocale" type="xs:string" use="optional" default="en" />
+      <xs:anyAttribute processContents="lax" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="NamespaceTable">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+        This defines the namespaces used in the model.<html:br />
+
+        Each namespace listed should also have a namespace prefix defined in the xs:schema element.<html:br />
+
+        The order of the namespaces is significant and used to assigned a numeric index to namespaces when
+        they are used in BrowsePaths specified in the ModelDesign.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="Namespace" type="Namespace" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="Namespace">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines a single namespace along with identifiers for the namespace.<html:br />
+
+          The Name is used to create a progam constant for the URL.<html:br />
+
+          The Prefix is the C# namespace which qualifies the generated types.<html:br />
+
+          The InternalPrefix is an optional C# namespace which qualifies the generated types
+          used only by the server.<html:br />
+
+          The XmlNamespace is <html:br />
+
+          The FilePath is <html:br />
+
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="Name" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              A symbolic name for the namespace that can used as a variable name.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Prefix" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              The .NET namespace used for the classes produced by the generator.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="InternalPrefix" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              The .NET namespace used for classes that are only used within a server application.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="XmlNamespace" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              The URI for the XML namespace which the data types belong to if it is different from the URI for the model namespace.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="XmlPrefix" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              The prefix to be used in the XML file for the XML namespace which the data types belong to. Used only XmlNamespace is set.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="FilePath" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              The path to the file containing the design file for the namespace.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Version" type="xs:string" use="optional" />
+        <xs:attribute name="PublicationDate" type="xs:string" use="optional" />
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfExtensions">
+    <xs:sequence>
+      <xs:element name="Extension" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:any minOccurs="0" processContents="lax" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:simpleType name="ReleaseStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Released" />
+      <xs:enumeration value="RC" />
+      <xs:enumeration value="Draft" />
+      <xs:enumeration value="Deprecated" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DataTypePurpose">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Normal" />
+      <xs:enumeration value="ServicesOnly" />
+      <xs:enumeration value="CodeGenerator" />
+      <xs:enumeration value="Testing" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:complexType name="NodeDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          The base type of all node designs.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="BrowseName" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            <html:p>
+              The BrowseName is the name used in the information model. The validator will create the BrowseName
+              automatically from the SymbolicName. The BrowseName is qualified by the namespace used for the
+              SymbolicName.
+            </html:p>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="DisplayName" type="LocalizedText" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            <html:p>
+              The DisplayName human readable name for the Node. This element includes an optional key
+              that can be used to look up the display name for other locales in a resource DB. The validator
+              automatically creates the DisplayName from the BrowseName.
+            </html:p>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="Description" type="LocalizedText" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            <html:p>
+              The Description the value of the Description attribute for the Node. This element includes an
+              optional key that can be used to look up the Description for other locales in a resource DB.
+              The validator automatically creates a generic Description from the BrowseName and NodeClass.
+            </html:p>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="Children" type="ListOfChildren" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            <html:p>
+              The Children are the Properties or Components of a Node.
+            </html:p>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="References" type="ListOfReferences" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            <html:p>
+              The References specify additional references from the Node. These references may refer to
+              other children of the same Node or children of other Nodes defined in the ModelDesign.
+            </html:p>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="RolePermissions" type="RolePermissionSet" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            <html:p>
+              The RolePermissions specify the permissions that apply to the Node. 
+              They override the DefaultRolePermissions for thr Namespace.
+              RolePermissions specified on a parent always override the RolePermissions for the children unless a child has its own RolePermissions set.
+            </html:p>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="DefaultRolePermissions" type="RolePermissionSet" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            <html:p>
+              The DefaultRolePermissions specify the permissions that apply to instances created from the Node.
+              The permissions override the DefaultRolePermissions for the instance namespace.
+              If not specified the Browse
+            </html:p>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="AccessRestrictions" type="AccessRestrictions" minOccurs="0" />
+      <xs:element name="DefaultAccessRestrictions" type="AccessRestrictions" minOccurs="0" />
+      <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0" />
+    </xs:sequence>
+    <xs:attribute name="SymbolicName" type="xs:QName" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The SymbolicName identifies the Node within the the ModelDesign or within the
+            containing Node. The SymbolicName should always be specified. It is used to create
+            the BrowseName and SymbolicId if they are not specified.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="SymbolicId" type="xs:QName" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The SymbolicId is a globally unique identifier for the Node. The validator will create
+            the SymbolicId automatically from the SymbolicName if it is not specified.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="IsDeclaration" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The IsDeclaration flag indicates that the Node is defined elsewhere and no code will be generated.
+            Nodes that are declarations do not need to be completely defined. They only need to have the
+            information required to generate code for nodes that reference it (e.g. the BaseType).
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="NumericId" type="xs:unsignedInt" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The NumericId specifies the unique numeric id for the Node. It is filled in automatically by reading
+            a CSV file containing the SymbolicIds and an associated UInt32. The validator will automatically assign
+            a unique id if no CSV input is provided.<html:br />
+
+            The NumericId or StringId are combined with the Namespace used for the SymbolicId to create the
+            well known UA NodeId for the Node. The generator will create programmatic constants that can be
+            used to reference the Node in code.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="StringId" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The StringId is an alternate unique identfier for the node. It is used instead of the NumericId if it is
+            specified in the CSV input file.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="WriteAccess" type="xs:unsignedInt" use="optional" default="0">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The bit mask which indicates which attributes are writeable.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="PartNo" type="xs:unsignedInt" use="optional" default="0">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The part that defines the node.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="Category" type="xs:string" use="optional" default="">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            A comma seperated list of categories assigned to the node (e.g. Part4/Services or Part5/StateMachines).
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="NotInAddressSpace" type="xs:boolean" use="optional" default="false" />
+    <xs:attribute name="ReleaseStatus" type="ReleaseStatus" use="optional" default="Released" />
+    <xs:attribute name="Purpose" type="DataTypePurpose" use="optional" default="Normal" />
+    <xs:attribute name="IsDynamic" type="xs:boolean" use="optional" default="false" />
+
+  </xs:complexType>
+
+  <xs:complexType name="TypeDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          A base type for all Type Nodes (ObjectType, VariableType, DataType and ReferenceType).
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="NodeDesign">
+        <xs:sequence>
+          <xs:element name="ClassName" type="xs:string" minOccurs="0">
+            <xs:annotation>
+              <xs:documentation>
+                <html:p>
+                  This is the name for the instance of the type. If not specified the validator
+                  creates it by removing the 'Type' suffix from the SymbolicName for the Node.
+                </html:p>
+              </xs:documentation>
+            </xs:annotation>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="BaseType" type="xs:QName" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              <html:p>
+                The SymbolicId for the BaseType.
+              </html:p>
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="IsAbstract" type="xs:boolean" use="optional" default="false">
+          <xs:annotation>
+            <xs:documentation>
+              <html:p>
+                Whether the Type is abstract.
+              </html:p>
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="NoClassGeneration" type="xs:boolean" use="optional" default="false">
+          <xs:annotation>
+            <xs:documentation>
+              <html:p>
+                Whether to supress class generation for the type.
+              </html:p>
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ObjectTypeDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          ObjectTypes define structure of an Object in the information model.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="TypeDesign">
+        <xs:attribute name="SupportsEvents" type="xs:boolean" use="optional" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="VariableTypeDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          VariableTypes define structure of a Variable in the information model.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="TypeDesign">
+        <xs:sequence>
+          <xs:element name="DefaultValue" type="DefaultValue" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="DataType" type="xs:QName" use="optional" />
+        <xs:attribute name="ValueRank" type="ValueRank" use="optional" />
+        <xs:attribute name="ArrayDimensions" type="xs:string" use="optional" />
+        <xs:attribute name="AccessLevel" type="AccessLevel" use="optional" />
+        <xs:attribute name="MinimumSamplingInterval" type="xs:int" use="optional" />
+        <xs:attribute name="Historizing" type="xs:boolean" use="optional" />
+        <xs:attribute name="ExposesItsChildren" type="xs:boolean" use="optional" default="false" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="DataTypeDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          DataTypes define structure of a Value for Variables in the information model.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="TypeDesign">
+        <xs:sequence>
+          <xs:element name="Fields" type="ListOfFields" minOccurs="0" />
+          <xs:element name="Encodings" type="ListOfEncodings" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="IsOptionSet" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="IsUnion" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="NoArraysAllowed" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="ForceEnumValues" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="NoEncodings" type="xs:boolean" use="optional" default="false" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ReferenceTypeDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          ReferenceType define typed references between Nodes.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="TypeDesign">
+        <xs:sequence>
+          <xs:element name="InverseName" type="LocalizedText" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="Symmetric" type="xs:boolean" use="optional" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="InstanceDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          A base type for all Instance Nodes (Object, Variable, and Method).
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="NodeDesign">
+        <xs:sequence>
+          <xs:element name="ReferenceType" type="xs:QName" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="Declaration" type="xs:QName" use="optional" />
+        <xs:attribute name="TypeDefinition" type="xs:QName" use="optional" />
+        <xs:attribute name="ModellingRule" type="ModellingRule" use="optional" />
+        <xs:attribute name="MinCardinality" type="xs:unsignedInt" use="optional" default="0" />
+        <xs:attribute name="MaxCardinality" type="xs:unsignedInt" use="optional" default="0" />
+        <xs:attribute name="PreserveDefaultAttributes" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="DesignToolOnly" type="xs:boolean" use="optional" default="false" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ViewDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          A View Node.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="InstanceDesign">
+        <xs:attribute name="SupportsEvents" type="xs:boolean" use="optional" default="false">
+          <xs:annotation>
+            <xs:documentation>
+              <html:p>
+                Whether the View generates events.
+              </html:p>
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="ContainsNoLoops" type="xs:boolean" use="optional" default="false">
+          <xs:annotation>
+            <xs:documentation>
+              <html:p>
+                Specifies that the View contains a non-looping hierarchy.
+              </html:p>
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ObjectDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines the structure of an Object in the information model.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="InstanceDesign">
+        <xs:attribute name="SupportsEvents" type="xs:boolean" use="optional" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="VariableDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines the structure of a Variable in the information model.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="InstanceDesign">
+        <xs:sequence>
+          <xs:element name="DefaultValue" type="DefaultValue" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="DataType" type="xs:QName" use="optional" />
+        <xs:attribute name="ValueRank" type="ValueRank" use="optional" />
+        <xs:attribute name="ArrayDimensions" type="xs:string" use="optional" />
+        <xs:attribute name="AccessLevel" type="AccessLevel" use="optional" />
+        <xs:attribute name="InstanceAccessLevel" type="AccessLevel" use="optional" />
+        <xs:attribute name="MinimumSamplingInterval" type="xs:int" use="optional" />
+        <xs:attribute name="Historizing" type="xs:boolean" use="optional" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="MethodDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines the a Method in the information model.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="InstanceDesign">
+        <xs:sequence>
+          <xs:element name="InputArguments" type="ListOfArguments" minOccurs="0" />
+          <xs:element name="OutputArguments" type="ListOfArguments" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="NonExecutable" type="xs:boolean" use="optional" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="PropertyDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines a Variable which is a Property for a Node.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="VariableDesign">
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="EncodingDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines an Object which is a DataTypeEncoding for a DataType.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="ObjectDesign" />
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="DictionaryDesign">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines an Variable which is a DataTypeDictionary.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent mixed="false">
+      <xs:extension base="VariableDesign">
+        <xs:attribute name="EncodingName" type="xs:QName" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:simpleType name="AccessRestrictions">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="SigningRequired" />
+      <xs:enumeration value="EncryptionRequired" />
+      <xs:enumeration value="SessionRequired" />
+      <xs:enumeration value="SessionWithSigningRequired" />
+      <xs:enumeration value="SessionWithEncryptionRequired" />
+      <xs:enumeration value="SigningAndApplyToBrowseRequired" />
+      <xs:enumeration value="EncryptionAndApplyToBrowseRequired" />
+      <xs:enumeration value="SessionAndApplyToBrowseRequired" />
+      <xs:enumeration value="SessionWithSigningAndApplyToBrowseRequired" />
+      <xs:enumeration value="SessionWithEncryptionAndApplyToBrowseRequired" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="Permissions">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Browse" />
+      <xs:enumeration value="ReadRolePermissions" />
+      <xs:enumeration value="WriteAttribute" />
+      <xs:enumeration value="WriteRolePermissions" />
+      <xs:enumeration value="WriteHistorizing" />
+      <xs:enumeration value="Read" />
+      <xs:enumeration value="Write" />
+      <xs:enumeration value="ReadHistory" />
+      <xs:enumeration value="InsertHistory" />
+      <xs:enumeration value="ModifyHistory" />
+      <xs:enumeration value="DeleteHistory" />
+      <xs:enumeration value="ReceiveEvents" />
+      <xs:enumeration value="Call" />
+      <xs:enumeration value="AddReference" />
+      <xs:enumeration value="RemoveReference" />
+      <xs:enumeration value="DeleteNode" />
+      <xs:enumeration value="AddNode" />
+      <xs:enumeration value="All" />
+      <xs:enumeration value="AllRead" />
+      <xs:enumeration value="None" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:complexType name="RolePermission">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines the permissions for a node assigned to a role.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="Permission" type="Permissions" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="Role" type="xs:QName" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="RolePermissionSet">
+    <xs:sequence>
+      <xs:element name="RolePermission" type="RolePermission" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:string" use="required" />
+    <xs:attribute name="DoNotInheirit" type="xs:boolean" default="false" />
+  </xs:complexType>
+
+  <xs:complexType name="ListOfRolePermissionSet">
+    <xs:sequence>
+      <xs:element name="PermissionSet" type="RolePermissionSet" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+          
+  <xs:complexType name="Reference">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines a reference between two nodes.<html:br />
+
+          The SourceId is the SymbolicId of the Node that contains the Reference.<html:br />
+
+          The SourcePath and TargetPath are RelativePaths specified using the syntax defined in Part 4.
+          The order of the Namespaces defined in the Namespaces element is used to determine the namespace
+          index used in the RelativePaths.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="ReferenceType" type="xs:QName" minOccurs="1" />
+      <xs:element name="TargetId" type="xs:QName" minOccurs="1" />
+    </xs:sequence>
+    <xs:attribute name="IsInverse" type="xs:boolean" use="optional" default="false" />
+    <xs:attribute name="IsOneWay" type="xs:boolean" use="optional" default="false" />
+  </xs:complexType>
+
+  <xs:complexType name="ListOfReferences">
+    <xs:sequence>
+      <xs:element name="Reference" type="Reference" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="Parameter">
+    <xs:annotation>
+      <xs:documentation>
+        <html:p>
+          Defines a Field in a DataType or Argument of a Method.
+        </html:p>
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="Description" type="LocalizedText" minOccurs="0" />
+      <xs:element name="DefaultValue" type="DefaultValue" minOccurs="0" />
+      <xs:element name="DisplayName" type="LocalizedText" minOccurs="0" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:string" use="optional" />
+    <xs:attribute name="Identifier" type="xs:int" use="optional" />
+    <xs:attribute name="BitMask" type="xs:string" use="optional" />
+    <xs:attribute name="DataType" type="xs:QName" use="optional" />
+    <xs:attribute name="ValueRank" type="ValueRank" use="optional" default="Scalar" />
+    <xs:attribute name="ArrayDimensions" type="xs:string" use="optional" />
+    <xs:attribute name="AllowSubTypes" type="xs:boolean" use="optional" default="false" />
+    <xs:attribute name="IsOptional" type="xs:boolean" use="optional" default="false" />
+    <xs:attribute name="ReleaseStatus" type="ReleaseStatus" use="optional" default="Released" />
+  </xs:complexType>
+
+  <xs:complexType name="ListOfArguments">
+    <xs:sequence>
+      <xs:element name="Argument" type="Parameter" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfFields">
+    <xs:sequence>
+      <xs:element name="Field" type="Parameter" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfEncodings">
+    <xs:sequence>
+      <xs:element name="Encoding" type="EncodingDesign" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfChildren">
+    <xs:sequence>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="Object" type="ObjectDesign" minOccurs="0" />
+        <xs:element name="Variable" type="VariableDesign" minOccurs="0" />
+        <xs:element name="Property" type="PropertyDesign" minOccurs="0" />
+        <xs:element name="Method" type="MethodDesign" minOccurs="0" />
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="LocalizedText">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="Key" type="xs:string" use="optional" default="" />
+        <xs:attribute name="DoNotIgnore" type="xs:boolean" use="optional" default="false" />
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="DefaultValue">
+    <xs:sequence>
+      <xs:any minOccurs="0" processContents="lax"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="AccessLevel">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="None" />
+      <xs:enumeration value="Read" />
+      <xs:enumeration value="Write" />
+      <xs:enumeration value="ReadWrite" />
+      <xs:enumeration value="HistoryRead" />
+      <xs:enumeration value="HistoryWrite" />
+      <xs:enumeration value="HistoryReadWrite" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ValueRank">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Scalar" />
+      <xs:enumeration value="Array" />
+      <xs:enumeration value="ScalarOrArray" />
+      <xs:enumeration value="OneOrMoreDimensions" />
+      <xs:enumeration value="ScalarOrOneDimension" />
+      <xs:enumeration value="Any" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ModellingRule">
+    <xs:restriction base="xs:string">
+        <xs:enumeration value="None" />
+        <xs:enumeration value="Mandatory" />
+        <xs:enumeration value="Optional" />
+        <xs:enumeration value="ExposesItsArray" />
+        <xs:enumeration value="CardinalityRestriction" />
+        <xs:enumeration value="MandatoryShared" />
+        <xs:enumeration value="OptionalPlaceholder" />
+        <xs:enumeration value="MandatoryPlaceholder" />
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

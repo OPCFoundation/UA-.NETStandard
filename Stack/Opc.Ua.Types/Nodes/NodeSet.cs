@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

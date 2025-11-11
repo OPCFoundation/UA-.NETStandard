@@ -20,6 +20,7 @@ using System.Runtime.Serialization;
 using System.Text.Json;
 #endif
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
