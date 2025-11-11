@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !EMBED_IO_INCLUDED
+#if EMBED_IO_INCLUDED
 using System;
 using System.Collections.Generic;
 using System.IO;
