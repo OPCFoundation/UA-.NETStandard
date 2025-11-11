@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
 using System;
 using System.Collections.Generic;

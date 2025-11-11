@@ -34,7 +34,7 @@ using System.IO;
 using System;
 using Opc.Ua.Types;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua.Schema.Types
 {
     /// <summary>
     /// Generates files used to describe data types.
