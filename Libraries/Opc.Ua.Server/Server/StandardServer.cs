@@ -99,11 +99,38 @@ namespace Opc.Ua.Server
             StringCollection serverUris,
             out ApplicationDescriptionCollection servers)
         {
-            servers = [];
+            FindServersResponse response = FindServersAsync(requestHeader, endpointUrl, localeIds, serverUris, CancellationToken.None)
+                .GetAwaiter().GetResult();
+
+            servers = response.Servers;
+
+            return response.ResponseHeader;
+        }
+
+        /// <summary>
+        /// Invokes the FindServers service.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="localeIds">The locale ids.</param>
+        /// <param name="serverUris">The server uris.</param>
+        /// <param name="ct">The cancellation token</param>
+        /// <returns>
+        /// Returns a <see cref="FindServersResponse"/> object
+        /// </returns>
+        public override async Task<FindServersResponse> FindServersAsync(
+            RequestHeader requestHeader,
+            string endpointUrl,
+            StringCollection localeIds,
+            StringCollection serverUris,
+            CancellationToken ct)
+        {
+            ApplicationDescriptionCollection servers = [];
 
             ValidateRequest(requestHeader);
 
-            lock (Lock)
+            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
                 // parse the url provided by the client.
                 IList<BaseAddress> baseAddresses = BaseAddresses;
@@ -119,7 +146,11 @@ namespace Opc.Ua.Server
                 if (baseAddresses.Count == 0)
                 {
                     servers = [];
-                    return CreateResponse(requestHeader, StatusCodes.Good);
+                    return new FindServersResponse
+                    {
+                        ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
+                        Servers = servers
+                    };
                 }
 
                 // build list of unique servers.
@@ -165,8 +196,16 @@ namespace Opc.Ua.Server
                     servers.Add(application);
                 }
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
 
-            return CreateResponse(requestHeader, StatusCodes.Good);
+            return new FindServersResponse
+            {
+                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
+                Servers = servers
+            };
         }
 
         /// <summary>
@@ -191,7 +230,8 @@ namespace Opc.Ua.Server
 
             ValidateRequest(requestHeader);
 
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 // filter by profile.
                 IList<BaseAddress> baseAddresses = FilterByProfile(profileUris, BaseAddresses);
@@ -199,8 +239,55 @@ namespace Opc.Ua.Server
                 // get the descriptions.
                 endpoints = GetEndpointDescriptions(endpointUrl, baseAddresses, localeIds);
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
 
             return CreateResponse(requestHeader, StatusCodes.Good);
+        }
+
+        /// <summary>
+        /// Invokes the GetEndpoints service.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="localeIds">The locale ids.</param>
+        /// <param name="profileUris">The profile uris.</param>
+        /// <param name="ct">The cancellation token</param>
+        /// <returns>
+        /// Returns a <see cref="GetEndpointsResponse"/> object
+        /// </returns>
+        public override async Task<GetEndpointsResponse> GetEndpointsAsync(
+            RequestHeader requestHeader,
+            string endpointUrl,
+            StringCollection localeIds,
+            StringCollection profileUris,
+            CancellationToken ct)
+        {
+            EndpointDescriptionCollection endpoints = null;
+
+            ValidateRequest(requestHeader);
+
+            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                // filter by profile.
+                IList<BaseAddress> baseAddresses = FilterByProfile(profileUris, BaseAddresses);
+
+                // get the descriptions.
+                endpoints = GetEndpointDescriptions(endpointUrl, baseAddresses, localeIds);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+
+            return new GetEndpointsResponse
+            {
+                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
+                Endpoints = endpoints
+            };
         }
 
         /// <summary>
@@ -328,13 +415,69 @@ namespace Opc.Ua.Server
             out SignatureData serverSignature,
             out uint maxRequestMessageSize)
         {
-            sessionId = 0;
-            revisedSessionTimeout = 0;
-            serverNonce = null;
-            serverCertificate = null;
-            serverSoftwareCertificates = null;
-            serverSignature = null;
-            maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
+            CreateSessionResponse response = CreateSessionAsync(
+                requestHeader,
+                clientDescription,
+                serverUri,
+                endpointUrl,
+                sessionName,
+                clientNonce,
+                clientCertificate,
+                requestedSessionTimeout,
+                maxResponseMessageSize,
+                CancellationToken.None)
+                .GetAwaiter().GetResult();
+
+            sessionId = response.SessionId;
+            authenticationToken = response.AuthenticationToken;
+            revisedSessionTimeout = response.RevisedSessionTimeout;
+            serverNonce = response.ServerNonce;
+            serverCertificate = response.ServerCertificate;
+            serverEndpoints = response.ServerEndpoints;
+            serverSoftwareCertificates = response.ServerSoftwareCertificates;
+            serverSignature = response.ServerSignature;
+            maxRequestMessageSize = response.MaxRequestMessageSize;
+
+            return response.ResponseHeader;
+        }
+
+        /// <summary>
+        /// Invokes the CreateSession service.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="clientDescription">Application description for the client application.</param>
+        /// <param name="serverUri">The server URI.</param>
+        /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="sessionName">Name for the Session assigned by the client.</param>
+        /// <param name="clientNonce">The client nonce.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="requestedSessionTimeout">The requested session timeout.</param>
+        /// <param name="maxResponseMessageSize">Size of the max response message.</param>
+        /// <param name="ct">The cancellation token</param>
+        /// <returns>
+        /// Returns a <see cref="CreateSessionResponse"/> object
+        /// </returns>
+        public override async Task<CreateSessionResponse> CreateSessionAsync(
+            RequestHeader requestHeader,
+            ApplicationDescription clientDescription,
+            string serverUri,
+            string endpointUrl,
+            string sessionName,
+            byte[] clientNonce,
+            byte[] clientCertificate,
+            double requestedSessionTimeout,
+            uint maxResponseMessageSize,
+            CancellationToken ct)
+        {
+            NodeId sessionId = 0;
+            NodeId authenticationToken = null;
+            double revisedSessionTimeout = 0;
+            byte[] serverNonce = null;
+            byte[] serverCertificate = null;
+            EndpointDescriptionCollection serverEndpoints = null;
+            SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
+            SignatureData serverSignature = null;
+            uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSession);
             ISession session = null;
@@ -433,21 +576,25 @@ namespace Opc.Ua.Server
                         context.SecurityPolicyUri);
 
                 // create the session.
-                session = ServerInternal.SessionManager.CreateSession(
-                    context,
-                    instanceCertificate,
-                    sessionName,
-                    clientNonce,
-                    clientDescription,
-                    endpointUrl,
-                    parsedClientCertificate,
-                    clientIssuerCertificates,
-                    requestedSessionTimeout,
-                    maxResponseMessageSize,
-                    out sessionId,
-                    out authenticationToken,
-                    out serverNonce,
-                    out revisedSessionTimeout);
+                CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
+                        context,
+                        instanceCertificate,
+                        sessionName,
+                        clientNonce,
+                        clientDescription,
+                        endpointUrl,
+                        parsedClientCertificate,
+                        clientIssuerCertificates,
+                        requestedSessionTimeout,
+                        maxResponseMessageSize,
+                        ct)
+                    .ConfigureAwait(false);
+
+                session = result.Session;
+                sessionId = result.SessionId;
+                authenticationToken = result.AuthenticationToken;
+                serverNonce = result.ServerNonce;
+                revisedSessionTimeout = result.RevisedSessionTimeout;
 
                 if (endpointUrl != null)
                 {
@@ -487,7 +634,9 @@ namespace Opc.Ua.Server
                 {
                     parameters = CreateSessionProcessAdditionalParameters(session, parameters);
                 }
-                lock (Lock)
+
+                await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+                try
                 {
                     // return the application instance certificate for the server.
                     if (requireEncryption)
@@ -524,6 +673,10 @@ namespace Opc.Ua.Server
                             dataToSign);
                     }
                 }
+                finally
+                {
+                    m_semaphoreSlim.Release();
+                }
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
@@ -547,7 +700,19 @@ namespace Opc.Ua.Server
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
 
-                return responseHeader;
+                return new CreateSessionResponse
+                {
+                    ResponseHeader = responseHeader,
+                    SessionId = sessionId,
+                    AuthenticationToken = authenticationToken,
+                    RevisedSessionTimeout = revisedSessionTimeout,
+                    ServerNonce = serverNonce,
+                    ServerCertificate = serverCertificate,
+                    ServerEndpoints = serverEndpoints,
+                    ServerSoftwareCertificates = serverSoftwareCertificates,
+                    ServerSignature = serverSignature,
+                    MaxRequestMessageSize = maxRequestMessageSize
+                };
             }
             catch (ServiceResultException e)
             {
@@ -685,9 +850,48 @@ namespace Opc.Ua.Server
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            serverNonce = null;
-            results = null;
-            diagnosticInfos = null;
+            ActivateSessionResponse response = ActivateSessionAsync(
+                requestHeader,
+                clientSignature,
+                clientSoftwareCertificates,
+                localeIds,
+                userIdentityToken,
+                userTokenSignature,
+                CancellationToken.None)
+                .GetAwaiter().GetResult();
+
+            serverNonce = response.ServerNonce;
+            results = response.Results;
+            diagnosticInfos = response.DiagnosticInfos;
+
+            return response.ResponseHeader;
+        }
+
+        /// <summary>
+        /// Invokes the ActivateSession service.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="clientSignature">The client signature.</param>
+        /// <param name="clientSoftwareCertificates">The client software certificates.</param>
+        /// <param name="localeIds">The locale ids.</param>
+        /// <param name="userIdentityToken">The user identity token.</param>
+        /// <param name="userTokenSignature">The user token signature.</param>
+        /// <param name="ct">The cancellationToken</param>
+        /// <returns>
+        /// Returns a <see cref="ActivateSessionResponse"/> object
+        /// </returns>
+        public override async Task<ActivateSessionResponse> ActivateSessionAsync(
+            RequestHeader requestHeader,
+            SignatureData clientSignature,
+            SignedSoftwareCertificateCollection clientSoftwareCertificates,
+            StringCollection localeIds,
+            ExtensionObject userIdentityToken,
+            SignatureData userTokenSignature,
+            CancellationToken ct)
+        {
+            byte[] serverNonce = null;
+            StatusCodeCollection results = null;
+            DiagnosticInfoCollection diagnosticInfos = null;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.ActivateSession);
             // validate client's software certificates.
@@ -754,15 +958,16 @@ namespace Opc.Ua.Server
                 ValidateSoftwareCertificates(softwareCertificates);
 
                 // activate the session.
-                bool identityChanged = ServerInternal.SessionManager.ActivateSession(
-                    context,
-                    requestHeader.AuthenticationToken,
-                    clientSignature,
-                    softwareCertificates,
-                    userIdentityToken,
-                    userTokenSignature,
-                    localeIds,
-                    out serverNonce);
+                (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
+                        context,
+                        requestHeader.AuthenticationToken,
+                        clientSignature,
+                        softwareCertificates,
+                        userIdentityToken,
+                        userTokenSignature,
+                        localeIds,
+                        ct)
+                    .ConfigureAwait(false);
 
                 if (identityChanged)
                 {
@@ -791,7 +996,13 @@ namespace Opc.Ua.Server
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
-                return responseHeader;
+                return new ActivateSessionResponse
+                {
+                    ResponseHeader = responseHeader,
+                    ServerNonce = serverNonce,
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                };
             }
             catch (ServiceResultException e)
             {
@@ -944,6 +1155,56 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the CloseSession service using a task based request.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are deleted.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public override async Task<CloseSessionResponse> CloseSessionAsync(
+            RequestHeader requestHeader,
+            bool deleteSubscriptions,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.CloseSession);
+            try
+            {
+                ISession session = ServerInternal.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken);
+
+                await ServerInternal.CloseSessionAsync(context, context.Session.Id, deleteSubscriptions, ct)
+                    .ConfigureAwait(false);
+
+                // report the audit event for close session
+                ServerInternal.ReportAuditCloseSessionEvent(
+                    context.AuditEntryId,
+                    session,
+                    m_logger,
+                    "Session/CloseSession");
+
+                return new CloseSessionResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
                 throw TranslateException(context, e);
             }
             finally
@@ -2798,14 +3059,18 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (Lock)
+                m_semaphoreSlim.Wait();
+                try
                 {
                     if (m_serverInternal == null)
                     {
                         throw new ServiceResultException(StatusCodes.BadServerHalted);
                     }
-
                     return m_serverInternal;
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
                 }
             }
         }
@@ -3089,7 +3354,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        protected object Lock { get; } = new object();
+        [Obsolete("Use your own synchronization mechanism.")]
+        protected object Lock => null;
 
         /// <summary>
         /// The state object associated with the server.
@@ -3132,7 +3398,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void SetServerState(ServerState state)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 if (ServiceResult.IsBad(ServerError))
                 {
@@ -3148,6 +3415,10 @@ namespace Opc.Ua.Server
 
                 m_serverInternal.CurrentState = state;
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
         }
 
         /// <summary>
@@ -3156,9 +3427,14 @@ namespace Opc.Ua.Server
         /// <param name="error">The error.</param>
         protected virtual void SetServerError(ServiceResult error)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 ServerError = error;
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3344,7 +3620,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 if (m_serverInternal == null)
                 {
@@ -3352,6 +3629,10 @@ namespace Opc.Ua.Server
                 }
 
                 m_serverInternal.RequestManager.RequestCompleted(context);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3374,7 +3655,8 @@ namespace Opc.Ua.Server
                         MessageContext.Telemetry)
                     .ConfigureAwait(false);
 
-                OnUpdateConfiguration(configuration);
+                await OnUpdateConfigurationAsync(configuration)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -3386,12 +3668,14 @@ namespace Opc.Ua.Server
         /// Called when the server configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
         /// <remarks>
         /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
         /// </remarks>
-        protected override void OnUpdateConfiguration(ApplicationConfiguration configuration)
+        protected override async ValueTask OnUpdateConfigurationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // update security configuration.
                 configuration.SecurityConfiguration.Validate(MessageContext.Telemetry);
@@ -3406,10 +3690,9 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
-                Configuration
+                await Configuration
                     .CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration)
-                    .GetAwaiter()
-                    .GetResult();
+                    .ConfigureAwait(false);
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
@@ -3419,6 +3702,14 @@ namespace Opc.Ua.Server
                 Configuration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
             }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Failed to update configuration.");
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
         }
 
         /// <summary>
@@ -3427,7 +3718,8 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The configuration.</param>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 base.OnServerStarting(configuration);
 
@@ -3436,6 +3728,10 @@ namespace Opc.Ua.Server
 
                 // try first RegisterServer2
                 m_useRegisterServer2 = true;
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3539,234 +3835,239 @@ namespace Opc.Ua.Server
         /// Starts the server application.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected override void StartApplication(ApplicationConfiguration configuration)
+        protected override async ValueTask StartApplicationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
-            base.StartApplication(configuration);
-
-            lock (Lock)
+            await base.StartApplicationAsync(configuration, cancellationToken)
+                .ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                try
-                {
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.StartStop,
-                        "Server - Start application {ApplicationName}.",
-                        configuration.ApplicationName);
+                m_logger.LogInformation(
+                    Utils.TraceMasks.StartStop,
+                    "Server - Start application {ApplicationName}.",
+                    configuration.ApplicationName);
 
-                    // Setup the minimum nonce length
-                    Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
+                // Setup the minimum nonce length
+                Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
 
-                    // create the datastore for the instance.
-                    m_serverInternal = new ServerInternalData(
-                        ServerProperties,
-                        configuration,
-                        MessageContext,
-                        new CertificateValidator(MessageContext.Telemetry),
-                        InstanceCertificateTypesProvider);
+                // create the datastore for the instance.
+                m_serverInternal = new ServerInternalData(
+                    ServerProperties,
+                    configuration,
+                    MessageContext,
+                    new CertificateValidator(MessageContext.Telemetry),
+                    InstanceCertificateTypesProvider);
 
-                    // create the manager responsible for providing localized string resources.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
-                    ResourceManager resourceManager = CreateResourceManager(
-                        m_serverInternal,
-                        configuration);
+                // create the manager responsible for providing localized string resources.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
+                ResourceManager resourceManager = CreateResourceManager(
+                    m_serverInternal,
+                    configuration);
 
-                    // create the manager responsible for incoming requests.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateRequestManager.");
-                    RequestManager requestManager = CreateRequestManager(
-                        m_serverInternal,
-                        configuration);
+                // create the manager responsible for incoming requests.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateRequestManager.");
+                RequestManager requestManager = CreateRequestManager(
+                    m_serverInternal,
+                    configuration);
 
-                    // create the master node manager.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                    MasterNodeManager masterNodeManager = CreateMasterNodeManager(
-                        m_serverInternal,
-                        configuration);
+                // create the master node manager.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
+                MasterNodeManager masterNodeManager = CreateMasterNodeManager(
+                    m_serverInternal,
+                    configuration);
 
-                    // add the node manager to the datastore.
-                    m_serverInternal.SetNodeManager(masterNodeManager);
+                // add the node manager to the datastore.
+                m_serverInternal.SetNodeManager(masterNodeManager);
 
-                    // put the node manager into a state that allows it to be used by other objects.
-                    masterNodeManager.StartupAsync()
-                        .AsTask().GetAwaiter().GetResult();
+                // put the node manager into a state that allows it to be used by other objects.
+                await masterNodeManager.StartupAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
-                    // create the manager responsible for handling events.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateEventManager.");
-                    EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
+                // create the manager responsible for handling events.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateEventManager.");
+                EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
-                    // creates the server object.
-                    m_serverInternal.CreateServerObject(
-                        eventManager,
-                        resourceManager,
-                        requestManager);
+                // creates the server object.
+                m_serverInternal.CreateServerObject(
+                    eventManager,
+                    resourceManager,
+                    requestManager);
 
-                    // do any additional processing now that the node manager is up and running.
-                    OnNodeManagerStarted(m_serverInternal);
+                // do any additional processing now that the node manager is up and running.
+                OnNodeManagerStarted(m_serverInternal);
 
-                    // create the manager responsible for aggregates.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
-                    m_serverInternal.SetAggregateManager(
-                        CreateAggregateManager(m_serverInternal, configuration));
+                // create the manager responsible for aggregates.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
+                m_serverInternal.SetAggregateManager(
+                    CreateAggregateManager(m_serverInternal, configuration));
 
                     // create the manager responsible for modelling rules.
                     m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
                     m_serverInternal.SetModellingRulesManager(
                         CreateModellingRulesManager(m_serverInternal, configuration));
 
-                    // start the session manager.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
-                    ISessionManager sessionManager = CreateSessionManager(
-                        m_serverInternal,
-                        configuration);
-                    sessionManager.Startup();
 
-                    // use event to trigger channel that should not be closed.
-                    sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
+                // start the session manager.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
+                ISessionManager sessionManager = CreateSessionManager(
+                    m_serverInternal,
+                    configuration);
+                await sessionManager.StartupAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
-                    //create the MonitoredItemQueueFactory
-                    IMonitoredItemQueueFactory monitoredItemQueueFactory
-                        = CreateMonitoredItemQueueFactory(
-                        m_serverInternal,
-                        configuration);
+                // use event to trigger channel that should not be closed.
+                sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
 
-                    //add the MonitoredItemQueueFactory to the datastore.
-                    m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
+                //create the MonitoredItemQueueFactory
+                IMonitoredItemQueueFactory monitoredItemQueueFactory
+                    = CreateMonitoredItemQueueFactory(
+                    m_serverInternal,
+                    configuration);
 
-                    //create the SubscriptionStore
-                    ISubscriptionStore subscriptionStore = CreateSubscriptionStore(
-                        m_serverInternal,
-                        configuration);
+                //add the MonitoredItemQueueFactory to the datastore.
+                m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
 
-                    //add the SubscriptionStore to the datastore
-                    m_serverInternal.SetSubscriptionStore(subscriptionStore);
+                //create the SubscriptionStore
+                ISubscriptionStore subscriptionStore = CreateSubscriptionStore(
+                    m_serverInternal,
+                    configuration);
 
-                    // start the subscription manager.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
-                    ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
-                        m_serverInternal,
-                        configuration);
-                    subscriptionManager.Startup();
+                //add the SubscriptionStore to the datastore
+                m_serverInternal.SetSubscriptionStore(subscriptionStore);
 
-                    // add the session manager to the datastore.
-                    m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                // start the subscription manager.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
+                ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
+                    m_serverInternal,
+                    configuration);
+                subscriptionManager.Startup();
 
-                    ServerError = null;
+                // add the session manager to the datastore.
+                m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
-                    // setup registration information.
-                    lock (m_registrationLock)
-                    {
-                        m_maxRegistrationInterval = configuration.ServerConfiguration
-                            .MaxRegistrationInterval;
+                ServerError = null;
 
-                        ApplicationDescription serverDescription = ServerDescription;
-
-                        m_registrationInfo = new RegisteredServer
-                        {
-                            ServerUri = serverDescription.ApplicationUri
-                        };
-                        m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
-                        m_registrationInfo.ProductUri = serverDescription.ProductUri;
-                        m_registrationInfo.ServerType = serverDescription.ApplicationType;
-                        m_registrationInfo.GatewayServerUri = null;
-                        m_registrationInfo.IsOnline = true;
-                        m_registrationInfo.SemaphoreFilePath = null;
-
-                        // add all discovery urls.
-                        string computerName = Utils.GetHostName();
-
-                        for (int ii = 0; ii < BaseAddresses.Count; ii++)
-                        {
-                            var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
-
-                            if (string.Equals(
-                                uri.Host,
-                                "localhost",
-                                StringComparison.OrdinalIgnoreCase))
-                            {
-                                uri.Host = computerName;
-                            }
-
-                            m_registrationInfo.DiscoveryUrls.Add(uri.ToString());
-                        }
-
-                        // build list of registration endpoints.
-                        m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
-
-                        EndpointDescription endpoint = configuration.ServerConfiguration
-                            .RegistrationEndpoint;
-
-                        if (endpoint == null)
-                        {
-                            endpoint = new EndpointDescription
-                            {
-                                EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost"),
-                                SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
-                                    MessageSecurityMode.SignAndEncrypt,
-                                    SecurityPolicies.Basic256Sha256,
-                                    m_logger),
-                                SecurityMode = MessageSecurityMode.SignAndEncrypt,
-                                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
-                            };
-                            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-                        }
-
-                        m_registrationEndpoints.Add(endpoint);
-
-                        m_registeredWithDiscoveryServer = false;
-                        m_minRegistrationInterval = 1000;
-                        m_lastRegistrationInterval = m_minRegistrationInterval;
-
-                        // start registration timer.
-                        if (m_registrationTimer != null)
-                        {
-                            m_registrationTimer.Dispose();
-                            m_registrationTimer = null;
-                        }
-
-                        if (m_maxRegistrationInterval > 0)
-                        {
-                            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
-                            m_registrationTimer = new Timer(
-                                OnRegisterServerAsync,
-                                this,
-                                m_minRegistrationInterval,
-                                Timeout.Infinite);
-                        }
-                    }
-
-                    // set the server status as running.
-                    SetServerState(ServerState.Running);
-
-                    // all initialization is complete.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
-                    OnServerStarted(m_serverInternal);
-
-                    // monitor the configuration file.
-                    if (!string.IsNullOrEmpty(configuration.SourceFilePath))
-                    {
-                        m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
-                        m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
-                        m_configurationWatcher.Changed += OnConfigurationChangedAsync;
-                    }
-
-                    CertificateValidator.CertificateUpdate += OnCertificateUpdate;
-                }
-                catch (Exception e)
+                // setup registration information.
+                lock (m_registrationLock)
                 {
-                    const string message = "Unexpected error starting application";
-                    m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
-                    Utils.SilentDispose(m_serverInternal);
-                    m_serverInternal = null;
-                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
-                    ServerError = error;
-                    throw new ServiceResultException(error);
+                    m_maxRegistrationInterval = configuration.ServerConfiguration
+                        .MaxRegistrationInterval;
+
+                    ApplicationDescription serverDescription = ServerDescription;
+
+                    m_registrationInfo = new RegisteredServer
+                    {
+                        ServerUri = serverDescription.ApplicationUri
+                    };
+                    m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
+                    m_registrationInfo.ProductUri = serverDescription.ProductUri;
+                    m_registrationInfo.ServerType = serverDescription.ApplicationType;
+                    m_registrationInfo.GatewayServerUri = null;
+                    m_registrationInfo.IsOnline = true;
+                    m_registrationInfo.SemaphoreFilePath = null;
+
+                    // add all discovery urls.
+                    string computerName = Utils.GetHostName();
+
+                    for (int ii = 0; ii < BaseAddresses.Count; ii++)
+                    {
+                        var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
+
+                        if (string.Equals(
+                            uri.Host,
+                            "localhost",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            uri.Host = computerName;
+                        }
+
+                        m_registrationInfo.DiscoveryUrls.Add(uri.ToString());
+                    }
+
+                    // build list of registration endpoints.
+                    m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
+
+                    EndpointDescription endpoint = configuration.ServerConfiguration
+                        .RegistrationEndpoint;
+
+                    if (endpoint == null)
+                    {
+                        endpoint = new EndpointDescription
+                        {
+                            EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost"),
+                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                                MessageSecurityMode.SignAndEncrypt,
+                                SecurityPolicies.Basic256Sha256,
+                                m_logger),
+                            SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                        };
+                        endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+                    }
+
+                    m_registrationEndpoints.Add(endpoint);
+
+                    m_registeredWithDiscoveryServer = false;
+                    m_minRegistrationInterval = 1000;
+                    m_lastRegistrationInterval = m_minRegistrationInterval;
+
+                    // start registration timer.
+                    if (m_registrationTimer != null)
+                    {
+                        m_registrationTimer.Dispose();
+                        m_registrationTimer = null;
+                    }
+
+                    if (m_maxRegistrationInterval > 0)
+                    {
+                        m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
+                        m_registrationTimer = new Timer(
+                            OnRegisterServerAsync,
+                            this,
+                            m_minRegistrationInterval,
+                            Timeout.Infinite);
+                    }
                 }
             }
+            catch (Exception e)
+            {
+                const string message = "Unexpected error starting application";
+                m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
+                Utils.SilentDispose(m_serverInternal);
+                m_serverInternal = null;
+                var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
+                ServerError = error;
+                throw new ServiceResultException(error);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+
+            // set the server status as running.
+            SetServerState(ServerState.Running);
+
+            // all initialization is complete.
+            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
+            OnServerStarted(m_serverInternal);
+
+            // monitor the configuration file.
+            if (!string.IsNullOrEmpty(configuration.SourceFilePath))
+            {
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
+                m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
+                m_configurationWatcher.Changed += OnConfigurationChangedAsync;
+            }
+
+            CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
         }
 
         /// <summary>
         /// Called before the server stops
         /// </summary>
-        protected override async void OnServerStopping()
+        protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
             m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Stopping.");
 
@@ -3789,10 +4090,11 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server if registered before
                     m_registrationInfo.IsOnline = false;
-                    await RegisterWithDiscoveryServerAsync().ConfigureAwait(false);
+                    await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 }
 
-                lock (Lock)
+                await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
                 {
                     if (m_serverInternal != null)
                     {
@@ -3800,9 +4102,12 @@ namespace Opc.Ua.Server
                             -= SessionChannelKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
-                        m_serverInternal.NodeManager.ShutdownAsync()
-                            .AsTask().GetAwaiter().GetResult();
+                        await m_serverInternal.NodeManager.ShutdownAsync().ConfigureAwait(false);
                     }
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
                 }
             }
             catch (Exception e)
@@ -4338,6 +4643,7 @@ namespace Opc.Ua.Server
             => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
 
         private readonly Lock m_registrationLock = new();
+        private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;

@@ -477,8 +477,8 @@ namespace Opc.Ua.Client.Tests
             {
                 // if durable subscription the server will restore the subscription
                 TestContext.Out.WriteLine("------- Server stopping --------");
-                ReferenceServer.Stop();
-                ReferenceServer.Start(ServerFixture.Config);
+                await ReferenceServer.StopAsync().ConfigureAwait(false);
+                await ReferenceServer.StartAsync(ServerFixture.Config).ConfigureAwait(false);
                 TestContext.Out.WriteLine("------- Server restarted --------");
             }
             else
