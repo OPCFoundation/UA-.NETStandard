@@ -27,8 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !SIGNASSEMBLY
-
+#if EMBED_IO_INCLUDED
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -442,4 +441,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
     }
 }
+
 #endif

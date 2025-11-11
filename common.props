@@ -16,7 +16,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
     <LangVersion>13.0</LangVersion>
-    <!-- to enable the package validation, uncomment here -->
+    <!-- to enable package validation, uncomment here -->
     <!--<EnablePackageValidation>true</EnablePackageValidation>-->
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
@@ -46,6 +46,17 @@
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
+    <!-- OPC Foundation public key -->
+    <PublicKey>0024000004800000940000000602000000240000</PublicKey>
+    <PublicKey>$(PublicKey)525341310004000001000100d987b12f068b3580</PublicKey>
+    <PublicKey>$(PublicKey)429f3dde01397508880fc7e62621397618456ca1</PublicKey>
+    <PublicKey>$(PublicKey)549aeacfbdb90c62adfe918f05ce3677b390f783</PublicKey>
+    <PublicKey>$(PublicKey)57b8745cb6e1334655afce1a9527ac92fc829ff5</PublicKey>
+    <PublicKey>$(PublicKey)85ea79f007e52ba0f83ead627e3edda40bec5ae5</PublicKey>
+    <PublicKey>$(PublicKey)74128fc9342cb57cb8285aa4e5b589c0ebef3be5</PublicKey>
+    <PublicKey>$(PublicKey)71b5c8f2ab1067f7c880e8f8882a73c80a12a1ef</PublicKey>
   </PropertyGroup>
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
