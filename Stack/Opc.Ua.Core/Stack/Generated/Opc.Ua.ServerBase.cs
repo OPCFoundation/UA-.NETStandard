@@ -46,7 +46,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
         ResponseHeader FindServers(
@@ -73,7 +73,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
         ResponseHeader FindServersOnNetwork(
@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
         ResponseHeader GetEndpoints(
@@ -128,7 +128,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
         #endif
         ResponseHeader CreateSession(
@@ -173,7 +173,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
         #endif
         ResponseHeader ActivateSession(
@@ -206,7 +206,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CloseSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
         #endif
         ResponseHeader CloseSession(
@@ -228,7 +228,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Cancel_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Cancel_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
         #endif
         ResponseHeader Cancel(
@@ -251,7 +251,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
         #endif
         ResponseHeader AddNodes(
@@ -275,7 +275,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddReferences_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
         #endif
         ResponseHeader AddReferences(
@@ -299,7 +299,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
         #endif
         ResponseHeader DeleteNodes(
@@ -323,7 +323,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
         #endif
         ResponseHeader DeleteReferences(
@@ -347,7 +347,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Browse_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Browse_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
         #endif
         ResponseHeader Browse(
@@ -375,7 +375,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
         #endif
         ResponseHeader BrowseNext(
@@ -401,7 +401,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         #endif
         ResponseHeader TranslateBrowsePathsToNodeIds(
@@ -425,7 +425,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
         #endif
         ResponseHeader RegisterNodes(
@@ -448,7 +448,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
         #endif
         ResponseHeader UnregisterNodes(
@@ -470,7 +470,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
         #endif
         ResponseHeader QueryFirst(
@@ -505,7 +505,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryNext_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
         #endif
         ResponseHeader QueryNext(
@@ -531,7 +531,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Read_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Read_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
         #endif
         ResponseHeader Read(
@@ -559,7 +559,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
         #endif
         ResponseHeader HistoryRead(
@@ -589,7 +589,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Write_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Write_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
         #endif
         ResponseHeader Write(
@@ -613,7 +613,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
         #endif
         ResponseHeader HistoryUpdate(
@@ -637,7 +637,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Call_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Call_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
         #endif
         ResponseHeader Call(
@@ -661,7 +661,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
         #endif
         ResponseHeader CreateMonitoredItems(
@@ -689,7 +689,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
         #endif
         ResponseHeader ModifyMonitoredItems(
@@ -717,7 +717,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
         #endif
         ResponseHeader SetMonitoringMode(
@@ -745,7 +745,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
         #endif
         ResponseHeader SetTriggering(
@@ -777,7 +777,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
         #endif
         ResponseHeader DeleteMonitoredItems(
@@ -803,7 +803,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
         #endif
         ResponseHeader CreateSubscription(
@@ -839,7 +839,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
         #endif
         ResponseHeader ModifySubscription(
@@ -874,7 +874,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
         #endif
         ResponseHeader SetPublishingMode(
@@ -900,7 +900,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Publish_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Publish_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
         #endif
         ResponseHeader Publish(
@@ -928,7 +928,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Republish_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Republish_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
         #endif
         ResponseHeader Republish(
@@ -953,7 +953,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
         #endif
         ResponseHeader TransferSubscriptions(
@@ -979,7 +979,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
         #endif
         ResponseHeader DeleteSubscriptions(
@@ -1014,7 +1014,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
         public virtual ResponseHeader FindServers(
@@ -1058,7 +1058,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
         public virtual ResponseHeader FindServersOnNetwork(
@@ -1104,7 +1104,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
         public virtual ResponseHeader GetEndpoints(
@@ -1148,7 +1148,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
         #endif
         public virtual ResponseHeader CreateSession(
@@ -1218,7 +1218,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
         #endif
         public virtual ResponseHeader ActivateSession(
@@ -1270,7 +1270,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CloseSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
         #endif
         public virtual ResponseHeader CloseSession(
@@ -1308,7 +1308,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Cancel_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Cancel_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
         #endif
         public virtual ResponseHeader Cancel(
@@ -1348,7 +1348,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
         #endif
         public virtual ResponseHeader AddNodes(
@@ -1390,7 +1390,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddReferences_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
         #endif
         public virtual ResponseHeader AddReferences(
@@ -1432,7 +1432,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
         #endif
         public virtual ResponseHeader DeleteNodes(
@@ -1474,7 +1474,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
         #endif
         public virtual ResponseHeader DeleteReferences(
@@ -1516,7 +1516,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Browse_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Browse_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
         #endif
         public virtual ResponseHeader Browse(
@@ -1562,7 +1562,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
         #endif
         public virtual ResponseHeader BrowseNext(
@@ -1606,7 +1606,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         #endif
         public virtual ResponseHeader TranslateBrowsePathsToNodeIds(
@@ -1648,7 +1648,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
         #endif
         public virtual ResponseHeader RegisterNodes(
@@ -1688,7 +1688,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
         #endif
         public virtual ResponseHeader UnregisterNodes(
@@ -1726,7 +1726,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
         #endif
         public virtual ResponseHeader QueryFirst(
@@ -1782,7 +1782,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryNext_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
         #endif
         public virtual ResponseHeader QueryNext(
@@ -1826,7 +1826,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Read_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Read_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
         #endif
         public virtual ResponseHeader Read(
@@ -1872,7 +1872,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
         #endif
         public virtual ResponseHeader HistoryRead(
@@ -1920,7 +1920,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Write_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Write_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
         #endif
         public virtual ResponseHeader Write(
@@ -1962,7 +1962,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
         #endif
         public virtual ResponseHeader HistoryUpdate(
@@ -2004,7 +2004,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Call_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Call_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
         #endif
         public virtual ResponseHeader Call(
@@ -2046,7 +2046,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
         #endif
         public virtual ResponseHeader CreateMonitoredItems(
@@ -2092,7 +2092,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
         #endif
         public virtual ResponseHeader ModifyMonitoredItems(
@@ -2138,7 +2138,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
         #endif
         public virtual ResponseHeader SetMonitoringMode(
@@ -2184,7 +2184,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
         #endif
         public virtual ResponseHeader SetTriggering(
@@ -2236,7 +2236,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
         #endif
         public virtual ResponseHeader DeleteMonitoredItems(
@@ -2280,7 +2280,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
         #endif
         public virtual ResponseHeader CreateSubscription(
@@ -2336,7 +2336,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
         #endif
         public virtual ResponseHeader ModifySubscription(
@@ -2390,7 +2390,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
         #endif
         public virtual ResponseHeader SetPublishingMode(
@@ -2434,7 +2434,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Publish_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Publish_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
         #endif
         public virtual ResponseHeader Publish(
@@ -2484,7 +2484,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Republish_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Republish_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
         #endif
         public virtual ResponseHeader Republish(
@@ -2526,7 +2526,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
         #endif
         public virtual ResponseHeader TransferSubscriptions(
@@ -2570,7 +2570,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
         #endif
         public virtual ResponseHeader DeleteSubscriptions(
@@ -2622,7 +2622,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
         ResponseHeader FindServers(
@@ -2649,7 +2649,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
         ResponseHeader FindServersOnNetwork(
@@ -2677,7 +2677,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
         ResponseHeader GetEndpoints(
@@ -2704,7 +2704,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
         #endif
         ResponseHeader RegisterServer(
@@ -2726,7 +2726,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
         #endif
         ResponseHeader RegisterServer2(
@@ -2763,7 +2763,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
         public virtual ResponseHeader FindServers(
@@ -2807,7 +2807,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
         public virtual ResponseHeader FindServersOnNetwork(
@@ -2853,7 +2853,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
         public virtual ResponseHeader GetEndpoints(
@@ -2897,7 +2897,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
         #endif
         public virtual ResponseHeader RegisterServer(
@@ -2935,7 +2935,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
-        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
         #endif
         public virtual ResponseHeader RegisterServer2(
