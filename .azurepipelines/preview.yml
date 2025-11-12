@@ -58,7 +58,7 @@ jobs:
     displayName: Install NuGetKeyVaultSignTool
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.8.x'
+      versionSpec: '>=7.0.x'
   - task: PowerShell@2
     displayName: Versioning
     inputs:
