@@ -44,12 +44,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class QualifiedName :
-        IEquatable<QualifiedName>,
-        ICloneable,
-        IFormattable,
-        IComparable,
-        IComparable<QualifiedName>
+    public class QualifiedName : ICloneable, IFormattable, IComparable
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -120,20 +115,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(object obj)
         {
-            if (obj is not QualifiedName qname)
-            {
-                return int.MaxValue;
-            }
-
-            return CompareTo(qname);
-        }
-
-        /// <inheritdoc/>
-        public int CompareTo(QualifiedName obj)
-        {
             if (obj is null)
             {
-                return IsNullQn ? 0 : int.MinValue;
+                return -1;
             }
 
             if (ReferenceEquals(this, obj))
@@ -141,45 +125,45 @@ namespace Opc.Ua
                 return 0;
             }
 
-            if (obj.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
+            if (obj is not QualifiedName qname)
             {
-                return XmlEncodedNamespaceIndex.CompareTo(obj.XmlEncodedNamespaceIndex);
+                return typeof(QualifiedName).GetTypeInfo().GUID
+                    .CompareTo(obj.GetType().GetTypeInfo().GUID);
+            }
+
+            if (qname.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
+            {
+                return XmlEncodedNamespaceIndex.CompareTo(qname.XmlEncodedNamespaceIndex);
             }
 
             if (XmlEncodedName != null)
             {
-                return string.CompareOrdinal(XmlEncodedName, obj.XmlEncodedName);
+                return string.CompareOrdinal(XmlEncodedName, qname.XmlEncodedName);
             }
 
             return 0;
         }
 
         /// <inheritdoc/>
-        public static bool operator <(QualifiedName left, QualifiedName right)
+        public static bool operator >(QualifiedName value1, QualifiedName value2)
         {
-            if (left is null)
+            if (value1 is not null)
             {
-                if (right is null)
-                {
-                    return false;
-                }
-                return right.CompareTo(left) > 0;
+                return value1.CompareTo(value2) > 0;
             }
-            return right.CompareTo(left) < 0;
+
+            return false;
         }
 
         /// <inheritdoc/>
-        public static bool operator >(QualifiedName left, QualifiedName right)
+        public static bool operator <(QualifiedName value1, QualifiedName value2)
         {
-            if (right is null)
+            if (value1 is not null)
             {
-                if (left is null)
-                {
-                    return false;
-                }
-                return left.CompareTo(right) > 0;
+                return value1.CompareTo(value2) < 0;
             }
-            return right.CompareTo(left) < 0;
+
+            return true;
         }
 
         /// <inheritdoc/>
@@ -211,29 +195,49 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
+            if (obj is null)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
             if (obj is not QualifiedName qname)
             {
-                return obj is null && IsNullQn;
+                return false;
             }
-            return Equals(qname);
+
+            if (qname.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
+            {
+                return false;
+            }
+
+            return qname.XmlEncodedName == XmlEncodedName;
         }
 
         /// <inheritdoc/>
-        public bool Equals(QualifiedName other)
+        public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
-            return CompareTo(other) == 0;
+            if (value1 is not null)
+            {
+                return value1.Equals(value2);
+            }
+
+            return value2 is null;
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(QualifiedName left, QualifiedName right)
+        public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
-            return IsNull(left) ? IsNull(right) : left.Equals(right);
-        }
+            if (value1 is not null)
+            {
+                return !value1.Equals(value2);
+            }
 
-        /// <inheritdoc/>
-        public static bool operator !=(QualifiedName left, QualifiedName right)
-        {
-            return !(left == right);
+            return value2 is not null;
         }
 
         /// <inheritdoc/>

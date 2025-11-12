@@ -26,7 +26,6 @@ namespace Opc.Ua
     public sealed class ExpandedNodeId :
         ICloneable,
         IComparable,
-        IComparable<ExpandedNodeId>,
         IEquatable<ExpandedNodeId>,
         IFormattable
     {
@@ -1034,7 +1033,7 @@ namespace Opc.Ua
             // check for null.
             if (obj is null)
             {
-                return IsNull ? 0 : -1;
+                return -1;
             }
 
             // check for reference comparisons.
@@ -1049,14 +1048,36 @@ namespace Opc.Ua
                 return InnerNodeId.CompareTo(obj);
             }
 
-            // check for expanded node ids.
-            if (obj is ExpandedNodeId expandedId)
-            {
-                return CompareTo(expandedId);
-            }
-
             var nodeId = obj as NodeId;
 
+            // check for expanded node ids.
+            var expandedId = obj as ExpandedNodeId;
+
+            if (expandedId != null)
+            {
+                if (IsNull && expandedId.IsNull)
+                {
+                    return 0;
+                }
+
+                if (ServerIndex != expandedId.ServerIndex)
+                {
+                    return ServerIndex.CompareTo(expandedId.ServerIndex);
+                }
+
+                if (NamespaceUri != expandedId.NamespaceUri)
+                {
+                    if (NamespaceUri != null)
+                    {
+                        return string.CompareOrdinal(NamespaceUri, expandedId.NamespaceUri);
+                    }
+
+                    return -1;
+                }
+
+                nodeId = expandedId.InnerNodeId;
+            }
+
             // check for null.
             if (InnerNodeId != null)
             {
@@ -1068,66 +1089,24 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(ExpandedNodeId obj)
+        public static bool operator >(ExpandedNodeId value1, object value2)
         {
-            if (obj is null || obj.IsNull)
+            if (value1 is not null)
             {
-                return IsNull ? 0 : -1;
+                return value1.CompareTo(value2) > 0;
             }
 
-            if (ServerIndex != obj.ServerIndex)
-            {
-                return ServerIndex.CompareTo(obj.ServerIndex);
-            }
-
-            if (NamespaceUri != obj.NamespaceUri)
-            {
-                if (NamespaceUri != null)
-                {
-                    return string.CompareOrdinal(NamespaceUri, obj.NamespaceUri);
-                }
-
-                return -1;
-            }
-
-            NodeId nodeId = obj.InnerNodeId;
-
-            // check for null.
-            if (InnerNodeId != null)
-            {
-                return InnerNodeId.CompareTo(nodeId);
-            }
-
-            // compare node ids.
-            return nodeId == null ? 0 : -1;
+            return false;
         }
 
         /// <inheritdoc/>
-        public static bool operator >(ExpandedNodeId left, ExpandedNodeId right)
+        public static bool operator <(ExpandedNodeId value1, object value2)
         {
-            if (right is null)
+            if (value1 is not null)
             {
-                if (left is null)
-                {
-                    return false;
-                }
-                return left.CompareTo(right) > 0;
+                return value1.CompareTo(value2) < 0;
             }
-            return right.CompareTo(left) < 0;
-        }
-
-        /// <inheritdoc/>
-        public static bool operator <(ExpandedNodeId left, ExpandedNodeId right)
-        {
-            if (left is null)
-            {
-                if (right is null)
-                {
-                    return false;
-                }
-                return right.CompareTo(left) > 0;
-            }
-            return right.CompareTo(left) < 0;
+            return true;
         }
 
         /// <inheritdoc/>
@@ -1147,25 +1126,6 @@ namespace Opc.Ua
         {
             return CompareTo(obj) == 0;
         }
-
-        /// <inheritdoc/>
-        public bool Equals(ExpandedNodeId other)
-        {
-            return CompareTo(other) == 0;
-        }
-
-        /// <inheritdoc/>
-        public static bool operator ==(ExpandedNodeId left, ExpandedNodeId right)
-        {
-            return left?.IsNull ?? true ? right?.IsNull ?? true : left.Equals(right);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(ExpandedNodeId left, ExpandedNodeId right)
-        {
-            return !(left == right);
-        }
-
         /// <inheritdoc/>
         public override int GetHashCode()
         {
@@ -1198,6 +1158,34 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public static bool operator ==(ExpandedNodeId value1, object value2)
+        {
+            if (value1 is null)
+            {
+                return value2 is null;
+            }
+
+            return value1.CompareTo(value2) == 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ExpandedNodeId value1, object value2)
+        {
+            if (value1 is null)
+            {
+                return value2 is not null;
+            }
+
+            return value1.CompareTo(value2) != 0;
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ExpandedNodeId other)
+        {
+            return CompareTo(other) == 0;
+        }
+
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -1206,12 +1194,6 @@ namespace Opc.Ua
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
-        }
-
-        /// <inheritdoc/>
-        public override string ToString()
-        {
-            return ToString(null, null);
         }
 
         /// <inheritdoc/>
@@ -1230,6 +1212,12 @@ namespace Opc.Ua
         {
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return ToString(null, null);
         }
 
         /// <summary>
