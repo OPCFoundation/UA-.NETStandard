@@ -201,6 +201,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use ProcessRequestAsync instead.")]
         public virtual IServiceResponse ProcessRequest(IServiceRequest incoming)
         {
             try
@@ -611,6 +612,9 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
+#if NET_STANDARD_OBSOLETE_SYNC_SERVER && false
+            [Obsolete("Use constructor taking an InvokeServiceAsyncEventHandler.")]
+#endif
             public ServiceDefinition(Type requestType, InvokeServiceEventHandler invokeMethod)
             {
                 RequestType = requestType;
@@ -636,6 +640,9 @@ namespace Opc.Ua
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
             /// <param name="asyncInvokeMethod">The async invoke method.</param>
+#if NET_STANDARD_OBSOLETE_SYNC_SERVER
+            [Obsolete("Use constructor taking an InvokeServiceAsyncEventHandler.")]
+#endif
             public ServiceDefinition(
                 Type requestType,
                 InvokeServiceEventHandler invokeMethod,
@@ -663,6 +670,7 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="request">The request.</param>
             /// <param name="logger">A contextual logger to log to</param>
+            [Obsolete("Use InvokeAsync.")]
             public IServiceResponse Invoke(IServiceRequest request, ILogger logger)
             {
                 if (m_invokeService == null && m_invokeServiceAsync != null)
@@ -710,12 +718,12 @@ namespace Opc.Ua
             IServiceRequest request,
             CancellationToken cancellationToken = default);
 
+#if !NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
+        [Obsolete("Use EndpointIncomingRequest instead.")]
         protected class ProcessRequestAsyncResult : AsyncResultBase, IEndpointIncomingRequest
-#pragma warning restore CS0618 // Type or member is obsolete
         {
             /// <summary>
             /// Initializes a new instance of the <see cref="ProcessRequestAsyncResult"/> class.
@@ -1065,6 +1073,7 @@ namespace Opc.Ua
             private ServiceDefinition m_service;
             private Exception m_error;
         }
+#endif
 
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
