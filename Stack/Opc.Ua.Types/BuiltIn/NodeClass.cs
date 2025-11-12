@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
@@ -18,6 +19,7 @@ namespace Opc.Ua
     /// Node class
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [Flags]
     public enum NodeClass
     {
         /// <summary>

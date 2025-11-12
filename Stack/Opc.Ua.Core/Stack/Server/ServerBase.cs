@@ -45,11 +45,7 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            if (!m_disposed)
-            {
-                Dispose(true);
-                m_disposed = true;
-            }
+            Dispose(true);
             GC.SuppressFinalize(this);
         }
 
@@ -58,8 +54,9 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
+                m_disposed = true;
                 // dispose any listeners.
                 if (TransportListeners != null)
                 {

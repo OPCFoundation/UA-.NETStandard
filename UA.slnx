@@ -48,6 +48,7 @@
     <File Path=".dockerignore" />
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
+    <File Path=".github/copilot-instructions.md" />
     <File Path=".gitignore" />
     <File Path="azure-pipelines-preview.yml" />
     <File Path="azure-pipelines.yml" />
@@ -60,6 +61,7 @@
     <File Path="Tests/codecoverage.cmd" />
     <File Path="Tests/codecoverage.sh" />
     <File Path="Tests/coverlet.runsettings.xml" />
+    <File Path="Tests/customtest.bat" />
     <File Path="version.json" />
     <File Path="version.props" />
   </Folder>

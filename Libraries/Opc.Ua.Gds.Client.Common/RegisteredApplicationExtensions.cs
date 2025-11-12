@@ -139,7 +139,7 @@ namespace Opc.Ua.Gds.Client
                 }
             }
 
-            if (domainNames != null && domainNames.Count > 0)
+            if (domainNames.Count > 0)
             {
                 return domainNames;
             }

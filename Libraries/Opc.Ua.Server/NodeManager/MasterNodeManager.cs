@@ -572,14 +572,8 @@ namespace Opc.Ua.Server
                 var nodeManagers = readOnlyNodeManagers.ToList();
 
                 IAsyncNodeManager nodeManagerToRemove;
-                if (nodeManager != null)
-                {
-                    nodeManagerToRemove = nodeManagers.Find(manager => manager.SyncNodeManager == nodeManager);
-                }
-                else
-                {
-                    nodeManagerToRemove = nodeManagers.Find(manager => manager == asyncNodeManager);
-                }
+                nodeManagerToRemove = nodeManagers.Find(manager => manager.SyncNodeManager == nodeManager);
+
 
                 bool nodeManagerFound = nodeManagers.Remove(nodeManagerToRemove);
 

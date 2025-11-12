@@ -143,17 +143,6 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // TBD
-            }
-        }
-
-        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         public override NodeId New(ISystemContext context, NodeState node)
@@ -209,7 +198,7 @@ namespace Opc.Ua.Gds.Server
                 NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
-                    KeyValuePair<NodeId, X509Certificate2>? matchingCert = certificateGroup
+                    KeyValuePair<NodeId, X509Certificate2> matchingCert = certificateGroup
                         .Certificates
                         .FirstOrDefault(
                             kvp =>
@@ -218,7 +207,7 @@ namespace Opc.Ua.Gds.Server
                                     x509.Issuer) &&
                                 kvp.Key == certificateType);
 
-                    if (matchingCert != null)
+                    if (matchingCert.Value != null)
                     {
                         return certificateGroup;
                     }

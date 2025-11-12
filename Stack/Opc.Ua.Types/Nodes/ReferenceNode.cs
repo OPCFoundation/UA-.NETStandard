@@ -21,7 +21,13 @@ namespace Opc.Ua
     /// Reference node
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ReferenceNode : IEncodeable, IJsonEncodeable, IReference, IComparable
+    public class ReferenceNode : 
+        IEncodeable, 
+        IJsonEncodeable, 
+        IReference,
+        IEquatable<ReferenceNode>,
+        IComparable, 
+        IComparable<ReferenceNode>
     {
         /// <summary>
         /// Initializes the reference.
@@ -158,12 +164,7 @@ namespace Opc.Ua
             return clone;
         }
 
-        /// <summary>
-        /// Returns a string representation of the HierarchyBrowsePath.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
+        /// <inheritdoc/>
         public override string ToString()
         {
             if (IsInverse)
@@ -174,27 +175,19 @@ namespace Opc.Ua
             return CoreUtils.Format("<{0}>{1}", ReferenceTypeId, TargetId);
         }
 
-        /// <summary>
-        /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
-        /// </summary>
-        /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
-        /// <returns>
-        /// true if the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>; otherwise, false.
-        /// </returns>
-        /// <exception cref="T:System.NullReferenceException">
-        /// The <paramref name="obj"/> parameter is null.
-        /// </exception>
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
 
-        /// <summary>
-        /// Serves as a hash function for a particular type.
-        /// </summary>
-        /// <returns>
-        /// A hash code for the current <see cref="T:System.Object"/>.
-        /// </returns>
+        /// <inheritdoc/>
+        public bool Equals(ReferenceNode other)
+        {
+            return CompareTo(other) == 0;
+        }
+
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             var hash = new HashCode();
@@ -204,59 +197,19 @@ namespace Opc.Ua
             return hash.ToHashCode();
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <param name="a">ReferenceNode A.</param>
-        /// <param name="b">The ReferenceNode B.</param>
-        /// <returns>The result of the operator.Returns true if the objects are equal.</returns>
+        /// <inheritdoc/>
         public static bool operator ==(ReferenceNode a, object b)
         {
-            if (a is null)
-            {
-                return b is null;
-            }
-
-            return a.CompareTo(b) == 0;
+            return a is null ? b is null : a.CompareTo(b) == 0;
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <param name="a">ReferenceNode A.</param>
-        /// <param name="b">The ReferenceNode B.</param>
-        /// <returns>The result of the operator.Returns true if the objects are not equal.</returns>
+        /// <inheritdoc/>
         public static bool operator !=(ReferenceNode a, object b)
         {
-            if (a is null)
-            {
-                return b is not null;
-            }
-
-            return a.CompareTo(b) != 0;
+            return a is null ? b is not null : a.CompareTo(b) != 0;
         }
 
-        /// <summary>
-        /// Compares the current instance with another object of the same type and returns an
-        /// integer that indicates whether the current instance precedes, follows, or occurs
-        /// in the same position in the sort order as the other object.
-        /// </summary>
-        /// <param name="obj">An object to compare with this instance.</param>
-        /// <returns>
-        /// A 32-bit signed integer that indicates the relative order of the objects being
-        /// compared. The return value has these meanings:
-        /// Value
-        /// Meaning
-        /// Less than zero
-        /// This instance is less than <paramref name="obj"/>.
-        /// Zero
-        /// This instance is equal to <paramref name="obj"/>.
-        /// Greater than zero
-        /// This instance is greater than <paramref name="obj"/>.
-        /// </returns>
-        /// <exception cref="T:System.ArgumentException">
-        /// <paramref name="obj"/> is not the same type as this instance.
-        /// </exception>
+        /// <inheritdoc/>
         public int CompareTo(object obj)
         {
             if (obj is null)
@@ -274,29 +227,59 @@ namespace Opc.Ua
                 return -1;
             }
 
+            return CompareTo(reference);
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(ReferenceNode obj)
+        {
             if (ReferenceTypeId is null)
             {
-                return reference.ReferenceTypeId is null ? 0 : -1;
+                return obj.ReferenceTypeId is null ? 0 : -1;
             }
 
-            int result = ReferenceTypeId.CompareTo(reference.ReferenceTypeId);
+            int result = ReferenceTypeId.CompareTo(obj.ReferenceTypeId);
 
             if (result != 0)
             {
                 return result;
             }
 
-            if (reference.IsInverse != IsInverse)
+            if (obj.IsInverse != IsInverse)
             {
                 return IsInverse ? +1 : -1;
             }
 
             if (TargetId is null)
             {
-                return reference.TargetId is null ? 0 : -1;
+                return obj.TargetId is null ? 0 : -1;
             }
 
-            return TargetId.CompareTo(reference.TargetId);
+            return TargetId.CompareTo(obj.TargetId);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(ReferenceNode left, ReferenceNode right)
+        {
+            return left is null ? right is not null : left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ReferenceNode left, ReferenceNode right)
+        {
+            return left is null || left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(ReferenceNode left, ReferenceNode right)
+        {
+            return left is not null && left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ReferenceNode left, ReferenceNode right)
+        {
+            return left is null ? right is null : left.CompareTo(right) >= 0;
         }
     }
 

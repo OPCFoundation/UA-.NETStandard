@@ -332,7 +332,7 @@ namespace Opc.Ua.Server
             {
                 if (defaultText != null &&
                     !isMultilanguageRequested &&
-                    preferredLocales[0] == defaultText?.Locale)
+                    preferredLocales[0] == defaultText.Locale)
                 {
                     return defaultText;
                 }

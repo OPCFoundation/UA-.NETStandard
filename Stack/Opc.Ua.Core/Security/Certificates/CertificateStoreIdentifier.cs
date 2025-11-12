@@ -276,11 +276,6 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateStoreType
     {
-        static CertificateStoreType()
-        {
-            s_registeredStoreTypes = [];
-        }
-
         /// <summary>
         /// Registers a new certificate store type that con be specified in config files.
         /// </summary>
@@ -318,6 +313,6 @@ namespace Opc.Ua
         /// </summary>
         public const string Directory = "Directory";
 
-        private static readonly Dictionary<string, ICertificateStoreType> s_registeredStoreTypes;
+        private static readonly Dictionary<string, ICertificateStoreType> s_registeredStoreTypes = [];
     }
 }

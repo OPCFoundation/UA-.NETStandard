@@ -153,10 +153,8 @@ namespace Opc.Ua.Client.Tests
                 "http://opcfoundation.org/Quickstarts/ReferenceServer");
             var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
-            var random = new Random();
-
             byte[] chunk = new byte[MaxByteStringLengthForTest];
-            random.NextBytes(chunk);
+            UnsecureRandom.Shared.NextBytes(chunk);
 
             var writeValue = new WriteValue
             {

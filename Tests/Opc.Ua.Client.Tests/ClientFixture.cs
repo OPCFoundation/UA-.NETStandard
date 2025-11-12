@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
-                throw new Exception("Application instance certificate invalid!");
+                throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
             ReverseConnectManager = new ReverseConnectManager(m_telemetry);
@@ -168,7 +168,6 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task StartReverseConnectHostAsync()
         {
-            var random = new Random();
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
             int serverStartRetries = 25;
@@ -188,12 +187,12 @@ namespace Opc.Ua.Client.Tests
                     {
                         throw;
                     }
-                    testPort = random.Next(
+                    testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
                         ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
         }
 
@@ -401,7 +400,7 @@ namespace Opc.Ua.Client.Tests
             foreach (EndpointDescription endpoint in endpoints)
             {
                 // check for a match on the URL scheme.
-                if (endpoint.EndpointUrl.StartsWith(url.Scheme))
+                if (endpoint.EndpointUrl.StartsWith(url.Scheme, StringComparison.Ordinal))
                 {
                     // skip unsupported security policies
                     if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(

@@ -26,6 +26,7 @@ namespace Opc.Ua
     public sealed class ExpandedNodeId :
         ICloneable,
         IComparable,
+        IComparable<ExpandedNodeId>,
         IEquatable<ExpandedNodeId>,
         IFormattable
     {
@@ -1027,9 +1028,7 @@ namespace Opc.Ua
         /// </summary>
         private const string kHexDigits = "0123456789ABCDEF";
 
-        /// <summary>
-        /// Compares the current instance to the object.
-        /// </summary>
+        /// <inheritdoc/>
         public int CompareTo(object obj)
         {
             // check for null.
@@ -1050,35 +1049,13 @@ namespace Opc.Ua
                 return InnerNodeId.CompareTo(obj);
             }
 
-            var nodeId = obj as NodeId;
-
             // check for expanded node ids.
-            var expandedId = obj as ExpandedNodeId;
-
-            if (expandedId != null)
+            if (obj is ExpandedNodeId expandedId)
             {
-                if (IsNull && expandedId.IsNull)
-                {
-                    return 0;
-                }
-
-                if (ServerIndex != expandedId.ServerIndex)
-                {
-                    return ServerIndex.CompareTo(expandedId.ServerIndex);
-                }
-
-                if (NamespaceUri != expandedId.NamespaceUri)
-                {
-                    if (NamespaceUri != null)
-                    {
-                        return string.CompareOrdinal(NamespaceUri, expandedId.NamespaceUri);
-                    }
-
-                    return -1;
-                }
-
-                nodeId = expandedId.InnerNodeId;
+                return CompareTo(expandedId);
             }
+
+            var nodeId = obj as NodeId;
 
             // check for null.
             if (InnerNodeId != null)
@@ -1090,43 +1067,90 @@ namespace Opc.Ua
             return nodeId == null ? 0 : -1;
         }
 
-        /// <summary>
-        /// Returns true if a is greater than b.
-        /// </summary>
-        public static bool operator >(ExpandedNodeId value1, object value2)
+        /// <inheritdoc/>
+        public int CompareTo(ExpandedNodeId obj)
         {
-            if (value1 is not null)
+            if (IsNull && obj.IsNull)
             {
-                return value1.CompareTo(value2) > 0;
+                return 0;
             }
 
-            return false;
-        }
-
-        /// <summary>
-        /// Returns true if a is less than b.
-        /// </summary>
-        public static bool operator <(ExpandedNodeId value1, object value2)
-        {
-            if (value1 is not null)
+            if (ServerIndex != obj.ServerIndex)
             {
-                return value1.CompareTo(value2) < 0;
+                return ServerIndex.CompareTo(obj.ServerIndex);
             }
 
-            return true;
+            if (NamespaceUri != obj.NamespaceUri)
+            {
+                if (NamespaceUri != null)
+                {
+                    return string.CompareOrdinal(NamespaceUri, obj.NamespaceUri);
+                }
+
+                return -1;
+            }
+
+            NodeId nodeId = obj.InnerNodeId;
+
+            // check for null.
+            if (InnerNodeId != null)
+            {
+                return InnerNodeId.CompareTo(nodeId);
+            }
+
+            // compare node ids.
+            return nodeId == null ? 0 : -1;
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the ExpandedNodeId.
-        /// </summary>
+        /// <inheritdoc/>
+        public static bool operator >(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return left is null ? right is null : left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return left is null || left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return left is null ? right is null : left.CompareTo(right) >= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return left is null || left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
 
-        /// <summary>
-        /// Returns a unique hashcode for the ExpandedNodeId
-        /// </summary>
+        /// <inheritdoc/>
+        public bool Equals(ExpandedNodeId other)
+        {
+            return CompareTo(other) == 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return left is null ? right is null : left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             if (InnerNodeId == null || InnerNodeId.IsNullNodeId)
@@ -1157,48 +1181,7 @@ namespace Opc.Ua
             return hash.ToHashCode();
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        public static bool operator ==(ExpandedNodeId value1, object value2)
-        {
-            if (value1 is null)
-            {
-                return value2 is null;
-            }
-
-            return value1.CompareTo(value2) == 0;
-        }
-
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        public static bool operator !=(ExpandedNodeId value1, object value2)
-        {
-            if (value1 is null)
-            {
-                return value2 is not null;
-            }
-
-            return value1.CompareTo(value2) != 0;
-        }
-
-        /// <summary>
-        /// Implements <see cref="IEquatable{T}"/>.Equals(T)"/>
-        /// </summary>
-        /// <param name="other">The other ExpandedNodeId.</param>
-        public bool Equals(ExpandedNodeId other)
-        {
-            return CompareTo(other) == 0;
-        }
-
-        /// <summary>
-        /// Returns the string representation of an ExpandedNodeId.
-        /// </summary>
-        /// <returns>The <see cref="ExpandedNodeId"/> as a formatted string</returns>
-        /// <param name="format">(Unused) The format string.</param>
-        /// <param name="formatProvider">(Unused) The format-provider.</param>
-        /// <exception cref="FormatException">Thrown when the 'format' parameter is NOT null. So leave that parameter null.</exception>
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -1207,6 +1190,12 @@ namespace Opc.Ua
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return ToString(null, null);
         }
 
         /// <inheritdoc/>
@@ -1225,14 +1214,6 @@ namespace Opc.Ua
         {
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
-        }
-
-        /// <summary>
-        /// Returns the string representation of am ExpandedNodeId.
-        /// </summary>
-        public override string ToString()
-        {
-            return ToString(null, null);
         }
 
         /// <summary>

@@ -53,11 +53,16 @@ namespace Opc.Ua.Test
     public class RandomSource : IRandomSource
     {
         /// <summary>
+        /// Default random source.
+        /// </summary>
+        public static RandomSource Default { get; } = new ();
+
+        /// <summary>
         /// Initializes the source with a time dependent seed.
         /// </summary>
         public RandomSource()
         {
-            m_random = new Random();
+            m_random = UnsecureRandom.Shared;
         }
 
         /// <summary>
@@ -66,7 +71,7 @@ namespace Opc.Ua.Test
         /// <param name="seed">The number used to initialize the Pseudo random sequence.</param>
         public RandomSource(int seed)
         {
-            m_random = new Random(seed);
+            m_random = new UnsecureRandom(seed);
         }
 
         /// <inheritdoc/>
@@ -120,7 +125,7 @@ namespace Opc.Ua.Test
             return m_random.Next(max);
         }
 
-        private readonly Random m_random;
+        private readonly UnsecureRandom m_random;
     }
 
     /// <summary>
@@ -637,27 +642,27 @@ namespace Opc.Ua.Test
 
                 if (element == null)
                 {
-                    element = default(T);
-                    if (element == null)
+                    // ensure a valid null type is returned
+                    Type t = typeof(T);
+                    if (t == typeof(ExpandedNodeId))
                     {
-                        // ensure a valid null type is returned
-                        Type t = typeof(T);
-                        if (t == typeof(ExpandedNodeId))
-                        {
-                            element = ExpandedNodeId.Null;
-                        }
-                        else if (t == typeof(NodeId))
-                        {
-                            element = NodeId.Null;
-                        }
-                        else if (t == typeof(LocalizedText))
-                        {
-                            element = LocalizedText.Null;
-                        }
-                        else if (t == typeof(QualifiedName))
-                        {
-                            element = QualifiedName.Null;
-                        }
+                        element = ExpandedNodeId.Null;
+                    }
+                    else if (t == typeof(NodeId))
+                    {
+                        element = NodeId.Null;
+                    }
+                    else if (t == typeof(LocalizedText))
+                    {
+                        element = LocalizedText.Null;
+                    }
+                    else if (t == typeof(QualifiedName))
+                    {
+                        element = QualifiedName.Null;
+                    }
+                    else
+                    {
+                        element = default(T);
                     }
                 }
 
@@ -937,9 +942,9 @@ namespace Opc.Ua.Test
                     BindingFlags.Public | BindingFlags.Static))
                 {
                     if (field.FieldType == typeof(uint) &&
-                        (field.Name.StartsWith("Good") ||
-                            field.Name.StartsWith("Uncertain") ||
-                            field.Name.StartsWith("Bad")))
+                        (field.Name.StartsWith("Good", StringComparison.Ordinal) ||
+                            field.Name.StartsWith("Uncertain", StringComparison.Ordinal) ||
+                            field.Name.StartsWith("Bad", StringComparison.Ordinal)))
                     {
                         uint value = Convert.ToUInt32(
                             field.GetValue(null),

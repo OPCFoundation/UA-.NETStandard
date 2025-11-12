@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider certificateTypesProvider)
+            CertificateTypesProvider instanceCertificateTypesProvider)
         {
             // generate a unique host name.
             string hostName = hostName = "/Https";
@@ -135,17 +135,17 @@ namespace Opc.Ua.Bindings
                     Server = serverDescription
                 };
 
-                if (certificateTypesProvider != null)
+                if (instanceCertificateTypesProvider != null)
                 {
-                    X509Certificate2 instanceCertificate = certificateTypesProvider
+                    X509Certificate2 instanceCertificate = instanceCertificateTypesProvider
                         .GetInstanceCertificate(
                             bestPolicy.SecurityPolicyUri);
                     description.ServerCertificate = instanceCertificate.RawData;
 
                     // check if complete chain should be sent.
-                    if (certificateTypesProvider.SendCertificateChain)
+                    if (instanceCertificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider
+                        description.ServerCertificate = instanceCertificateTypesProvider
                             .LoadCertificateChainRaw(
                                 instanceCertificate);
                     }

@@ -408,7 +408,6 @@ namespace Opc.Ua.Client.Tests
                     true,
                     0).ConfigureAwait(false);
 
-            var random = new Random();
             int index = 0;
             foreach (
                 ReferenceDescriptionCollection referenceDescriptionCollection in referenceDescriptionCollectionsPass1)
@@ -419,14 +418,14 @@ namespace Opc.Ua.Client.Tests
 
                 // now verify that the type of the nodes are the same, once for each list of reference descriptions
                 string randomNodeName = referenceDescriptionCollection[
-                    random.Next(0, referenceDescriptionCollection.Count - 1)
+                    UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1)
                 ]
                     .DisplayName
                     .Text;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.IsTrue(randomNodeName.StartsWith(suffix));
+                Assert.IsTrue(randomNodeName.StartsWith(suffix, StringComparison.Ordinal));
 
-                int ii = random.Next(0, referenceDescriptionCollection.Count - 1);
+                int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
                 Assert.AreEqual(
                     referenceDescriptionCollection.Count,
@@ -550,7 +549,6 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0).ConfigureAwait(false);
 
-            var random = new Random();
             int index = 0;
             foreach (
                 ReferenceDescriptionCollection referenceDescriptionCollection in referenceDescriptionCollectionsPass1)
@@ -561,14 +559,14 @@ namespace Opc.Ua.Client.Tests
 
                 // now verify that the type of the nodes are the same, once for each list of reference descriptions
                 string randomNodeName = referenceDescriptionCollection[
-                    random.Next(0, referenceDescriptionCollection.Count - 1)
+                    UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1)
                 ]
                     .DisplayName
                     .Text;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.IsTrue(randomNodeName.StartsWith(suffix));
+                Assert.IsTrue(randomNodeName.StartsWith(suffix, StringComparison.Ordinal));
 
-                int ii = random.Next(0, referenceDescriptionCollection.Count - 1);
+                int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
                 Assert.AreEqual(
                     referenceDescriptionCollection.Count,
@@ -706,7 +704,6 @@ namespace Opc.Ua.Client.Tests
                     true,
                     0).ConfigureAwait(false);
 
-            var random = new Random();
             int index = 0;
             foreach (
                 ReferenceDescriptionCollection referenceDescriptionCollection in referenceDescriptionCollectionsPass1)
@@ -717,14 +714,14 @@ namespace Opc.Ua.Client.Tests
 
                 // now verify that the types of the nodes are the same, once for each list of reference descriptions
                 string randomNodeName = referenceDescriptionCollection[
-                    random.Next(0, referenceDescriptionCollection.Count - 1)
+                    UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1)
                 ]
                     .DisplayName
                     .Text;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.IsTrue(randomNodeName.StartsWith(suffix));
+                Assert.IsTrue(randomNodeName.StartsWith(suffix, StringComparison.Ordinal));
 
-                int ii = random.Next(0, referenceDescriptionCollection.Count - 1);
+                int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
                 Assert.AreEqual(
                     referenceDescriptionCollection.Count,

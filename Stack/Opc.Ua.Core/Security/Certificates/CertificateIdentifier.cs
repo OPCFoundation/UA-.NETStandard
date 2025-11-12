@@ -751,8 +751,7 @@ namespace Opc.Ua
                     break;
                 default:
                     // TODO: check SHA1/key size
-                    if (certificateType == null ||
-                        certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                    if (certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
                         certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                         certificateType == ObjectTypeIds.ApplicationCertificateType)
                     {

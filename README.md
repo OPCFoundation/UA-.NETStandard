@@ -1,16 +1,16 @@
 
-# Official OPC UA .NET Standard Stack from the OPC Foundation
+# Official OPC UA .NET Stack from the OPC Foundation
 
 ## Overview
-This OPC UA reference implementation is targeting the [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) specification.
+This OPC UA reference implementation is targeting the .NET Framework, .NET, and [.NET Standard 2.1](https://docs.microsoft.com/en-us/dotnet/standard/net-standard).
 
-.NET Standard allows to develop apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10/11 (including embedded/IoT editions) without requiring platform-specific modifications. 
+.NET allows to develop apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10/11 (including embedded/IoT editions) without requiring platform-specific modifications. 
 
 One of the reference implementations inside this project has been certified for compliance through an OPC Foundation Certification Test Lab to prove its high quality. Fixes and enhancements since the certification process have been tested and verified for compliance using the latest Compliance Test Tool (CTT).
 
 Furthermore, cloud applications and services (such as ASP.NET, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
 
-More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository. For development there is also a [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) available. For local testing a [Docker container of the Reference Server](Docs/ContainerReferenceServer.md) is available for preview and release builds.
+More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository. For development there is also a [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) available. For local testing a [Docker container of the Reference Server](Docs/ContainerReferenceServer.md) is available for preview and release builds.
 
 ## For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
@@ -71,10 +71,10 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 #### Samples and Nuget packages
 
-* OPC UA [Console Reference Server](Applications/ConsoleReferenceServer) for .NET Core. A Linux Container of the latest builds is available [here](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). See also [Container support](Docs/ContainerReferenceServer.md).
+* OPC UA [Console Reference Server](Applications/ConsoleReferenceServer) for .NET. A Linux Container of the latest builds is available [here](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). See also [Container support](Docs/ContainerReferenceServer.md).
 * The OPC UA [Reference Server](Applications/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/). 
     All releases are verified for compliance with the latest official Compliance Test Tool by the maintainers.
-* OPC UA [Console Reference Publisher](Applications/ConsoleReferencePublisher/README.md) and [Console Reference Subscriber](Applications/ConsoleReferenceSubscriber/README.md) for .NET Core and .NET Framework.
+* OPC UA [Console Reference Publisher](Applications/ConsoleReferencePublisher/README.md) and [Console Reference Subscriber](Applications/ConsoleReferenceSubscriber/README.md) for .NET and .NET Framework.
 * An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .NET projects. Note: The package has been split into [Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/), [Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/) and [Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/) packages to reduce the dependencies in projects where only client or server is needed. The [https binding](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/) is now a seperate optional package.
 * A [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) is available from Azure Devops.
 
@@ -98,26 +98,24 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 [![Coverage Status](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg?token=vDf5AnilUt)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
 
 ## Getting Started
-All the tools you need for .NET Standard come with the .NET Core tools. See [Get started with .NET Core](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
+All the tools you need to build .NET libraries and application come with the .NET SDK. To run applications you need a .NET runtime installed. 
+See [Get started with .NET](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
 ## How to build and run the reference samples in Visual Studio on Windows
 
-Note: Since .NET Core 2.1 is end of life, 
-- VS 2017 has only limited support for .NET 4.8. 
-- VS 2019 has only limited support for .NET 4.8 because .NET Core 3.1 reached end of life. 
-- VS 2022 is the current supported version, including .NET 6.0 (LTS) and .NET 8.0 (LTS). 
+Visual Studio 2026 is the only supported version. Ensure you have all target frameworks enabled, including .NET 4.8.x, .NET 8.0, 9.0, and 10.0 (LTS). 
 
-1. Open the UA Reference.sln solution file using Visual Studio. 
+1. Open the UA.slnx solution file using Visual Studio 2026. 
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
 
 ## How to build and run the console samples on Windows, Linux and iOS
 This section describes how to run the **ConsoleReferenceServer** sample application.
 
-Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .NET Core SDK 3.1 is required for Visual Studio 2019 and .NET SDK 6.0 is required for Visual Studio 2022.
+Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the .NET 10 SDK which provides the dotnet command that allows you to build and run the samples on your platform.
 
 ### Prerequisites
-1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore 'UA Reference.sln'`. This command calls into NuGet to restore the tree of dependencies.
+1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore 'UA.slnx'`. This command calls into NuGet to restore the tree of dependencies.
 
 ### Start the server 
 1. Open a command prompt. 

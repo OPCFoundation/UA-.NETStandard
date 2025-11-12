@@ -63,6 +63,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The internal state of the reconnect handler.
         /// </summary>
+        [Flags]
         public enum ReconnectState
         {
             /// <summary>
@@ -127,7 +128,6 @@ namespace Opc.Ua.Client
                     : Math.Max(
                         MinReconnectPeriod,
                         Math.Min(maxReconnectPeriod, MaxReconnectPeriod));
-            m_random = new Random();
         }
 
         /// <summary>
@@ -291,7 +291,7 @@ namespace Opc.Ua.Client
             const int jitterFactor = 10;
             int jitter =
                 reconnectPeriod *
-                m_random.Next(-jitterResolution, jitterResolution) /
+                 UnsecureRandom.Shared.Next(-jitterResolution, jitterResolution) /
                 (jitterResolution * jitterFactor);
             return reconnectPeriod + jitter;
         }
@@ -327,9 +327,10 @@ namespace Opc.Ua.Client
             try
             {
                 // check for exit.
+                ISession? session = Session;
                 lock (m_lock)
                 {
-                    if (m_reconnectTimer == null || Session == null)
+                    if (m_reconnectTimer == null || session == null)
                     {
                         return;
                     }
@@ -343,23 +344,23 @@ namespace Opc.Ua.Client
 
                 bool keepaliveRecovered = false;
 
+
                 // preserve legacy behavior if reconnectAbort is not set
-                if (Session != null &&
-                    m_reconnectAbort &&
-                    Session.Connected &&
-                    !Session.KeepAliveStopped)
+                if (m_reconnectAbort &&
+                    session.Connected &&
+                    !session.KeepAliveStopped)
                 {
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
                     m_logger.LogInformation(
                         "Reconnect {SessionId} aborted, KeepAlive recovered.",
-                        Session?.SessionId);
-                    Session = null;
+                        session.SessionId);
+                    Session = session = null;
                 }
                 else
                 {
-                    m_logger.LogInformation("Reconnect {SessionId}.", Session?.SessionId);
+                    m_logger.LogInformation("Reconnect {SessionId}.", session.SessionId);
                 }
 
                 // do the reconnect or recover state.
@@ -378,7 +379,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                m_logger.LogError("Unexpected error during reconnect: {message}", Redact.Create(exception));
+                m_logger.LogError("Unexpected error during reconnect: {Message}", Redact.Create(exception));
             }
 
             // schedule the next reconnect.
@@ -619,7 +620,6 @@ namespace Opc.Ua.Client
         private readonly ITelemetryContext m_telemetry;
         private readonly Lock m_lock = new();
         private ReconnectState m_state;
-        private readonly Random m_random;
         private bool m_reconnectFailed;
         private readonly ILogger m_logger;
         private readonly bool m_reconnectAbort;

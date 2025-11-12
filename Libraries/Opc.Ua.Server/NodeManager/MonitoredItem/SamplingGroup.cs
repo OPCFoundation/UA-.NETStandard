@@ -126,7 +126,9 @@ namespace Opc.Ua.Server
 
                 m_samplingTask = Task.Factory.StartNew(
                     () => SampleMonitoredItems(m_samplingInterval),
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                    default, // TODO: Pass a cancellation token
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
             }
         }
 

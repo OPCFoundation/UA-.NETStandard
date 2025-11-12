@@ -38,7 +38,7 @@ namespace TestData
     /// <summary>
     /// A class that provides access to archived data.
     /// </summary>
-    internal class HistoryArchive : IDisposable
+    internal sealed class HistoryArchive : IDisposable
     {
         public HistoryArchive(ITelemetryContext telemetry)
         {
@@ -50,19 +50,8 @@ namespace TestData
         /// </summary>
         public void Dispose()
         {
-            Dispose(true);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing && m_updateTimer != null)
-            {
-                m_updateTimer.Dispose();
-                m_updateTimer = null;
-            }
+            m_updateTimer?.Dispose();
+            m_updateTimer = null;
         }
 
         /// <summary>
@@ -182,7 +171,7 @@ namespace TestData
     /// <summary>
     /// A single entry in the archive.
     /// </summary>
-    internal class HistoryEntry
+    internal sealed class HistoryEntry
     {
         public DataValue Value;
         public bool IsModified;
@@ -191,7 +180,7 @@ namespace TestData
     /// <summary>
     /// A record in the archive.
     /// </summary>
-    internal class HistoryRecord
+    internal sealed class HistoryRecord
     {
         public List<HistoryEntry> RawData;
         public bool Historizing;

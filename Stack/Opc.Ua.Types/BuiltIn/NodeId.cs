@@ -59,7 +59,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class NodeId : IComparable, IFormattable, IEquatable<NodeId>, ICloneable
+    public class NodeId : IComparable, IComparable<NodeId>, IFormattable, IEquatable<NodeId>, ICloneable
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -1231,13 +1231,7 @@ namespace Opc.Ua
             SetIdentifier(IdType.String, value);
         }
 
-        /// <summary>
-        /// Compares the current instance to the object.
-        /// </summary>
-        /// <remarks>
-        /// Enables this object type to be compared to other types of object.
-        /// </remarks>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public int CompareTo(object obj)
         {
             // check for null.
@@ -1325,7 +1319,7 @@ namespace Opc.Ua
                     idType = expandedId.IdType;
                     id = expandedId.Identifier;
                 }
-                else if (obj != null)
+                else
                 {
                     var guid2 = obj as Guid?;
                     var uuid2 = obj as Uuid?;
@@ -1346,152 +1340,40 @@ namespace Opc.Ua
                     }
                 }
             }
-
-            // check for different namespace.
-            if (namespaceIndex != NamespaceIndex)
-            {
-                return NamespaceIndex < namespaceIndex ? -1 : +1;
-            }
-
-            // check for different id type.
-            if (idType != IdType)
-            {
-                return IdType < idType ? -1 : +1;
-            }
-
-            // check for two nulls.
-            if (m_identifier == null && id == null)
-            {
-                return 0;
-            }
-
-            // check for a single null.
-            if (m_identifier == null && id != null)
-            {
-                switch (idType)
-                {
-                    case IdType.String:
-                        string stringId = id as string;
-
-                        if (stringId.Length == 0)
-                        {
-                            return 0;
-                        }
-
-                        break;
-                    case IdType.Opaque:
-                        byte[] opaqueId = id as byte[];
-
-                        if (opaqueId.Length == 0)
-                        {
-                            return 0;
-                        }
-
-                        break;
-                    case IdType.Numeric:
-                        uint? numericId = id as uint?;
-
-                        if (numericId.Value == 0)
-                        {
-                            return 0;
-                        }
-
-                        break;
-                    case IdType.Guid:
-                        break;
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected IdType value {idType}.");
-                }
-
-                return -1;
-            }
-
-            // check for a single null.
-            if (m_identifier != null && id == null)
-            {
-                switch (idType)
-                {
-                    case IdType.String:
-                        string stringId = m_identifier as string;
-
-                        if (stringId.Length == 0)
-                        {
-                            return 0;
-                        }
-
-                        break;
-                    case IdType.Opaque:
-                        byte[] opaqueId = m_identifier as byte[];
-
-                        if (opaqueId.Length == 0)
-                        {
-                            return 0;
-                        }
-
-                        break;
-                    case IdType.Numeric:
-                        uint? numericId = m_identifier as uint?;
-
-                        if (numericId.Value == 0)
-                        {
-                            return 0;
-                        }
-
-                        break;
-                    case IdType.Guid:
-                        break;
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected IdType value {idType}.");
-                }
-
-                return +1;
-            }
-
-            return CompareTo(idType, id);
+            return InternalCompareTo(namespaceIndex, idType, id);
         }
 
-        /// <summary>
-        /// Returns true if a is greater than b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if a is greater than b.
-        /// </remarks>
-        public static bool operator >(NodeId value1, NodeId value2)
+        /// <inheritdoc/>
+        public int CompareTo(NodeId other)
         {
-            if (value1 is not null)
-            {
-                return value1.CompareTo(value2) > 0;
-            }
-
-            return false;
+            return InternalCompareTo(other.NamespaceIndex, other.IdType, other.Identifier);
         }
 
-        /// <summary>
-        /// Returns true if a is less than b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if a is less than b.
-        /// </remarks>
-        public static bool operator <(NodeId value1, NodeId value2)
+        /// <inheritdoc/>
+        public static bool operator >(NodeId left, NodeId right)
         {
-            if (value1 is not null)
-            {
-                return value1.CompareTo(value2) < 0;
-            }
-
-            return true;
+            return left is null ? right is null : left.CompareTo(right) > 0;
         }
 
-        /// <summary>
-        /// Returns the string representation of a NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Returns the string representation of a NodeId. This is the same as calling
-        /// <see cref="Format(IFormatProvider)"/>.
-        /// </remarks>
-        /// <exception cref="FormatException">Thrown when the format is not null</exception>
+        /// <inheritdoc/>
+        public static bool operator <(NodeId left, NodeId right)
+        {
+            return left is null || left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(NodeId left, NodeId right)
+        {
+            return left is null ? right is null : left.CompareTo(right) >= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(NodeId left, NodeId right)
+        {
+            return left is null || left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -1520,26 +1402,13 @@ namespace Opc.Ua
             return this;
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Returns a true/false if the specified NodeId is the same as this NodeId.
-        /// </remarks>
-        /// <param name="obj">The object (NodeId or ExpandedNodeId is desired) to compare to</param>
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
 
-        /// <summary>
-        /// Determines if the specified NodeId is equal to the NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Returns a true/false if the specified NodeId is the same as this NodeId.
-        /// Null NodeIds are considered equal.
-        /// </remarks>
-        /// <param name="other">The NodeId to compare to</param>
+        /// <inheritdoc/>
         public bool Equals(NodeId other)
         {
             if (ReferenceEquals(this, other))
@@ -1571,12 +1440,31 @@ namespace Opc.Ua
             return CompareTo(other.IdType, other.Identifier) == 0;
         }
 
-        /// <summary>
-        /// Returns a unique hashcode for the NodeId
-        /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the NodeId
-        /// </remarks>
+        /// <inheritdoc/>
+        public static bool operator ==(NodeId left, NodeId right)
+        {
+            return left is null ? right is null : left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(NodeId left, NodeId right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(NodeId left, Uuid right)
+        {
+            return left is null ? right == Guid.Empty : left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(NodeId left, Uuid right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             if (m_identifier == null)
@@ -1618,38 +1506,6 @@ namespace Opc.Ua
                     break;
             }
             return hashCode.ToHashCode();
-        }
-
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
-        public static bool operator ==(NodeId value1, object value2)
-        {
-            if (value1 is null)
-            {
-                return value2 is null;
-            }
-
-            return value1.CompareTo(value2) == 0;
-        }
-
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
-        public static bool operator !=(NodeId value1, object value2)
-        {
-            if (value1 is null)
-            {
-                return value2 is not null;
-            }
-
-            return value1.CompareTo(value2) != 0;
         }
 
         /// <summary>
@@ -1720,8 +1576,10 @@ namespace Opc.Ua
                         case IdType.Opaque:
                             break;
                         default:
+#pragma warning disable CA1065 // Do not raise exceptions in unexpected locations
                             throw ServiceResultException.Unexpected(
                                 $"Unexpected IdType value {IdType}.");
+#pragma warning restore CA1065 // Do not raise exceptions in unexpected locations
                     }
                 }
 
@@ -1773,15 +1631,17 @@ namespace Opc.Ua
 
                             break;
                         case IdType.Opaque:
-                            if (m_identifier != null && ((byte[])m_identifier).Length > 0)
+                            if (((byte[])m_identifier).Length > 0)
                             {
                                 return false;
                             }
 
                             break;
                         default:
+#pragma warning disable CA1065 // Do not raise exceptions in unexpected locations
                             throw ServiceResultException.Unexpected(
                                 $"Unexpected IdType value {IdType}.");
+#pragma warning restore CA1065 // Do not raise exceptions in unexpected locations
                     }
                 }
 
@@ -2016,6 +1876,117 @@ namespace Opc.Ua
                     throw ServiceResultException.Unexpected(
                         $"Unexpected IdType value {identifierType}.");
             }
+        }
+
+        /// <summary>
+        /// Compare to another NodeId components.
+        /// </summary>
+        private int InternalCompareTo(ushort namespaceIndex, IdType idType, object id)
+        {
+
+            // check for different namespace.
+            if (namespaceIndex != NamespaceIndex)
+            {
+                return NamespaceIndex < namespaceIndex ? -1 : +1;
+            }
+
+            // check for different id type.
+            if (idType != IdType)
+            {
+                return IdType < idType ? -1 : +1;
+            }
+
+            // check for two nulls.
+            if (m_identifier == null && id == null)
+            {
+                return 0;
+            }
+
+            // check for a single null.
+            if (m_identifier == null && id != null)
+            {
+                switch (idType)
+                {
+                    case IdType.String:
+                        string stringId = id as string;
+
+                        if (stringId.Length == 0)
+                        {
+                            return 0;
+                        }
+
+                        break;
+                    case IdType.Opaque:
+                        byte[] opaqueId = id as byte[];
+
+                        if (opaqueId.Length == 0)
+                        {
+                            return 0;
+                        }
+
+                        break;
+                    case IdType.Numeric:
+                        uint? numericId = id as uint?;
+
+                        if (numericId.Value == 0)
+                        {
+                            return 0;
+                        }
+
+                        break;
+                    case IdType.Guid:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
+                }
+
+                return -1;
+            }
+
+            // check for a single null.
+            if (m_identifier != null && id == null)
+            {
+                switch (idType)
+                {
+                    case IdType.String:
+                        string stringId = m_identifier as string;
+
+                        if (stringId.Length == 0)
+                        {
+                            return 0;
+                        }
+
+                        break;
+                    case IdType.Opaque:
+                        byte[] opaqueId = m_identifier as byte[];
+
+                        if (opaqueId.Length == 0)
+                        {
+                            return 0;
+                        }
+
+                        break;
+                    case IdType.Numeric:
+                        uint? numericId = m_identifier as uint?;
+
+                        if (numericId.Value == 0)
+                        {
+                            return 0;
+                        }
+
+                        break;
+                    case IdType.Guid:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected IdType value {idType}.");
+                }
+
+                return +1;
+            }
+
+            return CompareTo(idType, id);
         }
 
         /// <summary>

@@ -621,7 +621,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override bool SetApplicationCertificate(
             NodeId applicationId,
-            string certificateType,
+            string certificateTypeId,
             byte[] certificate)
         {
             Guid id = GetNodeIdGuid(applicationId);
@@ -640,7 +640,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     return false;
                 }
 
-                result.Certificate[certificateType] = certificate;
+                result.Certificate[certificateTypeId] = certificate;
 
                 SaveChanges();
             }
@@ -859,7 +859,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
 
-        public void AcceptRequest(NodeId requestId, byte[] signedCertificate)
+        public void AcceptRequest(NodeId requestId, byte[] certificate)
         {
             Guid id = GetNodeIdGuid(requestId);
 
@@ -873,7 +873,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 request.State = (int)CertificateRequestState.Accepted;
 
                 // save certificate for audit trail
-                request.Certificate = signedCertificate;
+                request.Certificate = certificate;
 
                 // erase information which is ot required anymore
                 request.CertificateSigningRequest = null;

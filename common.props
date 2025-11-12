@@ -15,7 +15,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
-    <LangVersion>13.0</LangVersion>
+    <LangVersion>14.0</LangVersion>
     <!-- to enable package validation, uncomment here -->
     <!--<EnablePackageValidation>true</EnablePackageValidation>-->
     <!-- to check the package validation on a release build, uncomment here -->
@@ -59,7 +59,7 @@
     <PublicKey>$(PublicKey)71b5c8f2ab1067f7c880e8f8882a73c80a12a1ef</PublicKey>
   </PropertyGroup>
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
+    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'net10.0'">
       <PropertyGroup>
         <!-- Disable strongname warning as that's not been enforced since .net 5.-->
         <NoWarn>$(NoWarn);CS8002</NoWarn>

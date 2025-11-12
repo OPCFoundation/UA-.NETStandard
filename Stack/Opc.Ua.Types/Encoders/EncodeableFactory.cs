@@ -90,14 +90,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool TryGetEncodeableType(
             ExpandedNodeId typeId,
-            [NotNullWhen(true)] out IEncodeableType? systemType)
+            [NotNullWhen(true)] out IEncodeableType? encodeableType)
         {
             if (NodeId.IsNull(typeId))
             {
-                systemType = null;
+                encodeableType = null;
                 return false;
             }
-            return m_encodeableTypes.TryGetValue(typeId, out systemType);
+            return m_encodeableTypes.TryGetValue(typeId, out encodeableType);
         }
 
         /// <inheritdoc/>

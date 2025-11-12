@@ -2979,11 +2979,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (configuration != null)
-                {
-                    configuration.CertificateValidator.CertificateValidation
-                        -= registrationCertificateValidator;
-                }
+                configuration.CertificateValidator.CertificateValidation -= registrationCertificateValidator;
             }
             m_registeredWithDiscoveryServer = false;
             return false;

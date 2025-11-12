@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
                 TestContext.CurrentContext.Test.Name);
             m_requestHeader.Timestamp = DateTime.UtcNow;
             m_requestHeader.TimeoutHint = kTimeoutHint;
-            m_random = new RandomSource(999);
+            m_random = new RandomSource();
             m_generator = new DataGenerator(m_random, m_telemetry);
         }
 

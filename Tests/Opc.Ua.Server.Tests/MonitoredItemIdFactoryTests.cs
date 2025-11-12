@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -106,7 +107,6 @@ namespace Opc.Ua.Server.Tests
             const int numResetTasks = 3;
             var tasks = new Task[numIdTasks + numResetTasks];
             var startEvent = new ManualResetEventSlim(false);
-            var random = new Random();
 
             // Act
             // Create tasks that will get IDs
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     startEvent.Wait();
                     // Use a random start value to increase chances of interleaving
-                    uint startValue = (uint)random.Next(20000, 50000) * (uint)(i + 1);
+                    uint startValue = (uint)UnsecureRandom.Shared.Next(20000, 50000) * (uint)(i + 1);
                     long before = Stopwatch.GetTimestamp();
                     idFactory.SetStartValue(startValue);
                     long after = Stopwatch.GetTimestamp();
@@ -179,11 +179,11 @@ namespace Opc.Ua.Server.Tests
                     // If a valid ID is found, all subsequent IDs must also be greater.
                     if (firstValidIdIndex != -1)
                     {
-                        System.Collections.Generic.IEnumerable<uint> subsequentIds = idsAfterReset.Skip(firstValidIdIndex);
+                        List<uint> subsequentIds = idsAfterReset.Skip(firstValidIdIndex).ToList();
                         Assert.That(subsequentIds.All(id => id > startValue), Is.True,
                             $"An ID was generated that was not greater than the new start value {startValue} after a reset.");
 
-                        Assert.That(subsequentIds.Distinct().Count(), Is.EqualTo(subsequentIds.Count()),
+                        Assert.That(subsequentIds.Distinct().Count(), Is.EqualTo(subsequentIds.Count),
                        "Duplicate IDs were found in the set of IDs generated between resets.");
                     }
                 }

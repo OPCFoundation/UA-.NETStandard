@@ -41,6 +41,7 @@ using Opc.Ua.Security.Certificates.BouncyCastle;
 #endif
 using ECCurve = System.Security.Cryptography.ECCurve;
 using X509Extension = System.Security.Cryptography.X509Certificates.X509Extension;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -111,7 +112,7 @@ namespace Opc.Ua.Security.Certificates
             CreateX509Extensions(request, false);
 
             X509Certificate2 signedCert;
-            byte[] serialNumber = [.. m_serialNumber.Reverse()];
+            byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber).Reverse()];
             if (IssuerCAKeyCert != null)
             {
                 using RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey();
@@ -173,7 +174,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 NotBefore,
                 NotAfter,
-                [.. m_serialNumber.Reverse()]);
+                [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
 
             return rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
         }
@@ -207,7 +208,7 @@ namespace Opc.Ua.Security.Certificates
 
             CreateX509Extensions(request, true);
 
-            byte[] serialNumber = [.. m_serialNumber.Reverse()];
+            byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber).Reverse()];
 
             X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
@@ -267,7 +268,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 NotBefore,
                 NotAfter,
-                [.. m_serialNumber.Reverse()]);
+                [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
 
             // return a X509Certificate2
             return key == null ? signedCert : signedCert.CopyWithPrivateKey(key);

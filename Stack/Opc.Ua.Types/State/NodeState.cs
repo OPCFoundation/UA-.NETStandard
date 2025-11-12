@@ -38,7 +38,7 @@ namespace Opc.Ua
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        public virtual void Dispose()
+        public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
@@ -2261,7 +2261,7 @@ namespace Opc.Ua
             // find the root.
             NodeState root = instance.Parent;
 
-            while (root != null)
+            while (true)
             {
                 instance = root as BaseInstanceState;
 
@@ -2272,8 +2272,6 @@ namespace Opc.Ua
 
                 root = instance.Parent;
             }
-
-            return root;
         }
 
         /// <summary>

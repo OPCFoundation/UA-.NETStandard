@@ -210,13 +210,13 @@ namespace Opc.Ua.Gds.Server
         public virtual ICertificateGroup Create(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] string trustedIssuerCertificatesStorePath)
+            [Optional] string issuerCertificatesStorePath)
         {
             return new CertificateGroup(
                 authoritiesStorePath,
                 certificateGroupConfiguration,
                 m_telemetry,
-                trustedIssuerCertificatesStorePath);
+                issuerCertificatesStorePath);
         }
 
         /// <summary>
@@ -761,8 +761,8 @@ namespace Opc.Ua.Gds.Server
             }
             finally
             {
-                authorityStore?.Close();
-                trustedOrIssuerStore?.Close();
+                authorityStore.Close();
+                trustedOrIssuerStore.Close();
             }
         }
 

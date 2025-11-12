@@ -478,7 +478,9 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
+#pragma warning disable CA5399 // HttpClient is created without enabling CheckCertificateRevocationList
                 m_client = new HttpClient(handler);
+#pragma warning restore CA5399 // HttpClient is created without enabling CheckCertificateRevocationList
             }
             catch (Exception ex)
             {

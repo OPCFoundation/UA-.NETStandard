@@ -65,14 +65,14 @@ namespace Opc.Ua.Client.Tests
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            CancellationToken cancellationToken)
+            CancellationToken ct)
         {
             return base.BrowseAsync(
                 requestHeader,
                 view,
                 TestMaxBrowseReferencesPerNode,
                 nodesToBrowse,
-                cancellationToken);
+                ct);
         }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Tests
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
             byte[] clientNonce,
-            Nonce serverNonceObject,
+            Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
@@ -228,7 +228,7 @@ namespace Opc.Ua.Client.Tests
                 serverCertificate,
                 sessionCookie,
                 clientNonce,
-                serverNonceObject,
+                serverNonce,
                 sessionName,
                 clientDescription,
                 endpointUrl,

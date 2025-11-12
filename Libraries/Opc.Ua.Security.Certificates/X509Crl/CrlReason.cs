@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
@@ -48,6 +50,7 @@ namespace Opc.Ua.Security.Certificates
     ///      privilegeWithdrawn(9),
     ///      aACompromise(10) }
     /// </remarks>
+    [Flags]
     public enum CRLReason
     {
         /// <summary> Unspecified </summary>

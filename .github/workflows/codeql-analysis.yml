@@ -47,7 +47,7 @@ jobs:
     - name: Set up .NET
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: '8.x'
+        dotnet-version: '10.x'
 
     # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
     - name: Setup MSBuild.exe
@@ -56,13 +56,11 @@ jobs:
 
     - name: Restore Packages
       run: |
-        nuget restore "UA Core Library.sln"
-        nuget restore "UA Reference.sln"
+        nuget restore "UA.slnx"
 
     - name: Build Solution
       run: |
-        msbuild.exe "UA Core Library.sln" /p:configuration="Release" /p:UseSharedCompilation=false
-        msbuild.exe "UA Reference.sln" /p:configuration="Release" /p:UseSharedCompilation=false
+        msbuild.exe "UA.slnx" /p:configuration="Release" /p:UseSharedCompilation=false
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

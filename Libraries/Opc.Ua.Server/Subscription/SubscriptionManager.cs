@@ -226,15 +226,21 @@ namespace Opc.Ua.Server
 
                 m_shutdownEvent.Reset();
 
+                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
                 Task.Factory.StartNew(
                     () => PublishSubscriptions(m_publishingResolution),
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
 
                 m_conditionRefreshEvent.Reset();
 
+                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
                 Task.Factory.StartNew(
                     ConditionRefreshWorker,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
             }
         }
 
@@ -2046,7 +2052,7 @@ namespace Opc.Ua.Server
                                 continue;
                             }
 
-                            (subscriptionsToDelete ??= []).Add(subscription);
+                            subscriptionsToDelete.Add(subscription);
                             SubscriptionExpired(subscription);
                             m_logger.LogInformation(
                                 "Subscription - Abandoned Subscription Id={SubscriptionId} Delete Scheduled.",
