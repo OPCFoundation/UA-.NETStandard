@@ -53,7 +53,7 @@ jobs:
       version: '9.0.x'
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.8.x'
+      versionSpec: '>=7.0.x'
   - task: PowerShell@2
     displayName: Versioning
     inputs:
