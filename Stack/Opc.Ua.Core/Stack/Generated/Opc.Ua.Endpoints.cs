@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -106,9 +106,13 @@ namespace Opc.Ua
         #region ISessionEndpoint Members
         #region FindServers Service
         #if (!OPCUA_EXCLUDE_FindServers)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public IServiceResponse FindServers(IServiceRequest incoming)
         {
             FindServersResponse response = null;
@@ -169,6 +173,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServers service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -196,6 +203,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the FindServers service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public virtual FindServersResponseMessage EndFindServers(IAsyncResult ar)
         {
             try
@@ -211,6 +221,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
@@ -247,9 +258,13 @@ namespace Opc.Ua
 
         #region FindServersOnNetwork Service
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public IServiceResponse FindServersOnNetwork(IServiceRequest incoming)
         {
             FindServersOnNetworkResponse response = null;
@@ -313,6 +328,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServersOnNetwork service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -340,6 +358,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the FindServersOnNetwork service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public virtual FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult ar)
         {
             try
@@ -355,6 +376,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
@@ -391,9 +413,13 @@ namespace Opc.Ua
 
         #region GetEndpoints Service
         #if (!OPCUA_EXCLUDE_GetEndpoints)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public IServiceResponse GetEndpoints(IServiceRequest incoming)
         {
             GetEndpointsResponse response = null;
@@ -454,6 +480,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the GetEndpoints service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -481,6 +510,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the GetEndpoints service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public virtual GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult ar)
         {
             try
@@ -496,6 +528,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
@@ -532,9 +565,13 @@ namespace Opc.Ua
 
         #region CreateSession Service
         #if (!OPCUA_EXCLUDE_CreateSession)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         public IServiceResponse CreateSession(IServiceRequest incoming)
         {
             CreateSessionResponse response = null;
@@ -624,6 +661,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CreateSession service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginCreateSession(CreateSessionMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -651,6 +691,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the CreateSession service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         public virtual CreateSessionResponseMessage EndCreateSession(IAsyncResult ar)
         {
             try
@@ -666,6 +709,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
@@ -707,9 +751,13 @@ namespace Opc.Ua
 
         #region ActivateSession Service
         #if (!OPCUA_EXCLUDE_ActivateSession)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         public IServiceResponse ActivateSession(IServiceRequest incoming)
         {
             ActivateSessionResponse response = null;
@@ -778,6 +826,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the ActivateSession service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginActivateSession(ActivateSessionMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -805,6 +856,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the ActivateSession service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         public virtual ActivateSessionResponseMessage EndActivateSession(IAsyncResult ar)
         {
             try
@@ -820,6 +874,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
@@ -858,9 +913,13 @@ namespace Opc.Ua
 
         #region CloseSession Service
         #if (!OPCUA_EXCLUDE_CloseSession)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         public IServiceResponse CloseSession(IServiceRequest incoming)
         {
             CloseSessionResponse response = null;
@@ -916,6 +975,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CloseSession service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginCloseSession(CloseSessionMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -943,6 +1005,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the CloseSession service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         public virtual CloseSessionResponseMessage EndCloseSession(IAsyncResult ar)
         {
             try
@@ -958,6 +1023,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
@@ -992,9 +1058,13 @@ namespace Opc.Ua
 
         #region Cancel Service
         #if (!OPCUA_EXCLUDE_Cancel)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Cancel_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         public IServiceResponse Cancel(IServiceRequest incoming)
         {
             CancelResponse response = null;
@@ -1053,6 +1123,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Cancel service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginCancel(CancelMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -1080,6 +1153,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the Cancel service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         public virtual CancelResponseMessage EndCancel(IAsyncResult ar)
         {
             try
@@ -1095,6 +1171,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
@@ -1129,9 +1206,13 @@ namespace Opc.Ua
 
         #region AddNodes Service
         #if (!OPCUA_EXCLUDE_AddNodes)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         public IServiceResponse AddNodes(IServiceRequest incoming)
         {
             AddNodesResponse response = null;
@@ -1193,6 +1274,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the AddNodes service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginAddNodes(AddNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -1220,6 +1304,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the AddNodes service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         public virtual AddNodesResponseMessage EndAddNodes(IAsyncResult ar)
         {
             try
@@ -1235,6 +1322,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
@@ -1269,9 +1357,13 @@ namespace Opc.Ua
 
         #region AddReferences Service
         #if (!OPCUA_EXCLUDE_AddReferences)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         public IServiceResponse AddReferences(IServiceRequest incoming)
         {
             AddReferencesResponse response = null;
@@ -1333,6 +1425,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the AddReferences service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginAddReferences(AddReferencesMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -1360,6 +1455,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the AddReferences service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         public virtual AddReferencesResponseMessage EndAddReferences(IAsyncResult ar)
         {
             try
@@ -1375,6 +1473,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
@@ -1409,9 +1508,13 @@ namespace Opc.Ua
 
         #region DeleteNodes Service
         #if (!OPCUA_EXCLUDE_DeleteNodes)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         public IServiceResponse DeleteNodes(IServiceRequest incoming)
         {
             DeleteNodesResponse response = null;
@@ -1473,6 +1576,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteNodes service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginDeleteNodes(DeleteNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -1500,6 +1606,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the DeleteNodes service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         public virtual DeleteNodesResponseMessage EndDeleteNodes(IAsyncResult ar)
         {
             try
@@ -1515,6 +1624,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
@@ -1549,9 +1659,13 @@ namespace Opc.Ua
 
         #region DeleteReferences Service
         #if (!OPCUA_EXCLUDE_DeleteReferences)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         public IServiceResponse DeleteReferences(IServiceRequest incoming)
         {
             DeleteReferencesResponse response = null;
@@ -1613,6 +1727,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteReferences service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginDeleteReferences(DeleteReferencesMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -1640,6 +1757,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the DeleteReferences service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         public virtual DeleteReferencesResponseMessage EndDeleteReferences(IAsyncResult ar)
         {
             try
@@ -1655,6 +1775,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
@@ -1689,9 +1810,13 @@ namespace Opc.Ua
 
         #region Browse Service
         #if (!OPCUA_EXCLUDE_Browse)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Browse_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         public IServiceResponse Browse(IServiceRequest incoming)
         {
             BrowseResponse response = null;
@@ -1755,6 +1880,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Browse service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginBrowse(BrowseMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -1782,6 +1910,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the Browse service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         public virtual BrowseResponseMessage EndBrowse(IAsyncResult ar)
         {
             try
@@ -1797,6 +1928,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Browse_ASYNC)
@@ -1833,9 +1965,13 @@ namespace Opc.Ua
 
         #region BrowseNext Service
         #if (!OPCUA_EXCLUDE_BrowseNext)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         public IServiceResponse BrowseNext(IServiceRequest incoming)
         {
             BrowseNextResponse response = null;
@@ -1898,6 +2034,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the BrowseNext service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginBrowseNext(BrowseNextMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -1925,6 +2064,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the BrowseNext service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         public virtual BrowseNextResponseMessage EndBrowseNext(IAsyncResult ar)
         {
             try
@@ -1940,6 +2082,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
@@ -1975,9 +2118,13 @@ namespace Opc.Ua
 
         #region TranslateBrowsePathsToNodeIds Service
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         public IServiceResponse TranslateBrowsePathsToNodeIds(IServiceRequest incoming)
         {
             TranslateBrowsePathsToNodeIdsResponse response = null;
@@ -2039,6 +2186,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the TranslateBrowsePathsToNodeIds service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -2066,6 +2216,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the TranslateBrowsePathsToNodeIds service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         public virtual TranslateBrowsePathsToNodeIdsResponseMessage EndTranslateBrowsePathsToNodeIds(IAsyncResult ar)
         {
             try
@@ -2081,6 +2234,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
@@ -2115,9 +2269,13 @@ namespace Opc.Ua
 
         #region RegisterNodes Service
         #if (!OPCUA_EXCLUDE_RegisterNodes)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         public IServiceResponse RegisterNodes(IServiceRequest incoming)
         {
             RegisterNodesResponse response = null;
@@ -2176,6 +2334,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the RegisterNodes service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginRegisterNodes(RegisterNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -2203,6 +2364,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the RegisterNodes service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         public virtual RegisterNodesResponseMessage EndRegisterNodes(IAsyncResult ar)
         {
             try
@@ -2218,6 +2382,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
@@ -2252,9 +2417,13 @@ namespace Opc.Ua
 
         #region UnregisterNodes Service
         #if (!OPCUA_EXCLUDE_UnregisterNodes)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         public IServiceResponse UnregisterNodes(IServiceRequest incoming)
         {
             UnregisterNodesResponse response = null;
@@ -2310,6 +2479,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the UnregisterNodes service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginUnregisterNodes(UnregisterNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -2337,6 +2509,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the UnregisterNodes service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         public virtual UnregisterNodesResponseMessage EndUnregisterNodes(IAsyncResult ar)
         {
             try
@@ -2352,6 +2527,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
@@ -2386,9 +2562,13 @@ namespace Opc.Ua
 
         #region QueryFirst Service
         #if (!OPCUA_EXCLUDE_QueryFirst)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         public IServiceResponse QueryFirst(IServiceRequest incoming)
         {
             QueryFirstResponse response = null;
@@ -2463,6 +2643,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the QueryFirst service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginQueryFirst(QueryFirstMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -2490,6 +2673,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the QueryFirst service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         public virtual QueryFirstResponseMessage EndQueryFirst(IAsyncResult ar)
         {
             try
@@ -2505,6 +2691,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
@@ -2543,9 +2730,13 @@ namespace Opc.Ua
 
         #region QueryNext Service
         #if (!OPCUA_EXCLUDE_QueryNext)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         public IServiceResponse QueryNext(IServiceRequest incoming)
         {
             QueryNextResponse response = null;
@@ -2608,6 +2799,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the QueryNext service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginQueryNext(QueryNextMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -2635,6 +2829,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the QueryNext service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         public virtual QueryNextResponseMessage EndQueryNext(IAsyncResult ar)
         {
             try
@@ -2650,6 +2847,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
@@ -2685,9 +2883,13 @@ namespace Opc.Ua
 
         #region Read Service
         #if (!OPCUA_EXCLUDE_Read)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Read_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         public IServiceResponse Read(IServiceRequest incoming)
         {
             ReadResponse response = null;
@@ -2751,6 +2953,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Read service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginRead(ReadMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -2778,6 +2983,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the Read service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         public virtual ReadResponseMessage EndRead(IAsyncResult ar)
         {
             try
@@ -2793,6 +3001,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Read_ASYNC)
@@ -2829,9 +3038,13 @@ namespace Opc.Ua
 
         #region HistoryRead Service
         #if (!OPCUA_EXCLUDE_HistoryRead)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         public IServiceResponse HistoryRead(IServiceRequest incoming)
         {
             HistoryReadResponse response = null;
@@ -2896,6 +3109,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the HistoryRead service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginHistoryRead(HistoryReadMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -2923,6 +3139,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the HistoryRead service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         public virtual HistoryReadResponseMessage EndHistoryRead(IAsyncResult ar)
         {
             try
@@ -2938,6 +3157,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
@@ -2975,9 +3195,13 @@ namespace Opc.Ua
 
         #region Write Service
         #if (!OPCUA_EXCLUDE_Write)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Write_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         public IServiceResponse Write(IServiceRequest incoming)
         {
             WriteResponse response = null;
@@ -3039,6 +3263,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Write service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginWrite(WriteMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -3066,6 +3293,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the Write service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         public virtual WriteResponseMessage EndWrite(IAsyncResult ar)
         {
             try
@@ -3081,6 +3311,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Write_ASYNC)
@@ -3115,9 +3346,13 @@ namespace Opc.Ua
 
         #region HistoryUpdate Service
         #if (!OPCUA_EXCLUDE_HistoryUpdate)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         public IServiceResponse HistoryUpdate(IServiceRequest incoming)
         {
             HistoryUpdateResponse response = null;
@@ -3179,6 +3414,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the HistoryUpdate service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginHistoryUpdate(HistoryUpdateMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -3206,6 +3444,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the HistoryUpdate service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         public virtual HistoryUpdateResponseMessage EndHistoryUpdate(IAsyncResult ar)
         {
             try
@@ -3221,6 +3462,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
@@ -3255,9 +3497,13 @@ namespace Opc.Ua
 
         #region Call Service
         #if (!OPCUA_EXCLUDE_Call)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Call_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         public IServiceResponse Call(IServiceRequest incoming)
         {
             CallResponse response = null;
@@ -3319,6 +3565,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Call service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginCall(CallMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -3346,6 +3595,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the Call service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         public virtual CallResponseMessage EndCall(IAsyncResult ar)
         {
             try
@@ -3361,6 +3613,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Call_ASYNC)
@@ -3395,9 +3648,13 @@ namespace Opc.Ua
 
         #region CreateMonitoredItems Service
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         public IServiceResponse CreateMonitoredItems(IServiceRequest incoming)
         {
             CreateMonitoredItemsResponse response = null;
@@ -3461,6 +3718,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CreateMonitoredItems service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginCreateMonitoredItems(CreateMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -3488,6 +3748,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the CreateMonitoredItems service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         public virtual CreateMonitoredItemsResponseMessage EndCreateMonitoredItems(IAsyncResult ar)
         {
             try
@@ -3503,6 +3766,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
@@ -3539,9 +3803,13 @@ namespace Opc.Ua
 
         #region ModifyMonitoredItems Service
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         public IServiceResponse ModifyMonitoredItems(IServiceRequest incoming)
         {
             ModifyMonitoredItemsResponse response = null;
@@ -3605,6 +3873,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the ModifyMonitoredItems service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginModifyMonitoredItems(ModifyMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -3632,6 +3903,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the ModifyMonitoredItems service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         public virtual ModifyMonitoredItemsResponseMessage EndModifyMonitoredItems(IAsyncResult ar)
         {
             try
@@ -3647,6 +3921,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
@@ -3683,9 +3958,13 @@ namespace Opc.Ua
 
         #region SetMonitoringMode Service
         #if (!OPCUA_EXCLUDE_SetMonitoringMode)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         public IServiceResponse SetMonitoringMode(IServiceRequest incoming)
         {
             SetMonitoringModeResponse response = null;
@@ -3749,6 +4028,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the SetMonitoringMode service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginSetMonitoringMode(SetMonitoringModeMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -3776,6 +4058,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the SetMonitoringMode service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         public virtual SetMonitoringModeResponseMessage EndSetMonitoringMode(IAsyncResult ar)
         {
             try
@@ -3791,6 +4076,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
@@ -3827,9 +4113,13 @@ namespace Opc.Ua
 
         #region SetTriggering Service
         #if (!OPCUA_EXCLUDE_SetTriggering)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         public IServiceResponse SetTriggering(IServiceRequest incoming)
         {
             SetTriggeringResponse response = null;
@@ -3900,6 +4190,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the SetTriggering service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginSetTriggering(SetTriggeringMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -3927,6 +4220,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the SetTriggering service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         public virtual SetTriggeringResponseMessage EndSetTriggering(IAsyncResult ar)
         {
             try
@@ -3942,6 +4238,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
@@ -3979,9 +4276,13 @@ namespace Opc.Ua
 
         #region DeleteMonitoredItems Service
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         public IServiceResponse DeleteMonitoredItems(IServiceRequest incoming)
         {
             DeleteMonitoredItemsResponse response = null;
@@ -4044,6 +4345,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteMonitoredItems service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginDeleteMonitoredItems(DeleteMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -4071,6 +4375,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the DeleteMonitoredItems service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         public virtual DeleteMonitoredItemsResponseMessage EndDeleteMonitoredItems(IAsyncResult ar)
         {
             try
@@ -4086,6 +4393,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
@@ -4121,9 +4429,13 @@ namespace Opc.Ua
 
         #region CreateSubscription Service
         #if (!OPCUA_EXCLUDE_CreateSubscription)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         public IServiceResponse CreateSubscription(IServiceRequest incoming)
         {
             CreateSubscriptionResponse response = null;
@@ -4196,6 +4508,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CreateSubscription service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginCreateSubscription(CreateSubscriptionMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -4223,6 +4538,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the CreateSubscription service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         public virtual CreateSubscriptionResponseMessage EndCreateSubscription(IAsyncResult ar)
         {
             try
@@ -4238,6 +4556,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
@@ -4277,9 +4596,13 @@ namespace Opc.Ua
 
         #region ModifySubscription Service
         #if (!OPCUA_EXCLUDE_ModifySubscription)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         public IServiceResponse ModifySubscription(IServiceRequest incoming)
         {
             ModifySubscriptionResponse response = null;
@@ -4349,6 +4672,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the ModifySubscription service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginModifySubscription(ModifySubscriptionMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -4376,6 +4702,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the ModifySubscription service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         public virtual ModifySubscriptionResponseMessage EndModifySubscription(IAsyncResult ar)
         {
             try
@@ -4391,6 +4720,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
@@ -4430,9 +4760,13 @@ namespace Opc.Ua
 
         #region SetPublishingMode Service
         #if (!OPCUA_EXCLUDE_SetPublishingMode)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         public IServiceResponse SetPublishingMode(IServiceRequest incoming)
         {
             SetPublishingModeResponse response = null;
@@ -4495,6 +4829,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the SetPublishingMode service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginSetPublishingMode(SetPublishingModeMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -4522,6 +4859,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the SetPublishingMode service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         public virtual SetPublishingModeResponseMessage EndSetPublishingMode(IAsyncResult ar)
         {
             try
@@ -4537,6 +4877,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
@@ -4572,9 +4913,13 @@ namespace Opc.Ua
 
         #region Publish Service
         #if (!OPCUA_EXCLUDE_Publish)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Publish_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         public IServiceResponse Publish(IServiceRequest incoming)
         {
             PublishResponse response = null;
@@ -4648,6 +4993,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Publish service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginPublish(PublishMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -4675,6 +5023,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the Publish service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         public virtual PublishResponseMessage EndPublish(IAsyncResult ar)
         {
             try
@@ -4690,6 +5041,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Publish_ASYNC)
@@ -4724,9 +5076,13 @@ namespace Opc.Ua
 
         #region Republish Service
         #if (!OPCUA_EXCLUDE_Republish)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Republish_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         public IServiceResponse Republish(IServiceRequest incoming)
         {
             RepublishResponse response = null;
@@ -4786,6 +5142,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Republish service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginRepublish(RepublishMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -4813,6 +5172,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the Republish service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         public virtual RepublishResponseMessage EndRepublish(IAsyncResult ar)
         {
             try
@@ -4828,6 +5190,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Republish_ASYNC)
@@ -4863,9 +5226,13 @@ namespace Opc.Ua
 
         #region TransferSubscriptions Service
         #if (!OPCUA_EXCLUDE_TransferSubscriptions)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         public IServiceResponse TransferSubscriptions(IServiceRequest incoming)
         {
             TransferSubscriptionsResponse response = null;
@@ -4928,6 +5295,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the TransferSubscriptions service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginTransferSubscriptions(TransferSubscriptionsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -4955,6 +5325,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the TransferSubscriptions service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         public virtual TransferSubscriptionsResponseMessage EndTransferSubscriptions(IAsyncResult ar)
         {
             try
@@ -4970,6 +5343,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
@@ -5005,9 +5379,13 @@ namespace Opc.Ua
 
         #region DeleteSubscriptions Service
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         public IServiceResponse DeleteSubscriptions(IServiceRequest incoming)
         {
             DeleteSubscriptionsResponse response = null;
@@ -5069,6 +5447,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteSubscriptions service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginDeleteSubscriptions(DeleteSubscriptionsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -5096,6 +5477,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the DeleteSubscriptions service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         public virtual DeleteSubscriptionsResponseMessage EndDeleteSubscriptions(IAsyncResult ar)
         {
             try
@@ -5111,6 +5495,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
@@ -5150,177 +5535,247 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void CreateKnownTypes()
         {
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceAsyncEventHandler(FindServersAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
             SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers), new InvokeServiceAsyncEventHandler(FindServersAsync)));
             #elif (!OPCUA_EXCLUDE_FindServers)
             SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
             SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
             #elif (!OPCUA_EXCLUDE_FindServersOnNetwork)
             SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
             SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
             #elif (!OPCUA_EXCLUDE_GetEndpoints)
             SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateSession && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSession && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+            SupportedServices.Add(DataTypeIds.CreateSessionRequest, new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceAsyncEventHandler(CreateSessionAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateSession && !OPCUA_EXCLUDE_CreateSession_ASYNC)
             SupportedServices.Add(DataTypeIds.CreateSessionRequest, new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceEventHandler(CreateSession), new InvokeServiceAsyncEventHandler(CreateSessionAsync)));
             #elif (!OPCUA_EXCLUDE_CreateSession)
             SupportedServices.Add(DataTypeIds.CreateSessionRequest, new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceEventHandler(CreateSession)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ActivateSession && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ActivateSession && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+            SupportedServices.Add(DataTypeIds.ActivateSessionRequest, new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceAsyncEventHandler(ActivateSessionAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ActivateSession && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
             SupportedServices.Add(DataTypeIds.ActivateSessionRequest, new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceEventHandler(ActivateSession), new InvokeServiceAsyncEventHandler(ActivateSessionAsync)));
             #elif (!OPCUA_EXCLUDE_ActivateSession)
             SupportedServices.Add(DataTypeIds.ActivateSessionRequest, new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceEventHandler(ActivateSession)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CloseSession && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CloseSession && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+            SupportedServices.Add(DataTypeIds.CloseSessionRequest, new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceAsyncEventHandler(CloseSessionAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CloseSession && !OPCUA_EXCLUDE_CloseSession_ASYNC)
             SupportedServices.Add(DataTypeIds.CloseSessionRequest, new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceEventHandler(CloseSession), new InvokeServiceAsyncEventHandler(CloseSessionAsync)));
             #elif (!OPCUA_EXCLUDE_CloseSession)
             SupportedServices.Add(DataTypeIds.CloseSessionRequest, new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceEventHandler(CloseSession)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Cancel && !OPCUA_EXCLUDE_Cancel_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Cancel && !OPCUA_EXCLUDE_Cancel_ASYNC)
+            SupportedServices.Add(DataTypeIds.CancelRequest, new ServiceDefinition(typeof(CancelRequest), new InvokeServiceAsyncEventHandler(CancelAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Cancel && !OPCUA_EXCLUDE_Cancel_ASYNC)
             SupportedServices.Add(DataTypeIds.CancelRequest, new ServiceDefinition(typeof(CancelRequest), new InvokeServiceEventHandler(Cancel), new InvokeServiceAsyncEventHandler(CancelAsync)));
             #elif (!OPCUA_EXCLUDE_Cancel)
             SupportedServices.Add(DataTypeIds.CancelRequest, new ServiceDefinition(typeof(CancelRequest), new InvokeServiceEventHandler(Cancel)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_AddNodes && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddNodes && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.AddNodesRequest, new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceAsyncEventHandler(AddNodesAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_AddNodes && !OPCUA_EXCLUDE_AddNodes_ASYNC)
             SupportedServices.Add(DataTypeIds.AddNodesRequest, new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceEventHandler(AddNodes), new InvokeServiceAsyncEventHandler(AddNodesAsync)));
             #elif (!OPCUA_EXCLUDE_AddNodes)
             SupportedServices.Add(DataTypeIds.AddNodesRequest, new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceEventHandler(AddNodes)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_AddReferences && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_AddReferences && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+            SupportedServices.Add(DataTypeIds.AddReferencesRequest, new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceAsyncEventHandler(AddReferencesAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_AddReferences && !OPCUA_EXCLUDE_AddReferences_ASYNC)
             SupportedServices.Add(DataTypeIds.AddReferencesRequest, new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceEventHandler(AddReferences), new InvokeServiceAsyncEventHandler(AddReferencesAsync)));
             #elif (!OPCUA_EXCLUDE_AddReferences)
             SupportedServices.Add(DataTypeIds.AddReferencesRequest, new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceEventHandler(AddReferences)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteNodes && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteNodes && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteNodesRequest, new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceAsyncEventHandler(DeleteNodesAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteNodes && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
             SupportedServices.Add(DataTypeIds.DeleteNodesRequest, new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceEventHandler(DeleteNodes), new InvokeServiceAsyncEventHandler(DeleteNodesAsync)));
             #elif (!OPCUA_EXCLUDE_DeleteNodes)
             SupportedServices.Add(DataTypeIds.DeleteNodesRequest, new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceEventHandler(DeleteNodes)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteReferences && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteReferences && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteReferencesRequest, new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceAsyncEventHandler(DeleteReferencesAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteReferences && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
             SupportedServices.Add(DataTypeIds.DeleteReferencesRequest, new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceEventHandler(DeleteReferences), new InvokeServiceAsyncEventHandler(DeleteReferencesAsync)));
             #elif (!OPCUA_EXCLUDE_DeleteReferences)
             SupportedServices.Add(DataTypeIds.DeleteReferencesRequest, new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceEventHandler(DeleteReferences)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Browse && !OPCUA_EXCLUDE_Browse_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Browse && !OPCUA_EXCLUDE_Browse_ASYNC)
+            SupportedServices.Add(DataTypeIds.BrowseRequest, new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceAsyncEventHandler(BrowseAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Browse && !OPCUA_EXCLUDE_Browse_ASYNC)
             SupportedServices.Add(DataTypeIds.BrowseRequest, new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceEventHandler(Browse), new InvokeServiceAsyncEventHandler(BrowseAsync)));
             #elif (!OPCUA_EXCLUDE_Browse)
             SupportedServices.Add(DataTypeIds.BrowseRequest, new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceEventHandler(Browse)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_BrowseNext && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_BrowseNext && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+            SupportedServices.Add(DataTypeIds.BrowseNextRequest, new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceAsyncEventHandler(BrowseNextAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_BrowseNext && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
             SupportedServices.Add(DataTypeIds.BrowseNextRequest, new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceEventHandler(BrowseNext), new InvokeServiceAsyncEventHandler(BrowseNextAsync)));
             #elif (!OPCUA_EXCLUDE_BrowseNext)
             SupportedServices.Add(DataTypeIds.BrowseNextRequest, new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceEventHandler(BrowseNext)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+            SupportedServices.Add(DataTypeIds.TranslateBrowsePathsToNodeIdsRequest, new ServiceDefinition(typeof(TranslateBrowsePathsToNodeIdsRequest), new InvokeServiceAsyncEventHandler(TranslateBrowsePathsToNodeIdsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
             SupportedServices.Add(DataTypeIds.TranslateBrowsePathsToNodeIdsRequest, new ServiceDefinition(typeof(TranslateBrowsePathsToNodeIdsRequest), new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds), new InvokeServiceAsyncEventHandler(TranslateBrowsePathsToNodeIdsAsync)));
             #elif (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
             SupportedServices.Add(DataTypeIds.TranslateBrowsePathsToNodeIdsRequest, new ServiceDefinition(typeof(TranslateBrowsePathsToNodeIdsRequest), new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterNodes && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterNodes && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.RegisterNodesRequest, new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceAsyncEventHandler(RegisterNodesAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterNodes && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
             SupportedServices.Add(DataTypeIds.RegisterNodesRequest, new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceEventHandler(RegisterNodes), new InvokeServiceAsyncEventHandler(RegisterNodesAsync)));
             #elif (!OPCUA_EXCLUDE_RegisterNodes)
             SupportedServices.Add(DataTypeIds.RegisterNodesRequest, new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceEventHandler(RegisterNodes)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_UnregisterNodes && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_UnregisterNodes && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.UnregisterNodesRequest, new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceAsyncEventHandler(UnregisterNodesAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_UnregisterNodes && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
             SupportedServices.Add(DataTypeIds.UnregisterNodesRequest, new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceEventHandler(UnregisterNodes), new InvokeServiceAsyncEventHandler(UnregisterNodesAsync)));
             #elif (!OPCUA_EXCLUDE_UnregisterNodes)
             SupportedServices.Add(DataTypeIds.UnregisterNodesRequest, new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceEventHandler(UnregisterNodes)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_QueryFirst && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryFirst && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+            SupportedServices.Add(DataTypeIds.QueryFirstRequest, new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceAsyncEventHandler(QueryFirstAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_QueryFirst && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
             SupportedServices.Add(DataTypeIds.QueryFirstRequest, new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceEventHandler(QueryFirst), new InvokeServiceAsyncEventHandler(QueryFirstAsync)));
             #elif (!OPCUA_EXCLUDE_QueryFirst)
             SupportedServices.Add(DataTypeIds.QueryFirstRequest, new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceEventHandler(QueryFirst)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_QueryNext && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_QueryNext && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+            SupportedServices.Add(DataTypeIds.QueryNextRequest, new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceAsyncEventHandler(QueryNextAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_QueryNext && !OPCUA_EXCLUDE_QueryNext_ASYNC)
             SupportedServices.Add(DataTypeIds.QueryNextRequest, new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceEventHandler(QueryNext), new InvokeServiceAsyncEventHandler(QueryNextAsync)));
             #elif (!OPCUA_EXCLUDE_QueryNext)
             SupportedServices.Add(DataTypeIds.QueryNextRequest, new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceEventHandler(QueryNext)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Read && !OPCUA_EXCLUDE_Read_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Read && !OPCUA_EXCLUDE_Read_ASYNC)
+            SupportedServices.Add(DataTypeIds.ReadRequest, new ServiceDefinition(typeof(ReadRequest), new InvokeServiceAsyncEventHandler(ReadAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Read && !OPCUA_EXCLUDE_Read_ASYNC)
             SupportedServices.Add(DataTypeIds.ReadRequest, new ServiceDefinition(typeof(ReadRequest), new InvokeServiceEventHandler(Read), new InvokeServiceAsyncEventHandler(ReadAsync)));
             #elif (!OPCUA_EXCLUDE_Read)
             SupportedServices.Add(DataTypeIds.ReadRequest, new ServiceDefinition(typeof(ReadRequest), new InvokeServiceEventHandler(Read)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_HistoryRead && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryRead && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+            SupportedServices.Add(DataTypeIds.HistoryReadRequest, new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceAsyncEventHandler(HistoryReadAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_HistoryRead && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
             SupportedServices.Add(DataTypeIds.HistoryReadRequest, new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceEventHandler(HistoryRead), new InvokeServiceAsyncEventHandler(HistoryReadAsync)));
             #elif (!OPCUA_EXCLUDE_HistoryRead)
             SupportedServices.Add(DataTypeIds.HistoryReadRequest, new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceEventHandler(HistoryRead)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Write && !OPCUA_EXCLUDE_Write_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Write && !OPCUA_EXCLUDE_Write_ASYNC)
+            SupportedServices.Add(DataTypeIds.WriteRequest, new ServiceDefinition(typeof(WriteRequest), new InvokeServiceAsyncEventHandler(WriteAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Write && !OPCUA_EXCLUDE_Write_ASYNC)
             SupportedServices.Add(DataTypeIds.WriteRequest, new ServiceDefinition(typeof(WriteRequest), new InvokeServiceEventHandler(Write), new InvokeServiceAsyncEventHandler(WriteAsync)));
             #elif (!OPCUA_EXCLUDE_Write)
             SupportedServices.Add(DataTypeIds.WriteRequest, new ServiceDefinition(typeof(WriteRequest), new InvokeServiceEventHandler(Write)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_HistoryUpdate && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_HistoryUpdate && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+            SupportedServices.Add(DataTypeIds.HistoryUpdateRequest, new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceAsyncEventHandler(HistoryUpdateAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_HistoryUpdate && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
             SupportedServices.Add(DataTypeIds.HistoryUpdateRequest, new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceEventHandler(HistoryUpdate), new InvokeServiceAsyncEventHandler(HistoryUpdateAsync)));
             #elif (!OPCUA_EXCLUDE_HistoryUpdate)
             SupportedServices.Add(DataTypeIds.HistoryUpdateRequest, new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceEventHandler(HistoryUpdate)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Call && !OPCUA_EXCLUDE_Call_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Call && !OPCUA_EXCLUDE_Call_ASYNC)
+            SupportedServices.Add(DataTypeIds.CallRequest, new ServiceDefinition(typeof(CallRequest), new InvokeServiceAsyncEventHandler(CallAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Call && !OPCUA_EXCLUDE_Call_ASYNC)
             SupportedServices.Add(DataTypeIds.CallRequest, new ServiceDefinition(typeof(CallRequest), new InvokeServiceEventHandler(Call), new InvokeServiceAsyncEventHandler(CallAsync)));
             #elif (!OPCUA_EXCLUDE_Call)
             SupportedServices.Add(DataTypeIds.CallRequest, new ServiceDefinition(typeof(CallRequest), new InvokeServiceEventHandler(Call)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateMonitoredItems && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateMonitoredItems && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+            SupportedServices.Add(DataTypeIds.CreateMonitoredItemsRequest, new ServiceDefinition(typeof(CreateMonitoredItemsRequest), new InvokeServiceAsyncEventHandler(CreateMonitoredItemsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateMonitoredItems && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
             SupportedServices.Add(DataTypeIds.CreateMonitoredItemsRequest, new ServiceDefinition(typeof(CreateMonitoredItemsRequest), new InvokeServiceEventHandler(CreateMonitoredItems), new InvokeServiceAsyncEventHandler(CreateMonitoredItemsAsync)));
             #elif (!OPCUA_EXCLUDE_CreateMonitoredItems)
             SupportedServices.Add(DataTypeIds.CreateMonitoredItemsRequest, new ServiceDefinition(typeof(CreateMonitoredItemsRequest), new InvokeServiceEventHandler(CreateMonitoredItems)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifyMonitoredItems && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+            SupportedServices.Add(DataTypeIds.ModifyMonitoredItemsRequest, new ServiceDefinition(typeof(ModifyMonitoredItemsRequest), new InvokeServiceAsyncEventHandler(ModifyMonitoredItemsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
             SupportedServices.Add(DataTypeIds.ModifyMonitoredItemsRequest, new ServiceDefinition(typeof(ModifyMonitoredItemsRequest), new InvokeServiceEventHandler(ModifyMonitoredItems), new InvokeServiceAsyncEventHandler(ModifyMonitoredItemsAsync)));
             #elif (!OPCUA_EXCLUDE_ModifyMonitoredItems)
             SupportedServices.Add(DataTypeIds.ModifyMonitoredItemsRequest, new ServiceDefinition(typeof(ModifyMonitoredItemsRequest), new InvokeServiceEventHandler(ModifyMonitoredItems)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetMonitoringMode && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetMonitoringMode && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+            SupportedServices.Add(DataTypeIds.SetMonitoringModeRequest, new ServiceDefinition(typeof(SetMonitoringModeRequest), new InvokeServiceAsyncEventHandler(SetMonitoringModeAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetMonitoringMode && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
             SupportedServices.Add(DataTypeIds.SetMonitoringModeRequest, new ServiceDefinition(typeof(SetMonitoringModeRequest), new InvokeServiceEventHandler(SetMonitoringMode), new InvokeServiceAsyncEventHandler(SetMonitoringModeAsync)));
             #elif (!OPCUA_EXCLUDE_SetMonitoringMode)
             SupportedServices.Add(DataTypeIds.SetMonitoringModeRequest, new ServiceDefinition(typeof(SetMonitoringModeRequest), new InvokeServiceEventHandler(SetMonitoringMode)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetTriggering && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetTriggering && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+            SupportedServices.Add(DataTypeIds.SetTriggeringRequest, new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceAsyncEventHandler(SetTriggeringAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetTriggering && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
             SupportedServices.Add(DataTypeIds.SetTriggeringRequest, new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceEventHandler(SetTriggering), new InvokeServiceAsyncEventHandler(SetTriggeringAsync)));
             #elif (!OPCUA_EXCLUDE_SetTriggering)
             SupportedServices.Add(DataTypeIds.SetTriggeringRequest, new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceEventHandler(SetTriggering)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteMonitoredItems && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteMonitoredItemsRequest, new ServiceDefinition(typeof(DeleteMonitoredItemsRequest), new InvokeServiceAsyncEventHandler(DeleteMonitoredItemsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
             SupportedServices.Add(DataTypeIds.DeleteMonitoredItemsRequest, new ServiceDefinition(typeof(DeleteMonitoredItemsRequest), new InvokeServiceEventHandler(DeleteMonitoredItems), new InvokeServiceAsyncEventHandler(DeleteMonitoredItemsAsync)));
             #elif (!OPCUA_EXCLUDE_DeleteMonitoredItems)
             SupportedServices.Add(DataTypeIds.DeleteMonitoredItemsRequest, new ServiceDefinition(typeof(DeleteMonitoredItemsRequest), new InvokeServiceEventHandler(DeleteMonitoredItems)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateSubscription && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_CreateSubscription && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+            SupportedServices.Add(DataTypeIds.CreateSubscriptionRequest, new ServiceDefinition(typeof(CreateSubscriptionRequest), new InvokeServiceAsyncEventHandler(CreateSubscriptionAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateSubscription && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
             SupportedServices.Add(DataTypeIds.CreateSubscriptionRequest, new ServiceDefinition(typeof(CreateSubscriptionRequest), new InvokeServiceEventHandler(CreateSubscription), new InvokeServiceAsyncEventHandler(CreateSubscriptionAsync)));
             #elif (!OPCUA_EXCLUDE_CreateSubscription)
             SupportedServices.Add(DataTypeIds.CreateSubscriptionRequest, new ServiceDefinition(typeof(CreateSubscriptionRequest), new InvokeServiceEventHandler(CreateSubscription)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ModifySubscription && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_ModifySubscription && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+            SupportedServices.Add(DataTypeIds.ModifySubscriptionRequest, new ServiceDefinition(typeof(ModifySubscriptionRequest), new InvokeServiceAsyncEventHandler(ModifySubscriptionAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ModifySubscription && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
             SupportedServices.Add(DataTypeIds.ModifySubscriptionRequest, new ServiceDefinition(typeof(ModifySubscriptionRequest), new InvokeServiceEventHandler(ModifySubscription), new InvokeServiceAsyncEventHandler(ModifySubscriptionAsync)));
             #elif (!OPCUA_EXCLUDE_ModifySubscription)
             SupportedServices.Add(DataTypeIds.ModifySubscriptionRequest, new ServiceDefinition(typeof(ModifySubscriptionRequest), new InvokeServiceEventHandler(ModifySubscription)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetPublishingMode && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_SetPublishingMode && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+            SupportedServices.Add(DataTypeIds.SetPublishingModeRequest, new ServiceDefinition(typeof(SetPublishingModeRequest), new InvokeServiceAsyncEventHandler(SetPublishingModeAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetPublishingMode && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
             SupportedServices.Add(DataTypeIds.SetPublishingModeRequest, new ServiceDefinition(typeof(SetPublishingModeRequest), new InvokeServiceEventHandler(SetPublishingMode), new InvokeServiceAsyncEventHandler(SetPublishingModeAsync)));
             #elif (!OPCUA_EXCLUDE_SetPublishingMode)
             SupportedServices.Add(DataTypeIds.SetPublishingModeRequest, new ServiceDefinition(typeof(SetPublishingModeRequest), new InvokeServiceEventHandler(SetPublishingMode)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Publish && !OPCUA_EXCLUDE_Publish_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Publish && !OPCUA_EXCLUDE_Publish_ASYNC)
+            SupportedServices.Add(DataTypeIds.PublishRequest, new ServiceDefinition(typeof(PublishRequest), new InvokeServiceAsyncEventHandler(PublishAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Publish && !OPCUA_EXCLUDE_Publish_ASYNC)
             SupportedServices.Add(DataTypeIds.PublishRequest, new ServiceDefinition(typeof(PublishRequest), new InvokeServiceEventHandler(Publish), new InvokeServiceAsyncEventHandler(PublishAsync)));
             #elif (!OPCUA_EXCLUDE_Publish)
             SupportedServices.Add(DataTypeIds.PublishRequest, new ServiceDefinition(typeof(PublishRequest), new InvokeServiceEventHandler(Publish)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Republish && !OPCUA_EXCLUDE_Republish_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_Republish && !OPCUA_EXCLUDE_Republish_ASYNC)
+            SupportedServices.Add(DataTypeIds.RepublishRequest, new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceAsyncEventHandler(RepublishAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Republish && !OPCUA_EXCLUDE_Republish_ASYNC)
             SupportedServices.Add(DataTypeIds.RepublishRequest, new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceEventHandler(Republish), new InvokeServiceAsyncEventHandler(RepublishAsync)));
             #elif (!OPCUA_EXCLUDE_Republish)
             SupportedServices.Add(DataTypeIds.RepublishRequest, new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceEventHandler(Republish)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_TransferSubscriptions && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_TransferSubscriptions && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+            SupportedServices.Add(DataTypeIds.TransferSubscriptionsRequest, new ServiceDefinition(typeof(TransferSubscriptionsRequest), new InvokeServiceAsyncEventHandler(TransferSubscriptionsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_TransferSubscriptions && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
             SupportedServices.Add(DataTypeIds.TransferSubscriptionsRequest, new ServiceDefinition(typeof(TransferSubscriptionsRequest), new InvokeServiceEventHandler(TransferSubscriptions), new InvokeServiceAsyncEventHandler(TransferSubscriptionsAsync)));
             #elif (!OPCUA_EXCLUDE_TransferSubscriptions)
             SupportedServices.Add(DataTypeIds.TransferSubscriptionsRequest, new ServiceDefinition(typeof(TransferSubscriptionsRequest), new InvokeServiceEventHandler(TransferSubscriptions)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteSubscriptions && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_DeleteSubscriptions && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteSubscriptionsRequest, new ServiceDefinition(typeof(DeleteSubscriptionsRequest), new InvokeServiceAsyncEventHandler(DeleteSubscriptionsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteSubscriptions && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
             SupportedServices.Add(DataTypeIds.DeleteSubscriptionsRequest, new ServiceDefinition(typeof(DeleteSubscriptionsRequest), new InvokeServiceEventHandler(DeleteSubscriptions), new InvokeServiceAsyncEventHandler(DeleteSubscriptionsAsync)));
             #elif (!OPCUA_EXCLUDE_DeleteSubscriptions)
             SupportedServices.Add(DataTypeIds.DeleteSubscriptionsRequest, new ServiceDefinition(typeof(DeleteSubscriptionsRequest), new InvokeServiceEventHandler(DeleteSubscriptions)));
@@ -5391,9 +5846,13 @@ namespace Opc.Ua
         #region IDiscoveryEndpoint Members
         #region FindServers Service
         #if (!OPCUA_EXCLUDE_FindServers)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public IServiceResponse FindServers(IServiceRequest incoming)
         {
             FindServersResponse response = null;
@@ -5454,6 +5913,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServers service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -5481,6 +5943,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the FindServers service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public virtual FindServersResponseMessage EndFindServers(IAsyncResult ar)
         {
             try
@@ -5496,6 +5961,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
@@ -5532,9 +5998,13 @@ namespace Opc.Ua
 
         #region FindServersOnNetwork Service
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public IServiceResponse FindServersOnNetwork(IServiceRequest incoming)
         {
             FindServersOnNetworkResponse response = null;
@@ -5598,6 +6068,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServersOnNetwork service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -5625,6 +6098,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the FindServersOnNetwork service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public virtual FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult ar)
         {
             try
@@ -5640,6 +6116,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
@@ -5676,9 +6153,13 @@ namespace Opc.Ua
 
         #region GetEndpoints Service
         #if (!OPCUA_EXCLUDE_GetEndpoints)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public IServiceResponse GetEndpoints(IServiceRequest incoming)
         {
             GetEndpointsResponse response = null;
@@ -5739,6 +6220,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the GetEndpoints service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -5766,6 +6250,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the GetEndpoints service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public virtual GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult ar)
         {
             try
@@ -5781,6 +6268,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
@@ -5817,9 +6305,13 @@ namespace Opc.Ua
 
         #region RegisterServer Service
         #if (!OPCUA_EXCLUDE_RegisterServer)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         public IServiceResponse RegisterServer(IServiceRequest incoming)
         {
             RegisterServerResponse response = null;
@@ -5875,6 +6367,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the RegisterServer service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         public virtual IAsyncResult BeginRegisterServer(RegisterServerMessage message, AsyncCallback callback, object callbackData)
         {
             try
@@ -5902,6 +6397,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the RegisterServer service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         public virtual RegisterServerResponseMessage EndRegisterServer(IAsyncResult ar)
         {
             try
@@ -5917,6 +6415,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
@@ -5951,9 +6450,13 @@ namespace Opc.Ua
 
         #region RegisterServer2 Service
         #if (!OPCUA_EXCLUDE_RegisterServer2)
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         public IServiceResponse RegisterServer2(IServiceRequest incoming)
         {
             RegisterServer2Response response = null;
@@ -6016,6 +6519,9 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the RegisterServer2 service.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         public virtual IAsyncResult BeginRegisterServer2(RegisterServer2Message message, AsyncCallback callback, object callbackData)
         {
             try
@@ -6043,6 +6549,9 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for an asynchronous call to the RegisterServer2 service to complete.
         /// </summary>
+        #if NET_STANDARD_OBSOLETE_APM
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         public virtual RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult ar)
         {
             try
@@ -6058,6 +6567,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
@@ -6098,27 +6608,37 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void CreateKnownTypes()
         {
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceAsyncEventHandler(FindServersAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
             SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers), new InvokeServiceAsyncEventHandler(FindServersAsync)));
             #elif (!OPCUA_EXCLUDE_FindServers)
             SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
             SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
             #elif (!OPCUA_EXCLUDE_FindServersOnNetwork)
             SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
             SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
             #elif (!OPCUA_EXCLUDE_GetEndpoints)
             SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterServer && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+            SupportedServices.Add(DataTypeIds.RegisterServerRequest, new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceAsyncEventHandler(RegisterServerAsync)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterServer && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
             SupportedServices.Add(DataTypeIds.RegisterServerRequest, new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceEventHandler(RegisterServer), new InvokeServiceAsyncEventHandler(RegisterServerAsync)));
             #elif (!OPCUA_EXCLUDE_RegisterServer)
             SupportedServices.Add(DataTypeIds.RegisterServerRequest, new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceEventHandler(RegisterServer)));
             #endif
-            #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterServer2 && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+            #if (OPCUA_INCLUDE_ASYNC && NET_STANDARD_OBSOLETE_SYNC_SERVER && !OPCUA_EXCLUDE_RegisterServer2 && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+            SupportedServices.Add(DataTypeIds.RegisterServer2Request, new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceAsyncEventHandler(RegisterServer2Async)));
+            #elif (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterServer2 && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
             SupportedServices.Add(DataTypeIds.RegisterServer2Request, new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceEventHandler(RegisterServer2), new InvokeServiceAsyncEventHandler(RegisterServer2Async)));
             #elif (!OPCUA_EXCLUDE_RegisterServer2)
             SupportedServices.Add(DataTypeIds.RegisterServer2Request, new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceEventHandler(RegisterServer2)));
