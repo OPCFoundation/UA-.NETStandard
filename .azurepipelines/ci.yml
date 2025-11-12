@@ -32,7 +32,7 @@ jobs:
   steps:
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.8.x'
+      versionSpec: '>=7.0.x'
   - task: UseDotNet@2
     displayName: 'Install .NET 10.0'
     inputs:
