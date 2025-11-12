@@ -1346,6 +1346,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(NodeId other)
         {
+            if (other is null || other.IsNullNodeId)
+            {
+                return IsNullNodeId ? 0 : -1;
+            }
             return InternalCompareTo(other.NamespaceIndex, other.IdType, other.Identifier);
         }
 

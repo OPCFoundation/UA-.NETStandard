@@ -44,11 +44,11 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class QualifiedName : 
-        IEquatable<QualifiedName>, 
-        ICloneable, 
-        IFormattable, 
-        IComparable, 
+    public class QualifiedName :
+        IEquatable<QualifiedName>,
+        ICloneable,
+        IFormattable,
+        IComparable,
         IComparable<QualifiedName>
     {
         /// <summary>
@@ -120,16 +120,6 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(object obj)
         {
-            if (obj is null)
-            {
-                return int.MinValue;
-            }
-
-            if (ReferenceEquals(this, obj))
-            {
-                return 0;
-            }
-
             if (obj is not QualifiedName qname)
             {
                 return int.MaxValue;
@@ -141,6 +131,16 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(QualifiedName obj)
         {
+            if (obj is null)
+            {
+                return int.MinValue;
+            }
+
+            if (ReferenceEquals(this, obj))
+            {
+                return 0;
+            }
+
             if (obj.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
             {
                 return XmlEncodedNamespaceIndex.CompareTo(obj.XmlEncodedNamespaceIndex);
@@ -195,33 +195,17 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
-            if (obj is null)
-            {
-                return false;
-            }
-
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
             if (obj is not QualifiedName qname)
             {
                 return false;
             }
-
             return Equals(qname);
         }
 
         /// <inheritdoc/>
         public bool Equals(QualifiedName other)
         {
-            if (other.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
-            {
-                return false;
-            }
-
-            return other.XmlEncodedName == XmlEncodedName;
+            return CompareTo(other) == 0;
         }
 
         /// <inheritdoc/>
@@ -360,7 +344,7 @@ namespace Opc.Ua
         /// Parses a string containing a QualifiedName with the syntax n:qname
         /// </summary>
         /// <param name="text">The QualifiedName value as a string.</param>
-        /// <exception cref="ServiceResultException">Thrown under a variety of 
+        /// <exception cref="ServiceResultException">Thrown under a variety of
         /// circumstances, each time with a specific message.</exception>
         public static QualifiedName Parse(string text)
         {
@@ -405,9 +389,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The QualifiedName value as a string.</param>
         /// <param name="text">The QualifiedName value as a string.</param>
-        /// <param name="updateTables">Whether the NamespaceTable should be updated 
+        /// <param name="updateTables">Whether the NamespaceTable should be updated
         /// with the NamespaceUri.</param>
-        /// <exception cref="ServiceResultException">Thrown under a variety of 
+        /// <exception cref="ServiceResultException">Thrown under a variety of
         /// circumstances, each time with a specific message.</exception>
         public static QualifiedName Parse(
             IServiceMessageContext context,

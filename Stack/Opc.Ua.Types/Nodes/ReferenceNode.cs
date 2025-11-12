@@ -21,12 +21,12 @@ namespace Opc.Ua
     /// Reference node
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ReferenceNode : 
-        IEncodeable, 
-        IJsonEncodeable, 
+    public class ReferenceNode :
+        IEncodeable,
+        IJsonEncodeable,
         IReference,
         IEquatable<ReferenceNode>,
-        IComparable, 
+        IComparable,
         IComparable<ReferenceNode>
     {
         /// <summary>
@@ -235,7 +235,7 @@ namespace Opc.Ua
         {
             if (ReferenceTypeId is null)
             {
-                return obj.ReferenceTypeId is null ? 0 : -1;
+                return obj?.ReferenceTypeId is null ? 0 : -1;
             }
 
             int result = ReferenceTypeId.CompareTo(obj.ReferenceTypeId);

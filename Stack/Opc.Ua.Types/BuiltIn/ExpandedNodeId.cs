@@ -1070,9 +1070,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(ExpandedNodeId obj)
         {
-            if (IsNull && obj.IsNull)
+            if (obj is null || obj.IsNull)
             {
-                return 0;
+                return IsNull ? 0 : -1;
             }
 
             if (ServerIndex != obj.ServerIndex)
