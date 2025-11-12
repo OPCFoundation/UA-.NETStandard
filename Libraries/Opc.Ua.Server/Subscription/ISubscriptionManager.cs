@@ -115,18 +115,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes a subscription.
         /// </summary>
-        NotificationMessage Publish(
-            OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
-
-        /// <summary>
-        /// Publishes a subscription.
-        /// </summary>
         Task<PublishResponse> PublishAsync(
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
