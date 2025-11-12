@@ -773,7 +773,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to update Instance Certificates: {0}", e);
+                m_logger.LogError(ex, "Failed to update Instance Certificates: {EventArgs}", e);
             }
         }
 
