@@ -569,13 +569,15 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
+
                 var nodeManagers = readOnlyNodeManagers.ToList();
+                int nodeManagersFound = 1;
 
-                IAsyncNodeManager nodeManagerToRemove;
-                nodeManagerToRemove = nodeManagers.Find(manager => manager.SyncNodeManager == nodeManager);
-
-
-                bool nodeManagerFound = nodeManagers.Remove(nodeManagerToRemove);
+                IAsyncNodeManager nodeManagerToRemove = asyncNodeManager;
+                if (nodeManagerToRemove is null)
+                {
+                    nodeManagersFound = nodeManagers.RemoveAll(manager => manager.SyncNodeManager == nodeManager);
+                }
 
                 if (nodeManagers.Count == 0)
                 {
@@ -586,7 +588,7 @@ namespace Opc.Ua.Server
                     NamespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
                 }
 
-                return nodeManagerFound;
+                return nodeManagersFound > 0;
             }
             finally
             {
