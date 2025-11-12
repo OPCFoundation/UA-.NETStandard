@@ -170,7 +170,8 @@ namespace Quickstarts.ReferenceServer
                 {
                     logger.LogInformation("Apply settings for CTT.");
                     // start Alarms and other settings for CTT test
-                    Servers.Utils.ApplyCTTMode(Console.Out, server.Server);
+                    await Servers.Utils.ApplyCTTModeAsync(Console.Out, server.Server)
+                        .ConfigureAwait(false);
                 }
 
                 logger.LogInformation("Server started. Press Ctrl-C to exit...");
