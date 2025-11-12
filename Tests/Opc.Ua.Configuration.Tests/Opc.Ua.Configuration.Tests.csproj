@@ -23,8 +23,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="BenchmarkDotNet" />
-    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" />
-    <PackageReference Include="System.Private.Uri" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />

@@ -1237,7 +1237,7 @@ namespace Opc.Ua
             // check for null.
             if (obj is null)
             {
-                return -1;
+                return IsNullNodeId ? 0 : -1;
             }
 
             // check for reference comparisons.
@@ -1356,19 +1356,35 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator >(NodeId left, NodeId right)
         {
-            return left is null ? right is null : left.CompareTo(right) > 0;
+            if (right is null)
+            {
+                if (left is null)
+                {
+                    return false;
+                }
+                return left.CompareTo(right) > 0;
+            }
+            return right.CompareTo(left) < 0;
         }
 
         /// <inheritdoc/>
         public static bool operator <(NodeId left, NodeId right)
         {
-            return left is null || left.CompareTo(right) < 0;
+            if (left is null)
+            {
+                if (right is null)
+                {
+                    return false;
+                }
+                return right.CompareTo(left) > 0;
+            }
+            return right.CompareTo(left) < 0;
         }
 
         /// <inheritdoc/>
         public static bool operator >=(NodeId left, NodeId right)
         {
-            return left is null ? right is null : left.CompareTo(right) >= 0;
+            return right is null || right.CompareTo(left) <= 0;
         }
 
         /// <inheritdoc/>
@@ -1447,7 +1463,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(NodeId left, NodeId right)
         {
-            return left is null ? right is null : left.Equals(right);
+            return left?.IsNullNodeId ?? true ? right?.IsNullNodeId ?? true : left.Equals(right);
         }
 
         /// <inheritdoc/>
@@ -1887,7 +1903,6 @@ namespace Opc.Ua
         /// </summary>
         private int InternalCompareTo(ushort namespaceIndex, IdType idType, object id)
         {
-
             // check for different namespace.
             if (namespaceIndex != NamespaceIndex)
             {

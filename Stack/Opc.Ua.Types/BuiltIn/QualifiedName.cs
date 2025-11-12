@@ -133,7 +133,7 @@ namespace Opc.Ua
         {
             if (obj is null)
             {
-                return int.MinValue;
+                return IsNullQn ? 0 : int.MinValue;
             }
 
             if (ReferenceEquals(this, obj))
@@ -157,13 +157,29 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator <(QualifiedName left, QualifiedName right)
         {
-            return left is null || left.CompareTo(right) < 0;
+            if (left is null)
+            {
+                if (right is null)
+                {
+                    return false;
+                }
+                return right.CompareTo(left) > 0;
+            }
+            return right.CompareTo(left) < 0;
         }
 
         /// <inheritdoc/>
         public static bool operator >(QualifiedName left, QualifiedName right)
         {
-            return left is null ? right is null : left.CompareTo(right) > 0;
+            if (right is null)
+            {
+                if (left is null)
+                {
+                    return false;
+                }
+                return left.CompareTo(right) > 0;
+            }
+            return right.CompareTo(left) < 0;
         }
 
         /// <inheritdoc/>
@@ -175,7 +191,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator >=(QualifiedName left, QualifiedName right)
         {
-            return left is null ? right is null : left.CompareTo(right) >= 0;
+            return right is null || right.CompareTo(left) <= 0;
         }
 
         /// <inheritdoc/>
@@ -197,7 +213,7 @@ namespace Opc.Ua
         {
             if (obj is not QualifiedName qname)
             {
-                return false;
+                return obj is null && IsNullQn;
             }
             return Equals(qname);
         }
@@ -211,7 +227,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(QualifiedName left, QualifiedName right)
         {
-            return left is null ? right is null : left.Equals(right);
+            return IsNull(left) ? IsNull(right) : left.Equals(right);
         }
 
         /// <inheritdoc/>
@@ -497,9 +513,13 @@ namespace Opc.Ua
             }
 
             buffer.Append(XmlEncodedName);
-
             return buffer.ToString();
         }
+
+        /// <summary>
+        /// Returns true if the item is null
+        /// </summary>
+        internal bool IsNullQn => XmlEncodedNamespaceIndex == 0 && string.IsNullOrEmpty(XmlEncodedName);
 
         /// <summary>
         /// Returns true if the value is null.
@@ -507,16 +527,7 @@ namespace Opc.Ua
         /// <param name="value">The qualified name to check</param>
         public static bool IsNull([NotNullWhen(false)] QualifiedName value)
         {
-            if (value != null)
-            {
-                if (value.XmlEncodedNamespaceIndex != 0 ||
-                    !string.IsNullOrEmpty(value.XmlEncodedName))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return value is null || value.IsNullQn;
         }
 
         /// <summary>
