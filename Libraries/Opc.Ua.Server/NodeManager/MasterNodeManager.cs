@@ -1288,26 +1288,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void Browse(
-            OperationContext context,
-            ViewDescription view,
-            uint maxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = BrowseAsync(
-                context,
-                view,
-                maxReferencesPerNode,
-                nodesToBrowse).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Returns the set of references that meet the filter criteria.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
@@ -1489,24 +1469,6 @@ namespace Opc.Ua.Server
             {
                 uniqueNodesServiceAttributes.Add(uniqueNode, []);
             }
-        }
-
-        /// <summary>
-        /// Continues a browse operation that was previously halted.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public virtual void BrowseNext(
-            OperationContext context,
-            bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = BrowseNextAsync(
-                context,
-                releaseContinuationPoints,
-                continuationPoints).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -1925,26 +1887,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void Read(
-            OperationContext context,
-            double maxAge,
-            TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            out DataValueCollection values,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (values, diagnosticInfos) = ReadAsync(
-                context,
-                maxAge,
-                timestampsToReturn,
-                nodesToRead).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Reads a set of nodes.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
@@ -2088,27 +2030,6 @@ namespace Opc.Ua.Server
         /// Reads the history of a set of items.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void HistoryRead(
-            OperationContext context,
-            ExtensionObject historyReadDetails,
-            TimestampsToReturn timestampsToReturn,
-            bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
-            out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = HistoryReadAsync(
-                context,
-                historyReadDetails,
-                timestampsToReturn,
-                releaseContinuationPoints,
-                nodesToRead).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Reads the history of a set of items.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -2240,22 +2161,6 @@ namespace Opc.Ua.Server
         /// Writes a set of values.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void Write(
-            OperationContext context,
-            WriteValueCollection nodesToWrite,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = WriteAsync(
-                context,
-                nodesToWrite
-                ).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Writes a set of values.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public virtual async ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
             OperationContext context,
             WriteValueCollection nodesToWrite,
@@ -2362,20 +2267,6 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
-        }
-
-        /// <summary>
-        /// Updates the history for a set of nodes.
-        /// </summary>
-        public virtual void HistoryUpdate(
-            OperationContext context,
-            ExtensionObjectCollection historyUpdateDetails,
-            out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = HistoryUpdateAsync(
-                context,
-                historyUpdateDetails).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>

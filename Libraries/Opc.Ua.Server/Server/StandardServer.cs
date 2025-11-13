@@ -88,32 +88,6 @@ namespace Opc.Ua.Server
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <param name="localeIds">The locale ids.</param>
         /// <param name="serverUris">The server uris.</param>
-        /// <param name="servers">List of Servers that meet criteria specified in the request.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader FindServers(
-            RequestHeader requestHeader,
-            string endpointUrl,
-            StringCollection localeIds,
-            StringCollection serverUris,
-            out ApplicationDescriptionCollection servers)
-        {
-            FindServersResponse response = FindServersAsync(requestHeader, endpointUrl, localeIds, serverUris, CancellationToken.None)
-                .GetAwaiter().GetResult();
-
-            servers = response.Servers;
-
-            return response.ResponseHeader;
-        }
-
-        /// <summary>
-        /// Invokes the FindServers service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="localeIds">The locale ids.</param>
-        /// <param name="serverUris">The server uris.</param>
         /// <param name="ct">The cancellation token</param>
         /// <returns>
         /// Returns a <see cref="FindServersResponse"/> object
@@ -206,45 +180,6 @@ namespace Opc.Ua.Server
                 ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
                 Servers = servers
             };
-        }
-
-        /// <summary>
-        /// Invokes the GetEndpoints service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="localeIds">The locale ids.</param>
-        /// <param name="profileUris">The profile uris.</param>
-        /// <param name="endpoints">The endpoints supported by the server.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader GetEndpoints(
-            RequestHeader requestHeader,
-            string endpointUrl,
-            StringCollection localeIds,
-            StringCollection profileUris,
-            out EndpointDescriptionCollection endpoints)
-        {
-            endpoints = null;
-
-            ValidateRequest(requestHeader);
-
-            m_semaphoreSlim.Wait();
-            try
-            {
-                // filter by profile.
-                IList<BaseAddress> baseAddresses = FilterByProfile(profileUris, BaseAddresses);
-
-                // get the descriptions.
-                endpoints = GetEndpointDescriptions(endpointUrl, baseAddresses, localeIds);
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
-
-            return CreateResponse(requestHeader, StatusCodes.Good);
         }
 
         /// <summary>
@@ -369,76 +304,6 @@ namespace Opc.Ua.Server
             Exception exception)
         {
             ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception, m_logger);
-        }
-
-        /// <summary>
-        /// Invokes the CreateSession service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="clientDescription">Application description for the client application.</param>
-        /// <param name="serverUri">The server URI.</param>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="sessionName">Name for the Session assigned by the client.</param>
-        /// <param name="clientNonce">The client nonce.</param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="requestedSessionTimeout">The requested session timeout.</param>
-        /// <param name="maxResponseMessageSize">Size of the max response message.</param>
-        /// <param name="sessionId">The unique public identifier assigned by the Server to the Session.</param>
-        /// <param name="authenticationToken">The unique private identifier assigned by the Server to the Session.</param>
-        /// <param name="revisedSessionTimeout">The revised session timeout.</param>
-        /// <param name="serverNonce">The server nonce.</param>
-        /// <param name="serverCertificate">The server certificate.</param>
-        /// <param name="serverEndpoints">The server endpoints.</param>
-        /// <param name="serverSoftwareCertificates">The server software certificates.</param>
-        /// <param name="serverSignature">The server signature.</param>
-        /// <param name="maxRequestMessageSize">Size of the max request message.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader CreateSession(
-            RequestHeader requestHeader,
-            ApplicationDescription clientDescription,
-            string serverUri,
-            string endpointUrl,
-            string sessionName,
-            byte[] clientNonce,
-            byte[] clientCertificate,
-            double requestedSessionTimeout,
-            uint maxResponseMessageSize,
-            out NodeId sessionId,
-            out NodeId authenticationToken,
-            out double revisedSessionTimeout,
-            out byte[] serverNonce,
-            out byte[] serverCertificate,
-            out EndpointDescriptionCollection serverEndpoints,
-            out SignedSoftwareCertificateCollection serverSoftwareCertificates,
-            out SignatureData serverSignature,
-            out uint maxRequestMessageSize)
-        {
-            CreateSessionResponse response = CreateSessionAsync(
-                requestHeader,
-                clientDescription,
-                serverUri,
-                endpointUrl,
-                sessionName,
-                clientNonce,
-                clientCertificate,
-                requestedSessionTimeout,
-                maxResponseMessageSize,
-                CancellationToken.None)
-                .GetAwaiter().GetResult();
-
-            sessionId = response.SessionId;
-            authenticationToken = response.AuthenticationToken;
-            revisedSessionTimeout = response.RevisedSessionTimeout;
-            serverNonce = response.ServerNonce;
-            serverCertificate = response.ServerCertificate;
-            serverEndpoints = response.ServerEndpoints;
-            serverSoftwareCertificates = response.ServerSoftwareCertificates;
-            serverSignature = response.ServerSignature;
-            maxRequestMessageSize = response.MaxRequestMessageSize;
-
-            return response.ResponseHeader;
         }
 
         /// <summary>
@@ -833,49 +698,6 @@ namespace Opc.Ua.Server
         /// <param name="localeIds">The locale ids.</param>
         /// <param name="userIdentityToken">The user identity token.</param>
         /// <param name="userTokenSignature">The user token signature.</param>
-        /// <param name="serverNonce">The server nonce.</param>
-        /// <param name="results">The results.</param>
-        /// <param name="diagnosticInfos">The diagnostic infos.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader ActivateSession(
-            RequestHeader requestHeader,
-            SignatureData clientSignature,
-            SignedSoftwareCertificateCollection clientSoftwareCertificates,
-            StringCollection localeIds,
-            ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
-            out byte[] serverNonce,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ActivateSessionResponse response = ActivateSessionAsync(
-                requestHeader,
-                clientSignature,
-                clientSoftwareCertificates,
-                localeIds,
-                userIdentityToken,
-                userTokenSignature,
-                CancellationToken.None)
-                .GetAwaiter().GetResult();
-
-            serverNonce = response.ServerNonce;
-            results = response.Results;
-            diagnosticInfos = response.DiagnosticInfos;
-
-            return response.ResponseHeader;
-        }
-
-        /// <summary>
-        /// Invokes the ActivateSession service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="clientSignature">The client signature.</param>
-        /// <param name="clientSoftwareCertificates">The client software certificates.</param>
-        /// <param name="localeIds">The locale ids.</param>
-        /// <param name="userIdentityToken">The user identity token.</param>
-        /// <param name="userTokenSignature">The user token signature.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <returns>
         /// Returns a <see cref="ActivateSessionResponse"/> object
@@ -1114,56 +936,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the CloseSession service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are deleted.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader CloseSession(
-            RequestHeader requestHeader,
-            bool deleteSubscriptions)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.CloseSession);
-
-            try
-            {
-                ISession session = ServerInternal.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
-
-                ServerInternal.CloseSession(context, context.Session.Id, deleteSubscriptions);
-
-                // report the audit event for close session
-                ServerInternal.ReportAuditCloseSessionEvent(
-                    context.AuditEntryId,
-                    session,
-                    m_logger,
-                    "Session/CloseSession");
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the CloseSession service using a task based request.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1258,65 +1030,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the Browse service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view.</param>
-        /// <param name="requestedMaxReferencesPerNode">The maximum number of references to return for each node.</param>
-        /// <param name="nodesToBrowse">The list of nodes to browse.</param>
-        /// <param name="results">The list of results for the passed starting nodes and filters.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Browse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            results = null;
-            diagnosticInfos = null;
-
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Browse);
-
-            try
-            {
-                ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
-
-                m_serverInternal.NodeManager.Browse(
-                    context,
-                    view,
-                    requestedMaxReferencesPerNode,
-                    nodesToBrowse,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the Browse service using async Task based request.
         /// </summary>
         public override async Task<BrowseResponse> BrowseAsync(
@@ -1347,62 +1060,6 @@ namespace Opc.Ua.Server
                     DiagnosticInfos = diagnosticInfos,
                     ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the BrowseNext service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="releaseContinuationPoints">if set to <c>true</c> the continuation points are released.</param>
-        /// <param name="continuationPoints">A list of continuation points returned in a previous Browse or BrewseNext call.</param>
-        /// <param name="results">The list of resulted references for browse.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader BrowseNext(
-            RequestHeader requestHeader,
-            bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            results = null;
-            diagnosticInfos = null;
-
-            OperationContext context = ValidateRequest(requestHeader, RequestType.BrowseNext);
-
-            try
-            {
-                ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
-
-                m_serverInternal.NodeManager.BrowseNext(
-                    context,
-                    releaseContinuationPoints,
-                    continuationPoints,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1566,70 +1223,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the TranslateBrowsePathsToNodeIds service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="browsePaths">The list of browse paths for which NodeIds are being requested.</param>
-        /// <param name="results">The list of results for the list of browse paths.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader TranslateBrowsePathsToNodeIds(
-            RequestHeader requestHeader,
-            BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            results = null;
-            diagnosticInfos = null;
-
-            OperationContext context = ValidateRequest(
-                requestHeader,
-                RequestType.TranslateBrowsePathsToNodeIds);
-
-            try
-            {
-                ValidateOperationLimits(
-                    browsePaths,
-                    OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-
-                foreach (BrowsePath bp in browsePaths)
-                {
-                    ValidateOperationLimits(
-                        bp.RelativePath.Elements.Count,
-                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                }
-
-                m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIds(
-                    context,
-                    browsePaths,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
         /// </summary>
         public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
@@ -1689,64 +1282,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the Read service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="maxAge">The Maximum age of the value to be read in milliseconds.</param>
-        /// <param name="timestampsToReturn">The type of timestamps to be returned for the requested Variables.</param>
-        /// <param name="nodesToRead">The list of Nodes and their Attributes to read.</param>
-        /// <param name="results">The list of returned Attribute values</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Read(
-            RequestHeader requestHeader,
-            double maxAge,
-            TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
-
-            try
-            {
-                ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
-
-                m_serverInternal.NodeManager.Read(
-                    context,
-                    maxAge,
-                    timestampsToReturn,
-                    nodesToRead,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the Read service using async Task based request.
         /// </summary>
         public override async Task<ReadResponse> ReadAsync(
@@ -1790,78 +1325,6 @@ namespace Opc.Ua.Server
                 }
 
                 ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the HistoryRead service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="historyReadDetails">The history read details.</param>
-        /// <param name="timestampsToReturn">The timestamps to return.</param>
-        /// <param name="releaseContinuationPoints">if set to <c>true</c> continuation points are released.</param>
-        /// <param name="nodesToRead">The nodes to read.</param>
-        /// <param name="results">The results.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader HistoryRead(
-            RequestHeader requestHeader,
-            ExtensionObject historyReadDetails,
-            TimestampsToReturn timestampsToReturn,
-            bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
-            out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
-
-            try
-            {
-                if (historyReadDetails?.Body is ReadEventDetails)
-                {
-                    ValidateOperationLimits(
-                        nodesToRead,
-                        OperationLimits.MaxNodesPerHistoryReadEvents);
-                }
-                else
-                {
-                    ValidateOperationLimits(
-                        nodesToRead,
-                        OperationLimits.MaxNodesPerHistoryReadData);
-                }
-
-                m_serverInternal.NodeManager.HistoryRead(
-                    context,
-                    historyReadDetails,
-                    timestampsToReturn,
-                    releaseContinuationPoints,
-                    nodesToRead,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
                 throw TranslateException(context, e);
             }
@@ -1939,53 +1402,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the Write service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="nodesToWrite">The list of Nodes, Attributes, and values to write.</param>
-        /// <param name="results">The list of write result status codes for each write operation.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Write(
-            RequestHeader requestHeader,
-            WriteValueCollection nodesToWrite,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
-
-            try
-            {
-                ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
-
-                m_serverInternal.NodeManager
-                    .Write(context, nodesToWrite, out results, out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the Write service using async Task based request.
         /// </summary>
         public override async Task<WriteResponse> WriteAsync(
@@ -2010,59 +1426,6 @@ namespace Opc.Ua.Server
                     DiagnosticInfos = diagnosticInfos,
                     ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the HistoryUpdate service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="historyUpdateDetails">The details defined for the update.</param>
-        /// <param name="results">The list of update results for the history update details.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader HistoryUpdate(
-            RequestHeader requestHeader,
-            ExtensionObjectCollection historyUpdateDetails,
-            out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
-
-            try
-            {
-                // check only for BadNothingToDo here
-                // MaxNodesPerHistoryUpdateEvents & MaxNodesPerHistoryUpdateData
-                // must be checked in NodeManager (TODO)
-                ValidateOperationLimits(historyUpdateDetails);
-
-                m_serverInternal.NodeManager.HistoryUpdate(
-                    context,
-                    historyUpdateDetails,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -2286,93 +1649,6 @@ namespace Opc.Ua.Server
                     subscriptionIds,
                     out results,
                     out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the Publish service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="subscriptionAcknowledgements">The list of acknowledgements for one or more Subscriptions.</param>
-        /// <param name="subscriptionId">The subscription identifier.</param>
-        /// <param name="availableSequenceNumbers">The available sequence numbers.</param>
-        /// <param name="moreNotifications">If set to <c>true</c> the number of Notifications that were ready to be sent could not be sent in a single response.</param>
-        /// <param name="notificationMessage">The NotificationMessage that contains the list of Notifications.</param>
-        /// <param name="results">The list of results for the acknowledgements.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Publish(
-            RequestHeader requestHeader,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out NotificationMessage notificationMessage,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Publish);
-
-            try
-            {
-                /*
-                // check if there is an odd delay.
-                if (DateTime.UtcNow > requestHeader.Timestamp.AddMilliseconds(100))
-                {
-                    m_logger.LogTrace(m_eventId,
-                        "WARNING. Unexpected delay receiving Publish request. Time={Now:hh:mm:ss.fff}, ReceiveTime={Timestamp:hh:mm:ss.fff}",
-                        DateTime.UtcNow,
-                        requestHeader.Timestamp);
-                }
-                */
-
-                m_logger.LogTrace(
-                    "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}",
-                    requestHeader.RequestHandle,
-                    requestHeader.Timestamp);
-
-                notificationMessage = ServerInternal.SubscriptionManager.Publish(
-                    context,
-                    subscriptionAcknowledgements,
-                    out subscriptionId,
-                    out availableSequenceNumbers,
-                    out moreNotifications,
-                    out results,
-                    out diagnosticInfos);
-
-                /*
-                if (notificationMessage != null)
-                {
-                    m_logger.LogTrace(m_eventId,
-                        "PublishResponse: SubId={SubscriptionId} SeqNo={SequenceNumber}, PublishTime={PublishTime:mm:ss.fff}, Time={Now:mm:ss.fff}",
-                        subscriptionId,
-                        notificationMessage.SequenceNumber,
-                        notificationMessage.PublishTime,
-                        DateTime.UtcNow);
-                }
-                */
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -2928,53 +2204,6 @@ namespace Opc.Ua.Server
                     monitoredItemIds,
                     out results,
                     out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the Call service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="methodsToCall">The methods to call.</param>
-        /// <param name="results">The results.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Call(
-            RequestHeader requestHeader,
-            CallMethodRequestCollection methodsToCall,
-            out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Call);
-
-            try
-            {
-                ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
-
-                m_serverInternal.NodeManager
-                    .Call(context, methodsToCall, out results, out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
             }

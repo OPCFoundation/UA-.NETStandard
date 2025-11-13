@@ -967,30 +967,6 @@ namespace Opc.Ua.Server
         /// Publishes a subscription.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public NotificationMessage Publish(
-            OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
-        {
-            PublishResponse response = PublishAsync(context, subscriptionAcknowledgements).GetAwaiter().GetResult();
-
-            subscriptionId = response.SubscriptionId;
-            availableSequenceNumbers = response.AvailableSequenceNumbers;
-            moreNotifications = response.MoreNotifications;
-            acknowledgeResults = response.Results;
-            acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-
-            return response.NotificationMessage;
-        }
-
-        /// <summary>
-        /// Publishes a subscription.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
         public async Task<PublishResponse> PublishAsync(
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,

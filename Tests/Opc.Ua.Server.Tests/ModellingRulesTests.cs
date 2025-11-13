@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Quickstarts.ReferenceServer;
@@ -45,6 +46,7 @@ namespace Opc.Ua.Server.Tests
         private ServerFixture<ReferenceServer> m_fixture;
         private ReferenceServer m_server;
         private RequestHeader m_requestHeader;
+        private SecureChannelContext m_secureChannelContext;
 
         /// <summary>
         /// Set up a Server fixture.
@@ -73,26 +75,35 @@ namespace Opc.Ua.Server.Tests
         /// Create a session for a test.
         /// </summary>
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_requestHeader = m_server.CreateAndActivateSession(TestContext.CurrentContext.Test.Name);
+            (m_requestHeader, m_secureChannelContext) =
+                await m_server.CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Close the session for a test.
         /// </summary>
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
-            m_server.CloseSession(m_requestHeader);
+            SetSecureChannelContext();
+            await m_server.CloseSessionAsync(m_requestHeader, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private void SetSecureChannelContext()
+        {
+            SecureChannelContext.Current = m_secureChannelContext;
         }
 
         /// <summary>
         /// Test that the ModellingRules folder is populated with the expected modelling rules.
         /// </summary>
         [Test]
-        public void TestModellingRulesPopulated()
+        public async Task TestModellingRulesPopulatedAsync()
         {
+            SetSecureChannelContext();
+
             // Browse ServerCapabilities->ModellingRules
             NodeId modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
 
@@ -108,14 +119,13 @@ namespace Opc.Ua.Server.Tests
 
             var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
 
-            m_server.Browse(
+            BrowseResponse browseResponse = await m_server.BrowseAsync(
                 m_requestHeader,
                 null,
                 0,
-                browseDescriptions,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection _);
+                browseDescriptions, CancellationToken.None).ConfigureAwait(false);
 
+            BrowseResultCollection results = browseResponse.Results;
             Assert.That(results, Is.Not.Null);
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].References.Count, Is.GreaterThan(0), "ModellingRules folder should not be empty");
@@ -155,8 +165,10 @@ namespace Opc.Ua.Server.Tests
         /// Test that all modelling rules have the correct type definition.
         /// </summary>
         [Test]
-        public void TestModellingRulesHaveCorrectType()
+        public async Task TestModellingRulesHaveCorrectTypeAsync()
         {
+            SetSecureChannelContext();
+
             NodeId modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
 
             var browseRequest = new BrowseDescription
@@ -171,14 +183,13 @@ namespace Opc.Ua.Server.Tests
 
             var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
 
-            m_server.Browse(
+            BrowseResponse browseResponse = await m_server.BrowseAsync(
                 m_requestHeader,
                 null,
                 0,
-                browseDescriptions,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection _);
+                browseDescriptions, CancellationToken.None).ConfigureAwait(false);
 
+            BrowseResultCollection results = browseResponse.Results;
             Assert.That(results, Is.Not.Null);
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].References.Count, Is.GreaterThan(0));

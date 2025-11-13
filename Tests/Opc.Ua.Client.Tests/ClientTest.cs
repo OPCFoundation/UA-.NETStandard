@@ -1271,11 +1271,11 @@ namespace Opc.Ua.Client.Tests
             }
 
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
+            ReferenceDescriptions = await CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(
                 clientTestServices,
                 requestHeader,
                 operationLimits ? OperationLimits : null,
-                outputResult: true);
+                outputResult: true).ConfigureAwait(false);
 
             if (securityPolicy != null)
             {
@@ -1343,7 +1343,7 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Order(480)]
-        public void Subscription()
+        public async Task SubscriptionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1354,7 +1354,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             var clientTestServices = new ClientTestServices(Session, telemetry);
-            CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
+            await CommonTestWorkers.SubscriptionTestAsync(clientTestServices, requestHeader).ConfigureAwait(false);
         }
 
         [Test]
@@ -1615,12 +1615,12 @@ namespace Opc.Ua.Client.Tests
                         .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
                 ];
                 var clientTestServices = new ClientTestServices(Session, telemetry);
-                UInt32Collection subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(
+                UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                     clientTestServices,
                     requestHeader,
                     testSet,
                     0,
-                    -1);
+                    -1).ConfigureAwait(false);
 
                 TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
 
@@ -1635,12 +1635,12 @@ namespace Opc.Ua.Client.Tests
                     TimeoutHint = MaxTimeout
                 };
                 var transferTestServices = new ClientTestServices(transferSession, telemetry);
-                CommonTestWorkers.TransferSubscriptionTest(
+                await CommonTestWorkers.TransferSubscriptionTestAsync(
                     transferTestServices,
                     requestHeader,
                     subscriptionIds,
                     sendInitialData,
-                    false);
+                    false).ConfigureAwait(false);
 
                 // verify the notification of message transfer
                 requestHeader = new RequestHeader
@@ -1648,11 +1648,11 @@ namespace Opc.Ua.Client.Tests
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
-                CommonTestWorkers.VerifySubscriptionTransferred(
+                await CommonTestWorkers.VerifySubscriptionTransferredAsync(
                     clientTestServices,
                     requestHeader,
                     subscriptionIds,
-                    true);
+                    true).ConfigureAwait(false);
 
                 await transferSession.CloseAsync().ConfigureAwait(false);
             }

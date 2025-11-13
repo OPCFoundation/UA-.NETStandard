@@ -255,10 +255,11 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
-                .BrowseFullAddressSpaceWorker(
+            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+                .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
-                    requestHeader);
+                    requestHeader)
+                .ConfigureAwait(false);
             Assert.NotNull(referenceDescriptions);
 
             // close session
@@ -320,10 +321,11 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
-                .BrowseFullAddressSpaceWorker(
+            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+                .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
-                    requestHeader);
+                    requestHeader)
+                .ConfigureAwait(false);
             Assert.NotNull(referenceDescriptions);
 
             // close session
