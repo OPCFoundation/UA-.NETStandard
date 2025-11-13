@@ -68,14 +68,14 @@ jobs:
     displayName: Restore ${{parameters.config}}
     inputs:
       command: restore
-      projects: 'UA.slnx'
+      projects: 'UA Core Library.slnx'
       arguments: '--configuration ${{parameters.config}}'
       restoreArguments: '--disable-parallel'
   - task: DotNetCoreCLI@2
     displayName: Build ${{parameters.config}}
     inputs:
       command: build
-      projects: 'UA.slnx'
+      projects: 'UA Core Library.slnx'
       arguments: '--no-incremental --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: CmdLine@2
     displayName: 'List of assemblies to sign'
