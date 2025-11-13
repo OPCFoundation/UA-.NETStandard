@@ -14,8 +14,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Xml;
+using System.Xml.Schema;
 using System.Xml.Serialization;
 using Opc.Ua.Types;
 
@@ -31,6 +33,67 @@ namespace Opc.Ua.Export
         /// </summary>
         public UANodeSet()
         {
+        }
+
+        /// <summary>
+        /// Validate the nodeset against the schema.
+        /// </summary>
+        /// <param name="istrm"></param>
+        /// <param name="errors"></param>
+        /// <returns></returns>
+        public static bool Validate(Stream istrm, out IReadOnlyList<string> errors)
+        {
+            var validationErrors = new List<string>();
+            errors = validationErrors;
+            var success = true;
+            try
+            {
+                using Stream schemaContent = Assembly
+                    .GetExecutingAssembly()
+                    .GetManifestResourceStream("Opc.Ua.Schema.UANodeSet.xsd");
+                using var schema = XmlReader.Create(schemaContent);
+                XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+                settings.Schemas.Add("http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", schema);
+                settings.ValidationType = ValidationType.Schema;
+
+                using var reader = XmlReader.Create(istrm, settings);
+                var document = new XmlDocument();
+                document.Load(reader);
+
+                var eventHandler = new ValidationEventHandler(ValidationEventHandler);
+                document.Validate(eventHandler);
+                void ValidationEventHandler(object sender, ValidationEventArgs e)
+                {
+                    switch (e.Severity)
+                    {
+                        case XmlSeverityType.Error:
+                            validationErrors.Add(CoreUtils.Format("Error: {0}", e.Message));
+                            success = false;
+                            break;
+                        case XmlSeverityType.Warning:
+                            validationErrors.Add(CoreUtils.Format("Warning: {0}", e.Message));
+                            break;
+                    }
+                }
+                return success;
+            }
+            catch (System.Xml.Schema.XmlSchemaValidationException xve)
+            {
+                validationErrors.Add(CoreUtils.Format(
+                    "XmlSchemaValidationException: {0} at line {1} char: {2}",
+                    xve.Message,
+                    xve.LineNumber,
+                    xve.LinePosition));
+                return false;
+            }
+            catch (Exception e)
+            {
+                validationErrors.Add(CoreUtils.Format(
+                    "{0}: {1}",
+                    e.GetType().Name,
+                    e.Message));
+                return false;
+            }
         }
 
         /// <summary>
