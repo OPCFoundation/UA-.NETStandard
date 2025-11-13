@@ -16,7 +16,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
     <LangVersion>14.0</LangVersion>
-    <!-- to enable package validation, uncomment here -->
+    <!-- to enable the package validation, uncomment here -->
     <!--<EnablePackageValidation>true</EnablePackageValidation>-->
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
