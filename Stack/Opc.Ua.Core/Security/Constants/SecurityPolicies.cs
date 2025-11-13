@@ -641,7 +641,7 @@ namespace Opc.Ua
                     string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
                     if (field.Name == nameof(BaseUri) ||
                         field.Name == nameof(Https) ||
-                        !policyUri.StartsWith(BaseUri))
+                        !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
                     {
                         continue;
                     }

@@ -36,7 +36,7 @@ using Opc.Ua.PubSub;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
-    internal class PublishedValuesWrites
+    internal sealed class PublishedValuesWrites
     {
         /// <summary>
         /// It should match the namespace index from configuration file

@@ -400,7 +400,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="obj">The object to compare to this instance of object</param>
         /// <returns>
-        /// true if the specified <see cref="T:System.Object"/> is equal to the current embedded object; otherwise, false.
+        /// true if the specified <see cref="System.Object"/> is equal to the current embedded object; otherwise, false.
         /// </returns>
         public override bool Equals(object obj)
         {
@@ -452,7 +452,7 @@ namespace Opc.Ua
         /// Converts the value to a human readable string.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -859,21 +859,18 @@ namespace Opc.Ua
             // convert each encodeable to an extension object.
             var extensibles = new ExtensionObjectCollection();
 
-            if (encodeables != null)
+            foreach (IEncodeable encodeable in encodeables)
             {
-                foreach (IEncodeable encodeable in encodeables)
-                {
-                    // check if already an extension object.
+                // check if already an extension object.
 
-                    if (encodeable is ExtensionObject extensible)
-                    {
-                        extensibles.Add(extensible);
-                    }
-                    // wrap the encodeable with an extension object and let the serializer choose the encoding.
-                    else
-                    {
-                        extensibles.Add(new ExtensionObject(encodeable));
-                    }
+                if (encodeable is ExtensionObject extensible)
+                {
+                    extensibles.Add(extensible);
+                }
+                // wrap the encodeable with an extension object and let the serializer choose the encoding.
+                else
+                {
+                    extensibles.Add(new ExtensionObject(encodeable));
                 }
             }
 

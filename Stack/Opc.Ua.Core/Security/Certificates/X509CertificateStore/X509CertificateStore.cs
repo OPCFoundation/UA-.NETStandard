@@ -43,8 +43,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            GC.SuppressFinalize(this);
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

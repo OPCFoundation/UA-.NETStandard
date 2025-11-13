@@ -423,8 +423,10 @@ namespace Opc.Ua.Bindings
             {
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
                     token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
                     break;
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:

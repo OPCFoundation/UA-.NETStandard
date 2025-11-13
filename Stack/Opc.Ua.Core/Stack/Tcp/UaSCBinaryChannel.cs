@@ -601,11 +601,9 @@ namespace Opc.Ua.Bindings
                     ex,
                     StatusCodes.BadTcpInternalError,
                     "Unexpected error during write operation.");
-                if (args != null)
-                {
-                    HandleWriteComplete(null, state, args.BytesTransferred, error);
-                    args.Dispose();
-                }
+               
+                HandleWriteComplete(null, state, args.BytesTransferred, error);
+                args.Dispose();
             }
         }
 

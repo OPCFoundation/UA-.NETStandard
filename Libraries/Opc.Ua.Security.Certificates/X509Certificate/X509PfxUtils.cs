@@ -43,11 +43,6 @@ namespace Opc.Ua.Security.Certificates
     public static class X509PfxUtils
     {
         /// <summary>
-        /// Internal random number generator.
-        /// </summary>
-        private static readonly Random s_rnd = new(0x62541);
-
-        /// <summary>
         /// The size of the block used to test a sign or encrypt operation.
         /// </summary>
         public const int TestBlockSize = 0x20;
@@ -205,7 +200,7 @@ namespace Opc.Ua.Security.Certificates
         internal static bool VerifyRSAKeyPairCrypt(RSA rsaPublicKey, RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            s_rnd.NextBytes(testBlock);
+            UnsecureRandom.Shared.NextBytes(testBlock);
             byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
             byte[] decryptedBlock = rsaPrivateKey.Decrypt(
                 encryptedBlock,
@@ -223,7 +218,7 @@ namespace Opc.Ua.Security.Certificates
         internal static bool VerifyRSAKeyPairSign(RSA rsaPublicKey, RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            s_rnd.NextBytes(testBlock);
+            UnsecureRandom.Shared.NextBytes(testBlock);
             byte[] signature = rsaPrivateKey.SignData(
                 testBlock,
                 HashAlgorithmName.SHA256,
@@ -298,7 +293,7 @@ namespace Opc.Ua.Security.Certificates
         internal static bool VerifyECDsaKeyPairSign(ECDsa ecdsaPublicKey, ECDsa ecdsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            s_rnd.NextBytes(testBlock);
+            UnsecureRandom.Shared.NextBytes(testBlock);
             byte[] signature = ecdsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256);
             return ecdsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256);
         }

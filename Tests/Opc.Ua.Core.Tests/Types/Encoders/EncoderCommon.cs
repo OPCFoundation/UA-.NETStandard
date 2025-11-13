@@ -898,7 +898,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 // decoder result will be an Int32
                 if (value is Matrix enumMatrix &&
-                    enumMatrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                    enumMatrix.TypeInfo.BuiltInType == BuiltInType.Enumeration)
                 {
                     return new Matrix(enumMatrix.Elements, BuiltInType.Int32, enumMatrix.Dimensions)
                         .ToArray();
@@ -1112,10 +1112,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public void Dispose()
             {
-                if (m_resetCounter)
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            protected virtual void Dispose(bool disposing)
+            {
+                if (disposing && m_resetCounter)
                 {
                     s_count = 0;
                 }
+                // free unmanaged resources
             }
 
             public virtual object Clone()
@@ -1302,7 +1309,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public void Dispose()
             {
-                if (m_resetCounter)
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            protected virtual void Dispose(bool disposing)
+            {
+                if (disposing && m_resetCounter)
                 {
                     s_count = 0;
                 }
@@ -1375,9 +1388,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_inner.AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
             }
 
-            public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType systemType)
+            public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType encodeableType)
             {
-                return m_inner.TryGetEncodeableType(typeId, out systemType);
+                return m_inner.TryGetEncodeableType(typeId, out encodeableType);
             }
 
             private readonly IEncodeableFactory m_inner;

@@ -6,7 +6,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 
 ### Key Technologies
 - **Language**: C# with LangVersion 13.0
-- **Target Frameworks**: .NET Standard 2.0/2.1, .NET 6.0 (LTS), .NET 8.0 (LTS), .NET 9.0
+- **Target Frameworks**: .NET Standard 2.0/2.1, .NET Framework 4.8, .NET 8.0 (LTS), .NET 9.0, .NET 10.0 (LTS)
 - **Project Type**: Class libraries, console applications, and reference implementations
 - **Architecture**: OPC UA Stack with Client, Server, Configuration, Complex Types, GDS, and PubSub components
 
@@ -20,6 +20,8 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Always insert final newline
 - Trim trailing whitespace
 - Use UTF-8 encoding
+- Defined in .editorconfig
+- Add the OPC Foundation MIT license header to all source files. Exception: All files in Opc.Ua.Core project which have a dual license header.
 
 ### C# Conventions
 - **Braces**: Use Allman style (braces on new line for control blocks, types, and methods)
@@ -30,6 +32,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 
 ### Naming Conventions
 - Follow standard C# naming conventions
+- Defined in .editorconfig
 - Assembly prefix: `Opc.Ua`
 - Package prefix: `OPCFoundation.NetStandard`
 
@@ -53,27 +56,27 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 
 ### Test Requirements
 - All new features must include unit tests
-- Use NUnit or xUnit framework (match existing test projects)
+- Use NUnit framework (match existing test projects)
 - Test projects follow naming convention: `<Component>.Tests`
 - Tests must be deterministic and pass in CI/CD environment
-- Code coverage is monitored via CodeCov
+- Code coverage is monitored via Coverlet
 - Run tests with `dotnet test` from solution root
+- Use NUnit asserts methods, no other library or classic Nunit asserts.
 
 ### Test Organization
 - Place tests in the `Tests/` directory
 - Mirror the structure of the code being tested
 - Use descriptive test method names that explain what is being tested
+- Do not use _ in test method names; use PascalCase
 
 ## Build and Development
 
 ### Building the Project
-- **Prerequisites**: .NET SDK 6.0 or higher (8.0 recommended)
-- **Restore dependencies**: `dotnet restore 'UA Reference.sln'`
-- **Build**: Use Visual Studio 2022 or `dotnet build`
+- **Prerequisites**: .NET SDK 10.0
+- **Restore dependencies**: `dotnet restore 'UA.slnx'`
+- **Build**: Use Visual Studio 2026 or `dotnet build`
 - **Key solutions**:
-  - `UA Reference.sln` - Main reference implementation
-  - `UA Core Library.sln` - Core libraries
-  - `UA PubSub Preview.sln` - PubSub implementation
+  - `UA.slnx` - Contains all projects
 
 ### Project Structure
 - `Libraries/` - Core OPC UA libraries (Client, Server, Configuration, etc.)
@@ -88,6 +91,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Analysis level is set to "preview" with "all" analysis mode
 - .NET analyzers are enabled
 - Package validation is enabled
+- .editorconfig is enforced during build. Fix all errors, warnings, and informational messages. Do not suppress without marking the suppression with a comment explaining why and a TODO to fix later.
 
 ## OPC UA Specific Guidelines
 
@@ -100,11 +104,8 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 
 ### Key Features
 - Support for OPC UA 1.05 specification
-- Async/await patterns (TAP) for server implementations (see `Docs/AsyncServerSupport.md`)
-- Observability via `ITelemetryContext` and `ILogger`
-- PubSub functionality for publish-subscribe patterns
-- Global Discovery Server (GDS) support
-- Transfer subscriptions between sessions
+- All new code should use Async/await (TAP), APM and synchronous to Async are not allowed.
+- Observability is plumbed through via `ITelemetryContext`. Use it to create a `ILogger` for logging.
 
 ## Documentation
 
@@ -168,8 +169,9 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ### Performance Considerations
 - Be mindful of memory allocations in hot paths
 - Use async/await properly to avoid blocking
-- Consider thread safety (improved in 1.05+)
+- Consider thread safety
 - Profile performance-critical code
+- Avoid locking where possible. If needed use SemaphoreSlim to lock instead of lock keyword
 
 ## Resources
 
@@ -177,6 +179,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Documentation: See `Docs/` directory
 - Samples Repository: https://github.com/OPCFoundation/UA-.NETStandard-Samples
 - NuGet Packages: 
+  - Types: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/
   - Core: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/
   - Client: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/
   - Server: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/

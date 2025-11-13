@@ -268,8 +268,9 @@ namespace Opc.Ua.Sample
         /// <param name="filter">A filter with which the FullName of the type must start.</param>
         protected void AddEncodeableNodeManagerTypes(Assembly assembly, string filter)
         {
-            Server.Factory.AddEncodeableTypes(
-                assembly.GetExportedTypes().Where(t => t.FullName.StartsWith(filter)));
+            Server.Factory.AddEncodeableTypes(assembly
+                .GetExportedTypes()
+                .Where(t => t.FullName.StartsWith(filter, StringComparison.Ordinal)));
         }
 
         /// <summary>

@@ -187,7 +187,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
 
                 store = m_issuerStore.OpenStore(m_telemetry);
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
 
                 if (m_readMode)
@@ -729,7 +729,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
             }
             catch
@@ -779,7 +779,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
             }
             catch

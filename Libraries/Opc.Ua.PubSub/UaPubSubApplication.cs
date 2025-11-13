@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.Test;
 
 namespace Opc.Ua.PubSub
 {
@@ -109,7 +110,7 @@ namespace Opc.Ua.PubSub
             }
             else
             {
-                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next():D10}";
+                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{RandomSource.Default.NextInt32(int.MaxValue):D10}";
             }
 
             DataCollector = new DataCollector(DataStore, m_telemetry);
@@ -415,14 +416,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         private void UaPubSubConfigurator_ConnectionAdded(object sender, ConnectionEventArgs e)
         {
-            UaPubSubConnection newUaPubSubConnection = ObjectFactory.CreateConnection(
+            m_uaPubSubConnections.Add(ObjectFactory.CreateConnection(
                 this,
                 e.PubSubConnectionDataType,
-                m_telemetry);
-            if (newUaPubSubConnection != null)
-            {
-                m_uaPubSubConnections.Add(newUaPubSubConnection);
-            }
+                m_telemetry));
         }
 
         /// <summary>

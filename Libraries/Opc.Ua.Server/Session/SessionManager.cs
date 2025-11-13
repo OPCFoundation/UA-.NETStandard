@@ -112,9 +112,12 @@ namespace Opc.Ua.Server
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
+                // TODO: Await the task completion in shutdown and pass cancellation token
                 _ = Task.Factory.StartNew(
                     () => MonitorSessionsAsync(m_minSessionTimeout),
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
             }
             finally
             {

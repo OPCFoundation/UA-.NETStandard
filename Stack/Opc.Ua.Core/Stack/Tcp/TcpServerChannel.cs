@@ -1275,7 +1275,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ResetQueuedResponses(Action<object> action)
         {
-            Task.Factory.StartNew(action, m_queuedResponses);
+            Task.Factory.StartNew(
+                action,
+                m_queuedResponses,
+                default,
+                TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default);
             m_queuedResponses = [];
         }
 

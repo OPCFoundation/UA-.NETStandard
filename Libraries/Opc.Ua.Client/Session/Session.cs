@@ -2240,7 +2240,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task ReconnectAsync(
             ITransportWaitingConnection? connection,
-            ITransportChannel? transportChannel,
+            ITransportChannel? channel,
             CancellationToken ct)
         {
             ThrowIfDisposed();
@@ -2347,18 +2347,18 @@ namespace Opc.Ua.Client
 
                 if (connection != null)
                 {
-                    ITransportChannel? channel = NullableTransportChannel;
+                    ITransportChannel? transportChannel = NullableTransportChannel;
 
                     // check if the channel supports reconnect.
-                    if (channel != null &&
-                        (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                    if (transportChannel != null &&
+                        (transportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                     {
-                        await channel.ReconnectAsync(connection, ct).ConfigureAwait(false);
+                        await transportChannel.ReconnectAsync(connection, ct).ConfigureAwait(false);
                     }
                     else
                     {
                         // initialize the channel which will be created with the server.
-                        channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                        transportChannel = await UaChannelBase.CreateUaBinaryChannelAsync(
                             m_configuration,
                             connection,
                             m_endpoint.Description,
@@ -2371,27 +2371,27 @@ namespace Opc.Ua.Client
                             ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
-                        TransportChannel = channel;
+                        TransportChannel = transportChannel;
                     }
                 }
-                else if (transportChannel != null)
+                else if (channel != null)
                 {
-                    TransportChannel = transportChannel;
+                    TransportChannel = channel;
                 }
                 else
                 {
-                    ITransportChannel? channel = NullableTransportChannel;
+                    ITransportChannel? transportChannel = NullableTransportChannel;
 
                     // check if the channel supports reconnect.
-                    if (channel != null &&
-                        (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                    if (transportChannel != null &&
+                        (transportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                     {
-                        await channel.ReconnectAsync(ct: ct).ConfigureAwait(false);
+                        await transportChannel.ReconnectAsync(ct: ct).ConfigureAwait(false);
                     }
                     else
                     {
                         // initialize the channel which will be created with the server.
-                        channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                        transportChannel = await UaChannelBase.CreateUaBinaryChannelAsync(
                             m_configuration,
                             m_endpoint.Description,
                             m_endpoint.Configuration,
@@ -2403,7 +2403,7 @@ namespace Opc.Ua.Client
                             ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
-                        TransportChannel = channel;
+                        TransportChannel = transportChannel;
                     }
                 }
 

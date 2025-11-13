@@ -208,7 +208,7 @@ namespace Opc.Ua.Gds.Server.Database
 
         public virtual bool SetApplicationCertificate(
             NodeId applicationId,
-            string certificateType,
+            string certificateTypeId,
             byte[] certificate)
         {
             ValidateApplicationNodeId(applicationId);

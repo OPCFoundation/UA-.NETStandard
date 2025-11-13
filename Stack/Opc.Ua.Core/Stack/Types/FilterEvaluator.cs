@@ -1672,7 +1672,7 @@ namespace Opc.Ua
 
             if (rhs == null)
             {
-                if (lhs is null or true)
+                if (lhs is true)
                 {
                     return null;
                 }
@@ -1712,7 +1712,7 @@ namespace Opc.Ua
 
             if (rhs == null)
             {
-                if (lhs is null or false)
+                if (lhs is false)
                 {
                     return null;
                 }
@@ -2180,14 +2180,11 @@ namespace Opc.Ua
             }
 
             // get the type of the m_target.
+            targetTypeId = GetValue(operands[1]) as NodeId;
+
             if (targetTypeId == null)
             {
-                targetTypeId = GetValue(operands[1]) as NodeId;
-
-                if (targetTypeId == null)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // check the m_target.

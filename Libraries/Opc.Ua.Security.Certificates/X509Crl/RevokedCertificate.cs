@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 
@@ -86,7 +87,7 @@ namespace Opc.Ua.Security.Certificates
         public RevokedCertificate(string serialNumber)
             : this()
         {
-            UserCertificate = [.. serialNumber.FromHexString().Reverse()];
+            UserCertificate = [.. ((IEnumerable<byte>)serialNumber.FromHexString()).Reverse()];
         }
 
         /// <summary>

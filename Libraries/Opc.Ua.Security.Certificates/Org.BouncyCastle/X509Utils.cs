@@ -278,7 +278,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 string msFriendlyName = ecParams.Curve.Oid.FriendlyName;
                 string bcFriendlyName = msFriendlyName;
                 const string nistCurveName = "nist";
-                if (msFriendlyName.StartsWith(nistCurveName))
+                if (msFriendlyName.StartsWith(nistCurveName, StringComparison.Ordinal))
                 {
                     const string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
                     bcFriendlyName = Regex.Replace(
@@ -334,7 +334,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static BigInteger GetSerialNumber(X509Certificate2 certificate)
         {
             byte[] serialNumber = certificate.GetSerialNumber();
-            return new BigInteger(1, [.. serialNumber.Reverse()]);
+            return new BigInteger(1, [.. ((IEnumerable<byte>)serialNumber).Reverse()]);
         }
 
         /// <summary>

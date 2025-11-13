@@ -56,7 +56,9 @@ namespace System.Threading
         public void Enter()
         {
 #pragma warning disable CS9216
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
             Monitor.Enter(this);
+#pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
         }
 
@@ -70,7 +72,9 @@ namespace System.Threading
         public bool TryEnter()
         {
 #pragma warning disable CS9216
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
             return Monitor.TryEnter(this);
+#pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
         }
 
@@ -79,7 +83,9 @@ namespace System.Threading
         public bool TryEnter(TimeSpan timeout)
         {
 #pragma warning disable CS9216
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
             return Monitor.TryEnter(this, timeout);
+#pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
         }
 
@@ -88,7 +94,9 @@ namespace System.Threading
         public bool TryEnter(int millisecondsTimeout)
         {
 #pragma warning disable CS9216
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
             return Monitor.TryEnter(this, millisecondsTimeout);
+#pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
         }
 
@@ -125,7 +133,9 @@ namespace System.Threading
             try
             {
 #pragma warning disable CS9216
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
                 Monitor.Enter(this, ref lockTaken);
+#pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
                 return new Scope(this);
             }
@@ -145,7 +155,9 @@ namespace System.Threading
         public Scope EnterScope()
         {
 #pragma warning disable CS9216
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
             Monitor.Enter(this);
+#pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
             return new Scope(this);
         }

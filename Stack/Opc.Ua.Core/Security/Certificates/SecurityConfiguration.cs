@@ -124,12 +124,12 @@ namespace Opc.Ua
                     ?? throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         $"Failed to open {storeName} store");
-                store?.Close();
+                store.Close();
             }
             catch (Exception ex)
             {
                 ILogger<SecurityConfiguration> logger = telemetry.CreateLogger<SecurityConfiguration>();
-                logger.LogError(ex, "Failed to open {storeName} store", storeName);
+                logger.LogError(ex, "Failed to open {StoreName} store", storeName);
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     storeName + " store is invalid.");

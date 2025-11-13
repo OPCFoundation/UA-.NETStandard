@@ -438,7 +438,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// <summary>
         /// Testable wrapper for ClientBase that exposes protected members.
         /// </summary>
-        private class TestableClientBase : ClientBase
+        private sealed class TestableClientBase : ClientBase
         {
             public TestableClientBase(ITransportChannel channel, ITelemetryContext telemetry)
                 : base(channel)
@@ -474,7 +474,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// <summary>
         /// Test logger provider for capturing log entries.
         /// </summary>
-        private class TestLoggerProvider : ILoggerProvider
+        private sealed class TestLoggerProvider : ILoggerProvider
         {
             public List<string> LogEntries { get; } = [];
 
@@ -487,7 +487,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             {
             }
 
-            private class TestLogger : ILogger
+            private sealed class TestLogger : ILogger
             {
                 private readonly TestLoggerProvider m_provider;
 
@@ -521,7 +521,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// <summary>
         /// Test meter listener for capturing recorded measurements.
         /// </summary>
-        private class TestMeterListener : IDisposable
+        private sealed class TestMeterListener : IDisposable
         {
             private MeterListener? m_listener;
             public List<MeasurementRecord> RecordedMeasurements { get; } = [];
@@ -562,7 +562,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 m_listener?.Dispose();
             }
 
-            public class MeasurementRecord
+            public sealed class MeasurementRecord
             {
                 public string InstrumentName { get; set; } = string.Empty;
                 public double Value { get; set; }
@@ -573,7 +573,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// <summary>
         /// Test activity listener for capturing activity events.
         /// </summary>
-        private class TestActivityListener : IDisposable
+        private sealed class TestActivityListener : IDisposable
         {
             private readonly ActivityListener m_listener;
 

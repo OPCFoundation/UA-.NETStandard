@@ -635,7 +635,9 @@ namespace Opc.Ua
                 aes.Key = encryptingKey;
                 aes.IV = iv;
 
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector, which could be potentially repeatable
                 using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401 // Symmetric encryption uses non-default initialization vector, which could be potentially repeatable
                 if (dataToEncrypt.Length % encryptor.InputBlockSize != 0)
                 {
                     throw ServiceResultException.Create(

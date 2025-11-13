@@ -588,7 +588,7 @@ namespace Opc.Ua.Client
 
                 if (m_eventCache != null && newValue is EventFieldList eventchange)
                 {
-                    m_eventCache?.OnNotification(eventchange);
+                    m_eventCache.OnNotification(eventchange);
                 }
 
                 m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
@@ -1148,6 +1148,10 @@ namespace Opc.Ua.Client
                     }
                     values.Add(dequeued);
                 }
+            }
+            else if (LastValue == null)
+            {
+                values = [];
             }
             else
             {

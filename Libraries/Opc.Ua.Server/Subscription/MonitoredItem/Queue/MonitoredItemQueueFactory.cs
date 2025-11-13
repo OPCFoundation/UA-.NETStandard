@@ -50,16 +50,16 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(
-            bool createDurable,
+            bool isDurable,
             uint monitoredItemId)
         {
-            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId, m_telemetry);
+            return new DataChangeMonitoredItemQueue(isDurable, monitoredItemId, m_telemetry);
         }
 
         /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
+        public IEventMonitoredItemQueue CreateEventQueue(bool isDurable, uint monitoredItemId)
         {
-            return new EventMonitoredItemQueue(createDurable, monitoredItemId, m_telemetry);
+            return new EventMonitoredItemQueue(isDurable, monitoredItemId, m_telemetry);
         }
 
         /// <inheritdoc/>

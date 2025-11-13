@@ -3,10 +3,10 @@
 #
 parameters:
   configuration: 'Release'
-  framework: net8.0
+  framework: net10.0
   agent: 'linux'
   poolImage: 'ubuntu-22.04'
-  jobnamesuffix: 'net80cc'
+  jobnamesuffix: 'net100cc'
   customtestarget: ''
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
@@ -30,13 +30,13 @@ jobs:
       packageType: 'sdk'
       version: '8.0.x'
   - task: UseDotNet@2
-    displayName: 'Install .NET 9.0'
+    displayName: 'Install .NET 10.0'
     inputs:
       packageType: 'sdk'
-      version: '9.0.x'
+      version: '10.0.x'
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.8.x'
+      versionSpec: '>=7.0.x'
   - task: DownloadSecureFile@1
     name: fuzzingartifacts
     displayName: 'Download Fuzzing artifacts'
@@ -60,14 +60,14 @@ jobs:
     displayName: Restore ${{ parameters.framework }}
     inputs:
       command: restore
-      projects: 'UA Core Library.sln'
+      projects: 'UA.slnx'
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.framework }}
     timeoutInMinutes: 60
     inputs:
       command: test
-      projects: 'UA Core Library.sln'
+      projects: 'UA.slnx'
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
       publishTestResults: false

@@ -301,7 +301,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
@@ -337,7 +337,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
@@ -356,7 +356,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
@@ -410,15 +410,15 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            var random = new Random(62541);
             var testSet = ReferenceDescriptions
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Take(kTestSetSize)
                 .Select(r => r.NodeId)
                 .ToList();
+
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -440,15 +440,15 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            var random = new Random(62541);
             var testSet = ReferenceDescriptions
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Take(kTestSetSize)
                 .Select(r => r.NodeId)
                 .ToList();
+
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -469,15 +469,15 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            var random = new Random(62541);
             var testSet = ReferenceDescriptions
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Take(kTestSetSize)
                 .Select(r => r.NodeId)
                 .ToList();
+
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId> { ReferenceTypeIds.HierarchicalReferences };
 
@@ -504,15 +504,15 @@ namespace Opc.Ua.Client.Tests
 
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            var random = new Random(62541);
             var testSetAll = ReferenceDescriptions
                 .Where(r => r.NodeClass == NodeClass.Variable)
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Select(r => r.NodeId)
                 .ToList();
+
             var testSet1 = testSetAll.Take(kTestSetSize).ToList();
             var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
             var testSet3 = testSetAll.Skip(kTestSetSize * 2).Take(kTestSetSize).ToList();
@@ -639,7 +639,7 @@ namespace Opc.Ua.Client.Tests
             await Task.WhenAll([.. taskList]).ConfigureAwait(false);
         }
 
-        private void BrowseFullAddressSpace()
+        private async Task BrowseFullAddressSpaceAsync()
         {
             var requestHeader = new RequestHeader
             {
@@ -649,9 +649,9 @@ namespace Opc.Ua.Client.Tests
 
             // Session
             var clientTestServices = new ClientTestServices(Session, Telemetry);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
+            ReferenceDescriptions = await CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(
                 clientTestServices,
-                requestHeader);
+                requestHeader).ConfigureAwait(false);
         }
     }
 }

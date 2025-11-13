@@ -600,7 +600,7 @@ namespace Opc.Ua.Test
 
             if (value2 == null)
             {
-                return value1 == null || value1 == QualifiedName.Null;
+                return value1 == QualifiedName.Null;
             }
 
             if (!value1.Equals(value2))
@@ -626,7 +626,7 @@ namespace Opc.Ua.Test
 
             if (value2 == null)
             {
-                return value1 == null || value1 == LocalizedText.Null;
+                return value1 == LocalizedText.Null;
             }
 
             if (!value1.Equals(value2))
@@ -1166,7 +1166,7 @@ namespace Opc.Ua.Test
 
             if (value2 == null)
             {
-                return value1 == null || !value1.GetEnumerator().MoveNext();
+                return !value1.GetEnumerator().MoveNext();
             }
 
             IEnumerator<T> enumerator1 = value1.GetEnumerator();

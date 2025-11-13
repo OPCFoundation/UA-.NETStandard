@@ -2360,21 +2360,18 @@ namespace Opc.Ua
                         }
                     }
 
-                    if (BeginField(fieldName, matrix == null, true, true))
+                    if (BeginField(fieldName, false, true, true))
                     {
                         PushNamespace(Namespaces.OpcUaXsd);
 
-                        if (matrix != null)
-                        {
-                            // dimensions element is written first
-                            WriteInt32Array("Dimensions", matrix.Dimensions);
+                        // dimensions element is written first
+                        WriteInt32Array("Dimensions", matrix.Dimensions);
 
-                            WriteArray(
-                                "Elements",
-                                matrix.Elements,
-                                ValueRanks.OneDimension,
-                                builtInType);
-                        }
+                        WriteArray(
+                            "Elements",
+                            matrix.Elements,
+                            ValueRanks.OneDimension,
+                            builtInType);
 
                         PopNamespace();
 

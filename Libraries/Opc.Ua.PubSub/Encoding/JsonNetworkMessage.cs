@@ -242,13 +242,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decodes the message
         /// </summary>
         public override void Decode(
-            IServiceMessageContext context,
+            IServiceMessageContext messageContext,
             byte[] message,
             IList<DataSetReaderDataType> dataSetReaders)
         {
             string json = System.Text.Encoding.UTF8.GetString(message);
 
-            using var jsonDecoder = new JsonDecoder(json, context);
+            using var jsonDecoder = new JsonDecoder(json, messageContext);
             // 1. decode network message header (PublisherId & DataSetClassId)
             DecodeNetworkMessageHeader(jsonDecoder);
 

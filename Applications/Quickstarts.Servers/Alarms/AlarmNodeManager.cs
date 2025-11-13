@@ -92,6 +92,7 @@ namespace Alarms
 
                 m_logger.LogInformation("Alarms: Disposed AlarmNodeManager");
             }
+            base.Dispose(disposing);
         }
 
         /// <summary>
@@ -528,38 +529,34 @@ namespace Alarms
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
+            SourceController sourceController = GetSourceControllerFromNodeState(
+                node,
+                sourceControllers);
 
-            if (sourceControllers != null)
+            if (sourceController == null)
             {
-                SourceController sourceController = GetSourceControllerFromNodeState(
-                    node,
-                    sourceControllers);
+                return StatusCodes.BadNodeIdUnknown;
+            }
 
-                if (sourceController == null)
+            m_logger.LogInformation("Manual Write {Value} to {NodeId}", value, node.NodeId);
+
+            lock (m_alarms)
+            {
+                sourceController.Source.Value = value;
+                Type valueType = value.GetType();
+                sourceController.Controller.ManualWrite(value);
+                IList<IReference> references = [];
+                sourceController.Source.GetReferences(
+                    SystemContext,
+                    references,
+                    ReferenceTypes.HasCondition,
+                    false);
+                foreach (IReference reference in references)
                 {
-                    return StatusCodes.BadNodeIdUnknown;
-                }
-
-                m_logger.LogInformation("Manual Write {Value} to {NodeId}", value, node.NodeId);
-
-                lock (m_alarms)
-                {
-                    sourceController.Source.Value = value;
-                    Type valueType = value.GetType();
-                    sourceController.Controller.ManualWrite(value);
-                    IList<IReference> references = [];
-                    sourceController.Source.GetReferences(
-                        SystemContext,
-                        references,
-                        ReferenceTypes.HasCondition,
-                        false);
-                    foreach (IReference reference in references)
+                    string identifier = reference.TargetId.ToString();
+                    if (m_alarms.TryGetValue(identifier, out AlarmHolder holder))
                     {
-                        string identifier = reference.TargetId.ToString();
-                        if (m_alarms.TryGetValue(identifier, out AlarmHolder holder))
-                        {
-                            holder.Update(true);
-                        }
+                        holder.Update(true);
                     }
                 }
             }
@@ -587,8 +584,8 @@ namespace Alarms
 #endif
 
                 string mapName = name;
-                if (name.EndsWith(AlarmDefines.TRIGGER_EXTENSION) ||
-                    name.EndsWith(AlarmDefines.ALARM_EXTENSION))
+                if (name.EndsWith(AlarmDefines.TRIGGER_EXTENSION, StringComparison.Ordinal) ||
+                    name.EndsWith(AlarmDefines.ALARM_EXTENSION, StringComparison.Ordinal))
                 {
                     int lastDot = name.LastIndexOf('.');
                     mapName = name[..lastDot];

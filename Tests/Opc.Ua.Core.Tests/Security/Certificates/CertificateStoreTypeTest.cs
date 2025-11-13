@@ -64,7 +64,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         public bool SupportsStorePath(string storePath)
         {
-            return storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix);
+            return storePath != null &&
+                storePath.StartsWith(TestCertStore.StoreTypePrefix, StringComparison.Ordinal);
         }
     }
 

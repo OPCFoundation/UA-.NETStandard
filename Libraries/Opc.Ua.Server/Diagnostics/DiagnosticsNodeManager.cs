@@ -1963,11 +1963,8 @@ namespace Opc.Ua.Server
 
             if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
             {
-                if (m_diagnosticsScanTimer != null)
-                {
-                    m_diagnosticsScanTimer.Dispose();
-                    m_diagnosticsScanTimer = null;
-                }
+                m_diagnosticsScanTimer.Dispose();
+                m_diagnosticsScanTimer = null;
             }
             else if (m_diagnosticsScanTimer != null)
             {

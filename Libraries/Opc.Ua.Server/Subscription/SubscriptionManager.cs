@@ -226,15 +226,21 @@ namespace Opc.Ua.Server
 
                 m_shutdownEvent.Reset();
 
+                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
                 Task.Factory.StartNew(
                     () => PublishSubscriptions(m_publishingResolution),
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
 
                 m_conditionRefreshEvent.Reset();
 
+                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
                 Task.Factory.StartNew(
                     ConditionRefreshWorker,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
             }
         }
 
@@ -955,30 +961,6 @@ namespace Opc.Ua.Server
                     queue.Enqueue(message);
                 }
             }
-        }
-
-        /// <summary>
-        /// Publishes a subscription.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public NotificationMessage Publish(
-            OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
-        {
-            PublishResponse response = PublishAsync(context, subscriptionAcknowledgements).GetAwaiter().GetResult();
-
-            subscriptionId = response.SubscriptionId;
-            availableSequenceNumbers = response.AvailableSequenceNumbers;
-            moreNotifications = response.MoreNotifications;
-            acknowledgeResults = response.Results;
-            acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-
-            return response.NotificationMessage;
         }
 
         /// <summary>
@@ -2046,7 +2028,7 @@ namespace Opc.Ua.Server
                                 continue;
                             }
 
-                            (subscriptionsToDelete ??= []).Add(subscription);
+                            subscriptionsToDelete.Add(subscription);
                             SubscriptionExpired(subscription);
                             m_logger.LogInformation(
                                 "Subscription - Abandoned Subscription Id={SubscriptionId} Delete Scheduled.",

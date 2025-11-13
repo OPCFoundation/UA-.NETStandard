@@ -835,7 +835,6 @@ namespace Opc.Ua.Server
                 if (slice.EarlyBound != null)
                 {
                     if (Configuration.UseSlopedExtrapolation &&
-                        slice.EarlyBound != null &&
                         slice.SecondEarlyBound != null)
                     {
                         UsingExtrapolation = true;
@@ -1368,7 +1367,6 @@ namespace Opc.Ua.Server
                     // if at end of data then duration is 1 tick.
                     // must be end of data if start of region is good yet end bound is bad.
                     if (!ignoreBadData &&
-                        currentRegion != null &&
                         IsGood(currentRegion.DataPoint) &&
                         currentStatus == StatusCodes.BadNoData &&
                         ii == values.Count - 1)

@@ -47,22 +47,10 @@ jobs:
     - name: Set up .NET
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: '8.x'
-
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v2.0.0
-
-
-    - name: Restore Packages
-      run: |
-        nuget restore "UA Core Library.sln"
-        nuget restore "UA Reference.sln"
-
+        dotnet-version: '10.x'
+    # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages#c-compiler-flags-injected-by-codeql-for-manual-builds
     - name: Build Solution
       run: |
-        msbuild.exe "UA Core Library.sln" /p:configuration="Release" /p:UseSharedCompilation=false
-        msbuild.exe "UA Reference.sln" /p:configuration="Release" /p:UseSharedCompilation=false
-
+        dotnet build "UA.slnx" -c Release /p:UseSharedCompilation=false /p:EmitCompilerGeneratedFiles=true
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

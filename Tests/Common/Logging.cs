@@ -65,9 +65,9 @@ namespace Opc.Ua.Tests
         /// <summary>
         /// Create telemetry context
         /// </summary>
-        private NUnitTelemetryContext(string context)
+        private NUnitTelemetryContext(string context, ILoggerProvider provider)
             : base(Microsoft.Extensions.Logging.LoggerFactory
-                .Create(builder => builder.AddProvider(new NUnitLoggerProvider(context))))
+                .Create(builder => builder.AddProvider(provider)))
         {
         }
 
@@ -77,7 +77,19 @@ namespace Opc.Ua.Tests
         /// <returns></returns>
         public static ITelemetryContext Create(bool isServer = false)
         {
-            return new NUnitTelemetryContext(!isServer ? "TEST" : "SERVER");
+            string context = !isServer ? "TEST" : "SERVER";
+            return new NUnitTelemetryContext(context,
+                new NUnitLoggerProvider(context));
+        }
+
+        /// <summary>
+        /// Use the benchmark log output
+        /// </summary>
+        /// <returns></returns>
+        public static ITelemetryContext CreateForBenchmarks()
+        {
+            return new NUnitTelemetryContext("BENCHMARKS",
+                new BenchmarkDotNetProvider());
         }
 
         [ProviderAlias("BenchmarkDotNet")]

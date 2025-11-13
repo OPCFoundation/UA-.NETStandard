@@ -81,9 +81,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTime GetLastWriteTime(string designFilePath)
+        public DateTime GetLastWriteTime(string path)
         {
-            return new FileInfo(designFilePath).LastWriteTimeUtc;
+            return new FileInfo(path).LastWriteTimeUtc;
         }
     }
 }

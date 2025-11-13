@@ -386,7 +386,7 @@ namespace Opc.Ua.Security
                     return 0;
                 default:
                     logger.LogWarning(
-                        "Security level requested for unknown Security Policy {policy}. Returning security level 0",
+                        "Security level requested for unknown Security Policy {Policy}. Returning security level 0",
                         policyUri);
                     return 0;
             }

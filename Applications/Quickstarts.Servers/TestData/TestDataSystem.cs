@@ -883,7 +883,7 @@ namespace TestData
             }
         }
 
-        private class Sample
+        private sealed class Sample
         {
             public BaseVariableState Variable;
             public object Value;

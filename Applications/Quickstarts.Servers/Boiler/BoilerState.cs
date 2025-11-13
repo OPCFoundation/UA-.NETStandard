@@ -51,7 +51,6 @@ namespace Boiler
             base.OnAfterCreate(context, node);
 
             Simulation.OnAfterTransition = OnControlSimulation;
-            m_random = new Random();
         }
 
         /// <summary>
@@ -64,6 +63,7 @@ namespace Boiler
                 m_simulationTimer.Dispose();
                 m_simulationTimer = null;
             }
+            base.Dispose(disposing);
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Boiler
             double perturbedValue = Math.Round(value * Math.Pow(10.0, offsetToApply));
 
             // apply the perturbation.
-            perturbedValue += (m_random.NextDouble() - 0.5) * 5;
+            perturbedValue += (UnsecureRandom.Shared.NextDouble() - 0.5) * 5;
 
             // restore original exponent.
 
@@ -297,6 +297,5 @@ namespace Boiler
         private ILogger m_logger;
         private ISystemContext m_simulationContext;
         private Timer m_simulationTimer;
-        private Random m_random;
     }
 }

@@ -84,7 +84,6 @@ namespace Opc.Ua.Types.Buffers.Tests
             [Values(16, 333, 1024, 4096)] int defaultChunkSize,
             [Values(0, 1024, 4096, 65536)] int maxChunkSize)
         {
-            var random = new Random(42);
             int length;
             ReadOnlySequence<byte> sequence;
             byte[] buffer;
@@ -99,14 +98,14 @@ namespace Opc.Ua.Types.Buffers.Tests
             {
                 Span<byte> span;
                 int randomGetChunkSize = maxChunkSize > 0
-                    ? chunkSize + random.Next(maxChunkSize)
+                    ? chunkSize + UnsecureRandom.Shared.Next(maxChunkSize)
                     : chunkSize;
 
-                int repeats = random.Next(3);
+                int repeats = UnsecureRandom.Shared.Next(3);
                 do
                 {
                     // get a new chunk
-                    if (random.Next(2) == 0)
+                    if (UnsecureRandom.Shared.Next(2) == 0)
                     {
                         Memory<byte> memory = writer.GetMemory(randomGetChunkSize);
                         Assert.That(memory.Length, Is.GreaterThanOrEqualTo(chunkSize));
@@ -129,7 +128,7 @@ namespace Opc.Ua.Types.Buffers.Tests
                 writer.Advance(chunkSize);
 
                 // Assert interim projections
-                if (random.Next(10) == 0)
+                if (UnsecureRandom.Shared.Next(10) == 0)
                 {
                     length = chunkSize * (i + 1);
                     sequence = writer.GetReadOnlySequence();

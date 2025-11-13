@@ -414,12 +414,11 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             // Arrange
             using var vfs = new VirtualFileSystem();
             const string filePath = "random.dat";
-            var random = new Random(12345); // Fixed seed for reproducible test
             foreach (int size in new[] { 0, 1, 10, 100, 1000, 10000 })
             {
                 // Generate random content
                 byte[] content = new byte[size];
-                random.NextBytes(content);
+                UnsecureRandom.Shared.NextBytes(content);
 
                 // Act - Write random content
                 using (Stream writeStream = vfs.OpenWrite(filePath))

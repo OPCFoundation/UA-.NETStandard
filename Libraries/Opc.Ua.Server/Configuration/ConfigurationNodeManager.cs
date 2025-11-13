@@ -486,7 +486,7 @@ namespace Opc.Ua.Server
                     throw new ArgumentNullException(nameof(certificate));
                 }
 
-                privateKeyFormat = privateKeyFormat?.ToUpper();
+                privateKeyFormat = privateKeyFormat?.ToUpperInvariant();
                 if (privateKeyFormat is not null and not "PEM" and not "PFX" and not "")
                 {
                     throw new ServiceResultException(

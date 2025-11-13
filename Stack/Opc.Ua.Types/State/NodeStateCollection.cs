@@ -46,7 +46,7 @@ namespace Opc.Ua
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
         /// </summary>
         /// <param name="collection">The collection whose elements are copied to the new list.</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public NodeStateCollection(IEnumerable<NodeState> collection)

@@ -552,7 +552,7 @@ namespace Opc.Ua
 
             while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
+                if (typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
@@ -591,7 +591,7 @@ namespace Opc.Ua
 
             while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
+                if (typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
@@ -2868,7 +2868,7 @@ namespace Opc.Ua
                             }
 
                             int index = digits.IndexOf(
-                                char.ToUpper(text[ii]),
+                                char.ToUpperInvariant(text[ii]),
                                 StringComparison.Ordinal);
 
                             if (index < 0)

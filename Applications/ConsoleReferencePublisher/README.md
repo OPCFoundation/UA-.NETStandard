@@ -1,90 +1,107 @@
 
-
 # OPC Foundation UA .NET Standard Library - Console Reference Publisher
 
 ## Introduction
-This OPC application was created to provide the sample code for creating Publisher applications using the OPC Foundation UA .NET Standard PubSub Library. There is a .NET Core 3.1 (2.1) console version of the Publisher which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard).
+
+This OPC application was created to provide the sample code for creating Publisher applications using the OPC Foundation UA .NET Standard PubSub Library. There is a .NET Core 3.1 (2.1) console version of the Publisher which runs on any OS supporting [.NET Standard 2.1](https://docs.microsoft.com/dotnet/articles/standard).
 The Reference Publisher is configured to run in parallel with the [Console Reference Subscriber](../ConsoleReferenceSubscriber/README.md)
 
 ## How to build and run the console OPC UA Reference Publisher from Visual Studio
-1. Open the solution **UA Reference.sln** with Visual Studio 2019.
+
+1. Open the solution **UA.slnx** with Visual Studio 2026.
 2. Choose the project `ConsoleReferencePublisher` in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
 
 ## How to build and run the console OPC UA Reference Publisher on Windows, Linux and iOS
+
 This section describes how to run the **ConsoleReferencePublisher**.
 
-Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. 
+Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform.
 
 ## Start the Publisher
+
 1. Open a command prompt.
 2. Navigate to the folder **Applications/ConsoleReferencePublisher**.
-3. To run the Publisher sample execute: 
+3. To run the Publisher sample execute:
 
-`dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1` 
+`dotnet run --project ConsoleReferencePublisher.csproj --framework net10.0`
 
-
-The Publisher will start and publish network messages that can be consumed by the Reference Subscriber. 
+The Publisher will start and publish network messages that can be consumed by the Reference Subscriber.
 Publisher Initialization
 
 ## Command Line Arguments for *ConsoleReferencePublisher*
+
  **ConsoleReferencePublisher** can be executed using the following command line arguments:
- 
 
- -  -h|help - Shows usage information
- -  -m|mqtt_json - Creates a connection using there MQTT with Json encoding Profile. This is the default option.
- -  -u|udp_uadp - Creates a connection using there UDP with UADP encoding Profile. 
+- -h|help - Shows usage information
+- -m|mqtt_json - Creates a connection using there MQTT with Json encoding Profile. This is the default option.
+- -u|udp_uadp - Creates a connection using there UDP with UADP encoding Profile.
 
-To run the Publisher sample using a connection with MQTT with Json encoding execute: 
+To run the Publisher sample using a connection with MQTT with Json encoding execute:
 
-		dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1 
+```sh
+  dotnet run --project ConsoleReferencePublisher.csproj --framework net10.0
+```
 
-		or 
+  or
 
-		dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1 -m
+```sh
+  dotnet run --project ConsoleReferencePublisher.csproj --framework net10.0 -m
+```
 
-To run the Publisher sample using a connection with the UDP with UADP encoding execute: 
+To run the Publisher sample using a connection with the UDP with UADP encoding execute:
 
-		dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1 -u
+```sh
+  dotnet run --project ConsoleReferencePublisher.csproj --framework net10.0 -u
+```
 
-# Programmer's Guide
+## Programmer's Guide
+
 To create a new OPC UA Publisher application:
 
- - Open Microsoft Visual Studio 2019 environment,
- - Create a new project and give it a name,
- - Add a reference to the [OPCFoundation.NetStandard.Opc.Ua.PubSub NuGet package](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/),
- - Initialize Publisher application (see [Publisher Initialization](#publisher-initialization)).
+- Open Microsoft Visual Studio 2019 environment,
+- Create a new project and give it a name,
+- Add a reference to the [OPCFoundation.NetStandard.Opc.Ua.PubSub NuGet package](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/),
+- Initialize Publisher application (see [Publisher Initialization](#publisher-initialization)).
 
-## Publisher Initialization
+### Publisher Initialization
 
 The following four steps are required to implement a functional Publisher:
 
- 1. Create [Publisher Configuration](#publisher-configuration).
- 
-		// Create configuration using MQTT protocol and JSON Encoding
-        PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
-    
-      Or use the alternative configuration object for UDP with UADP encoding
-	  
-		// Create configuration using UDP protocol and UADP Encoding 
-        PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_UdpUadp();      
-        
-	The CreatePublisherConfiguration methods can be found in  [ConsoleReferencePublisher/Program.cs](./Program.cs) file.
+1. Create [Publisher Configuration](#publisher-configuration).
 
- 2. Create an instance of the [UaPubSubApplication Class](../../Docs/PubSub.md#uapubsubapplication-class) using the configuration data from step 1.
- 
-        // Create an instance of UaPubSubApplication
-        UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration);
+    ```csharp
+      // Create configuration using MQTT protocol and JSON Encoding
+            PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
+    ```
 
- 3. Provide the data to be published based on the configuration of published data sets. This step is described in the [Publisher Data](#publisher-data) section.
- 4. Start PubSub application
+    Or use the alternative configuration object for UDP with UADP encoding
 
-        // Start the publisher
-        uaPubSubApplication.Start();
+    ```csharp
+      // Create configuration using UDP protocol and UADP Encoding 
+            PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_UdpUadp();
+    ```
+
+    The CreatePublisherConfiguration methods can be found in  [ConsoleReferencePublisher/Program.cs](./Program.cs) file.
+
+2. Create an instance of the [UaPubSubApplication Class](../../Docs/PubSub.md#uapubsubapplication-class) using the configuration data from step 1.
+
+    ```csharp
+            // Create an instance of UaPubSubApplication
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration);
+    ```
+
+3. Provide the data to be published based on the configuration of published data sets. This step is described in the [Publisher Data](#publisher-data) section.
+4. Start PubSub application
+
+    ```csharp
+            // Start the publisher
+            uaPubSubApplication.Start();
+    ```
 
 After this step the Publisher will publish data as configured.
 
-## Publisher Configuration
+### Publisher Configuration
 
 The Publisher configuration is a subset of the [PubSub Configuration](../../Docs/PubSub.md#pubsub-configuration). A functional *Publisher* application needs to have a configuration (*PubSubConfigurationDataType* instance) that contains a list of published data sets (*PublishedDataSetDataType* instances) and at least one connection (*PubSubConnectionDataType* instance) with at least one writer group configuration (*WriterGroupDataType* instance). The writer group contains at least one data set writer (*DataSetWriterDataType* instance) pointing to a published data set from the current configuration.
 
@@ -92,9 +109,9 @@ The diagram shows the subset of classes involved in an *OPC UA Publisher* config
 
 ![PublisherConfigClasses](../../Docs/Images/PublisherConfigClasses.png)
 
-## Publisher Data
+### Publisher Data
 
-The [UaPubSubApplication Class](../../Docs/PubSub.md#uapubsubapplication-class) provides a property of type [IUaPubSubDataStore](../../Docs/PubSub.md#iuapubsubdatastore-interface) called DataStore. In **ConsoleReferencePublisher** there is no custom implementation provided for *IUaPubSubDataStore* therefore the pub sub application object is initialized using the default implementation of this interface, an instance of *UaPubSubDataStore*. 
+The [UaPubSubApplication Class](../../Docs/PubSub.md#uapubsubapplication-class) provides a property of type [IUaPubSubDataStore](../../Docs/PubSub.md#iuapubsubdatastore-interface) called DataStore. In **ConsoleReferencePublisher** there is no custom implementation provided for *IUaPubSubDataStore* therefore the pub sub application object is initialized using the default implementation of this interface, an instance of *UaPubSubDataStore*.
 
 The code responsible for generating the data values to be published is located in the [PublishedValuesWrites](/PublishedValuesWrites.cs)  file from the **ConsoleReferencePublisher** project. It maintains a list of all the fields from the table below and uses a timer for writing the values to *UaPubSubApplication.DataStore* using the *WritePublishedDataItem*() method from *DataStore* class. The data values simulator component is initialized like:
 
@@ -109,7 +126,8 @@ The current PubSub implementation only supports *PublishedDataItemsDataType* as 
 
 The **ConsoleReferencePublisher** application is configured to use the following data sets and will generate values as specified in the table below if the default configuration method is used:
 
-### PublishedDataSet 'Simple' - NamespaceIndex = 2
+#### PublishedDataSet 'Simple' - NamespaceIndex = 2
+
 | Name  | DataType  |  ValueRank |Behavior  |
 |--|--|--|--|
 |BoolToggle |Boolean |Scalar |Toggles every 3 seconds|
@@ -119,7 +137,8 @@ The **ConsoleReferencePublisher** application is configured to use the following
 
 The *CreatePublishedDataSetSimple*() method from [Program.cs](Program.cs) creates a *PublishedDataSetDataType* configuration object that contains the metadata information for *'Simple' DataSet*.
 
-### PublishedDataSet 'AllTypes' - NamespaceIndex = 3
+#### PublishedDataSet 'AllTypes' - NamespaceIndex = 3
+
 | Name  | DataType  |  ValueRank |Behavior  |
 |--|--|--|--|
 |BoolToggle |Boolean |Scalar |Toggles every second|

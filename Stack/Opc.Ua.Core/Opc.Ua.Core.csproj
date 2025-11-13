@@ -39,6 +39,8 @@
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size! -->
+  <!-- This is not used by the stack, but was added as convinience for applications to get the nodesets -->
+  <!-- related to the stack version. Do not take a dependency, this will be removed in future versions -->
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/zipnodeset2</ZipTmp>
     <NodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</NodeSet2XML>

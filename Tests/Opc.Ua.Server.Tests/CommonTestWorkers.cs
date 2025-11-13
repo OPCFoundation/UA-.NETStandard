@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -208,7 +209,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="services">The service interface.</param>
         /// <param name="operationLimits">The operation limits.</param>
-        public static ReferenceDescriptionCollection BrowseFullAddressSpaceWorker(
+        public static async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceWorkerAsync(
                     IServerTestServices services,
                     RequestHeader requestHeader,
                     OperationLimits operationLimits = null,
@@ -237,22 +238,18 @@ namespace Opc.Ua.Server.Tests
                     browseTemplate);
 
             // Browse
-            ResponseHeader response = null;
             uint requestedMaxReferencesPerNode = operationLimits.MaxNodesPerBrowse;
             bool verifyMaxNodesPerBrowse = operationLimits.MaxNodesPerBrowse > 0;
             var referenceDescriptions = new ReferenceDescriptionCollection();
 
             // Test if server responds with BadNothingToDo
             {
-                ServiceResultException sre = NUnit.Framework.Assert
-                    .Throws<ServiceResultException>(() =>
-                        _ = services.Browse(
+                ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        _ = await services.BrowseAsync(
                             requestHeader,
                             null,
                             0,
-                            browseDescriptionCollection.Take(0).ToArray(),
-                            out BrowseResultCollection results,
-                            out DiagnosticInfoCollection infos));
+                            browseDescriptionCollection.Take(0).ToArray()).ConfigureAwait(false));
                 Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
             }
 
@@ -264,15 +261,12 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert
-                        .Throws<ServiceResultException>(() =>
-                            _ = services.Browse(
+                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                            _ = await services.BrowseAsync(
                                 requestHeader,
                                 null,
                                 0,
-                                browseDescriptionCollection,
-                                out BrowseResultCollection results,
-                                out DiagnosticInfoCollection infos));
+                                browseDescriptionCollection).ConfigureAwait(false));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadTooManyOperations,
                         (StatusCode)sre.StatusCode);
@@ -283,14 +277,12 @@ namespace Opc.Ua.Server.Tests
                         .. browseDescriptionCollection.Take(
                             (int)operationLimits.MaxNodesPerBrowse + 1)
                     ];
-                    sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                        _ = services.Browse(
+                    sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        _ = await services.BrowseAsync(
                             requestHeader,
                             null,
                             0,
-                            tempBrowsePath,
-                            out BrowseResultCollection results,
-                            out DiagnosticInfoCollection infos));
+                            tempBrowsePath).ConfigureAwait(false));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadTooManyOperations,
                         (StatusCode)sre.StatusCode);
@@ -298,8 +290,7 @@ namespace Opc.Ua.Server.Tests
 
                 bool repeatBrowse;
                 uint maxNodesPerBrowse = operationLimits.MaxNodesPerBrowse;
-                var browseResultCollection = new BrowseResultCollection();
-                DiagnosticInfoCollection diagnosticsInfoCollection;
+                BrowseResponse browseResponse = null;
                 do
                 {
                     BrowseDescriptionCollection browseCollection =
@@ -310,24 +301,22 @@ namespace Opc.Ua.Server.Tests
                     try
                     {
                         requestHeader.Timestamp = DateTime.UtcNow;
-                        response = services.Browse(
+                        browseResponse = await services.BrowseAsync(
                             requestHeader,
                             null,
                             requestedMaxReferencesPerNode,
-                            browseCollection,
-                            out browseResultCollection,
-                            out diagnosticsInfoCollection);
+                            browseCollection).ConfigureAwait(false);
                         ServerFixtureUtils.ValidateResponse(
-                            response,
-                            browseResultCollection,
+                            browseResponse.ResponseHeader,
+                            browseResponse.Results,
                             browseCollection);
                         ServerFixtureUtils.ValidateDiagnosticInfos(
-                            diagnosticsInfoCollection,
+                            browseResponse.DiagnosticInfos,
                             browseCollection,
-                            response.StringTable,
+                            browseResponse.ResponseHeader.StringTable,
                             services.Logger);
 
-                        allResults.AddRange(browseResultCollection);
+                        allResults.AddRange(browseResponse.Results);
                     }
                     catch (ServiceResultException sre)
                         when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
@@ -354,28 +343,26 @@ namespace Opc.Ua.Server.Tests
 
                 // Browse next
                 ByteStringCollection continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
-                    browseResultCollection);
+                    browseResponse.Results);
                 while (continuationPoints.Count > 0)
                 {
                     requestHeader.Timestamp = DateTime.UtcNow;
-                    response = services.BrowseNext(
+                    BrowseNextResponse browseNextResponse = await services.BrowseNextAsync(
                         requestHeader,
                         false,
-                        continuationPoints,
-                        out BrowseResultCollection browseNextResultCollection,
-                        out diagnosticsInfoCollection);
+                        continuationPoints).ConfigureAwait(false);
                     ServerFixtureUtils.ValidateResponse(
-                        response,
-                        browseNextResultCollection,
+                        browseNextResponse.ResponseHeader,
+                        browseNextResponse.Results,
                         continuationPoints);
                     ServerFixtureUtils.ValidateDiagnosticInfos(
-                        diagnosticsInfoCollection,
+                        browseNextResponse.DiagnosticInfos,
                         continuationPoints,
-                        response.StringTable,
+                        browseNextResponse.ResponseHeader.StringTable,
                         services.Logger);
-                    allResults.AddRange(browseNextResultCollection);
+                    allResults.AddRange(browseNextResponse.Results);
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
-                        browseNextResultCollection);
+                        browseNextResponse.Results);
                 }
 
                 // Build browse request for next level
@@ -415,7 +402,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to translate the browse path.
         /// </summary>
-        public static BrowsePathResultCollection TranslateBrowsePathWorker(
+        public static async Task<BrowsePathResultCollection> TranslateBrowsePathWorkerAsync(
             IServerTestServices services,
             ReferenceDescriptionCollection referenceDescriptions,
             RequestHeader requestHeader,
@@ -442,13 +429,10 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert
-                        .Throws<ServiceResultException>(() =>
-                            _ = services.TranslateBrowsePathsToNodeIds(
+                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                            _ = await services.TranslateBrowsePathsToNodeIdsAsync(
                                 requestHeader,
-                                browsePaths,
-                                out BrowsePathResultCollection results,
-                                out DiagnosticInfoCollection infos));
+                                browsePaths).ConfigureAwait(false));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadTooManyOperations,
                         (StatusCode)sre.StatusCode);
@@ -458,19 +442,17 @@ namespace Opc.Ua.Server.Tests
                         ? browsePaths.Take(
                             (int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds).ToArray()
                         : browsePaths;
-                ResponseHeader response = services.TranslateBrowsePathsToNodeIds(
+                TranslateBrowsePathsToNodeIdsResponse translateResponse = await services.TranslateBrowsePathsToNodeIdsAsync(
                     requestHeader,
-                    browsePathSnippet,
-                    out BrowsePathResultCollection browsePathResults,
-                    out DiagnosticInfoCollection diagnosticInfos);
-                ServerFixtureUtils.ValidateResponse(response, browsePathResults, browsePathSnippet);
+                    browsePathSnippet).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(translateResponse.ResponseHeader, translateResponse.Results, browsePathSnippet);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
-                    diagnosticInfos,
+                    translateResponse.DiagnosticInfos,
                     browsePathSnippet,
-                    response.StringTable,
+                    translateResponse.ResponseHeader.StringTable,
                     services.Logger);
-                allBrowsePaths.AddRange(browsePathResults);
-                foreach (BrowsePathResult result in browsePathResults)
+                allBrowsePaths.AddRange(translateResponse.Results);
+                foreach (BrowsePathResult result in translateResponse.Results)
                 {
                     if (result.Targets?.Count > 0)
                     {
@@ -495,7 +477,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to test subscriptions of a server.
         /// </summary>
-        public static void SubscriptionTest(
+        public static async Task SubscriptionTestAsync(
             IServerTestServices services,
             RequestHeader requestHeader)
         {
@@ -511,33 +493,28 @@ namespace Opc.Ua.Server.Tests
             bool enabled = false;
             const uint queueSize = 5;
 
-            ResponseHeader response = services.CreateSubscription(
+            CreateSubscriptionResponse createSubscriptionResponse = await services.CreateSubscriptionAsync(
                 requestHeader,
                 publishingInterval,
                 lifetimeCount,
                 maxKeepAliveCount,
                 maxNotificationPerPublish,
                 enabled,
-                priority,
-                out uint id,
-                out double revisedPublishingInterval,
-                out uint revisedLifetimeCount,
-                out uint revisedMaxKeepAliveCount);
-            Assert.AreEqual(publishingInterval, revisedPublishingInterval);
-            Assert.AreEqual(lifetimeCount, revisedLifetimeCount);
-            Assert.AreEqual(maxKeepAliveCount, revisedMaxKeepAliveCount);
-            ServerFixtureUtils.ValidateResponse(response);
+                priority).ConfigureAwait(false);
+            Assert.AreEqual(publishingInterval, createSubscriptionResponse.RevisedPublishingInterval);
+            Assert.AreEqual(lifetimeCount, createSubscriptionResponse.RevisedLifetimeCount);
+            Assert.AreEqual(maxKeepAliveCount, createSubscriptionResponse.RevisedMaxKeepAliveCount);
+            ServerFixtureUtils.ValidateResponse(createSubscriptionResponse.ResponseHeader);
+            uint id = createSubscriptionResponse.SubscriptionId;
 
             var itemsToCreate = new MonitoredItemCreateRequestCollection();
             // check badnothingtodo
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                services.CreateMonitoredItems(
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await services.CreateMonitoredItemsAsync(
                     requestHeader,
                     id,
                     TimestampsToReturn.Neither,
-                    itemsToCreate,
-                    out MonitoredItemCreateResultCollection mockResults,
-                    out DiagnosticInfoCollection mockInfos));
+                    itemsToCreate).ConfigureAwait(false));
             Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
 
             // add item
@@ -564,40 +541,35 @@ namespace Opc.Ua.Server.Tests
             //add event item
             itemsToCreate.Add(CreateEventMonitoredItem(queueSize, ref handleCounter));
 
-            response = services.CreateMonitoredItems(
+            CreateMonitoredItemsResponse createMonitoredItemsResponse = await services.CreateMonitoredItemsAsync(
                 requestHeader,
                 id,
                 TimestampsToReturn.Neither,
-                itemsToCreate,
-                out MonitoredItemCreateResultCollection itemCreateResults,
-                out DiagnosticInfoCollection diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
+                itemsToCreate).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(createMonitoredItemsResponse.ResponseHeader, createMonitoredItemsResponse.Results, itemsToCreate);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                createMonitoredItemsResponse.DiagnosticInfos,
                 itemsToCreate,
-                response.StringTable,
+                createMonitoredItemsResponse.ResponseHeader.StringTable,
                 services.Logger);
 
             // modify subscription
-            response = services.ModifySubscription(
+            ModifySubscriptionResponse modifySubscriptionResponse = await services.ModifySubscriptionAsync(
                 requestHeader,
                 id,
                 publishingInterval,
                 lifetimeCount,
                 maxKeepAliveCount,
                 maxNotificationPerPublish,
-                priority,
-                out revisedPublishingInterval,
-                out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount);
-            Assert.AreEqual(publishingInterval, revisedPublishingInterval);
-            Assert.AreEqual(lifetimeCount, revisedLifetimeCount);
-            Assert.AreEqual(maxKeepAliveCount, revisedMaxKeepAliveCount);
-            ServerFixtureUtils.ValidateResponse(response);
+                priority).ConfigureAwait(false);
+            Assert.AreEqual(publishingInterval, modifySubscriptionResponse.RevisedPublishingInterval);
+            Assert.AreEqual(lifetimeCount, modifySubscriptionResponse.RevisedLifetimeCount);
+            Assert.AreEqual(maxKeepAliveCount, modifySubscriptionResponse.RevisedMaxKeepAliveCount);
+            ServerFixtureUtils.ValidateResponse(modifySubscriptionResponse.ResponseHeader);
 
             // modify monitored item, just timestamps to return
             var itemsToModify = new MonitoredItemModifyRequestCollection();
-            foreach (MonitoredItemCreateResult itemCreated in itemCreateResults)
+            foreach (MonitoredItemCreateResult itemCreated in createMonitoredItemsResponse.Results)
             {
                 itemsToModify.Add(
                     new MonitoredItemModifyRequest
@@ -605,54 +577,44 @@ namespace Opc.Ua.Server.Tests
                         MonitoredItemId = itemCreated.MonitoredItemId
                     });
             }
-            response = services.ModifyMonitoredItems(
+            ModifyMonitoredItemsResponse modifyMonitoredItemsResponse = await services.ModifyMonitoredItemsAsync(
                 requestHeader,
                 id,
                 TimestampsToReturn.Both,
-                itemsToModify,
-                out MonitoredItemModifyResultCollection modifyResults,
-                out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, modifyResults, itemsToModify);
+                itemsToModify).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(modifyMonitoredItemsResponse.ResponseHeader, modifyMonitoredItemsResponse.Results, itemsToModify);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                modifyMonitoredItemsResponse.DiagnosticInfos,
                 itemsToModify,
-                response.StringTable,
+                modifyMonitoredItemsResponse.ResponseHeader.StringTable,
                 services.Logger);
 
             // publish request
             var acknowledgements = new SubscriptionAcknowledgementCollection();
-            response = services.Publish(
+            PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
-                acknowledgements,
-                out uint subscriptionId,
-                out UInt32Collection availableSequenceNumbers,
-                out bool moreNotifications,
-                out NotificationMessage notificationMessage,
-                out StatusCodeCollection statuses,
-                out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
+                acknowledgements).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader, publishResponse.Results, acknowledgements);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                publishResponse.DiagnosticInfos,
                 acknowledgements,
-                response.StringTable,
+                publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(id, subscriptionId);
-            Assert.AreEqual(0, availableSequenceNumbers.Count);
+            Assert.AreEqual(id, publishResponse.SubscriptionId);
+            Assert.AreEqual(0, publishResponse.AvailableSequenceNumbers.Count);
 
             // enable publishing
             enabled = true;
             var subscriptions = new UInt32Collection { id };
-            response = services.SetPublishingMode(
+            SetPublishingModeResponse setPublishingModeResponse = await services.SetPublishingModeAsync(
                 requestHeader,
                 enabled,
-                subscriptions,
-                out statuses,
-                out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
+                subscriptions).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(setPublishingModeResponse.ResponseHeader, setPublishingModeResponse.Results, subscriptions);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                setPublishingModeResponse.DiagnosticInfos,
                 subscriptions,
-                response.StringTable,
+                setPublishingModeResponse.ResponseHeader.StringTable,
                 services.Logger);
 
             // wait some time to fill queue
@@ -663,39 +625,33 @@ namespace Opc.Ua.Server.Tests
             do
             {
                 // get publish responses
-                response = services.Publish(
+                publishResponse = await services.PublishAsync(
                     requestHeader,
-                    acknowledgements,
-                    out subscriptionId,
-                    out availableSequenceNumbers,
-                    out moreNotifications,
-                    out notificationMessage,
-                    out statuses,
-                    out diagnosticInfos);
-                ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
+                    acknowledgements).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader, publishResponse.Results, acknowledgements);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
-                    diagnosticInfos,
+                    publishResponse.DiagnosticInfos,
                     acknowledgements,
-                    response.StringTable,
+                    publishResponse.ResponseHeader.StringTable,
                     services.Logger);
-                Assert.AreEqual(id, subscriptionId);
+                Assert.AreEqual(id, publishResponse.SubscriptionId);
 
-                if (notificationMessage.NotificationData.Count == 0)
+                if (publishResponse.NotificationMessage.NotificationData.Count == 0)
                 {
                     TestContext.Out.WriteLine("No notifications received in publish");
                 }
                 else
                 {
-                    var dataChangeNotification = notificationMessage.NotificationData[0]
+                    var dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
                         .Body as DataChangeNotification;
-                    var eventNotification = notificationMessage.NotificationData[0]
+                    var eventNotification = publishResponse.NotificationMessage.NotificationData[0]
                         .Body as EventNotificationList;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1} {2}",
-                        notificationMessage.SequenceNumber,
+                        publishResponse.NotificationMessage.SequenceNumber,
                         dataChangeNotification?.MonitoredItems[0].Value.ToString()
                         ?? eventNotification?.Events[0].Message.ToString(),
-                        notificationMessage.PublishTime);
+                        publishResponse.NotificationMessage.PublishTime);
                 }
 
                 acknowledgements.Clear();
@@ -703,68 +659,61 @@ namespace Opc.Ua.Server.Tests
                     new SubscriptionAcknowledgement
                     {
                         SubscriptionId = id,
-                        SequenceNumber = notificationMessage.SequenceNumber
+                        SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
                     });
             } while (acknowledgements.Count > 0 && --loopCounter > 0);
 
             // republish
-            response = services.Republish(
+            RepublishResponse republishResponse = await services.RepublishAsync(
                 requestHeader,
-                subscriptionId,
-                notificationMessage.SequenceNumber,
-                out notificationMessage);
-            ServerFixtureUtils.ValidateResponse(response);
+                publishResponse.SubscriptionId,
+                publishResponse.NotificationMessage.SequenceNumber).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(republishResponse.ResponseHeader);
 
             // disable publishing
             enabled = false;
-            response = services.SetPublishingMode(
+            setPublishingModeResponse = await services.SetPublishingModeAsync(
                 requestHeader,
                 enabled,
-                subscriptions,
-                out statuses,
-                out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
+                subscriptions).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(setPublishingModeResponse.ResponseHeader, setPublishingModeResponse.Results, subscriptions);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                setPublishingModeResponse.DiagnosticInfos,
                 subscriptions,
-                response.StringTable,
+                setPublishingModeResponse.ResponseHeader.StringTable,
                 services.Logger);
 
             // disable monitoring
             var monitoredItemIds = new UInt32Collection(
-                itemCreateResults.Select(r => r.MonitoredItemId));
-            response = services.SetMonitoringMode(
+                createMonitoredItemsResponse.Results.Select(r => r.MonitoredItemId));
+            SetMonitoringModeResponse setMonitoringModeResponse = await services.SetMonitoringModeAsync(
                 requestHeader,
                 id,
                 MonitoringMode.Disabled,
-                monitoredItemIds,
-                out statuses,
-                out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, monitoredItemIds);
+                monitoredItemIds).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(setMonitoringModeResponse.ResponseHeader, setMonitoringModeResponse.Results, monitoredItemIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                setMonitoringModeResponse.DiagnosticInfos,
                 monitoredItemIds,
-                response.StringTable,
+                setMonitoringModeResponse.ResponseHeader.StringTable,
                 services.Logger);
 
             // delete subscription
-            response = services.DeleteSubscriptions(
+            DeleteSubscriptionsResponse deleteSubscriptionsResponse = await services.DeleteSubscriptionsAsync(
                 requestHeader,
-                subscriptions,
-                out statuses,
-                out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
+                subscriptions).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(deleteSubscriptionsResponse.ResponseHeader, deleteSubscriptionsResponse.Results, subscriptions);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                deleteSubscriptionsResponse.DiagnosticInfos,
                 subscriptions,
-                response.StringTable,
+                deleteSubscriptionsResponse.ResponseHeader.StringTable,
                 services.Logger);
         }
 
         /// <summary>
         /// Worker method to test TransferSubscriptions of a server.
         /// </summary>
-        public static UInt32Collection CreateSubscriptionForTransfer(
+        public static async Task<UInt32Collection> CreateSubscriptionForTransferAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
             NodeId[] testNodes,
@@ -774,65 +723,56 @@ namespace Opc.Ua.Server.Tests
             // start time
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            uint subscriptionId = CreateSubscription(services, requestHeader);
+            uint subscriptionId = await CreateSubscriptionAsync(services, requestHeader).ConfigureAwait(false);
             uint clientHandle = 1;
             foreach (NodeId testNode in testNodes)
             {
-                CreateMonitoredItem(
+                await CreateMonitoredItemAsync(
                     services,
                     requestHeader,
                     subscriptionId,
                     testNode,
                     clientHandle++,
                     queueSize,
-                    samplingInterval);
+                    samplingInterval).ConfigureAwait(false);
             }
 
             var subscriptionIds = new UInt32Collection { subscriptionId };
 
             // enable publishing
-            ResponseHeader response = services.SetPublishingMode(
+            SetPublishingModeResponse setPublishingModeResponse = await services.SetPublishingModeAsync(
                 requestHeader,
                 true,
-                subscriptionIds,
-                out StatusCodeCollection statuses,
-                out DiagnosticInfoCollection diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
+                subscriptionIds).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(setPublishingModeResponse.ResponseHeader, setPublishingModeResponse.Results, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                setPublishingModeResponse.DiagnosticInfos,
                 subscriptionIds,
-                response.StringTable,
+                setPublishingModeResponse.ResponseHeader.StringTable,
                 services.Logger);
 
             // wait some time to settle
             Thread.Sleep(1000);
 
             // publish request (use invalid sequence number for status)
-            var acknowledgements = new SubscriptionAcknowledgementCollection
-            {
+            var acknowledgements = new SubscriptionAcknowledgementCollection {
                 new SubscriptionAcknowledgement {
                     SubscriptionId = subscriptionId,
                     SequenceNumber = 123 }
             };
-            response = services.Publish(
+            PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
-                acknowledgements,
-                out uint publishedId,
-                out UInt32Collection availableSequenceNumbers,
-                out _,
-                out _,
-                out statuses,
-                out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
+                acknowledgements).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader, publishResponse.Results, acknowledgements);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                publishResponse.DiagnosticInfos,
                 acknowledgements,
-                response.StringTable,
+                publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(subscriptionId, publishedId);
+            Assert.AreEqual(subscriptionId, publishResponse.SubscriptionId);
 
             // static node, do not acknowledge
-            Assert.AreEqual(1, availableSequenceNumbers.Count);
+            Assert.AreEqual(1, publishResponse.AvailableSequenceNumbers.Count);
 
             return subscriptionIds;
         }
@@ -840,7 +780,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to test Transfer of subscriptions to new session.
         /// </summary>
-        public static void TransferSubscriptionTest(
+        public static async Task TransferSubscriptionTestAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
@@ -850,22 +790,20 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, subscriptionIds.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            ResponseHeader response = services.TransferSubscriptions(
+            TransferSubscriptionsResponse transferResponse = await services.TransferSubscriptionsAsync(
                 requestHeader,
                 subscriptionIds,
-                sendInitialData,
-                out TransferResultCollection transferResults,
-                out DiagnosticInfoCollection diagnosticInfos);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
-            Assert.AreEqual(subscriptionIds.Count, transferResults.Count);
-            ServerFixtureUtils.ValidateResponse(response, transferResults, subscriptionIds);
+                sendInitialData).ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.Good, transferResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(subscriptionIds.Count, transferResponse.Results.Count);
+            ServerFixtureUtils.ValidateResponse(transferResponse.ResponseHeader, transferResponse.Results, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                transferResponse.DiagnosticInfos,
                 subscriptionIds,
-                response.StringTable,
+                transferResponse.ResponseHeader.StringTable,
                 services.Logger);
 
-            foreach (TransferResult transferResult in transferResults)
+            foreach (TransferResult transferResult in transferResponse.Results)
             {
                 TestContext.Out.WriteLine("TransferResult: {0}", transferResult.StatusCode);
                 if (expectAccessDenied)
@@ -888,27 +826,21 @@ namespace Opc.Ua.Server.Tests
 
             requestHeader.Timestamp = DateTime.UtcNow;
             var acknowledgements = new SubscriptionAcknowledgementCollection();
-            response = services.Publish(
+            PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
-                acknowledgements,
-                out uint publishedId,
-                out _,
-                out _,
-                out NotificationMessage notificationMessage,
-                out _,
-                out diagnosticInfos);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
-            ServerFixtureUtils.ValidateResponse(response);
+                acknowledgements).ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                publishResponse.DiagnosticInfos,
                 acknowledgements,
-                response.StringTable,
+                publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(subscriptionIds[0], publishedId);
-            Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
+            Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
+            Assert.AreEqual(sendInitialData ? 1 : 0, publishResponse.NotificationMessage.NotificationData.Count);
             if (sendInitialData)
             {
-                ExtensionObject items = notificationMessage.NotificationData.FirstOrDefault();
+                ExtensionObject items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
                 Assert.IsTrue(items.Body is DataChangeNotification);
                 MonitoredItemNotificationCollection monitoredItemsCollection = (
                     (DataChangeNotification)items.Body
@@ -918,14 +850,14 @@ namespace Opc.Ua.Server.Tests
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out _, out _);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
+            DeleteSubscriptionsResponse deleteResponse = await services.DeleteSubscriptionsAsync(requestHeader, subscriptionIds).ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.Good, deleteResponse.ResponseHeader.ServiceResult);
         }
 
         /// <summary>
         /// Worker method to verify the SubscriptionTransferred message of a server.
         /// </summary>
-        public static void VerifySubscriptionTransferred(
+        public static async Task VerifySubscriptionTransferredAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
@@ -939,51 +871,43 @@ namespace Opc.Ua.Server.Tests
 
             // publish request
             var acknowledgements = new SubscriptionAcknowledgementCollection();
-            ResponseHeader response = services.Publish(
+            PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
-                acknowledgements,
-                out uint publishedId,
-                out UInt32Collection availableSequenceNumbers,
-                out bool moreNotifications,
-                out NotificationMessage notificationMessage,
-                out StatusCodeCollection _,
-                out DiagnosticInfoCollection diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
+                acknowledgements).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                publishResponse.DiagnosticInfos,
                 acknowledgements,
-                response.StringTable,
+                publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.IsFalse(moreNotifications);
-            Assert.IsTrue(subscriptionIds.Contains(publishedId));
-            Assert.AreEqual(1, notificationMessage.NotificationData.Count);
-            string statusMessage = notificationMessage.NotificationData[0].ToString();
+            Assert.IsFalse(publishResponse.MoreNotifications);
+            Assert.IsTrue(subscriptionIds.Contains(publishResponse.SubscriptionId));
+            Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+            string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code
             Assert.AreEqual("{0x002D0000 | }", statusMessage);
 
             // static node, do not acknowledge
-            if (availableSequenceNumbers != null)
+            if (publishResponse.AvailableSequenceNumbers != null)
             {
-                Assert.AreEqual(0, availableSequenceNumbers.Count);
+                Assert.AreEqual(0, publishResponse.AvailableSequenceNumbers.Count);
             }
 
             if (deleteSubscriptions)
             {
-                response = services.DeleteSubscriptions(
+                DeleteSubscriptionsResponse deleteResponse = await services.DeleteSubscriptionsAsync(
                     requestHeader,
-                    subscriptionIds,
-                    out StatusCodeCollection statuses,
-                    out diagnosticInfos);
-                ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
+                    subscriptionIds).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(deleteResponse.ResponseHeader, deleteResponse.Results, subscriptionIds);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
-                    diagnosticInfos,
+                    deleteResponse.DiagnosticInfos,
                     subscriptionIds,
-                    response.StringTable,
+                    deleteResponse.ResponseHeader.StringTable,
                     services.Logger);
             }
         }
 
-        private static uint CreateSubscription(
+        private static async Task<uint> CreateSubscriptionAsync(
             IServerTestServices services,
             RequestHeader requestHeader)
         {
@@ -997,24 +921,20 @@ namespace Opc.Ua.Server.Tests
             const uint maxNotificationPerPublish = 0;
             const byte priority = 128;
             const bool enabled = false;
-            ResponseHeader response = services.CreateSubscription(
+            CreateSubscriptionResponse response = await services.CreateSubscriptionAsync(
                 requestHeader,
                 publishingInterval,
                 lifetimeCount,
                 maxKeepAliveCount,
                 maxNotificationPerPublish,
                 enabled,
-                priority,
-                out uint id,
-                out _,
-                out _,
-                out _);
-            ServerFixtureUtils.ValidateResponse(response);
+                priority).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
 
-            return id;
+            return response.SubscriptionId;
         }
 
-        private static void CreateMonitoredItem(
+        private static async Task CreateMonitoredItemAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1023,17 +943,14 @@ namespace Opc.Ua.Server.Tests
             uint queueSize,
             int samplingInterval)
         {
-            var itemsToCreate = new MonitoredItemCreateRequestCollection
-            {
+            var itemsToCreate = new MonitoredItemCreateRequestCollection {
                 // add item
-                new MonitoredItemCreateRequest
-                {
+                new MonitoredItemCreateRequest {
                     ItemToMonitor = new ReadValueId {
                         AttributeId = Attributes.Value,
                         NodeId = nodeId },
                     MonitoringMode = MonitoringMode.Reporting,
-                    RequestedParameters = new MonitoringParameters
-                    {
+                    RequestedParameters = new MonitoringParameters {
                         ClientHandle = clientHandle,
                         SamplingInterval = samplingInterval,
                         Filter = null,
@@ -1042,18 +959,16 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
             };
-            ResponseHeader response = services.CreateMonitoredItems(
+            CreateMonitoredItemsResponse response = await services.CreateMonitoredItemsAsync(
                 requestHeader,
                 subscriptionId,
                 TimestampsToReturn.Neither,
-                itemsToCreate,
-                out MonitoredItemCreateResultCollection itemCreateResults,
-                out DiagnosticInfoCollection diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
+                itemsToCreate).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(response.ResponseHeader, response.Results, itemsToCreate);
             ServerFixtureUtils.ValidateDiagnosticInfos(
-                diagnosticInfos,
+                response.DiagnosticInfos,
                 itemsToCreate,
-                response.StringTable,
+                response.ResponseHeader.StringTable,
                 services.Logger);
         }
 

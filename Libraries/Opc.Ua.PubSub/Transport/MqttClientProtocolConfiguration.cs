@@ -192,6 +192,7 @@ namespace Opc.Ua.PubSub.Transport
 
             QualifiedName qSslProtocolVersion
                 = nameof(EnumMqttClientConfigurationParameters.TlsProtocolVersion);
+#pragma warning disable CA5397 // TODO: Use None as default fallback
             SslProtocolVersion = (SslProtocols)
                 Convert.ToInt32(
                     kvpMqttOptions
@@ -199,6 +200,7 @@ namespace Opc.Ua.PubSub.Transport
                             .Equals(qSslProtocolVersion.Name, StringComparison.Ordinal))?
                         .Value.Value,
                     CultureInfo.InvariantCulture);
+#pragma warning restore CA5397
 
             QualifiedName qAllowUntrustedCertificates = nameof(
                 EnumMqttClientConfigurationParameters.TlsAllowUntrustedCertificates);
@@ -514,7 +516,7 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.Value
                 is string sUserName)
             {
-                foreach (char c in sUserName?.ToCharArray())
+                foreach (char c in sUserName.ToCharArray())
                 {
                     UserName.AppendChar(c);
                 }
@@ -527,7 +529,7 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.Value
                 is string sPassword)
             {
-                foreach (char c in sPassword?.ToCharArray())
+                foreach (char c in sPassword.ToCharArray())
                 {
                     Password.AppendChar(c);
                 }

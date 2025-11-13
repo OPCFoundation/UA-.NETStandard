@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
             if (!m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
             {
                 m_logger.LogError(
-                    "Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {id} could not be created",
+                    "Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {Id} could not be created",
                     id);
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
@@ -1689,9 +1689,9 @@ namespace Opc.Ua.Server
             }
 
             // value changed if only one is null.
-            if (value == null || lastValue == null)
+            if (lastValue == null)
             {
-                return lastValue != null || value != null;
+                return true;
             }
 
             // check if timestamp has changed.

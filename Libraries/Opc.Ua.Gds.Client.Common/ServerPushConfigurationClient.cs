@@ -198,7 +198,7 @@ namespace Opc.Ua.Gds.Client
         /// Called when the client is disposed
         /// </summary>
         /// <param name="disposing"></param>
-        protected void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (disposing && !m_disposed)
             {

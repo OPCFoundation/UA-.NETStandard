@@ -80,7 +80,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Overrideable version of the Dispose method.
         /// </summary>
-        protected void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -311,11 +311,13 @@ namespace Opc.Ua.Bindings
                 ct.ThrowIfCancellationRequested();
                 lock (m_socketLock)
                 {
+#pragma warning disable CA1508 // Avoid dead conditional code
                     if (!m_closed && m_socket == null)
                     {
                         m_socket = socket;
                         socket = null;
                     }
+#pragma warning restore CA1508 // Avoid dead conditional code
                 }
             }
             catch (Exception ex)

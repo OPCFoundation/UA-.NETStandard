@@ -270,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
             {
-                throw new Exception("cannot read the id of the test dictionary");
+                throw new InvalidOperationException("cannot read the id of the test dictionary");
             }
             ReferenceDescription referenceDescription = results[0]
                 .References.FirstOrDefault(a => a.BrowseName.Name == "TestData");

@@ -250,9 +250,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
 #if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         [LibraryImport("kernel32")]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static partial ulong GetTickCount64();
 #else
         [DllImport("kernel32")]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static extern ulong GetTickCount64();
 #endif
     }

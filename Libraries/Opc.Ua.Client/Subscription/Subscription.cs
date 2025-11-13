@@ -1732,7 +1732,6 @@ namespace Opc.Ua.Client
                 // reset incoming state machine and clear cache
                 m_lastSequenceNumberProcessed = 0;
                 m_resyncLastSequenceNumberProcessed = true;
-                m_incomingMessages = new LinkedList<IncomingMessage>();
 
                 // save available sequence numbers
                 m_availableSequenceNumbers = (UInt32Collection)availableSequenceNumbers

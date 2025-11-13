@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Security.Cryptography;
 
 namespace Opc.Ua.Security.Certificates

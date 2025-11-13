@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Redaction;
 using Opc.Ua.Types.Redaction;
@@ -36,7 +37,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     [TestFixture]
     [Category("Utils")]
-    internal class SimpleRedactionStrategyTests
+    public sealed class SimpleRedactionStrategyTests
     {
         [SetUp]
         public void Setup()
@@ -141,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactException()
         {
-            var original = new Exception("Test message with $ecret");
+            var original = new IOException("Test message with $ecret");
 
             string result = Redact.Create(original).ToString();
 

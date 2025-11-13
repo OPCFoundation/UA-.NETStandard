@@ -121,12 +121,16 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Dataset flag is reserved.
         /// </summary>
+#pragma warning disable CA1700 // Do not name enum values 'Reserved'
         Reserved = 64,
+#pragma warning restore CA1700 // Do not name enum values 'Reserved'
 
         /// <summary>
         /// Dataset flag is reserved for extended flags.
         /// </summary>
+#pragma warning disable CA1700 // Do not name enum values 'Reserved'
         ReservedForExtendedFlags = 128
+#pragma warning restore CA1700 // Do not name enum values 'Reserved'
     }
 
     /// <summary>
@@ -282,7 +286,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// UADP ExtendedFlags2 type is reserved.
         /// </summary>
+#pragma warning disable CA1700 // Do not name enum values 'Reserved'
         Reserved = 16
+#pragma warning restore CA1700 // Do not name enum values 'Reserved'
     }
 
     /// <summary>
@@ -365,7 +371,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// UADP SecurityFlags is reserved.
         /// </summary>
+#pragma warning disable CA1700 // Do not name enum values 'Reserved'
         Reserved = 16
+#pragma warning restore CA1700 // Do not name enum values 'Reserved'
     }
 
     /// <summary>

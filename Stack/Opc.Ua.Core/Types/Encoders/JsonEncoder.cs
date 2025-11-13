@@ -494,12 +494,12 @@ namespace Opc.Ua
             Action<string, T> action,
             string fieldName,
             T value,
-            JsonEncodingType useEncoding)
+            JsonEncodingType useEncodingType)
         {
             JsonEncodingType currentValue = EncodingToUse;
             try
             {
-                EncodingToUse = useEncoding;
+                EncodingToUse = useEncodingType;
                 action(fieldName, value);
             }
             finally
@@ -1141,12 +1141,6 @@ namespace Opc.Ua
             if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-            }
-
-            if (value == null)
-            {
-                WriteSimpleField(fieldName, kNull, EscapeOptions.NoValueEscape);
-                return;
             }
 
             WriteSimpleField(
@@ -2971,19 +2965,16 @@ namespace Opc.Ua
                     }
                 }
 
-                if (matrix != null)
+                if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
                 {
-                    if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
-                    {
-                        WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
-                    }
-                    else
-                    {
-                        int index = 0;
-                        WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
-                    }
-                    return;
+                    WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
                 }
+                else
+                {
+                    int index = 0;
+                    WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
+                }
+                return;
 
                 // field is omitted
             }

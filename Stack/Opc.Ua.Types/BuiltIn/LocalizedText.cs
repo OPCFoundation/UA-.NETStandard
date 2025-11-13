@@ -590,8 +590,7 @@ namespace Opc.Ua
 #else
                     JsonSerializer.Deserialize<Dictionary<string, List<string[]>>>(XmlEncodedText);
 #endif
-                if (json != null &&
-                    json.TryGetValue(kMulLocaleDictionaryKey, out List<string[]> tValue))
+                if (json.TryGetValue(kMulLocaleDictionaryKey, out List<string[]> tValue))
                 {
                     foreach (string[] pair in tValue)
                     {

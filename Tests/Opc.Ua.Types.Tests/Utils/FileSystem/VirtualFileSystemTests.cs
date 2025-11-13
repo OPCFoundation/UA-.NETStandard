@@ -404,7 +404,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             const string filePath = "large.txt";
             byte[] largeContent = new byte[1024 * 1024]; // 1MB
 
-            new Random().NextBytes(largeContent);
+            UnsecureRandom.Shared.NextBytes(largeContent);
 
             // Act
             vfs.Add(filePath, largeContent);
@@ -608,8 +608,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             byte[] largeContent = new byte[contentSize];
 
             // Fill with pseudo-random but deterministic pattern
-            var random = new Random(42);
-            random.NextBytes(largeContent);
+            UnsecureRandom.Shared.NextBytes(largeContent);
 
             // Act & Assert - Test write/read cycle
             vfs.Add(filePath, largeContent);

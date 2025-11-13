@@ -12,10 +12,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Diagnostics.CodeAnalysis;
+using System.Xml.Linq;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -111,15 +112,7 @@ namespace Opc.Ua
         [DataMember(Name = "Name", Order = 2)]
         internal string XmlEncodedName { get; set; }
 
-        /// <summary>
-        /// Compares two QualifiedNames.
-        /// </summary>
-        /// <param name="obj">The object to compare to.</param>
-        /// <returns>
-        /// Less than zero if the instance is less than the object.
-        /// Zero if the instance is equal to the object.
-        /// Greater than zero if the instance is greater than the object.
-        /// </returns>
+        /// <inheritdoc/>
         public int CompareTo(object obj)
         {
             if (obj is null)
@@ -151,12 +144,7 @@ namespace Opc.Ua
             return 0;
         }
 
-        /// <summary>
-        /// Implements the operator &gt;.
-        /// </summary>
-        /// <param name="value1">The value1.</param>
-        /// <param name="value2">The value2.</param>
-        /// <returns>The result of the operator.</returns>
+        /// <inheritdoc/>
         public static bool operator >(QualifiedName value1, QualifiedName value2)
         {
             if (value1 is not null)
@@ -167,12 +155,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary>
-        /// Implements the operator &lt;.
-        /// </summary>
-        /// <param name="value1">The value1.</param>
-        /// <param name="value2">The value2.</param>
-        /// <returns>The result of the operator.</returns>
+        /// <inheritdoc/>
         public static bool operator <(QualifiedName value1, QualifiedName value2)
         {
             if (value1 is not null)
@@ -183,9 +166,19 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary>
-        /// Returns a suitable hash value for the instance.
-        /// </summary>
+        /// <inheritdoc/>
+        public static bool operator <=(QualifiedName left, QualifiedName right)
+        {
+            return left is null || left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(QualifiedName left, QualifiedName right)
+        {
+            return right is null || right.CompareTo(left) <= 0;
+        }
+
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             var hash = new HashCode();
@@ -199,10 +192,7 @@ namespace Opc.Ua
             return hash.ToHashCode();
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <param name="obj">The object to compare to this/me</param>
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             if (obj is null)
@@ -228,11 +218,7 @@ namespace Opc.Ua
             return qname.XmlEncodedName == XmlEncodedName;
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <param name="value1">The first value to compare</param>
-        /// <param name="value2">The second value to compare</param>
+        /// <inheritdoc/>
         public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
             if (value1 is not null)
@@ -243,14 +229,7 @@ namespace Opc.Ua
             return value2 is null;
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
-        /// <param name="value1">The first value to compare</param>
-        /// <param name="value2">The second value to compare</param>
+        /// <inheritdoc/>
         public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
             if (value1 is not null)
@@ -261,20 +240,13 @@ namespace Opc.Ua
             return value2 is not null;
         }
 
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);
         }
 
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <param name="format">(Unused) Always pass null</param>
-        /// <param name="formatProvider">(Unused) Always pass null</param>
-        /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -392,7 +364,8 @@ namespace Opc.Ua
         /// Parses a string containing a QualifiedName with the syntax n:qname
         /// </summary>
         /// <param name="text">The QualifiedName value as a string.</param>
-        /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
+        /// <exception cref="ServiceResultException">Thrown under a variety of
+        /// circumstances, each time with a specific message.</exception>
         public static QualifiedName Parse(string text)
         {
             // check for null.
@@ -436,8 +409,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The QualifiedName value as a string.</param>
         /// <param name="text">The QualifiedName value as a string.</param>
-        /// <param name="updateTables">Whether the NamespaceTable should be updated with the NamespaceUri.</param>
-        /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
+        /// <param name="updateTables">Whether the NamespaceTable should be updated
+        /// with the NamespaceUri.</param>
+        /// <exception cref="ServiceResultException">Thrown under a variety of
+        /// circumstances, each time with a specific message.</exception>
         public static QualifiedName Parse(
             IServiceMessageContext context,
             string text,
@@ -542,9 +517,13 @@ namespace Opc.Ua
             }
 
             buffer.Append(XmlEncodedName);
-
             return buffer.ToString();
         }
+
+        /// <summary>
+        /// Returns true if the item is null
+        /// </summary>
+        internal bool IsNullQn => XmlEncodedNamespaceIndex == 0 && string.IsNullOrEmpty(XmlEncodedName);
 
         /// <summary>
         /// Returns true if the value is null.
@@ -552,16 +531,7 @@ namespace Opc.Ua
         /// <param name="value">The qualified name to check</param>
         public static bool IsNull([NotNullWhen(false)] QualifiedName value)
         {
-            if (value != null)
-            {
-                if (value.XmlEncodedNamespaceIndex != 0 ||
-                    !string.IsNullOrEmpty(value.XmlEncodedName))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return value is null || value.IsNullQn;
         }
 
         /// <summary>

@@ -1159,18 +1159,13 @@ namespace Opc.Ua
             try
             {
                 var culture = new CultureInfo(localeId);
-
-                if (culture != null)
-                {
-                    return true;
-                }
+                return true;
             }
             catch
             {
                 // do nothing.
+                return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -1872,7 +1867,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(secret));
             }
             // create the hmac.
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
             using var hmac = new HMACSHA1(secret);
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
             return PSHA(hmac, label, data, offset, length);
         }
 
@@ -2027,7 +2024,9 @@ namespace Opc.Ua
 
             if (algorithmName == HashAlgorithmName.SHA1)
             {
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
                 return new HMACSHA1(secret);
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
             }
 
             throw new NotImplementedException();

@@ -193,7 +193,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    session.UserIdentity?.DisplayName,
+                    session.UserIdentity.DisplayName,
                     false);
                 e.SetChildValue(
                     systemContext,

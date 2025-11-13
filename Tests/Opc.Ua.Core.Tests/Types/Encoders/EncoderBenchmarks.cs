@@ -46,12 +46,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public EncoderBenchmarks()
         {
-            m_random = new Random(0x62541);
-            m_nodeId = new NodeId((uint)m_random.Next(50000));
+            m_nodeId = new NodeId((uint)UnsecureRandom.Shared.Next(50000));
             m_list = [];
             for (int i = 0; i < DataValueCount; i++)
             {
-                m_list.Add(m_random.Next());
+                m_list.Add(UnsecureRandom.Shared.Next());
             }
             m_values = [];
             var now = new DateTime(2024, 03, 01, 06, 05, 59, DateTimeKind.Utc);
@@ -60,8 +59,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 m_values.Add(
                     new DataValue(
-                        new Variant((m_random.NextDouble() - 0.5) * 1000.0),
-                        m_random.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost,
+                        new Variant((UnsecureRandom.Shared.NextDouble() - 0.5) * 1000.0),
+                         UnsecureRandom.Shared.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost,
                         now,
                         now));
             }
@@ -170,7 +169,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_bufferManager = null;
         }
 
-        protected Random m_random;
         protected NodeId m_nodeId = new(1234);
         protected List<int> m_list;
         protected List<DataValue> m_values;

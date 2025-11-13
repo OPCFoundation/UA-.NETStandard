@@ -411,11 +411,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decodes the message
         /// </summary>
         public override void Decode(
-            IServiceMessageContext context,
+            IServiceMessageContext messageContext,
             byte[] message,
             IList<DataSetReaderDataType> dataSetReaders)
         {
-            using var binaryDecoder = new BinaryDecoder(message, context);
+            using var binaryDecoder = new BinaryDecoder(message, messageContext);
             // 1. decode network message header (PublisherId & DataSetClassId)
             DecodeNetworkMessageHeader(binaryDecoder);
 

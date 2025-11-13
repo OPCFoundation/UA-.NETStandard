@@ -119,7 +119,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
-                throw new Exception("Application instance certificate invalid!");
+                throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
             if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates)

@@ -67,31 +67,31 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net8.0
+      framework: net10.0
       agents: '@{ windows = "windows-2025"; linux="ubuntu-24.04"; mac = "macOS-15"}'
-      jobnamesuffix: net80
-      customtestarget: net8.0
+      jobnamesuffix: net100
+      customtestarget: net10.0
 - stage: testreleasepr
   dependsOn: []
-  displayName: 'Fast .NET 8.0 PR Test'
+  displayName: 'Fast .NET 10.0 PR Test'
   condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net8.0
+      framework: net10.0
       agents: '@{ windows = "windows-2025"; linux="ubuntu-22.04"}'
-      jobnamesuffix: net80pr
+      jobnamesuffix: net100pr
 - stage: testdebug
   dependsOn: [build]
-  displayName: 'Test .NET 8.0 Debug'
+  displayName: 'Test .NET 10.0 Debug'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net8.0
+      framework: net10.0
       configuration: Debug
-      jobnamesuffix: net80debug
+      jobnamesuffix: net100debug
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -112,6 +112,16 @@ stages:
       framework: net9.0
       configuration: Release
       jobnamesuffix: net90
+- stage: testnet100
+  dependsOn: [build]
+  displayName: 'Test .NET 10.0'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net10.0
+      configuration: Release
+      jobnamesuffix: net100
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -131,10 +141,10 @@ stages:
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net8.0
+      framework: net48
       configuration: Release
       jobnamesuffix: netstandard20
-      agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"}'
+      agents: '@{ windows = "windows-2022"}'
       customtestarget: netstandard2.0
 - stage: testnetstandard21
   dependsOn: [build]
@@ -156,5 +166,5 @@ stages:
     parameters:
       configuration: Release
       poolImage: 'ubuntu-22.04'
-      framework: net8.0
-      jobnamesuffix: net80cc
+      framework: net10.0
+      jobnamesuffix: net100cc

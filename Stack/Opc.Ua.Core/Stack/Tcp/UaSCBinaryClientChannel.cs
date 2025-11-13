@@ -85,10 +85,13 @@ namespace Opc.Ua.Bindings
             }
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
-            m_random = new Random();
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
             m_socketFactory = socketFactory;
+            m_implementationString = Utils.Format(
+                "UA.NETStandard ClientChannel {0} {1}",
+                m_socketFactory.Implementation,
+                Utils.GetAssemblyBuildNumber());
 
             // save the endpoint.
             EndpointDescription = endpoint;
@@ -195,7 +198,7 @@ namespace Opc.Ua.Bindings
                     // send the hello message as response to the reverse hello message.
                     SendHelloMessage(operation);
                 }
-                else if (socket != null)
+                else
                 {
                     await socket.ConnectAsync(url, ct).ConfigureAwait(false);
 
@@ -678,16 +681,11 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
-                string implementation = string.Format(
-                    CultureInfo.InvariantCulture,
-                    s_implementationString,
-                    m_socketFactory.Implementation);
-
                 // log security information.
                 if (State == TcpChannelState.Opening)
                 {
                     m_logger.SecureChannelCreated(
-                        implementation,
+                        m_implementationString,
                         m_url.ToString(),
                         Utils.Format("{0}", channelId),
                         EndpointDescription,
@@ -697,7 +695,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    m_logger.SecureChannelRenewed(implementation, Utils.Format("{0}", channelId));
+                    m_logger.SecureChannelRenewed(m_implementationString, Utils.Format("{0}", channelId));
                 }
 
                 ChannelId = m_requestedToken.ChannelId = channelId;
@@ -1387,7 +1385,7 @@ namespace Opc.Ua.Bindings
             // calculate renewal timing based on token lifetime + jitter. Do not rely on the server time!
             int jitterResolution = (int)Math.Round(
                 token.Lifetime * TcpMessageLimits.TokenRenewalJitterPeriod);
-            int jitter = m_random.Next(-jitterResolution, jitterResolution);
+            int jitter = UnsecureRandom.Shared.Next(-jitterResolution, jitterResolution);
             int timeToRenewal =
                 (int)Math.Round(token.Lifetime * TcpMessageLimits.TokenRenewalPeriod) +
                 jitter -
@@ -1744,14 +1742,11 @@ namespace Opc.Ua.Bindings
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
         private readonly IMessageSocketFactory m_socketFactory;
+        private readonly string m_implementationString;
         private readonly TimerCallback m_startHandshake;
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation>? m_queuedOperations;
-        private readonly Random m_random;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-
-        private static readonly string s_implementationString =
-            "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
     }
 }

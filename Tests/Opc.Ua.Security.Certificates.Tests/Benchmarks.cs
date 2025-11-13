@@ -78,14 +78,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             m_issuerCrl = crlBuilder.CreateForRSA(m_issuerCert);
             m_x509Crl = new X509CRL(m_issuerCrl.RawData);
 
-            var random = new Random();
             m_rsaPrivateKey = m_certificate.GetRSAPrivateKey();
             m_rsaPublicKey = m_certificate.GetRSAPublicKey();
 
             // blob size for RSA padding OaepSHA256
             int blobSize = (m_rsaPublicKey.KeySize / 8) - 66;
             m_randomByteArray = new byte[blobSize];
-            random.NextBytes(m_randomByteArray);
+            UnsecureRandom.Shared.NextBytes(m_randomByteArray);
 
             m_encryptedByteArray = m_rsaPublicKey.Encrypt(
                 m_randomByteArray,
