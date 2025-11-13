@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
@@ -165,7 +166,7 @@ namespace Opc.Ua.Gds.Server
                 // check for a user name token.
                 if (securityToken is UserNameIdentityToken)
                 {
-                    lock (Lock)
+                    lock (m_contextLock)
                     {
                         m_contexts.Add(context.RequestId, new ImpersonationContext());
                     }
@@ -180,7 +181,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override void OnRequestComplete(OperationContext context)
         {
-            lock (Lock)
+            lock (m_contextLock)
             {
                 if (m_contexts.TryGetValue(
                     context.RequestId,
@@ -189,7 +190,6 @@ namespace Opc.Ua.Gds.Server
                     m_contexts.Remove(context.RequestId);
                 }
             }
-
             base.OnRequestComplete(context);
         }
 
@@ -366,6 +366,7 @@ namespace Opc.Ua.Gds.Server
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];
+        private readonly Lock m_contextLock = new();
         private readonly IApplicationsDatabase m_database;
         private readonly ICertificateRequest m_request;
         private readonly ICertificateGroup m_certificateGroup;

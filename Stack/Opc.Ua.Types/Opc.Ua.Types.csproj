@@ -8,7 +8,6 @@
     <IsPackable>true</IsPackable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
-    <EnablePackageValidation>false</EnablePackageValidation>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
@@ -21,9 +20,6 @@
     <None Remove="Schema\StandardTypes.bsd" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Schema\StandardTypes.csv" />
-    <EmbeddedResource Include="Schema\StandardTypes.xml" />
-    <EmbeddedResource Include="Schema\UA Core Services.xml" />
     <EmbeddedResource Include="Schema\UANodeSet.xsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
@@ -49,9 +45,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
   <!-- Choose which platforms support ECC -->
   <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">

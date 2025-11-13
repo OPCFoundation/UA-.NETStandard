@@ -19,7 +19,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

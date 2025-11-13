@@ -11,7 +11,6 @@
 */
 
 using System.Runtime.Serialization;
-using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

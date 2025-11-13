@@ -16,6 +16,7 @@ using System;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -287,6 +288,17 @@ namespace Opc.Ua.Bindings
             }
 
             var endpoint = new DnsEndPoint(endpointUrl.IdnHost, port);
+
+            // Work around for macOS container name dns resolution issue
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
+                endpointUrl.HostNameType == UriHostNameType.Dns &&
+                endpointUrl.IdnHost.Equals(
+                    Utils.GetHostName(), StringComparison.OrdinalIgnoreCase))
+            {
+                // Use hosts file lookup
+                endpoint = new DnsEndPoint("localhost", port);
+            }
+
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp)
             {
                 NoDelay = true,
@@ -308,12 +320,11 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
+                m_logger.LogDebug(
                     ex,
-                    "Failed to connect a socket to {IdnHost}:{Port} (DnsHost: {Host}).",
+                    "Failed to connect socket to {IdnHost}:{Port}.",
                     endpointUrl.IdnHost,
-                    port,
-                    endpointUrl.DnsSafeHost);
+                    port);
                 throw;
             }
             finally

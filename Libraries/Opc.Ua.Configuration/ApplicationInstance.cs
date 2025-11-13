@@ -159,12 +159,21 @@ namespace Opc.Ua.Configuration
                 await LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
             }
 
-            server.Start(ApplicationConfiguration);
+            await server.StartAsync(ApplicationConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Stops the UA server.
         /// </summary>
+        public ValueTask StopAsync()
+        {
+            return Server.StopAsync();
+        }
+
+        /// <summary>
+        /// Stops the UA server.
+        /// </summary>
+        [Obsolete("Use StopAsync")]
         public void Stop()
         {
             Server.Stop();

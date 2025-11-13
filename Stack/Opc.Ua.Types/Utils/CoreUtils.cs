@@ -910,61 +910,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create semantic version by parsing the input version string.
-        /// Expands missing fields with zeros and removes invalid characters.
-        /// </summary>
-        public static string FixupAsSemanticVersion(string version)
-        {
-            if (string.IsNullOrWhiteSpace(version))
-            {
-                return null;
-            }
-
-            string[] fields = version.Split('.');
-
-            var output = new StringBuilder();
-            foreach (string field in fields)
-            {
-                string suffix = null;
-
-                if (!uint.TryParse(field, out uint element))
-                {
-                    for (int ii = 0; ii < field.Length; ii++)
-                    {
-                        if (field[ii] is '+' or '-')
-                        {
-                            suffix = field[ii..];
-                            if (!uint.TryParse(field[..ii], out element))
-                            {
-                                element = 0;
-                            }
-                            break;
-                        }
-                    }
-                }
-
-                if (output.Length > 0)
-                {
-                    output.Append('.');
-                }
-
-                output.Append(element);
-
-                if (suffix != null)
-                {
-                    output.Append(suffix);
-                }
-            }
-
-            while (output.ToString().Count(x => x == '.') < 2)
-            {
-                output.Append(".0");
-            }
-
-            return output.ToString();
-        }
-
-        /// <summary>
         /// Returns the major/minor version number for an assembly formatted as a string.
         /// </summary>
         public static string GetAssemblySoftwareVersion()
