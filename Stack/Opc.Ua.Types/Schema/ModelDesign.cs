@@ -46,7 +46,9 @@ namespace Opc.Ua.Schema.Model
         /// Namespace table
         /// </summary>
         [XmlIgnore]
+#pragma warning disable CA2235 // Mark all non-serializable fields
         public NamespaceTable NamespaceUris { get; set; }
+#pragma warning restore CA2235 // Mark all non-serializable fields
 
         /// <summary>
         /// Source file path
@@ -133,13 +135,13 @@ namespace Opc.Ua.Schema.Model
         /// Returns the string representation of the object.
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
                 if (Instance != null && Instance.SymbolicId != null)
                 {
-                    return string.Format(provider, "{0}={1}", RelativePath, Instance.SymbolicId.Name);
+                    return string.Format(formatProvider, "{0}={1}", RelativePath, Instance.SymbolicId.Name);
                 }
 
                 return RelativePath;
@@ -196,16 +198,16 @@ namespace Opc.Ua.Schema.Model
         /// Returns the string representation of the object.
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
                 if (TargetId != null)
                 {
-                    return string.Format(provider, "{0} => {1}", SourcePath, TargetId.Name);
+                    return string.Format(formatProvider, "{0} => {1}", SourcePath, TargetId.Name);
                 }
 
-                return string.Format(provider, "{0} => {1}", SourcePath, TargetPath);
+                return string.Format(formatProvider, "{0} => {1}", SourcePath, TargetPath);
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
@@ -265,19 +267,25 @@ namespace Opc.Ua.Schema.Model
         /// State
         /// </summary>
         [XmlIgnore]
+#pragma warning disable CA2235 // Mark all non-serializable fields
         public NodeState State { get; set; }
+#pragma warning restore CA2235 // Mark all non-serializable fields
 
         /// <summary>
         /// Instance state
         /// </summary>
         [XmlIgnore]
+#pragma warning disable CA2235 // Mark all non-serializable fields
         public NodeState InstanceState { get; set; }
+#pragma warning restore CA2235 // Mark all non-serializable fields
 
         /// <summary>
         /// Hierarchy
         /// </summary>
         [XmlIgnore]
+#pragma warning disable CA2235 // Mark all non-serializable fields
         public Hierarchy Hierarchy { get; set; }
+#pragma warning restore CA2235 // Mark all non-serializable fields
 
         /// <summary>
         /// Handle
@@ -297,16 +305,16 @@ namespace Opc.Ua.Schema.Model
         /// Returns the string representation of the object.
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
                 if (SymbolicName != null)
                 {
-                    return string.Format(provider, "{0}", SymbolicName.Name);
+                    return string.Format(formatProvider, "{0}", SymbolicName.Name);
                 }
 
-                return string.Format(provider, "{0}", GetType().Name);
+                return string.Format(formatProvider, "{0}", GetType().Name);
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
@@ -483,7 +491,9 @@ namespace Opc.Ua.Schema.Model
         /// Source relative path
         /// </summary>
         [XmlIgnore]
+#pragma warning disable CA2235 // Mark all non-serializable fields
         public RelativePath SourceRelativePath { get; set; }
+#pragma warning restore CA2235 // Mark all non-serializable fields
 
         /// <summary>
         /// Target node
@@ -495,7 +505,9 @@ namespace Opc.Ua.Schema.Model
         /// Target relative path
         /// </summary>
         [XmlIgnore]
+#pragma warning disable CA2235 // Mark all non-serializable fields
         public RelativePath TargetRelativePath { get; set; }
+#pragma warning restore CA2235 // Mark all non-serializable fields
     }
 
     /// <summary>

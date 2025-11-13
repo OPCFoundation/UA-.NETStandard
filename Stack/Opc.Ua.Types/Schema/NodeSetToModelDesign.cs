@@ -172,7 +172,10 @@ namespace Opc.Ua.Schema.Model
                 }
                 line = line.TrimStart();
 
-                if (line.StartsWith("<?") || line.StartsWith("<!") || !line.StartsWith('<') || string.IsNullOrEmpty(line))
+                if (line.StartsWith("<?", StringComparison.Ordinal) ||
+                    line.StartsWith("<!", StringComparison.Ordinal) ||
+                    !line.StartsWith('<') ||
+                    string.IsNullOrEmpty(line))
                 {
                     continue;
                 }
@@ -233,7 +236,7 @@ namespace Opc.Ua.Schema.Model
         {
             Namespace ns;
 
-            if (model.ModelUri.StartsWith(Namespaces.OpcUa))
+            if (model.ModelUri.StartsWith(Namespaces.OpcUa, StringComparison.Ordinal))
             {
                 ns = new Namespace
                 {
@@ -967,7 +970,7 @@ namespace Opc.Ua.Schema.Model
                         ArrayDimensions = ImportArrayDimensions(argument.ArrayDimensions),
                         ValueRank = ImportValueRank(argument.ValueRank),
                         Parent = method,
-                        DataType = dataType?.SymbolicId,
+                        DataType = dataType.SymbolicId,
                         DataTypeNode = dataType,
                         Description = null
                     };
@@ -1157,7 +1160,7 @@ namespace Opc.Ua.Schema.Model
             NodeId childId,
             InstanceDesign child)
         {
-            if (!child.SymbolicId.Name.StartsWith(parent.SymbolicId.Name))
+            if (!child.SymbolicId.Name.StartsWith(parent.SymbolicId.Name, StringComparison.Ordinal))
             {
                 child.SymbolicId = new XmlQualifiedName(
                     $"{parent.SymbolicId.Name}_{child.SymbolicId.Name}",
@@ -1193,7 +1196,8 @@ namespace Opc.Ua.Schema.Model
             output.SymbolicName = ImportSymbolicName(input);
             output.Extensions = input.Extensions;
 
-            if (input is UAType && output.SymbolicId.Name.EndsWith("_" + nodeId.Identifier))
+            if (input is UAType &&
+                output.SymbolicId.Name.EndsWith("_" + nodeId.Identifier, StringComparison.Ordinal))
             {
                 output.SymbolicName = new XmlQualifiedName(
                     $"{output.SymbolicName.Name}_{nodeId.Identifier}",
@@ -1541,7 +1545,7 @@ namespace Opc.Ua.Schema.Model
             return [.. permissions];
         }
 
-        private RolePermissionSet ToPermissionSet(UANode node, Export.RolePermission[] input)
+        private RolePermissionSet ToPermissionSet(Export.RolePermission[] input)
         {
             if (input == null)
             {
@@ -1630,7 +1634,7 @@ namespace Opc.Ua.Schema.Model
                 return;
             }
 
-            existing.RolePermissions = ToPermissionSet(input, input.RolePermissions);
+            existing.RolePermissions = ToPermissionSet(input.RolePermissions);
             existing.AccessRestrictions = input.AccessRestrictionsSpecified ?
                 ToAccessRestrictions((AccessRestrictionType)input.AccessRestrictions) : 0;
             existing.AccessRestrictionsSpecified = input.AccessRestrictionsSpecified;

@@ -868,7 +868,7 @@ namespace Opc.Ua.Schema.Model
             ranges.Add(new NumericRange(start, int.MaxValue).ToString());
 
             // Fix avoid a null metadata in some cases
-            if ((metadata != null) && (metadata.Hierarchy.NodeList != null))
+            if (metadata.Hierarchy.NodeList != null)
             {
                 foreach (HierarchyNode child in metadata.Hierarchy.NodeList)
                 {
@@ -1159,7 +1159,7 @@ namespace Opc.Ua.Schema.Model
                 throw new ArgumentException("No design files specified", nameof(designFilePaths));
             }
 
-            if (designFilePaths[0].EndsWith("StandardTypes.xml"))
+            if (designFilePaths[0].EndsWith("StandardTypes.xml", StringComparison.Ordinal))
             {
                 ValidateCoreModel(designFilePaths, identifierFilePath, generateIds);
                 return;
@@ -2468,8 +2468,8 @@ namespace Opc.Ua.Schema.Model
                 return false;
             }
 
-            InstanceDesign parent = root.Children.Items
-                .FirstOrDefault(x => current.RelativePath.StartsWith(x.SymbolicName.Name));
+            InstanceDesign parent = root.Children.Items.FirstOrDefault(x =>
+                current.RelativePath.StartsWith(x.SymbolicName.Name, StringComparison.Ordinal));
 
             if (parent == null)
             {
@@ -2502,8 +2502,7 @@ namespace Opc.Ua.Schema.Model
                 {
                     return c.CompareTo(rhs);
                 }
-
-                return lhst.Name.CompareTo(rhst.Name);
+                return lhst.Name.CompareTo(rhst.Name, StringComparison.Ordinal);
             });
 
             Dictionary<string, object> identifiers = ParseFile(istrm);
@@ -2933,7 +2932,7 @@ namespace Opc.Ua.Schema.Model
             {
                 type.ClassName = type.SymbolicName.Name;
 
-                if (type.ClassName.EndsWith("Type"))
+                if (type.ClassName.EndsWith("Type", StringComparison.Ordinal))
                 {
                     type.ClassName = type.ClassName[..^4];
                 }
@@ -3344,11 +3343,11 @@ namespace Opc.Ua.Schema.Model
                 return null;
             }
 
-            if (input?.RolePermission != null)
+            if (input.RolePermission != null)
             {
                 RolePermissionTypeCollection output = [];
 
-                foreach (RolePermission ii in input?.RolePermission)
+                foreach (RolePermission ii in input.RolePermission)
                 {
                     var role = new RolePermissionType();
 
@@ -3619,10 +3618,12 @@ namespace Opc.Ua.Schema.Model
             }
 
             // no roles applied to instance declarations.
+#if FALSE
             if (type != null)
             {
                 return default;
             }
+#endif
 
             path.Reverse();
 
@@ -5064,7 +5065,8 @@ namespace Opc.Ua.Schema.Model
                     {
                         string browsePath = node.SymbolicId.Name;
 
-                        if (browsePath.StartsWith(parent.SymbolicId.Name) && browsePath[parent.SymbolicId.Name.Length] == NodeDesign.PathChar)
+                        if (browsePath.StartsWith(parent.SymbolicId.Name, StringComparison.Ordinal) &&
+                            browsePath[parent.SymbolicId.Name.Length] == NodeDesign.PathChar)
                         {
                             browsePath = browsePath[(parent.SymbolicId.Name.Length + 1)..];
                         }
@@ -6118,17 +6120,14 @@ namespace Opc.Ua.Schema.Model
 
             var builder = new StringBuilder();
 
-            if (targetRoot != null)
+            for (int ii = 0; ii < targetRoot.Length; ii++)
             {
-                for (int ii = 0; ii < targetRoot.Length; ii++)
+                if (builder.Length > 0)
                 {
-                    if (builder.Length > 0)
-                    {
-                        builder.Append(NodeDesign.PathChar);
-                    }
-
-                    builder.Append(targetRoot[ii]);
+                    builder.Append(NodeDesign.PathChar);
                 }
+
+                builder.Append(targetRoot[ii]);
             }
 
             if (targetPath != null)
@@ -6629,7 +6628,7 @@ namespace Opc.Ua.Schema.Model
                 string childPath = current.RelativePath;
 
                 // only looking for nodes in the current tree.
-                if (!childPath.StartsWith(basePath))
+                if (!childPath.StartsWith(basePath, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -6641,7 +6640,7 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 // relative should always end in the name of the current instance.
-                if (!childPath.EndsWith(current.Instance.SymbolicName.Name))
+                if (!childPath.EndsWith(current.Instance.SymbolicName.Name, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -6656,7 +6655,7 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
                 }
-                else if (string.Empty != basePath)
+                else if (string.IsNullOrEmpty(basePath))
                 {
                     continue;
                 }

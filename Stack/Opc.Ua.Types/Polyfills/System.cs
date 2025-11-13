@@ -72,6 +72,17 @@ namespace System
         }
 
         /// <summary>
+        /// Compare to a string using a specified comparison type.
+        /// </summary>
+        public static int CompareTo(
+            this string target,
+            string value,
+            StringComparison comparisonType)
+        {
+            return string.Compare(target, value, comparisonType);
+        }
+
+        /// <summary>
         /// Starts with a character in a string
         /// </summary>
         public static bool StartsWith(this string target, char value)
