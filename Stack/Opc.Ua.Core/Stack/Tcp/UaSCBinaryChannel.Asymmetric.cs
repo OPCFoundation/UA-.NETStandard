@@ -1000,11 +1000,11 @@ namespace Opc.Ua.Bindings
                 {
                     if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
                     {
-                        certificateValidator.Validate(senderCertificateChain);
+                        certificateValidator.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
                     }
                     else
                     {
-                        Quotas.CertificateValidator.Validate(senderCertificate);
+                        Quotas.CertificateValidator.ValidateAsync(senderCertificate, default).GetAwaiter().GetResult();
                     }
                 }
 

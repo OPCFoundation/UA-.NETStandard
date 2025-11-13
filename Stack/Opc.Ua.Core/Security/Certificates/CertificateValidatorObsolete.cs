@@ -10,25 +10,33 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// An abstract interface to the certificate validator.
+    /// Extension methods for ICertificateValidator.
     /// </summary>
-    public interface ICertificateValidator
+    public static class CertificateValidatorObsolete
     {
         /// <summary>
         /// Validates a certificate.
         /// </summary>
-        Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct);
+        [Obsolete("Use ValidateAsync")]
+        public static void Validate(this ICertificateValidator validator, X509Certificate2 certificate)
+        {
+            validator.ValidateAsync(certificate, CancellationToken.None).GetAwaiter().GetResult();
+        }
 
         /// <summary>
         /// Validates a certificate chain.
         /// </summary>
-        Task ValidateAsync(X509Certificate2Collection certificateChain, CancellationToken ct);
+        [Obsolete("Use ValidateAsync")]
+        public static void Validate(this ICertificateValidator validator, X509Certificate2Collection certificateChain)
+        {
+            validator.ValidateAsync(certificateChain, CancellationToken.None).GetAwaiter().GetResult();
+        }
     }
 }

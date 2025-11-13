@@ -452,7 +452,7 @@ namespace Opc.Ua.Bindings
                                     validationChain.Add(cert);
                                 }
 
-                                m_quotas.CertificateValidator?.Validate(validationChain);
+                                m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
 
                                 return true;
                             }
