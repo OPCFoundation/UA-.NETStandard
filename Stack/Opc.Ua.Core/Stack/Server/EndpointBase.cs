@@ -612,9 +612,6 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
-#if NET_STANDARD_OBSOLETE_SYNC && false
-            [Obsolete("Use constructor taking an InvokeServiceAsyncEventHandler.")]
-#endif
             public ServiceDefinition(Type requestType, InvokeServiceEventHandler invokeMethod)
             {
                 RequestType = requestType;
@@ -640,9 +637,7 @@ namespace Opc.Ua
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
             /// <param name="asyncInvokeMethod">The async invoke method.</param>
-#if NET_STANDARD_OBSOLETE_SYNC
             [Obsolete("Use constructor taking an InvokeServiceAsyncEventHandler.")]
-#endif
             public ServiceDefinition(
                 Type requestType,
                 InvokeServiceEventHandler invokeMethod,
