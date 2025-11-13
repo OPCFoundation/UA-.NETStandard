@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// <summary>
     /// An exception thrown when a UA defined error occurs.
     /// </summary>
-    [Serializable]
     public class ServiceResultException : Exception
     {
         /// <summary>
@@ -135,14 +134,14 @@ namespace Opc.Ua
         public string AdditionalInfo => Result.AdditionalInfo;
 
         /// <summary>
-        /// Returns the status result associated with the exception.
-        /// </summary>
-        public ServiceResult Result { get; }
-
-        /// <summary>
         /// Nested error information.
         /// </summary>
         public ServiceResult InnerResult => Result.InnerResult;
+
+        /// <summary>
+        /// Returns the status result associated with the exception.
+        /// </summary>
+        public ServiceResult Result { get; }
 
         /// <inheritdoc/>
         public override string ToString()

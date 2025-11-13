@@ -141,16 +141,20 @@ namespace Opc.Ua
                 Stream stream = BaseStream;
                 if (stream?.CanSeek != true)
                 {
+#pragma warning disable CA1065 // Do not raise exceptions in unexpected locations
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
                         "Stream does not support seeking.");
+#pragma warning restore CA1065 // Do not raise exceptions in unexpected locations
                 }
                 long position = stream?.Position ?? 0;
                 if (position is > int.MaxValue or < int.MinValue)
                 {
+#pragma warning disable CA1065 // Do not raise exceptions in unexpected locations
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
                         "Stream Position exceeds int.MaxValue or int.MinValue.");
+#pragma warning restore CA1065 // Do not raise exceptions in unexpected locations
                 }
                 return (int)position;
             }
@@ -2179,12 +2183,8 @@ namespace Opc.Ua
                 }
             }
 
-            if (encodeable != null)
-            {
-                // Set the known TypeId for encodeables.
-                extension.TypeId = encodeable.TypeId;
-            }
-
+            // Set the known TypeId for encodeables.
+            extension.TypeId = encodeable.TypeId;
             extension.Body = encodeable;
             return extension;
         }
@@ -2660,7 +2660,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            if (stream?.CanSeek != true || stream?.CanRead != true)
+            if (stream.CanSeek != true || stream.CanRead != true)
             {
                 throw new ArgumentException("Stream must be seekable and readable.");
             }

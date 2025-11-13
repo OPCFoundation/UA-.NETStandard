@@ -494,6 +494,7 @@ namespace Opc.Ua
 
 #if NETFRAMEWORK
         [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
         private static extern int memcmp(byte[] b1, byte[] b2, long count);
 
         /// <summary>
@@ -534,7 +535,9 @@ namespace Opc.Ua
             {
                 if (value2 is not null)
                 {
+#pragma warning disable CA1508 // Avoid dead conditional code
                     return value2.Equals(value1);
+#pragma warning restore CA1508 // Avoid dead conditional code
                 }
 
                 return true;
@@ -543,7 +546,9 @@ namespace Opc.Ua
             // check for null values.
             if (value2 is null)
             {
+#pragma warning disable CA1508 // Avoid dead conditional code
                 return value1.Equals(value2);
+#pragma warning restore CA1508 // Avoid dead conditional code
             }
 
             // check for encodeable objects.

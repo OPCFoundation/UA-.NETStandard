@@ -397,7 +397,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 lock (Lock)
                 {
-                    if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
+                    if (m_publisherUdpClients.Count > 0)
                     {
                         // Get encoded bytes
                         byte[] bytes = networkMessage.Encode(MessageContext);

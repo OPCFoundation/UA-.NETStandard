@@ -1027,9 +1027,7 @@ namespace Opc.Ua
         /// </summary>
         private const string kHexDigits = "0123456789ABCDEF";
 
-        /// <summary>
-        /// Compares the current instance to the object.
-        /// </summary>
+        /// <inheritdoc/>
         public int CompareTo(object obj)
         {
             // check for null.
@@ -1090,9 +1088,7 @@ namespace Opc.Ua
             return nodeId == null ? 0 : -1;
         }
 
-        /// <summary>
-        /// Returns true if a is greater than b.
-        /// </summary>
+        /// <inheritdoc/>
         public static bool operator >(ExpandedNodeId value1, object value2)
         {
             if (value1 is not null)
@@ -1103,30 +1099,34 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary>
-        /// Returns true if a is less than b.
-        /// </summary>
+        /// <inheritdoc/>
         public static bool operator <(ExpandedNodeId value1, object value2)
         {
             if (value1 is not null)
             {
                 return value1.CompareTo(value2) < 0;
             }
-
             return true;
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the ExpandedNodeId.
-        /// </summary>
+        /// <inheritdoc/>
+        public static bool operator >=(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return right is null || right.CompareTo(left) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return left is null || left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
-
-        /// <summary>
-        /// Returns a unique hashcode for the ExpandedNodeId
-        /// </summary>
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             if (InnerNodeId == null || InnerNodeId.IsNullNodeId)
@@ -1157,9 +1157,7 @@ namespace Opc.Ua
             return hash.ToHashCode();
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
+        /// <inheritdoc/>
         public static bool operator ==(ExpandedNodeId value1, object value2)
         {
             if (value1 is null)
@@ -1170,9 +1168,7 @@ namespace Opc.Ua
             return value1.CompareTo(value2) == 0;
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
+        /// <inheritdoc/>
         public static bool operator !=(ExpandedNodeId value1, object value2)
         {
             if (value1 is null)
@@ -1183,22 +1179,13 @@ namespace Opc.Ua
             return value1.CompareTo(value2) != 0;
         }
 
-        /// <summary>
-        /// Implements <see cref="IEquatable{T}"/>.Equals(T)"/>
-        /// </summary>
-        /// <param name="other">The other ExpandedNodeId.</param>
+        /// <inheritdoc/>
         public bool Equals(ExpandedNodeId other)
         {
             return CompareTo(other) == 0;
         }
 
-        /// <summary>
-        /// Returns the string representation of an ExpandedNodeId.
-        /// </summary>
-        /// <returns>The <see cref="ExpandedNodeId"/> as a formatted string</returns>
-        /// <param name="format">(Unused) The format string.</param>
-        /// <param name="formatProvider">(Unused) The format-provider.</param>
-        /// <exception cref="FormatException">Thrown when the 'format' parameter is NOT null. So leave that parameter null.</exception>
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -1227,9 +1214,7 @@ namespace Opc.Ua
             return this;
         }
 
-        /// <summary>
-        /// Returns the string representation of am ExpandedNodeId.
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);

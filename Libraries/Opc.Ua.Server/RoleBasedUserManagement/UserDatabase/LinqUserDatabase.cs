@@ -254,20 +254,34 @@ namespace Opc.Ua.Server.UserDatabase
 
         private static string Hash(ReadOnlySpan<byte> password)
         {
+#if NET10_0_OR_GREATER // Use span and non obsoleted APIs
+
+            Span<byte> keyBytes = stackalloc byte[kKeySize];
+            Span<byte> saltBytes = stackalloc byte[kSaltSize + sizeof(uint)];
+            RandomNumberGenerator.Fill(saltBytes);
+            Rfc2898DeriveBytes.Pbkdf2(
+                password,
+                saltBytes,
+                keyBytes,
+                kIterations,
+                HashAlgorithmName.SHA512);
+            string keyBase64 = Convert.ToBase64String(keyBytes);
+            string saltBase64 = Convert.ToBase64String(saltBytes);
+            return $"{kIterations}.{saltBase64}.{keyBase64}";
+
+#else // !NET10_0_OR_GREATER
             byte[] tmpPassword = password.ToArray();
             try
             {
                 byte[] salt = new byte[kSaltSize + sizeof(uint)];
-
 #if NETSTANDARD2_0 || NETFRAMEWORK
                 using (var random = RandomNumberGenerator.Create())
                 {
                     random.GetNonZeroBytes(salt);
                 }
-#else
+#else // !NETSTANDARD2_0 && !NETFRAMEWORK
                 RandomNumberGenerator.Fill(salt.AsSpan(0, kSaltSize));
 #endif
-
 #if NETSTANDARD2_0 || NET462
 #pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
                 using var algorithm = new Rfc2898DeriveBytes(
@@ -275,7 +289,7 @@ namespace Opc.Ua.Server.UserDatabase
                     salt,
                     kIterations);
 #pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
-#else
+#else // !NETSTANDARD2_0 && !NET462
                 using var algorithm = new Rfc2898DeriveBytes(
                     tmpPassword,
                     salt,
@@ -290,6 +304,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 Array.Clear(tmpPassword, 0, tmpPassword.Length);
             }
+#endif // !NET10_0_OR_GREATER
         }
 
         private static bool Check(string hash, ReadOnlySpan<byte> password)
@@ -310,6 +325,16 @@ namespace Opc.Ua.Server.UserDatabase
             int iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);
             byte[] salt = Convert.FromBase64String(parts[1]);
             byte[] key = Convert.FromBase64String(parts[2]);
+#if NET10_0_OR_GREATER
+            // Use span overloads
+            byte[] keyToCheck = Rfc2898DeriveBytes.Pbkdf2(
+                password,
+                salt,
+                kIterations,
+                HashAlgorithmName.SHA512,
+                key.Length);
+            return keyToCheck.SequenceEqual(key);
+#else
             byte[] tmpPassword = password.ToArray();
             try
             {
@@ -328,13 +353,13 @@ namespace Opc.Ua.Server.UserDatabase
                     HashAlgorithmName.SHA512);
 #endif
                 byte[] keyToCheck = algorithm.GetBytes(kKeySize);
-
                 return keyToCheck.SequenceEqual(key);
             }
             finally
             {
                 Array.Clear(tmpPassword, 0, tmpPassword.Length);
             }
+#endif
         }
 
         [OnDeserialized]

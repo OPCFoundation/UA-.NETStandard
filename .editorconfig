@@ -411,6 +411,98 @@ dotnet_diagnostic.IDE0046.severity                                            = 
 dotnet_diagnostic.IDE0130.severity                                            = none
 
 #
+# Introduced in .net 10 as part of all analysis configuration
+#
+
+# Fix never - would break API without good workaround
+
+# CA1030: Use events where appropriate
+dotnet_diagnostic.CA1030.severity                                             = none
+# CA1024: Use properties where appropriate
+dotnet_diagnostic.CA1024.severity                                             = none
+# CA1003: Use generic event handler instances
+dotnet_diagnostic.CA1003.severity                                             = none
+# CA1515: Consider making public types internal
+dotnet_diagnostic.CA1515.severity                                             = none
+# CA1720: Identifier contains type name
+dotnet_diagnostic.CA1720.severity                                             = none
+# CA1814: Prefer jagged arrays over multidimensional
+dotnet_diagnostic.CA1814.severity                                             = none
+# CA1716: Identifiers should not match keywords
+dotnet_diagnostic.CA1716.severity                                             = none
+# CA1724: The type conflicts in whole or in part with a namespace name
+dotnet_diagnostic.CA1724.severity                                             = none
+
+# TODO Fix as P0:
+
+# CA2326: Deserializing JSON when using a TypeNameHandling value other than None can be insecure.
+dotnet_diagnostic.CA2326.severity = none
+dotnet_diagnostic.CA2327.severity = none
+
+# TODO Fix as P1:
+
+# CA2213: Disposable fields should be disposed
+dotnet_diagnostic.CA2213.severity = none
+# CA2000: Dispose objects before losing scope
+dotnet_diagnostic.CA2000.severity = none
+# CA1001: Types that own disposable fields should be disposable
+dotnet_diagnostic.CA1001.severity = none
+# IDE0032: Use auto property
+dotnet_diagnostic.IDE0032.severity = none
+# CA1849: Call async methods when in an async method
+dotnet_diagnostic.CA1849.severity = none
+
+# TODO: Fix as P2:
+
+# CA2225: Operator overloads have named alternates
+dotnet_diagnostic.CA2225.severity = none
+# CA1848: Use the LoggerMessage delegates
+dotnet_diagnostic.CA1848.severity = none
+# CA1873: Avoid potentially expensive logging
+dotnet_diagnostic.CA1873.severity = none
+# CA1000: Do not declare static members on generic types
+dotnet_diagnostic.CA1000.severity = none
+# CA1031: Do not catch general exception types
+dotnet_diagnostic.CA1031.severity = none
+# CA1034: Nested types should not be visible
+dotnet_diagnostic.CA1034.severity = none
+# CA1008: Enums should have zero value
+dotnet_diagnostic.CA1008.severity = none
+# CA1308: Normalize strings to uppercase
+dotnet_diagnostic.CA1308.severity = none
+# CA2214: Do not call overridable methods in constructors
+dotnet_diagnostic.CA2214.severity = none
+
+# TODO: Fix as P3
+
+# CA1062: Validate arguments of public methods
+dotnet_diagnostic.CA1062.severity = none
+# CA1056: URI-like properties should not be strings
+dotnet_diagnostic.CA1056.severity = none
+# CA1002: Do not expose generic lists
+dotnet_diagnostic.CA1002.severity = none
+# CA1051: Do not declare visible instance fields
+dotnet_diagnostic.CA1051.severity = none
+# CA1028: Enum Storage should be Int32
+dotnet_diagnostic.CA1028.severity = none
+# CA1054: URI-like parameters should not be strings
+dotnet_diagnostic.CA1054.severity = none
+# CA1055: URI-like return values should not be strings
+dotnet_diagnostic.CA1055.severity = none
+# CA1707: Identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+# CA1033: Interface methods should be callable by child types
+dotnet_diagnostic.CA1033.severity = none
+# CA1065: Do not raise exceptions in unexpected locations
+dotnet_diagnostic.CA1065.severity = none
+# CA5362: Field participates in a potential reference cycle
+dotnet_diagnostic.CA5362.severity = none
+# CA1303: Do not pass literals as localized parameters
+dotnet_diagnostic.CA1303.severity = none
+# CA2227: Collection properties should be read only
+dotnet_diagnostic.CA2227.severity = none
+
+#
 # Roslynator settings (https://josefpihrt.github.io/docs/roslynator/analyzers)
 #
 dotnet_analyzer_diagnostic.category-roslynator.severity = suggestion

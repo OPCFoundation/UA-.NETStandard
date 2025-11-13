@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(resultString, Is.EqualTo("second_test string 890"));
         }
 
-        private class TestRedactionStrategy : IRedactionStrategy
+        private sealed class TestRedactionStrategy : IRedactionStrategy
         {
             private readonly string m_prefix;
 

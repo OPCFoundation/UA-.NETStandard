@@ -116,6 +116,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Name = "StatusCode", Namespace = Namespaces.OpcUaXsd)]
+    [Serializable]
     public struct StatusCode :
         IFormattable,
         IComparable,
@@ -467,12 +468,7 @@ namespace Opc.Ua
             return Code.CompareTo(other);
         }
 
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <param name="format">(Unused) The format of the string. Always specify null for this parameter</param>
-        /// <param name="formatProvider">The provider to use for the formatting</param>
-        /// <exception cref="FormatException">Thrown if you specify a value for the Format parameter</exception>
+        /// <inheritdoc/>
         public readonly string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -532,123 +528,88 @@ namespace Opc.Ua
             return buffer.ToString();
         }
 
-        /// <summary>
-        /// Converts a 32-bit code a StatusCode object.
-        /// </summary>
-        /// <param name="code">The code to convert to a StatusCode</param>
+        /// <inheritdoc/>
         public static implicit operator StatusCode(uint code)
         {
             return new StatusCode(code);
         }
 
-        /// <summary>
-        /// Converts a StatusCode object to a 32-bit code.
-        /// </summary>
-        /// <param name="code">The StatusCode to convert to a 32-but number</param>
+        /// <inheritdoc/>
         public static explicit operator uint(StatusCode code)
         {
             return code.Code;
         }
 
-        /// <summary>
-        /// Looks up the symbolic name for a status code.
-        /// </summary>
-        /// <param name="code">The numeric error-code to convert to a textual description</param>
-        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
-
-        public static string LookupSymbolicId(uint code)
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Looks up the Utf8 encoded symbolic name for a status code.
-        /// </summary>
-        /// <param name="code">The numeric error-code to convert to a textual description</param>
-        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
-        public static byte[] LookupUtf8SymbolicId(uint code)
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator ==(StatusCode a, StatusCode b)
         {
             return a.Equals(b);
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator !=(StatusCode a, StatusCode b)
         {
             return !(a == b);
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator ==(StatusCode a, uint b)
         {
             return a.Equals(b);
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <param name="a">The first value being compared</param>
-        /// <param name="b">The second value being compared to</param>
+        /// <inheritdoc/>
         public static bool operator !=(StatusCode a, uint b)
         {
             return !(a == b);
         }
 
-        /// <summary>
-        /// Returns true if the object a is less than object b.
-        /// </summary>
-        /// <param name="a">The first value being compared</param>
-        /// <param name="b">The second value being compared to</param>
+        /// <inheritdoc/>
         public static bool operator <(StatusCode a, uint b)
         {
             return a.CompareTo(b) < 0;
         }
 
-        /// <summary>
-        /// Returns true if the object a is greater than object b.
-        /// </summary>
-        /// <param name="a">The first value being compared</param>
-        /// <param name="b">The second value being compared to</param>
+        /// <inheritdoc/>
         public static bool operator >(StatusCode a, uint b)
         {
             return a.CompareTo(b) > 0;
         }
 
-        /// <summary>
-        /// Returns true if the object a is less than object b.
-        /// </summary>
-        /// <param name="a">The first value being compared</param>
-        /// <param name="b">The second value being compared to</param>
+        /// <inheritdoc/>
+        public static bool operator <=(StatusCode left, uint right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(StatusCode left, uint right)
+        {
+            return left.CompareTo(right) >= 0;
+        }
+
+        /// <inheritdoc/>
         public static bool operator <(StatusCode a, StatusCode b)
         {
             return a.CompareTo(b) < 0;
         }
 
-        /// <summary>
-        /// Returns true if the object a is greater than object b.
-        /// </summary>
-        /// <param name="a">The first value being compared</param>
-        /// <param name="b">The second value being compared to</param>
+        /// <inheritdoc/>
         public static bool operator >(StatusCode a, StatusCode b)
         {
             return a.CompareTo(b) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(StatusCode left, StatusCode right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(StatusCode left, StatusCode right)
+        {
+            return left.CompareTo(right) >= 0;
         }
 
         /// <summary>
@@ -854,6 +815,27 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             return new StatusCodeCollection(this);
+        }
+
+        /// <summary>
+        /// Looks up the symbolic name for a status code.
+        /// </summary>
+        /// <param name="code">The numeric error-code to convert to a textual description</param>
+        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
+
+        public static string LookupSymbolicId(uint code)
+        {
+            return null;
+        }
+
+        /// <summary>
+        /// Looks up the Utf8 encoded symbolic name for a status code.
+        /// </summary>
+        /// <param name="code">The numeric error-code to convert to a textual description</param>
+        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
+        public static byte[] LookupUtf8SymbolicId(uint code)
+        {
+            return null;
         }
     }
 }

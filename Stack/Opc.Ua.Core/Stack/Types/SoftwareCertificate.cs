@@ -53,32 +53,6 @@ namespace Opc.Ua
                     "Could not decode software certificate body.");
             }
 
-            // find the software certificate.
-            byte[] encodedData = null;
-
-            if (encodedData == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadCertificateInvalid,
-                    "Could not find extension containing the software certificate.");
-            }
-
-            try
-            {
-                var istrm = new MemoryStream(encodedData, false);
-                var serializer = new DataContractSerializer(typeof(SoftwareCertificate));
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                softwareCertificate = (SoftwareCertificate)serializer.ReadObject(istrm);
-                softwareCertificate.SignedCertificate = certificate;
-            }
-            catch (Exception e)
-            {
-                return ServiceResult.Create(
-                    e,
-                    StatusCodes.BadCertificateInvalid,
-                    "Certificate does not contain a valid SoftwareCertificate body.");
-            }
-
             // certificate is valid.
             return ServiceResult.Good;
         }

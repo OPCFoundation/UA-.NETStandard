@@ -624,7 +624,7 @@ namespace Opc.Ua.PubSub.Encoding
                     var dataFields = new List<Field>();
                     for (int i = 0; i < dataSetMetaData.Fields.Count; i++)
                     {
-                        var dataField = new Field { FieldMetaData = dataSetMetaData?.Fields[i] };
+                        var dataField = new Field { FieldMetaData = dataSetMetaData.Fields[i] };
 
                         if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                                 is TargetVariablesDataType targetVariablesData &&
@@ -678,7 +678,7 @@ namespace Opc.Ua.PubSub.Encoding
                         }
                     }
 
-                    return new DataSet(dataSetMetaData?.Name)
+                    return new DataSet(dataSetMetaData.Name)
                     {
                         DataSetMetaData = dataSetMetaData,
                         Fields = [.. dataFields],

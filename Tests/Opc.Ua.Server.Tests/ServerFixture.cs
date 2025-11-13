@@ -202,7 +202,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(string pkiRoot, int port = 0)
         {
-            var random = new Random();
             bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
@@ -229,12 +228,12 @@ namespace Opc.Ua.Server.Tests
                         sre.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     serverStartRetries--;
-                    testPort = random.Next(
+                    testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
                         ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
             return Server;
@@ -254,7 +253,7 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
-                throw new Exception("Application instance certificate invalid!");
+                throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
             // start the server.

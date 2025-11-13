@@ -54,7 +54,6 @@ namespace Opc.Ua.Client.Tests
     public class ClientBatchTest : ClientTestFramework
     {
         private const uint kOperationLimit = 5;
-        private Random m_random;
 
         public ClientBatchTest(string uriScheme = Utils.UriSchemeOpcTcp)
             : base(uriScheme)
@@ -84,7 +83,6 @@ namespace Opc.Ua.Client.Tests
                 session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit;
                 session.OperationLimits.MaxNodesPerWrite = kOperationLimit;
             }
-            m_random = new Random(0x62541);
         }
 
         /// <summary>
@@ -110,7 +108,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // set the time offset to a value from -5 to +5 days
                 testableSession.TimestampOffset = TimeSpan.FromSeconds(
-                    (m_random.NextDouble() - 0.5) * 3600.0 * 24.0 * 10.0);
+                    (UnsecureRandom.Shared.NextDouble() - 0.5) * 3600.0 * 24.0 * 10.0);
                 TestContext.Out.WriteLine(
                     "The time offset for request headers has been set to {0} offset.",
                     testableSession.TimestampOffset.ToString());

@@ -507,7 +507,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             ReadOnlySpan<byte> defaultspan = default;
             encoder.WriteByteString("ByteString6", defaultspan);
             Assert.IsTrue(defaultspan.IsEmpty);
+#pragma warning disable CA1508 // Actually true
             Assert.IsTrue(defaultspan == ReadOnlySpan<byte>.Empty);
+#pragma warning restore CA1508
 
             var emptyspan = new ReadOnlySpan<byte>([]);
             encoder.WriteByteString("ByteString7", emptyspan);

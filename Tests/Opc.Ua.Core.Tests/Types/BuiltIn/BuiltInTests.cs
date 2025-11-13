@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -288,7 +289,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(ServiceResult.Good.StatusCode, diagnosticInfo.InnerStatusCode);
             Assert.AreEqual(null, diagnosticInfo.InnerDiagnosticInfo);
 
+#pragma warning disable CA1508 //TODO: Ensure only DiagnosticInfo.Null is allowed
             Assert.IsTrue(diagnosticInfo.Equals(null));
+#pragma warning restore CA1508 // Avoid dead conditional code
             Assert.IsTrue(diagnosticInfo.IsNullDiagnosticInfo);
         }
 
@@ -303,7 +306,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 Namespaces.OpcUa,
                 new StatusCode(StatusCodes.BadAggregateConfigurationRejected, "SymbolicId"),
                 new LocalizedText("The text", "en-us"),
-                new Exception("The inner exception."));
+                new IOException("The inner exception."));
             ILogger logger = Telemetry.CreateLogger<BuiltInTests>();
             var diagnosticInfo = new DiagnosticInfo(
                 serviceResult,
@@ -683,13 +686,13 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             }
 
             TestContext.Out.WriteLine("Distinct NodeIds:");
-            IEnumerable<NodeId> distinctNodeIds = nodeIds.Distinct();
+            List<NodeId> distinctNodeIds = nodeIds.Distinct().ToList();
             foreach (NodeId nodeId in distinctNodeIds)
             {
                 TestContext.Out.WriteLine($"NodeId={nodeId}, HashCode={nodeId.GetHashCode():x8}");
             }
             // all null node ids should be equal and removed
-            Assert.AreEqual(distinctNodes, distinctNodeIds.Count());
+            Assert.AreEqual(distinctNodes, distinctNodeIds.Count);
         }
 
         [Theory]

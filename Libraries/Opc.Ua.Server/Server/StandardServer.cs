@@ -3244,11 +3244,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (configuration != null)
-                {
-                    configuration.CertificateValidator.CertificateValidation
-                        -= registrationCertificateValidator;
-                }
+                configuration.CertificateValidator.CertificateValidation -= registrationCertificateValidator;
             }
             m_registeredWithDiscoveryServer = false;
             return false;
@@ -3672,7 +3668,9 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
         /// </remarks>
-        protected override async ValueTask OnUpdateConfigurationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
+        protected override async ValueTask OnUpdateConfigurationAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -3690,9 +3688,9 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
-                await Configuration
-                    .CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration)
-                    .ConfigureAwait(false);
+                await Configuration.CertificateValidator.UpdateAsync(
+                    Configuration.SecurityConfiguration,
+                    ct: cancellationToken).ConfigureAwait(false);
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??

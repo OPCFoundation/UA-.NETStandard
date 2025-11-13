@@ -129,10 +129,9 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             Assert.That(vfs.Files.Count(), Is.EqualTo(fileCount));
 
             // Verify a few random files
-            var random = new Random(42); // Fixed seed for reproducible tests
             for (int i = 0; i < 10; i++)
             {
-                int index = random.Next(fileCount);
+                int index = UnsecureRandom.Shared.Next(fileCount);
                 string filePath = $"file{index:D4}.txt";
 
                 Assert.That(vfs.Exists(filePath), Is.True);
@@ -169,7 +168,6 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
         public void MemoryPressure_LargeFiles_HandledGracefully()
         {
             // Arrange
-            var rnd = new Random();
             using var vfs = new VirtualFileSystem();
 
             // Act - Create several moderately large files
@@ -177,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             {
                 string filePath = $"large{i}.dat";
                 byte[] largeContent = new byte[1024 * 1024]; // 1MB each
-                rnd.NextBytes(largeContent);
+                UnsecureRandom.Shared.NextBytes(largeContent);
 
                 vfs.Add(filePath, largeContent);
             }

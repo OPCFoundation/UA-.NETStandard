@@ -190,7 +190,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual(ServiceResult.Good.StatusCode, diagnosticInfo.InnerStatusCode);
             Assert.AreEqual(null, diagnosticInfo.InnerDiagnosticInfo);
 
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.IsTrue(diagnosticInfo.Equals(null));
+#pragma warning restore CA1508 // Avoid dead conditional code
             Assert.IsTrue(diagnosticInfo.IsNullDiagnosticInfo);
         }
 
@@ -535,13 +537,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             }
 
             TestContext.Out.WriteLine("Distinct NodeIds:");
-            IEnumerable<NodeId> distinctNodeIds = nodeIds.Distinct();
+            List<NodeId> distinctNodeIds = nodeIds.Distinct().ToList();
             foreach (NodeId nodeId in distinctNodeIds)
             {
                 TestContext.Out.WriteLine($"NodeId={nodeId}, HashCode={nodeId.GetHashCode():x8}");
             }
             // all null node ids should be equal and removed
-            Assert.AreEqual(distinctNodes, distinctNodeIds.Count());
+            Assert.AreEqual(distinctNodes, distinctNodeIds.Count);
         }
 
         [Theory]

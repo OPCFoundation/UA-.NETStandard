@@ -413,12 +413,12 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            var random = new Random(62541);
             var testSet = ReferenceDescriptions
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Take(kTestSetSize)
                 .Select(r => r.NodeId)
                 .ToList();
+
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -443,12 +443,12 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            var random = new Random(62541);
             var testSet = ReferenceDescriptions
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Take(kTestSetSize)
                 .Select(r => r.NodeId)
                 .ToList();
+
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -472,12 +472,12 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            var random = new Random(62541);
             var testSet = ReferenceDescriptions
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Take(kTestSetSize)
                 .Select(r => r.NodeId)
                 .ToList();
+
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId> { ReferenceTypeIds.HierarchicalReferences };
 
@@ -507,12 +507,12 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            var random = new Random(62541);
             var testSetAll = ReferenceDescriptions
                 .Where(r => r.NodeClass == NodeClass.Variable)
-                .OrderBy(_ => random.Next())
+                .OrderBy(_ => UnsecureRandom.Shared.Next())
                 .Select(r => r.NodeId)
                 .ToList();
+
             var testSet1 = testSetAll.Take(kTestSetSize).ToList();
             var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
             var testSet3 = testSetAll.Skip(kTestSetSize * 2).Take(kTestSetSize).ToList();

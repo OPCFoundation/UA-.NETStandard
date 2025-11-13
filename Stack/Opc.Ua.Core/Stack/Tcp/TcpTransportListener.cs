@@ -742,21 +742,21 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            CertificateTypesProvider certificateTypesProvider)
+            CertificateTypesProvider serverCertificateTypes)
         {
             m_quotas.CertificateValidator = validator;
-            m_serverCertificateTypesProvider = certificateTypesProvider;
+            m_serverCertificateTypesProvider = serverCertificateTypes;
             foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
                 if (description.ServerCertificate != null)
                 {
-                    X509Certificate2 serverCertificate = certificateTypesProvider
+                    X509Certificate2 serverCertificate = serverCertificateTypes
                         .GetInstanceCertificate(
                             description.SecurityPolicyUri);
-                    if (certificateTypesProvider.SendCertificateChain)
+                    if (serverCertificateTypes.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider
+                        description.ServerCertificate = serverCertificateTypes
                             .LoadCertificateChainRaw(
                                 serverCertificate);
                     }

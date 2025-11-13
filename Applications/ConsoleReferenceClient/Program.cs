@@ -587,7 +587,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 // subscribe to 1000 random variables
                                 const int maxVariables = 1000;
                                 var variables = new NodeCollection();
-                                var random = new Random(62541);
+
                                 if (fetchall)
                                 {
                                     variables.AddRange(
@@ -597,7 +597,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                                 r.NodeId.NamespaceIndex > 1
                                             )
                                             .Cast<VariableNode>()
-                                            .OrderBy(o => random.Next())
+                                            .OrderBy(o => UnsecureRandom.Shared.Next())
                                             .Take(maxVariables)
                                     );
                                 }
@@ -607,7 +607,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .Where(r => r.NodeClass == NodeClass.Variable &&
                                             r.NodeId.NamespaceIndex > 1)
                                         .Select(r => r.NodeId)
-                                        .OrderBy(o => random.Next())
+                                        .OrderBy(o => UnsecureRandom.Shared.Next())
                                         .Take(maxVariables)
                                         .ToList();
                                     variables.AddRange(

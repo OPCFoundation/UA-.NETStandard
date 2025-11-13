@@ -821,7 +821,9 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The value with the specified NodeId.</value>
         /// <exception cref="KeyNotFoundException"></exception>
+#pragma warning disable CA1043 // Use Integral Or String Argument For Indexers
         public T this[IReference key]
+#pragma warning restore CA1043 // Use Integral Or String Argument For Indexers
         {
             get
             {

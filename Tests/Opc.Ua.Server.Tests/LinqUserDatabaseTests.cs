@@ -10,7 +10,7 @@ namespace Opc.Ua.Server.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    internal class LinqUserDatabaseTests
+    public sealed class LinqUserDatabaseTests
     {
         [Test]
         public void CreateInvalidUser()

@@ -731,7 +731,7 @@ namespace Opc.Ua
             // check for matching dimensions.
             NumericRange? finalRange = null;
 
-            if (SubRanges != null && SubRanges.Length > srcTypeInfo.ValueRank)
+            if (SubRanges.Length > srcTypeInfo.ValueRank)
             {
                 if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
                     SubRanges.Length == srcTypeInfo.ValueRank + 1)

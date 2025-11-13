@@ -342,7 +342,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 Assert.AreEqual(
                     m_appSelfSignedCerts.Count,
-                    validator.IssuerStore.EnumerateAsync().Result.Count);
+                    (await validator.IssuerStore.EnumerateAsync().ConfigureAwait(false)).Count);
                 CertificateValidator certValidator = validator.Update();
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
                 {
@@ -358,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await Task.Delay(1000).ConfigureAwait(false);
                 Assert.AreEqual(
                     m_appSelfSignedCerts.Count,
-                    validator.RejectedStore.EnumerateAsync().Result.Count);
+                    (await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false)).Count);
             }
         }
 
@@ -599,7 +599,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     ICertificateStore store =
-                        i != v || kCaChainCount == 1
+                        i != v
                             ? validator.TrustedStore
                             : validator.IssuerStore;
                     await store.AddAsync(m_caChain[i]).ConfigureAwait(false);
@@ -2100,7 +2100,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     /// To catch cases where unsuppressable errors should not
     /// call for approvals.
     /// </summary>
-    internal class CertValidationApprover
+    internal sealed class CertValidationApprover
     {
         public StatusCode[] ApprovedCodes { get; }
         public int Count { get; private set; }

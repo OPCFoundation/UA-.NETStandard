@@ -180,6 +180,33 @@ namespace Opc.Ua
             return a.CompareTo(b) > 0;
         }
 
+
+        /// <summary>
+        /// Returns true if the object a is less or equal to object b.
+        /// </summary>
+        /// <remarks>
+        /// Returns true if the object a is less or equal to  object b.
+        /// </remarks>
+        /// <param name="a">The first object being compared</param>
+        /// <param name="b">The second object being compared to</param>
+        public static bool operator <=(Uuid a, Uuid b)
+        {
+            return a.CompareTo(b) <= 0;
+        }
+
+        /// <summary>
+        /// Returns true if the object a is greater or equal to  object b.
+        /// </summary>
+        /// <remarks>
+        /// Returns true if the object a is greater or equal to  object b.
+        /// </remarks>
+        /// <param name="a">The first object being compared</param>
+        /// <param name="b">The second object being compared to</param>
+        public static bool operator >=(Uuid a, Uuid b)
+        {
+            return a.CompareTo(b) >= 0;
+        }
+
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>

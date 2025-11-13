@@ -62,9 +62,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(
-            bool disableHiResClock)
+            bool hiResClockDisabled)
         {
-            ApplicationConfiguration.DisableHiResClock = disableHiResClock;
+            ApplicationConfiguration.DisableHiResClock = hiResClockDisabled;
             return this;
         }
 
@@ -163,7 +163,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
-            CertificateIdentifierCollection applicationCertificates,
+            CertificateIdentifierCollection certIdList,
             string pkiRoot = null,
             string rejectedRoot = null)
         {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
             {
                 // app cert store
-                ApplicationCertificates = applicationCertificates,
+                ApplicationCertificates = certIdList,
                 // App trusted & issuer
                 TrustedPeerCertificates = new CertificateTrustList
                 {
@@ -1011,9 +1011,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(
-            bool mutualTlsEnabeld)
+            bool mTlsEnabled)
         {
-            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mutualTlsEnabeld;
+            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mTlsEnabled;
             return this;
         }
 

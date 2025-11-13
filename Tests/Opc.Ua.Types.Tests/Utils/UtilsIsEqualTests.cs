@@ -58,9 +58,11 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
 #if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
         [LibraryImport("msvcrt")]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static partial int memcmp(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2, long count);
 #else
         [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static extern int memcmp(byte[] b1, byte[] b2, long count);
 #endif
 
@@ -231,10 +233,9 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
         public void OneTimeSetUp()
         {
             // for validating benchmark tests
-            m_random = new Random(0x62541);
             m_bufferA = new byte[PayLoadSize];
             m_bufferB = new byte[PayLoadSize];
-            m_random.NextBytes(m_bufferA);
+            UnsecureRandom.Shared.NextBytes(m_bufferA);
             Array.Copy(m_bufferA, m_bufferB, m_bufferA.Length);
         }
 
@@ -250,10 +251,9 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
         public void GlobalSetup()
         {
             // for validating benchmark tests
-            m_random = new Random(0x62541);
             m_bufferA = new byte[PayLoadSize];
             m_bufferB = new byte[PayLoadSize];
-            m_random.NextBytes(m_bufferA);
+            UnsecureRandom.Shared.NextBytes(m_bufferA);
             Array.Copy(m_bufferA, m_bufferB, m_bufferA.Length);
         }
 
@@ -300,7 +300,9 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
             {
                 if (value2 != null)
                 {
+#pragma warning disable CA1508 // Avoid dead conditional code
                     return value2.Equals(value1);
+#pragma warning restore CA1508 // Avoid dead conditional code
                 }
 
                 return true;
@@ -309,7 +311,9 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
             // check for null values.
             if (value2 == null)
             {
+#pragma warning disable CA1508 // Avoid dead conditional code
                 return value1.Equals(value2);
+#pragma warning restore CA1508 // Avoid dead conditional code
             }
 
             // check that data types are the same.
@@ -451,7 +455,6 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
             return value1.Equals(value2);
         }
 
-        private Random m_random;
         private byte[] m_bufferA;
         private byte[] m_bufferB;
     }

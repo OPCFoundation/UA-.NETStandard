@@ -222,7 +222,7 @@ namespace Opc.Ua.Client
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
-        public virtual void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             // close the watcher.
             if (m_configurationWatcher != null)
@@ -549,7 +549,11 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    await Task.Delay(-1, ct).ContinueWith(_ => { }, ct).ConfigureAwait(false);
+                    await Task.Delay(-1, ct).ContinueWith(
+                        _ => { },
+                        ct,
+                        TaskContinuationOptions.None,
+                        TaskScheduler.Default).ConfigureAwait(false);
                 }
                 tcs.TrySetCanceled(ct);
             }
@@ -724,7 +728,10 @@ namespace Opc.Ua.Client
                                         HiResClock.TickCount - startTime);
                                 }
                             }
-                        })
+                        },
+                        default,
+                        TaskContinuationOptions.None,
+                        TaskScheduler.Default)
                         .ConfigureAwait(false);
                 }
                 break;

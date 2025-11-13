@@ -1,4 +1,4 @@
-name: Build and Test .NET 9.0
+name: Build and Test .NET 10.0
 
 on:
   push:
@@ -22,10 +22,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         csproj: [Security.Certificates, Types, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds]
         include:
-          - framework: 'net9.0'
-            dotnet-version: '9.0.x'
+          - framework: 'net10.0'
+            dotnet-version: '10.0.x'
             configuration: 'Release'
-            customtesttarget: net9.0
+            customtesttarget: net10.0
 
     env:
       OS: ${{ matrix.os }}

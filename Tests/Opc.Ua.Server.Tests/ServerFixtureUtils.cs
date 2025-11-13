@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests
                     e.TransportProfileUri
                         .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)
                 ) ??
-                throw new Exception("Unsupported transport profile.");
+                throw new NotSupportedException("Unsupported transport profile.");
 
             // fake profiles
             if (useSecurity)

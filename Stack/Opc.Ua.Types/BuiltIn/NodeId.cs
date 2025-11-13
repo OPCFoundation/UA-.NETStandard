@@ -1231,13 +1231,7 @@ namespace Opc.Ua
             SetIdentifier(IdType.String, value);
         }
 
-        /// <summary>
-        /// Compares the current instance to the object.
-        /// </summary>
-        /// <remarks>
-        /// Enables this object type to be compared to other types of object.
-        /// </remarks>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public int CompareTo(object obj)
         {
             // check for null.
@@ -1325,7 +1319,7 @@ namespace Opc.Ua
                     idType = expandedId.IdType;
                     id = expandedId.Identifier;
                 }
-                else if (obj != null)
+                else // if (obj != null)
                 {
                     var guid2 = obj as Guid?;
                     var uuid2 = obj as Uuid?;
@@ -1452,12 +1446,7 @@ namespace Opc.Ua
             return CompareTo(idType, id);
         }
 
-        /// <summary>
-        /// Returns true if a is greater than b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if a is greater than b.
-        /// </remarks>
+        /// <inheritdoc/>
         public static bool operator >(NodeId value1, NodeId value2)
         {
             if (value1 is not null)
@@ -1468,12 +1457,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary>
-        /// Returns true if a is less than b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if a is less than b.
-        /// </remarks>
+        /// <inheritdoc/>
         public static bool operator <(NodeId value1, NodeId value2)
         {
             if (value1 is not null)
@@ -1484,14 +1468,19 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary>
-        /// Returns the string representation of a NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Returns the string representation of a NodeId. This is the same as calling
-        /// <see cref="Format(IFormatProvider)"/>.
-        /// </remarks>
-        /// <exception cref="FormatException">Thrown when the format is not null</exception>
+        /// <inheritdoc/>
+        public static bool operator >=(NodeId left, NodeId right)
+        {
+            return right is null || right.CompareTo(left) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(NodeId left, NodeId right)
+        {
+            return left is null || left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -1520,26 +1509,13 @@ namespace Opc.Ua
             return this;
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Returns a true/false if the specified NodeId is the same as this NodeId.
-        /// </remarks>
-        /// <param name="obj">The object (NodeId or ExpandedNodeId is desired) to compare to</param>
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
 
-        /// <summary>
-        /// Determines if the specified NodeId is equal to the NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Returns a true/false if the specified NodeId is the same as this NodeId.
-        /// Null NodeIds are considered equal.
-        /// </remarks>
-        /// <param name="other">The NodeId to compare to</param>
+        /// <inheritdoc/>
         public bool Equals(NodeId other)
         {
             if (ReferenceEquals(this, other))
@@ -1571,12 +1547,7 @@ namespace Opc.Ua
             return CompareTo(other.IdType, other.Identifier) == 0;
         }
 
-        /// <summary>
-        /// Returns a unique hashcode for the NodeId
-        /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the NodeId
-        /// </remarks>
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             if (m_identifier == null)
@@ -1620,12 +1591,7 @@ namespace Opc.Ua
             return hashCode.ToHashCode();
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
+        /// <inheritdoc/>
         public static bool operator ==(NodeId value1, object value2)
         {
             if (value1 is null)
@@ -1636,12 +1602,7 @@ namespace Opc.Ua
             return value1.CompareTo(value2) == 0;
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
+        /// <inheritdoc/>
         public static bool operator !=(NodeId value1, object value2)
         {
             if (value1 is null)
@@ -1720,8 +1681,10 @@ namespace Opc.Ua
                         case IdType.Opaque:
                             break;
                         default:
+#pragma warning disable CA1065 // Do not raise exceptions in unexpected locations
                             throw ServiceResultException.Unexpected(
                                 $"Unexpected IdType value {IdType}.");
+#pragma warning restore CA1065 // Do not raise exceptions in unexpected locations
                     }
                 }
 
@@ -1773,15 +1736,17 @@ namespace Opc.Ua
 
                             break;
                         case IdType.Opaque:
-                            if (m_identifier != null && ((byte[])m_identifier).Length > 0)
+                            if (((byte[])m_identifier).Length > 0)
                             {
                                 return false;
                             }
 
                             break;
                         default:
+#pragma warning disable CA1065 // Do not raise exceptions in unexpected locations
                             throw ServiceResultException.Unexpected(
                                 $"Unexpected IdType value {IdType}.");
+#pragma warning restore CA1065 // Do not raise exceptions in unexpected locations
                     }
                 }
 

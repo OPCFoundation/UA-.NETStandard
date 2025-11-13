@@ -70,9 +70,9 @@ namespace Opc.Ua
         /// <summary>
         /// Get last write time of file
         /// </summary>
-        /// <param name="designFilePath"></param>
+        /// <param name="path"></param>
         /// <returns></returns>
-        DateTime GetLastWriteTime(string designFilePath);
+        DateTime GetLastWriteTime(string path);
     }
 
     /// <summary>

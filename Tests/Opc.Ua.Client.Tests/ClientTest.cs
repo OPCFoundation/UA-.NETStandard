@@ -1854,8 +1854,8 @@ namespace Opc.Ua.Client.Tests
             )] string securityPolicy)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
-                (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
-                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1 &&
+                 securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
                 var userIdentity = new UserIdentity("user1", "password"u8);
 
@@ -1903,8 +1903,8 @@ namespace Opc.Ua.Client.Tests
             )] string securityPolicy)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
-                (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
-                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1 &&
+                 securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
                 const string identityToken = "fakeTokenString";
 
