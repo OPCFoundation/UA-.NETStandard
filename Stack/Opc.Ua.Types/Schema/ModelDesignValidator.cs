@@ -140,11 +140,11 @@ namespace Opc.Ua.Schema.Model
         {
             get
             {
-                if (EmbeddedModelPath.EndsWith("v103"))
+                if (EmbeddedModelPath.EndsWith("v103", StringComparison.OrdinalIgnoreCase))
                 {
                     return StandardVersion.V103;
                 }
-                if (EmbeddedModelPath.EndsWith("v104"))
+                if (EmbeddedModelPath.EndsWith("v104", StringComparison.OrdinalIgnoreCase))
                 {
                     return StandardVersion.V104;
                 }
@@ -435,7 +435,7 @@ namespace Opc.Ua.Schema.Model
         {
             var knownFiles = new Dictionary<string, string>();
             var validator = new TypeDictionaryValidator(knownFiles);
-            validator.Validate(stream, null);
+            validator.Validate(stream);
 
             string namespaceUri = validator.Dictionary.TargetNamespace;
 

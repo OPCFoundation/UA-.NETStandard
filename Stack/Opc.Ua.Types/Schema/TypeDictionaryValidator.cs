@@ -33,7 +33,7 @@ using System.Collections.Generic;
 using System.IO;
 using System;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua.Schema.Types
 {
     /// <summary>
     /// Generates files used to describe data types.
@@ -43,7 +43,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
-        public TypeDictionaryValidator(string resourcePath)
+        public TypeDictionaryValidator()
         {
             SetResourcePaths(s_wellKnownDictionaries);
         }
@@ -51,7 +51,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Intializes the object with a file table.
         /// </summary>
-        public TypeDictionaryValidator(Dictionary<string, string> fileTable, string resourcePath)
+        public TypeDictionaryValidator(Dictionary<string, string> fileTable)
             : base(fileTable)
         {
             SetResourcePaths(s_wellKnownDictionaries);
@@ -61,11 +61,6 @@ namespace Opc.Ua.Schema
         /// The dictionary that was validated.
         /// </summary>
         public TypeDictionary Dictionary { get; private set; }
-
-        /// <summary>
-        /// The location of the embedded resources.
-        /// </summary>
-        public string EmbeddedResourcePath { get; set; }
 
         /// <summary>
         /// Finds the data type with the specified name.
@@ -106,7 +101,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IList<string> exclusions, DataType datatype)
+        public static bool IsExcluded(IReadOnlyList<string> exclusions, DataType datatype)
         {
             if (exclusions != null)
             {
@@ -135,7 +130,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IList<string> exclusions, EnumeratedValue value)
+        public static bool IsExcluded(IReadOnlyList<string> exclusions, EnumeratedValue value)
         {
             if (exclusions != null)
             {
@@ -154,7 +149,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IList<string> exclusions, FieldType field)
+        public static bool IsExcluded(IReadOnlyList<string> exclusions, FieldType field)
         {
             if (exclusions != null)
             {
@@ -173,16 +168,16 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public void Validate(string inputPath, IList<string> exclusions)
+        public void Validate(string inputPath)
         {
             using Stream stream = File.OpenRead(inputPath);
-            Validate(stream, exclusions);
+            Validate(stream);
         }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public void Validate(Stream stream, IList<string> exclusions)
+        public void Validate(Stream stream)
         {
             Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), stream);
             m_datatypes = [];
