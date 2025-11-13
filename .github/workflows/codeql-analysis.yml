@@ -48,11 +48,15 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '10.x'
+    - uses: nuget/setup-nuget@v2
+      with:
+        nuget-version: '7.x'
 
     # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
     - name: Setup MSBuild.exe
       uses: microsoft/setup-msbuild@v2.0.0
-
+      with:
+        vs-version: '[18.0, )'
 
     - name: Restore Packages
       run: |

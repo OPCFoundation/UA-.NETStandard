@@ -11,6 +11,11 @@ jobs:
   pool:
     vmImage: ${{ parameters.poolImage }}
   steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET 10.0'
+    inputs:
+      packageType: 'sdk'
+      version: '10.0.x'
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=7.0.x'
@@ -29,6 +34,7 @@ jobs:
     displayName: MS Build Release
     inputs:
       solution: '**/*.slnx'
+      msbuildVersion: 'latest'
       configuration: 'Release'
       platform: 'Any CPU'
       msbuildArguments:
@@ -42,6 +48,7 @@ jobs:
     displayName: MS Build Debug
     inputs:
       solution: '**/*.slnx'
+      msbuildVersion: 'latest'
       configuration: 'Debug'
       platform: 'Any CPU'
       msbuildArguments:
