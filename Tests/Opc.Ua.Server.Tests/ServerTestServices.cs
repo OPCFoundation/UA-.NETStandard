@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
@@ -40,28 +42,25 @@ namespace Opc.Ua.Server.Tests
 
         ILogger Logger { get; }
 
-        ResponseHeader Browse(
+        Task<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader BrowseNext(
+        Task<BrowseNextResponse> BrowseNextAsync(
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader TranslateBrowsePathsToNodeIds(
+        Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader CreateSubscription(
+        Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
             RequestHeader requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -69,20 +68,16 @@ namespace Opc.Ua.Server.Tests
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            out uint subscriptionId,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount);
+            CancellationToken ct = default);
 
-        ResponseHeader CreateMonitoredItems(
+        Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader ModifySubscription(
+        Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
@@ -90,61 +85,49 @@ namespace Opc.Ua.Server.Tests
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount);
+            CancellationToken ct = default);
 
-        ResponseHeader ModifyMonitoredItems(
+        Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader Publish(
+        Task<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out NotificationMessage notificationMessage,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader SetPublishingMode(
+        Task<SetPublishingModeResponse> SetPublishingModeAsync(
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader SetMonitoringMode(
+        Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader Republish(
+        Task<RepublishResponse> RepublishAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage);
+            CancellationToken ct = default);
 
-        ResponseHeader DeleteSubscriptions(
+        Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader TransferSubscriptions(
+        Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
     }
 
     /// <summary>
@@ -165,39 +148,35 @@ namespace Opc.Ua.Server.Tests
             m_server = server;
         }
 
-        public ResponseHeader Browse(
+        public Task<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.Browse(
+            return m_server.BrowseAsync(
                 requestHeader,
                 view,
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
-                out results,
-                out diagnosticInfos);
+                ct);
         }
 
-        public ResponseHeader BrowseNext(
+        public Task<BrowseNextResponse> BrowseNextAsync(
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.BrowseNext(
+            return m_server.BrowseNextAsync(
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
-                out results,
-                out diagnosticInfos);
+                ct);
         }
 
-        public ResponseHeader CreateSubscription(
+        public Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
             RequestHeader requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -205,12 +184,9 @@ namespace Opc.Ua.Server.Tests
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            out uint subscriptionId,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            CancellationToken ct = default)
         {
-            return m_server.CreateSubscription(
+            ResponseHeader responseHeader = m_server.CreateSubscription(
                 requestHeader,
                 requestedPublishingInterval,
                 requestedLifetimeCount,
@@ -218,30 +194,45 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish,
                 publishingEnabled,
                 priority,
-                out subscriptionId,
-                out revisedPublishingInterval,
-                out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount);
+                out uint subscriptionId,
+                out double revisedPublishingInterval,
+                out uint revisedLifetimeCount,
+                out uint revisedMaxKeepAliveCount);
+            var response = new CreateSubscriptionResponse
+            {
+                ResponseHeader = responseHeader,
+                SubscriptionId = subscriptionId,
+                RevisedPublishingInterval = revisedPublishingInterval,
+                RevisedLifetimeCount = revisedLifetimeCount,
+                RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader CreateMonitoredItems(
+        public Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.CreateMonitoredItems(
+            ResponseHeader responseHeader = m_server.CreateMonitoredItems(
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToCreate,
-                out results,
-                out diagnosticInfos);
+                out MonitoredItemCreateResultCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
+            var response = new CreateMonitoredItemsResponse
+            {
+                ResponseHeader = responseHeader,
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader ModifySubscription(
+        public Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
@@ -249,11 +240,9 @@ namespace Opc.Ua.Server.Tests
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            CancellationToken ct = default)
         {
-            return m_server.ModifySubscription(
+            ResponseHeader responseHeader = m_server.ModifySubscription(
                 requestHeader,
                 subscriptionId,
                 requestedPublishingInterval,
@@ -261,133 +250,165 @@ namespace Opc.Ua.Server.Tests
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
                 priority,
-                out revisedPublishingInterval,
-                out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount);
+                out double revisedPublishingInterval,
+                out uint revisedLifetimeCount,
+                out uint revisedMaxKeepAliveCount);
+            var response = new ModifySubscriptionResponse
+            {
+                ResponseHeader = responseHeader,
+                RevisedPublishingInterval = revisedPublishingInterval,
+                RevisedLifetimeCount = revisedLifetimeCount,
+                RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader ModifyMonitoredItems(
+        public Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.ModifyMonitoredItems(
+            ResponseHeader responseHeader = m_server.ModifyMonitoredItems(
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToModify,
-                out results,
-                out diagnosticInfos);
+                out MonitoredItemModifyResultCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
+            var response = new ModifyMonitoredItemsResponse
+            {
+                ResponseHeader = responseHeader,
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader Publish(
+        public Task<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out NotificationMessage notificationMessage,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.Publish(
+            return m_server.PublishAsync(
                 requestHeader,
                 subscriptionAcknowledgements,
-                out subscriptionId,
-                out availableSequenceNumbers,
-                out moreNotifications,
-                out notificationMessage,
-                out results,
-                out diagnosticInfos);
+                ct);
         }
 
-        public ResponseHeader SetPublishingMode(
+        public Task<SetPublishingModeResponse> SetPublishingModeAsync(
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.SetPublishingMode(
+            ResponseHeader responseHeader = m_server.SetPublishingMode(
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
-                out results,
-                out diagnosticInfos);
+                out StatusCodeCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
+            var response = new SetPublishingModeResponse
+            {
+                ResponseHeader = responseHeader,
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader SetMonitoringMode(
+        public Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.SetMonitoringMode(
+            ResponseHeader responseHeader = m_server.SetMonitoringMode(
                 requestHeader,
                 subscriptionId,
                 monitoringMode,
                 monitoredItemIds,
-                out results,
-                out diagnosticInfos);
+                out StatusCodeCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
+            var response = new SetMonitoringModeResponse
+            {
+                ResponseHeader = responseHeader,
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader Republish(
+        public Task<RepublishResponse> RepublishAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage)
+            CancellationToken ct = default)
         {
-            return m_server.Republish(
+            ResponseHeader responseHeader = m_server.Republish(
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
-                out notificationMessage);
+                out NotificationMessage notificationMessage);
+            var response = new RepublishResponse
+            {
+                ResponseHeader = responseHeader,
+                NotificationMessage = notificationMessage
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader DeleteSubscriptions(
+        public Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.DeleteSubscriptions(
+            ResponseHeader responseHeader = m_server.DeleteSubscriptions(
                 requestHeader,
                 subscriptionIds,
-                out results,
-                out diagnosticInfos);
+                out StatusCodeCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
+            var response = new DeleteSubscriptionsResponse
+            {
+                ResponseHeader = responseHeader,
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader TransferSubscriptions(
+        public Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.TransferSubscriptions(
+            ResponseHeader responseHeader = m_server.TransferSubscriptions(
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
-                out results,
-                out diagnosticInfos);
+                out TransferResultCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
+            var response = new TransferSubscriptionsResponse
+            {
+                ResponseHeader = responseHeader,
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
+            return Task.FromResult(response);
         }
 
-        public ResponseHeader TranslateBrowsePathsToNodeIds(
+        public Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.TranslateBrowsePathsToNodeIds(
+            return m_server.TranslateBrowsePathsToNodeIdsAsync(
                 requestHeader,
                 browsePaths,
-                out results,
-                out diagnosticInfos);
+                ct);
         }
     }
 }

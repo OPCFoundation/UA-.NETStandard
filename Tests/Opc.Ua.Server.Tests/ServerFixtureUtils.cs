@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -34,6 +34,8 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
@@ -58,7 +60,7 @@ namespace Opc.Ua.Server.Tests
         /// <param name="server">The server to connect to.</param>
         /// <param name="sessionName">A session name.</param>
         /// <returns>The request header for the session.</returns>
-        public static RequestHeader CreateAndActivateSession(
+        public static async Task<(RequestHeader, SecureChannelContext)> CreateAndActivateSessionAsync(
             this SessionServerBase server,
             string sessionName,
             bool useSecurity = false,
@@ -95,7 +97,7 @@ namespace Opc.Ua.Server.Tests
             var requestHeader = new RequestHeader();
 
             // Create session
-            ResponseHeader response = server.CreateSession(
+            CreateSessionResponse createSessionResponse = await server.CreateSessionAsync(
                 requestHeader,
                 null,
                 null,
@@ -105,32 +107,22 @@ namespace Opc.Ua.Server.Tests
                 null,
                 sessionTimeout,
                 maxResponseMessageSize,
-                out NodeId sessionId,
-                out NodeId authenticationToken,
-                out sessionTimeout,
-                out byte[] serverNonce,
-                out byte[] serverCertificate,
-                out EndpointDescriptionCollection endpointDescriptions,
-                out SignedSoftwareCertificateCollection serverSoftwareCertificates,
-                out SignatureData signatureData,
-                out uint maxRequestMessageSize);
-            ValidateResponse(response);
+                CancellationToken.None).ConfigureAwait(false);
+            ValidateResponse(createSessionResponse.ResponseHeader);
 
             // Activate session
-            requestHeader.AuthenticationToken = authenticationToken;
-            response = server.ActivateSession(
+            requestHeader.AuthenticationToken = createSessionResponse.AuthenticationToken;
+            ActivateSessionResponse activateSessionResponse = await server.ActivateSessionAsync(
                 requestHeader,
-                signatureData,
+                createSessionResponse.ServerSignature,
                 [],
                 [],
                 identityToken != null ? new ExtensionObject(identityToken) : null,
                 null,
-                out serverNonce,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            ValidateResponse(response);
+                CancellationToken.None).ConfigureAwait(false);
+            ValidateResponse(activateSessionResponse.ResponseHeader);
 
-            return requestHeader;
+            return (requestHeader, SecureChannelContext.Current);
         }
 
         /// <summary>
@@ -138,11 +130,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="server">The server where the session is active.</param>
         /// <param name="requestHeader">The request header of the session.</param>
-        public static void CloseSession(this SessionServerBase server, RequestHeader requestHeader)
+        public static async Task CloseSessionAsync(this SessionServerBase server, RequestHeader requestHeader, CancellationToken ct)
         {
             // close session
-            ResponseHeader response = server.CloseSession(requestHeader, true);
-            ValidateResponse(response);
+            CloseSessionResponse response = await server.CloseSessionAsync(requestHeader, true, ct).ConfigureAwait(false);
+            ValidateResponse(response.ResponseHeader);
         }
 
         /// <summary>

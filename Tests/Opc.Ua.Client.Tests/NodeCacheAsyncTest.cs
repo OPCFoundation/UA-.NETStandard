@@ -301,7 +301,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
@@ -337,7 +337,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
@@ -356,7 +356,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
@@ -410,7 +410,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var random = new Random(62541);
@@ -440,7 +440,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var random = new Random(62541);
@@ -469,7 +469,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var random = new Random(62541);
@@ -504,7 +504,7 @@ namespace Opc.Ua.Client.Tests
 
             if (ReferenceDescriptions == null)
             {
-                BrowseFullAddressSpace();
+                await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
             var random = new Random(62541);
@@ -639,7 +639,7 @@ namespace Opc.Ua.Client.Tests
             await Task.WhenAll([.. taskList]).ConfigureAwait(false);
         }
 
-        private void BrowseFullAddressSpace()
+        private async Task BrowseFullAddressSpaceAsync()
         {
             var requestHeader = new RequestHeader
             {
@@ -649,9 +649,9 @@ namespace Opc.Ua.Client.Tests
 
             // Session
             var clientTestServices = new ClientTestServices(Session, Telemetry);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
+            ReferenceDescriptions = await CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(
                 clientTestServices,
-                requestHeader);
+                requestHeader).ConfigureAwait(false);
         }
     }
 }
