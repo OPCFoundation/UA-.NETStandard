@@ -77,14 +77,13 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task<IServiceResponse> ProcessRequestAsync(
-            string channelId,
-            EndpointDescription endpointDescription,
+            SecureChannelContext secureChannelContext,
             IServiceRequest request,
             CancellationToken cancellationToken = default)
         {
-            if (channelId == null)
+            if (secureChannelContext == null)
             {
-                throw new ArgumentNullException(nameof(channelId));
+                throw new ArgumentNullException(nameof(secureChannelContext));
             }
 
             if (request == null)
@@ -92,12 +91,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var context = new SecureChannelContext(
-                channelId,
-                endpointDescription,
-                RequestEncoding.Binary);
-
-            var incomingRequest = new EndpointIncomingRequest(this, context, request);
+            var incomingRequest = new EndpointIncomingRequest(this, secureChannelContext, request);
             return incomingRequest.ProcessAsync(cancellationToken);
         }
 
@@ -200,9 +194,12 @@ namespace Opc.Ua
         /// Dispatches an incoming binary encoded request.
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <exception cref="ServiceResultException"></exception>
         [Obsolete("Use ProcessRequestAsync instead.")]
-        public virtual IServiceResponse ProcessRequest(IServiceRequest incoming)
+        public virtual IServiceResponse ProcessRequest(
+            IServiceRequest incoming,
+            SecureChannelContext secureChannelContext)
         {
             try
             {
@@ -219,7 +216,7 @@ namespace Opc.Ua
                 }
 
                 // invoke service.
-                return service.Invoke(incoming, m_logger);
+                return service.Invoke(incoming, secureChannelContext, m_logger);
             }
             catch (Exception e)
             {
@@ -232,10 +229,12 @@ namespace Opc.Ua
         /// Asynchronously dispatches an incoming binary encoded request.
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<IServiceResponse> ProcessRequestAsync(
             IServiceRequest incoming,
+            SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken = default)
         {
             try
@@ -250,7 +249,7 @@ namespace Opc.Ua
                 }
 
                 // invoke service.
-                return await service.InvokeAsync(incoming, cancellationToken).ConfigureAwait(false);
+                return await service.InvokeAsync(incoming, secureChannelContext, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -318,6 +317,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<InvokeServiceResponseMessage> InvokeServiceAsync(
             InvokeServiceMessage request,
+            SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken)
         {
             try
@@ -331,8 +331,6 @@ namespace Opc.Ua
                 // set the request context.
                 SetRequestContext(RequestEncoding.Binary);
 
-                SecureChannelContext context = SecureChannelContext.Current;
-
                 // decoding incoming message.
                 var serviceRequest =
                     BinaryDecoder.DecodeMessage(
@@ -342,8 +340,7 @@ namespace Opc.Ua
 
                 // process the request.
                 IServiceResponse response = await ProcessRequestAsync(
-                    context.SecureChannelId,
-                    context.EndpointDescription,
+                    secureChannelContext,
                     serviceRequest,
                     cancellationToken).ConfigureAwait(false);
 
@@ -664,37 +661,40 @@ namespace Opc.Ua
             /// Processes the request.
             /// </summary>
             /// <param name="request">The request.</param>
+            /// <param name="secureChannelContext">The secure channel context.</param>
             /// <param name="logger">A contextual logger to log to</param>
             [Obsolete("Use InvokeAsync.")]
-            public IServiceResponse Invoke(IServiceRequest request, ILogger logger)
+            public IServiceResponse Invoke(IServiceRequest request, SecureChannelContext secureChannelContext, ILogger logger)
             {
                 if (m_invokeService == null && m_invokeServiceAsync != null)
                 {
                     logger.LogWarning(
                         "Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
-                    return InvokeAsync(request).GetAwaiter().GetResult();
+                    return InvokeAsync(request, null).GetAwaiter().GetResult();
                 }
-                return m_invokeService?.Invoke(request);
+                return m_invokeService?.Invoke(request, secureChannelContext);
             }
 
             /// <summary>
             /// Processes the request asynchronously.
             /// </summary>
             /// <param name="request">The request.</param>
+            /// <param name="secureChannelContext">The secure channel context.</param>
             /// <param name="cancellationToken">The cancellation token.</param>
             /// <returns></returns>
             public async Task<IServiceResponse> InvokeAsync(
                 IServiceRequest request,
+                SecureChannelContext secureChannelContext,
                 CancellationToken cancellationToken = default)
             {
                 InvokeServiceAsyncEventHandler asyncHandler = m_invokeServiceAsync;
 
                 if (asyncHandler != null)
                 {
-                    return await asyncHandler(request, cancellationToken).ConfigureAwait(false);
+                    return await asyncHandler(request, secureChannelContext, cancellationToken).ConfigureAwait(false);
                 }
 
-                return m_invokeService?.Invoke(request);
+                return m_invokeService?.Invoke(request, secureChannelContext);
             }
 
             private readonly InvokeServiceEventHandler m_invokeService;
@@ -704,13 +704,14 @@ namespace Opc.Ua
         /// <summary>
         /// A delegate used to dispatch incoming service requests.
         /// </summary>
-        protected delegate IServiceResponse InvokeServiceEventHandler(IServiceRequest request);
+        protected delegate IServiceResponse InvokeServiceEventHandler(IServiceRequest request, SecureChannelContext secureChannelContext);
 
         /// <summary>
         /// A delegate used to asynchronously dispatch incoming service requests.
         /// </summary>
         protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(
             IServiceRequest request,
+            SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken = default);
 
 #if !NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM
@@ -982,18 +983,18 @@ namespace Opc.Ua
                                 ActivityKind.Server,
                                 activityContext);
                             // call the service.
-                            m_response = m_service.Invoke(Request, m_endpoint.m_logger);
+                            m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = m_service.Invoke(Request, m_endpoint.m_logger);
+                            m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = m_service.Invoke(Request, m_endpoint.m_logger);
+                        m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
                     }
                 }
                 catch (Exception e)
@@ -1035,20 +1036,20 @@ namespace Opc.Ua
                                 ActivityKind.Server,
                                 activityContext);
                             // call the service.
-                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                            m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
                                 .ConfigureAwait(false);
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                            m_response = await m_service.InvokeAsync(Request,SecureChannelContext, cancellationToken)
                                 .ConfigureAwait(false);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                        m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }
@@ -1134,8 +1135,6 @@ namespace Opc.Ua
 
                 try
                 {
-                    SecureChannelContext.Current = SecureChannelContext;
-
                     Activity activity = null;
                     ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
                         .GetActivitySource();
@@ -1157,7 +1156,7 @@ namespace Opc.Ua
 
                     using (activity)
                     {
-                        IServiceResponse response = await m_service.InvokeAsync(Request, linkedCts.Token).ConfigureAwait(false);
+                        IServiceResponse response = await m_service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
                         m_tcs.TrySetResult(response);
                     }
                 }

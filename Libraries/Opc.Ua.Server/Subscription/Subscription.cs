@@ -399,7 +399,7 @@ namespace Opc.Ua.Server
                         {
                             ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
                         };
-                        context = new OperationContext(requestHeader, RequestType.Unknown);
+                        context = new OperationContext(requestHeader, null, RequestType.Unknown);
                     }
 
                     DeleteMonitoredItems(

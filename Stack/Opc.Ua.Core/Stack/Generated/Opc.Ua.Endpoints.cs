@@ -113,7 +113,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
-        public IServiceResponse FindServers(IServiceRequest incoming)
+        public IServiceResponse FindServers(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             FindServersResponse response = null;
 
@@ -128,6 +128,7 @@ namespace Opc.Ua
                 response = new FindServersResponse();
 
                 response.ResponseHeader = ServerInstance.FindServers(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -170,9 +171,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the FindServers service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the FindServers service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
@@ -200,9 +201,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the FindServers service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the FindServers service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
@@ -225,10 +226,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
-            /// <summary>
-            /// Invokes the FindServers service.
-            /// </summary>
-            public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the FindServers service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             FindServersResponse response = null;
 
@@ -239,6 +240,7 @@ namespace Opc.Ua
                 FindServersRequest request = (FindServersRequest)incoming;
 
                 response = await ServerInstance.FindServersAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -265,7 +267,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
-        public IServiceResponse FindServersOnNetwork(IServiceRequest incoming)
+        public IServiceResponse FindServersOnNetwork(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             FindServersOnNetworkResponse response = null;
 
@@ -281,6 +283,7 @@ namespace Opc.Ua
                 response = new FindServersOnNetworkResponse();
 
                 response.ResponseHeader = ServerInstance.FindServersOnNetwork(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -325,9 +328,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the FindServersOnNetwork service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the FindServersOnNetwork service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
@@ -355,9 +358,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the FindServersOnNetwork service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the FindServersOnNetwork service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
@@ -380,10 +383,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-            /// <summary>
-            /// Invokes the FindServersOnNetwork service.
-            /// </summary>
-            public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             FindServersOnNetworkResponse response = null;
 
@@ -394,6 +397,7 @@ namespace Opc.Ua
                 FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
 
                 response = await ServerInstance.FindServersOnNetworkAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -420,7 +424,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
-        public IServiceResponse GetEndpoints(IServiceRequest incoming)
+        public IServiceResponse GetEndpoints(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             GetEndpointsResponse response = null;
 
@@ -435,6 +439,7 @@ namespace Opc.Ua
                 response = new GetEndpointsResponse();
 
                 response.ResponseHeader = ServerInstance.GetEndpoints(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -477,9 +482,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the GetEndpoints service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the GetEndpoints service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
@@ -507,9 +512,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the GetEndpoints service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the GetEndpoints service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
@@ -532,10 +537,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-            /// <summary>
-            /// Invokes the GetEndpoints service.
-            /// </summary>
-            public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the GetEndpoints service.
+        /// </summary>
+        public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             GetEndpointsResponse response = null;
 
@@ -546,6 +551,7 @@ namespace Opc.Ua
                 GetEndpointsRequest request = (GetEndpointsRequest)incoming;
 
                 response = await ServerInstance.GetEndpointsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -572,7 +578,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
         #endif
-        public IServiceResponse CreateSession(IServiceRequest incoming)
+        public IServiceResponse CreateSession(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             CreateSessionResponse response = null;
 
@@ -595,6 +601,7 @@ namespace Opc.Ua
                 response = new CreateSessionResponse();
 
                 response.ResponseHeader = ServerInstance.CreateSession(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientDescription,
                    request.ServerUri,
@@ -658,9 +665,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the CreateSession service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the CreateSession service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
         #endif
@@ -688,9 +695,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the CreateSession service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the CreateSession service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
         #endif
@@ -713,10 +720,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
-            /// <summary>
-            /// Invokes the CreateSession service.
-            /// </summary>
-            public async Task<IServiceResponse> CreateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the CreateSession service.
+        /// </summary>
+        public async Task<IServiceResponse> CreateSessionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             CreateSessionResponse response = null;
 
@@ -727,6 +734,7 @@ namespace Opc.Ua
                 CreateSessionRequest request = (CreateSessionRequest)incoming;
 
                 response = await ServerInstance.CreateSessionAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientDescription,
                    request.ServerUri,
@@ -758,7 +766,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
         #endif
-        public IServiceResponse ActivateSession(IServiceRequest incoming)
+        public IServiceResponse ActivateSession(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             ActivateSessionResponse response = null;
 
@@ -775,6 +783,7 @@ namespace Opc.Ua
                 response = new ActivateSessionResponse();
 
                 response.ResponseHeader = ServerInstance.ActivateSession(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientSignature,
                    request.ClientSoftwareCertificates,
@@ -823,9 +832,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the ActivateSession service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the ActivateSession service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
         #endif
@@ -853,9 +862,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the ActivateSession service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the ActivateSession service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
         #endif
@@ -878,10 +887,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
-            /// <summary>
-            /// Invokes the ActivateSession service.
-            /// </summary>
-            public async Task<IServiceResponse> ActivateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the ActivateSession service.
+        /// </summary>
+        public async Task<IServiceResponse> ActivateSessionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             ActivateSessionResponse response = null;
 
@@ -892,6 +901,7 @@ namespace Opc.Ua
                 ActivateSessionRequest request = (ActivateSessionRequest)incoming;
 
                 response = await ServerInstance.ActivateSessionAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientSignature,
                    request.ClientSoftwareCertificates,
@@ -920,7 +930,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CloseSession_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
         #endif
-        public IServiceResponse CloseSession(IServiceRequest incoming)
+        public IServiceResponse CloseSession(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             CloseSessionResponse response = null;
 
@@ -934,6 +944,7 @@ namespace Opc.Ua
                 response = new CloseSessionResponse();
 
                 response.ResponseHeader = ServerInstance.CloseSession(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.DeleteSubscriptions);
 
@@ -972,9 +983,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the CloseSession service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the CloseSession service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
         #endif
@@ -1002,9 +1013,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the CloseSession service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the CloseSession service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
         #endif
@@ -1027,10 +1038,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
-            /// <summary>
-            /// Invokes the CloseSession service.
-            /// </summary>
-            public async Task<IServiceResponse> CloseSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the CloseSession service.
+        /// </summary>
+        public async Task<IServiceResponse> CloseSessionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             CloseSessionResponse response = null;
 
@@ -1041,6 +1052,7 @@ namespace Opc.Ua
                 CloseSessionRequest request = (CloseSessionRequest)incoming;
 
                 response = await ServerInstance.CloseSessionAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.DeleteSubscriptions,cancellationToken).ConfigureAwait(false);
 
@@ -1065,7 +1077,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Cancel_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
         #endif
-        public IServiceResponse Cancel(IServiceRequest incoming)
+        public IServiceResponse Cancel(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             CancelResponse response = null;
 
@@ -1080,6 +1092,7 @@ namespace Opc.Ua
                 response = new CancelResponse();
 
                 response.ResponseHeader = ServerInstance.Cancel(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestHandle,
                    out cancelCount);
@@ -1120,9 +1133,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the Cancel service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the Cancel service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
         #endif
@@ -1150,9 +1163,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the Cancel service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the Cancel service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
         #endif
@@ -1175,10 +1188,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
-            /// <summary>
-            /// Invokes the Cancel service.
-            /// </summary>
-            public async Task<IServiceResponse> CancelAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the Cancel service.
+        /// </summary>
+        public async Task<IServiceResponse> CancelAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             CancelResponse response = null;
 
@@ -1189,6 +1202,7 @@ namespace Opc.Ua
                 CancelRequest request = (CancelRequest)incoming;
 
                 response = await ServerInstance.CancelAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestHandle,cancellationToken).ConfigureAwait(false);
 
@@ -1213,7 +1227,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
         #endif
-        public IServiceResponse AddNodes(IServiceRequest incoming)
+        public IServiceResponse AddNodes(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             AddNodesResponse response = null;
 
@@ -1229,6 +1243,7 @@ namespace Opc.Ua
                 response = new AddNodesResponse();
 
                 response.ResponseHeader = ServerInstance.AddNodes(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToAdd,
                    out results,
@@ -1271,9 +1286,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the AddNodes service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the AddNodes service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
         #endif
@@ -1301,9 +1316,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the AddNodes service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the AddNodes service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
         #endif
@@ -1326,10 +1341,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
-            /// <summary>
-            /// Invokes the AddNodes service.
-            /// </summary>
-            public async Task<IServiceResponse> AddNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the AddNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> AddNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             AddNodesResponse response = null;
 
@@ -1340,6 +1355,7 @@ namespace Opc.Ua
                 AddNodesRequest request = (AddNodesRequest)incoming;
 
                 response = await ServerInstance.AddNodesAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToAdd,cancellationToken).ConfigureAwait(false);
 
@@ -1364,7 +1380,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddReferences_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
         #endif
-        public IServiceResponse AddReferences(IServiceRequest incoming)
+        public IServiceResponse AddReferences(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             AddReferencesResponse response = null;
 
@@ -1380,6 +1396,7 @@ namespace Opc.Ua
                 response = new AddReferencesResponse();
 
                 response.ResponseHeader = ServerInstance.AddReferences(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToAdd,
                    out results,
@@ -1422,9 +1439,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the AddReferences service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the AddReferences service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
         #endif
@@ -1452,9 +1469,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the AddReferences service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the AddReferences service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
         #endif
@@ -1477,10 +1494,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
-            /// <summary>
-            /// Invokes the AddReferences service.
-            /// </summary>
-            public async Task<IServiceResponse> AddReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the AddReferences service.
+        /// </summary>
+        public async Task<IServiceResponse> AddReferencesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             AddReferencesResponse response = null;
 
@@ -1491,6 +1508,7 @@ namespace Opc.Ua
                 AddReferencesRequest request = (AddReferencesRequest)incoming;
 
                 response = await ServerInstance.AddReferencesAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToAdd,cancellationToken).ConfigureAwait(false);
 
@@ -1515,7 +1533,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
         #endif
-        public IServiceResponse DeleteNodes(IServiceRequest incoming)
+        public IServiceResponse DeleteNodes(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             DeleteNodesResponse response = null;
 
@@ -1531,6 +1549,7 @@ namespace Opc.Ua
                 response = new DeleteNodesResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteNodes(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToDelete,
                    out results,
@@ -1573,9 +1592,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the DeleteNodes service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the DeleteNodes service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
         #endif
@@ -1603,9 +1622,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the DeleteNodes service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the DeleteNodes service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
         #endif
@@ -1628,10 +1647,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteNodes service.
-            /// </summary>
-            public async Task<IServiceResponse> DeleteNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the DeleteNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             DeleteNodesResponse response = null;
 
@@ -1642,6 +1661,7 @@ namespace Opc.Ua
                 DeleteNodesRequest request = (DeleteNodesRequest)incoming;
 
                 response = await ServerInstance.DeleteNodesAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToDelete,cancellationToken).ConfigureAwait(false);
 
@@ -1666,7 +1686,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
         #endif
-        public IServiceResponse DeleteReferences(IServiceRequest incoming)
+        public IServiceResponse DeleteReferences(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             DeleteReferencesResponse response = null;
 
@@ -1682,6 +1702,7 @@ namespace Opc.Ua
                 response = new DeleteReferencesResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteReferences(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToDelete,
                    out results,
@@ -1724,9 +1745,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the DeleteReferences service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the DeleteReferences service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
         #endif
@@ -1754,9 +1775,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the DeleteReferences service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the DeleteReferences service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
         #endif
@@ -1779,10 +1800,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteReferences service.
-            /// </summary>
-            public async Task<IServiceResponse> DeleteReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the DeleteReferences service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteReferencesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             DeleteReferencesResponse response = null;
 
@@ -1793,6 +1814,7 @@ namespace Opc.Ua
                 DeleteReferencesRequest request = (DeleteReferencesRequest)incoming;
 
                 response = await ServerInstance.DeleteReferencesAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToDelete,cancellationToken).ConfigureAwait(false);
 
@@ -1817,7 +1839,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Browse_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
         #endif
-        public IServiceResponse Browse(IServiceRequest incoming)
+        public IServiceResponse Browse(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             BrowseResponse response = null;
 
@@ -1833,6 +1855,7 @@ namespace Opc.Ua
                 response = new BrowseResponse();
 
                 response.ResponseHeader = ServerInstance.Browse(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.RequestedMaxReferencesPerNode,
@@ -1877,9 +1900,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the Browse service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the Browse service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
         #endif
@@ -1907,9 +1930,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the Browse service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the Browse service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
         #endif
@@ -1932,10 +1955,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Browse_ASYNC)
-            /// <summary>
-            /// Invokes the Browse service.
-            /// </summary>
-            public async Task<IServiceResponse> BrowseAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the Browse service.
+        /// </summary>
+        public async Task<IServiceResponse> BrowseAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             BrowseResponse response = null;
 
@@ -1946,6 +1969,7 @@ namespace Opc.Ua
                 BrowseRequest request = (BrowseRequest)incoming;
 
                 response = await ServerInstance.BrowseAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.RequestedMaxReferencesPerNode,
@@ -1972,7 +1996,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
         #endif
-        public IServiceResponse BrowseNext(IServiceRequest incoming)
+        public IServiceResponse BrowseNext(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             BrowseNextResponse response = null;
 
@@ -1988,6 +2012,7 @@ namespace Opc.Ua
                 response = new BrowseNextResponse();
 
                 response.ResponseHeader = ServerInstance.BrowseNext(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoints,
                    request.ContinuationPoints,
@@ -2031,9 +2056,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the BrowseNext service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the BrowseNext service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
         #endif
@@ -2061,9 +2086,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the BrowseNext service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the BrowseNext service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
         #endif
@@ -2086,10 +2111,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
-            /// <summary>
-            /// Invokes the BrowseNext service.
-            /// </summary>
-            public async Task<IServiceResponse> BrowseNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the BrowseNext service.
+        /// </summary>
+        public async Task<IServiceResponse> BrowseNextAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             BrowseNextResponse response = null;
 
@@ -2100,6 +2125,7 @@ namespace Opc.Ua
                 BrowseNextRequest request = (BrowseNextRequest)incoming;
 
                 response = await ServerInstance.BrowseNextAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoints,
                    request.ContinuationPoints,cancellationToken).ConfigureAwait(false);
@@ -2125,7 +2151,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         #endif
-        public IServiceResponse TranslateBrowsePathsToNodeIds(IServiceRequest incoming)
+        public IServiceResponse TranslateBrowsePathsToNodeIds(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             TranslateBrowsePathsToNodeIdsResponse response = null;
 
@@ -2141,6 +2167,7 @@ namespace Opc.Ua
                 response = new TranslateBrowsePathsToNodeIdsResponse();
 
                 response.ResponseHeader = ServerInstance.TranslateBrowsePathsToNodeIds(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.BrowsePaths,
                    out results,
@@ -2183,9 +2210,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the TranslateBrowsePathsToNodeIds service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the TranslateBrowsePathsToNodeIds service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         #endif
@@ -2213,9 +2240,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the TranslateBrowsePathsToNodeIds service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the TranslateBrowsePathsToNodeIds service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         #endif
@@ -2238,10 +2265,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
-            /// <summary>
-            /// Invokes the TranslateBrowsePathsToNodeIds service.
-            /// </summary>
-            public async Task<IServiceResponse> TranslateBrowsePathsToNodeIdsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the TranslateBrowsePathsToNodeIds service.
+        /// </summary>
+        public async Task<IServiceResponse> TranslateBrowsePathsToNodeIdsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             TranslateBrowsePathsToNodeIdsResponse response = null;
 
@@ -2252,6 +2279,7 @@ namespace Opc.Ua
                 TranslateBrowsePathsToNodeIdsRequest request = (TranslateBrowsePathsToNodeIdsRequest)incoming;
 
                 response = await ServerInstance.TranslateBrowsePathsToNodeIdsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.BrowsePaths,cancellationToken).ConfigureAwait(false);
 
@@ -2276,7 +2304,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
         #endif
-        public IServiceResponse RegisterNodes(IServiceRequest incoming)
+        public IServiceResponse RegisterNodes(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             RegisterNodesResponse response = null;
 
@@ -2291,6 +2319,7 @@ namespace Opc.Ua
                 response = new RegisterNodesResponse();
 
                 response.ResponseHeader = ServerInstance.RegisterNodes(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToRegister,
                    out registeredNodeIds);
@@ -2331,9 +2360,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the RegisterNodes service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the RegisterNodes service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
         #endif
@@ -2361,9 +2390,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the RegisterNodes service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the RegisterNodes service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
         #endif
@@ -2386,10 +2415,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
-            /// <summary>
-            /// Invokes the RegisterNodes service.
-            /// </summary>
-            public async Task<IServiceResponse> RegisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the RegisterNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> RegisterNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             RegisterNodesResponse response = null;
 
@@ -2400,6 +2429,7 @@ namespace Opc.Ua
                 RegisterNodesRequest request = (RegisterNodesRequest)incoming;
 
                 response = await ServerInstance.RegisterNodesAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToRegister,cancellationToken).ConfigureAwait(false);
 
@@ -2424,7 +2454,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
         #endif
-        public IServiceResponse UnregisterNodes(IServiceRequest incoming)
+        public IServiceResponse UnregisterNodes(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             UnregisterNodesResponse response = null;
 
@@ -2438,6 +2468,7 @@ namespace Opc.Ua
                 response = new UnregisterNodesResponse();
 
                 response.ResponseHeader = ServerInstance.UnregisterNodes(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToUnregister);
 
@@ -2476,9 +2507,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the UnregisterNodes service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the UnregisterNodes service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
         #endif
@@ -2506,9 +2537,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the UnregisterNodes service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the UnregisterNodes service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
         #endif
@@ -2531,10 +2562,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
-            /// <summary>
-            /// Invokes the UnregisterNodes service.
-            /// </summary>
-            public async Task<IServiceResponse> UnregisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the UnregisterNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> UnregisterNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             UnregisterNodesResponse response = null;
 
@@ -2545,6 +2576,7 @@ namespace Opc.Ua
                 UnregisterNodesRequest request = (UnregisterNodesRequest)incoming;
 
                 response = await ServerInstance.UnregisterNodesAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToUnregister,cancellationToken).ConfigureAwait(false);
 
@@ -2569,7 +2601,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
         #endif
-        public IServiceResponse QueryFirst(IServiceRequest incoming)
+        public IServiceResponse QueryFirst(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             QueryFirstResponse response = null;
 
@@ -2588,6 +2620,7 @@ namespace Opc.Ua
                 response = new QueryFirstResponse();
 
                 response.ResponseHeader = ServerInstance.QueryFirst(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.NodeTypes,
@@ -2640,9 +2673,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the QueryFirst service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the QueryFirst service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
         #endif
@@ -2670,9 +2703,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the QueryFirst service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the QueryFirst service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
         #endif
@@ -2695,10 +2728,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
-            /// <summary>
-            /// Invokes the QueryFirst service.
-            /// </summary>
-            public async Task<IServiceResponse> QueryFirstAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the QueryFirst service.
+        /// </summary>
+        public async Task<IServiceResponse> QueryFirstAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             QueryFirstResponse response = null;
 
@@ -2709,6 +2742,7 @@ namespace Opc.Ua
                 QueryFirstRequest request = (QueryFirstRequest)incoming;
 
                 response = await ServerInstance.QueryFirstAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.NodeTypes,
@@ -2737,7 +2771,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryNext_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
         #endif
-        public IServiceResponse QueryNext(IServiceRequest incoming)
+        public IServiceResponse QueryNext(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             QueryNextResponse response = null;
 
@@ -2753,6 +2787,7 @@ namespace Opc.Ua
                 response = new QueryNextResponse();
 
                 response.ResponseHeader = ServerInstance.QueryNext(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoint,
                    request.ContinuationPoint,
@@ -2796,9 +2831,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the QueryNext service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the QueryNext service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
         #endif
@@ -2826,9 +2861,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the QueryNext service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the QueryNext service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
         #endif
@@ -2851,10 +2886,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
-            /// <summary>
-            /// Invokes the QueryNext service.
-            /// </summary>
-            public async Task<IServiceResponse> QueryNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the QueryNext service.
+        /// </summary>
+        public async Task<IServiceResponse> QueryNextAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             QueryNextResponse response = null;
 
@@ -2865,6 +2900,7 @@ namespace Opc.Ua
                 QueryNextRequest request = (QueryNextRequest)incoming;
 
                 response = await ServerInstance.QueryNextAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoint,
                    request.ContinuationPoint,cancellationToken).ConfigureAwait(false);
@@ -2890,7 +2926,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Read_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
         #endif
-        public IServiceResponse Read(IServiceRequest incoming)
+        public IServiceResponse Read(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             ReadResponse response = null;
 
@@ -2906,6 +2942,7 @@ namespace Opc.Ua
                 response = new ReadResponse();
 
                 response.ResponseHeader = ServerInstance.Read(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MaxAge,
                    request.TimestampsToReturn,
@@ -2950,9 +2987,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the Read service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the Read service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
         #endif
@@ -2980,9 +3017,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the Read service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the Read service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
         #endif
@@ -3005,10 +3042,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Read_ASYNC)
-            /// <summary>
-            /// Invokes the Read service.
-            /// </summary>
-            public async Task<IServiceResponse> ReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the Read service.
+        /// </summary>
+        public async Task<IServiceResponse> ReadAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             ReadResponse response = null;
 
@@ -3019,6 +3056,7 @@ namespace Opc.Ua
                 ReadRequest request = (ReadRequest)incoming;
 
                 response = await ServerInstance.ReadAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MaxAge,
                    request.TimestampsToReturn,
@@ -3045,7 +3083,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
         #endif
-        public IServiceResponse HistoryRead(IServiceRequest incoming)
+        public IServiceResponse HistoryRead(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             HistoryReadResponse response = null;
 
@@ -3061,6 +3099,7 @@ namespace Opc.Ua
                 response = new HistoryReadResponse();
 
                 response.ResponseHeader = ServerInstance.HistoryRead(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryReadDetails,
                    request.TimestampsToReturn,
@@ -3106,9 +3145,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the HistoryRead service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the HistoryRead service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
         #endif
@@ -3136,9 +3175,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the HistoryRead service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the HistoryRead service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
         #endif
@@ -3161,10 +3200,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
-            /// <summary>
-            /// Invokes the HistoryRead service.
-            /// </summary>
-            public async Task<IServiceResponse> HistoryReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the HistoryRead service.
+        /// </summary>
+        public async Task<IServiceResponse> HistoryReadAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             HistoryReadResponse response = null;
 
@@ -3175,6 +3214,7 @@ namespace Opc.Ua
                 HistoryReadRequest request = (HistoryReadRequest)incoming;
 
                 response = await ServerInstance.HistoryReadAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryReadDetails,
                    request.TimestampsToReturn,
@@ -3202,7 +3242,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Write_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
         #endif
-        public IServiceResponse Write(IServiceRequest incoming)
+        public IServiceResponse Write(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             WriteResponse response = null;
 
@@ -3218,6 +3258,7 @@ namespace Opc.Ua
                 response = new WriteResponse();
 
                 response.ResponseHeader = ServerInstance.Write(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToWrite,
                    out results,
@@ -3260,9 +3301,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the Write service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the Write service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
         #endif
@@ -3290,9 +3331,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the Write service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the Write service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
         #endif
@@ -3315,10 +3356,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Write_ASYNC)
-            /// <summary>
-            /// Invokes the Write service.
-            /// </summary>
-            public async Task<IServiceResponse> WriteAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the Write service.
+        /// </summary>
+        public async Task<IServiceResponse> WriteAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             WriteResponse response = null;
 
@@ -3329,6 +3370,7 @@ namespace Opc.Ua
                 WriteRequest request = (WriteRequest)incoming;
 
                 response = await ServerInstance.WriteAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToWrite,cancellationToken).ConfigureAwait(false);
 
@@ -3353,7 +3395,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
         #endif
-        public IServiceResponse HistoryUpdate(IServiceRequest incoming)
+        public IServiceResponse HistoryUpdate(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             HistoryUpdateResponse response = null;
 
@@ -3369,6 +3411,7 @@ namespace Opc.Ua
                 response = new HistoryUpdateResponse();
 
                 response.ResponseHeader = ServerInstance.HistoryUpdate(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryUpdateDetails,
                    out results,
@@ -3411,9 +3454,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the HistoryUpdate service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the HistoryUpdate service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
         #endif
@@ -3441,9 +3484,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the HistoryUpdate service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the HistoryUpdate service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
         #endif
@@ -3466,10 +3509,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
-            /// <summary>
-            /// Invokes the HistoryUpdate service.
-            /// </summary>
-            public async Task<IServiceResponse> HistoryUpdateAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the HistoryUpdate service.
+        /// </summary>
+        public async Task<IServiceResponse> HistoryUpdateAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             HistoryUpdateResponse response = null;
 
@@ -3480,6 +3523,7 @@ namespace Opc.Ua
                 HistoryUpdateRequest request = (HistoryUpdateRequest)incoming;
 
                 response = await ServerInstance.HistoryUpdateAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryUpdateDetails,cancellationToken).ConfigureAwait(false);
 
@@ -3504,7 +3548,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Call_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
         #endif
-        public IServiceResponse Call(IServiceRequest incoming)
+        public IServiceResponse Call(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             CallResponse response = null;
 
@@ -3520,6 +3564,7 @@ namespace Opc.Ua
                 response = new CallResponse();
 
                 response.ResponseHeader = ServerInstance.Call(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MethodsToCall,
                    out results,
@@ -3562,9 +3607,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the Call service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the Call service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
         #endif
@@ -3592,9 +3637,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the Call service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the Call service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
         #endif
@@ -3617,10 +3662,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Call_ASYNC)
-            /// <summary>
-            /// Invokes the Call service.
-            /// </summary>
-            public async Task<IServiceResponse> CallAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the Call service.
+        /// </summary>
+        public async Task<IServiceResponse> CallAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             CallResponse response = null;
 
@@ -3631,6 +3676,7 @@ namespace Opc.Ua
                 CallRequest request = (CallRequest)incoming;
 
                 response = await ServerInstance.CallAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MethodsToCall,cancellationToken).ConfigureAwait(false);
 
@@ -3655,7 +3701,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
         #endif
-        public IServiceResponse CreateMonitoredItems(IServiceRequest incoming)
+        public IServiceResponse CreateMonitoredItems(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             CreateMonitoredItemsResponse response = null;
 
@@ -3671,6 +3717,7 @@ namespace Opc.Ua
                 response = new CreateMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.CreateMonitoredItems(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -3715,9 +3762,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the CreateMonitoredItems service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the CreateMonitoredItems service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
         #endif
@@ -3745,9 +3792,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the CreateMonitoredItems service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the CreateMonitoredItems service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
         #endif
@@ -3770,10 +3817,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
-            /// <summary>
-            /// Invokes the CreateMonitoredItems service.
-            /// </summary>
-            public async Task<IServiceResponse> CreateMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the CreateMonitoredItems service.
+        /// </summary>
+        public async Task<IServiceResponse> CreateMonitoredItemsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             CreateMonitoredItemsResponse response = null;
 
@@ -3784,6 +3831,7 @@ namespace Opc.Ua
                 CreateMonitoredItemsRequest request = (CreateMonitoredItemsRequest)incoming;
 
                 response = await ServerInstance.CreateMonitoredItemsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -3810,7 +3858,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
         #endif
-        public IServiceResponse ModifyMonitoredItems(IServiceRequest incoming)
+        public IServiceResponse ModifyMonitoredItems(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             ModifyMonitoredItemsResponse response = null;
 
@@ -3826,6 +3874,7 @@ namespace Opc.Ua
                 response = new ModifyMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.ModifyMonitoredItems(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -3870,9 +3919,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the ModifyMonitoredItems service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the ModifyMonitoredItems service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
         #endif
@@ -3900,9 +3949,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the ModifyMonitoredItems service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the ModifyMonitoredItems service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
         #endif
@@ -3925,10 +3974,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
-            /// <summary>
-            /// Invokes the ModifyMonitoredItems service.
-            /// </summary>
-            public async Task<IServiceResponse> ModifyMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the ModifyMonitoredItems service.
+        /// </summary>
+        public async Task<IServiceResponse> ModifyMonitoredItemsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             ModifyMonitoredItemsResponse response = null;
 
@@ -3939,6 +3988,7 @@ namespace Opc.Ua
                 ModifyMonitoredItemsRequest request = (ModifyMonitoredItemsRequest)incoming;
 
                 response = await ServerInstance.ModifyMonitoredItemsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -3965,7 +4015,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
         #endif
-        public IServiceResponse SetMonitoringMode(IServiceRequest incoming)
+        public IServiceResponse SetMonitoringMode(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             SetMonitoringModeResponse response = null;
 
@@ -3981,6 +4031,7 @@ namespace Opc.Ua
                 response = new SetMonitoringModeResponse();
 
                 response.ResponseHeader = ServerInstance.SetMonitoringMode(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoringMode,
@@ -4025,9 +4076,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the SetMonitoringMode service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the SetMonitoringMode service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
         #endif
@@ -4055,9 +4106,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the SetMonitoringMode service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the SetMonitoringMode service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
         #endif
@@ -4080,10 +4131,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
-            /// <summary>
-            /// Invokes the SetMonitoringMode service.
-            /// </summary>
-            public async Task<IServiceResponse> SetMonitoringModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the SetMonitoringMode service.
+        /// </summary>
+        public async Task<IServiceResponse> SetMonitoringModeAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             SetMonitoringModeResponse response = null;
 
@@ -4094,6 +4145,7 @@ namespace Opc.Ua
                 SetMonitoringModeRequest request = (SetMonitoringModeRequest)incoming;
 
                 response = await ServerInstance.SetMonitoringModeAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoringMode,
@@ -4120,7 +4172,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
         #endif
-        public IServiceResponse SetTriggering(IServiceRequest incoming)
+        public IServiceResponse SetTriggering(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             SetTriggeringResponse response = null;
 
@@ -4138,6 +4190,7 @@ namespace Opc.Ua
                 response = new SetTriggeringResponse();
 
                 response.ResponseHeader = ServerInstance.SetTriggering(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TriggeringItemId,
@@ -4187,9 +4240,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the SetTriggering service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the SetTriggering service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
         #endif
@@ -4217,9 +4270,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the SetTriggering service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the SetTriggering service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
         #endif
@@ -4242,10 +4295,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
-            /// <summary>
-            /// Invokes the SetTriggering service.
-            /// </summary>
-            public async Task<IServiceResponse> SetTriggeringAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the SetTriggering service.
+        /// </summary>
+        public async Task<IServiceResponse> SetTriggeringAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             SetTriggeringResponse response = null;
 
@@ -4256,6 +4309,7 @@ namespace Opc.Ua
                 SetTriggeringRequest request = (SetTriggeringRequest)incoming;
 
                 response = await ServerInstance.SetTriggeringAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TriggeringItemId,
@@ -4283,7 +4337,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
         #endif
-        public IServiceResponse DeleteMonitoredItems(IServiceRequest incoming)
+        public IServiceResponse DeleteMonitoredItems(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             DeleteMonitoredItemsResponse response = null;
 
@@ -4299,6 +4353,7 @@ namespace Opc.Ua
                 response = new DeleteMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteMonitoredItems(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoredItemIds,
@@ -4342,9 +4397,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the DeleteMonitoredItems service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the DeleteMonitoredItems service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
         #endif
@@ -4372,9 +4427,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the DeleteMonitoredItems service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the DeleteMonitoredItems service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
         #endif
@@ -4397,10 +4452,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteMonitoredItems service.
-            /// </summary>
-            public async Task<IServiceResponse> DeleteMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the DeleteMonitoredItems service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteMonitoredItemsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             DeleteMonitoredItemsResponse response = null;
 
@@ -4411,6 +4466,7 @@ namespace Opc.Ua
                 DeleteMonitoredItemsRequest request = (DeleteMonitoredItemsRequest)incoming;
 
                 response = await ServerInstance.DeleteMonitoredItemsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoredItemIds,cancellationToken).ConfigureAwait(false);
@@ -4436,7 +4492,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
         #endif
-        public IServiceResponse CreateSubscription(IServiceRequest incoming)
+        public IServiceResponse CreateSubscription(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             CreateSubscriptionResponse response = null;
 
@@ -4454,6 +4510,7 @@ namespace Opc.Ua
                 response = new CreateSubscriptionResponse();
 
                 response.ResponseHeader = ServerInstance.CreateSubscription(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestedPublishingInterval,
                    request.RequestedLifetimeCount,
@@ -4505,9 +4562,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the CreateSubscription service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the CreateSubscription service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
         #endif
@@ -4535,9 +4592,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the CreateSubscription service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the CreateSubscription service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
         #endif
@@ -4560,10 +4617,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
-            /// <summary>
-            /// Invokes the CreateSubscription service.
-            /// </summary>
-            public async Task<IServiceResponse> CreateSubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the CreateSubscription service.
+        /// </summary>
+        public async Task<IServiceResponse> CreateSubscriptionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             CreateSubscriptionResponse response = null;
 
@@ -4574,6 +4631,7 @@ namespace Opc.Ua
                 CreateSubscriptionRequest request = (CreateSubscriptionRequest)incoming;
 
                 response = await ServerInstance.CreateSubscriptionAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestedPublishingInterval,
                    request.RequestedLifetimeCount,
@@ -4603,7 +4661,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
         #endif
-        public IServiceResponse ModifySubscription(IServiceRequest incoming)
+        public IServiceResponse ModifySubscription(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             ModifySubscriptionResponse response = null;
 
@@ -4620,6 +4678,7 @@ namespace Opc.Ua
                 response = new ModifySubscriptionResponse();
 
                 response.ResponseHeader = ServerInstance.ModifySubscription(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RequestedPublishingInterval,
@@ -4669,9 +4728,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the ModifySubscription service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the ModifySubscription service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
         #endif
@@ -4699,9 +4758,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the ModifySubscription service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the ModifySubscription service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
         #endif
@@ -4724,10 +4783,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
-            /// <summary>
-            /// Invokes the ModifySubscription service.
-            /// </summary>
-            public async Task<IServiceResponse> ModifySubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the ModifySubscription service.
+        /// </summary>
+        public async Task<IServiceResponse> ModifySubscriptionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             ModifySubscriptionResponse response = null;
 
@@ -4738,6 +4797,7 @@ namespace Opc.Ua
                 ModifySubscriptionRequest request = (ModifySubscriptionRequest)incoming;
 
                 response = await ServerInstance.ModifySubscriptionAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RequestedPublishingInterval,
@@ -4767,7 +4827,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
         #endif
-        public IServiceResponse SetPublishingMode(IServiceRequest incoming)
+        public IServiceResponse SetPublishingMode(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             SetPublishingModeResponse response = null;
 
@@ -4783,6 +4843,7 @@ namespace Opc.Ua
                 response = new SetPublishingModeResponse();
 
                 response.ResponseHeader = ServerInstance.SetPublishingMode(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.PublishingEnabled,
                    request.SubscriptionIds,
@@ -4826,9 +4887,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the SetPublishingMode service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the SetPublishingMode service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
         #endif
@@ -4856,9 +4917,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the SetPublishingMode service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the SetPublishingMode service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
         #endif
@@ -4881,10 +4942,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
-            /// <summary>
-            /// Invokes the SetPublishingMode service.
-            /// </summary>
-            public async Task<IServiceResponse> SetPublishingModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the SetPublishingMode service.
+        /// </summary>
+        public async Task<IServiceResponse> SetPublishingModeAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             SetPublishingModeResponse response = null;
 
@@ -4895,6 +4956,7 @@ namespace Opc.Ua
                 SetPublishingModeRequest request = (SetPublishingModeRequest)incoming;
 
                 response = await ServerInstance.SetPublishingModeAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.PublishingEnabled,
                    request.SubscriptionIds,cancellationToken).ConfigureAwait(false);
@@ -4920,7 +4982,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Publish_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
         #endif
-        public IServiceResponse Publish(IServiceRequest incoming)
+        public IServiceResponse Publish(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             PublishResponse response = null;
 
@@ -4940,6 +5002,7 @@ namespace Opc.Ua
                 response = new PublishResponse();
 
                 response.ResponseHeader = ServerInstance.Publish(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionAcknowledgements,
                    out subscriptionId,
@@ -4990,9 +5053,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the Publish service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the Publish service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
         #endif
@@ -5020,9 +5083,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the Publish service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the Publish service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
         #endif
@@ -5045,10 +5108,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Publish_ASYNC)
-            /// <summary>
-            /// Invokes the Publish service.
-            /// </summary>
-            public async Task<IServiceResponse> PublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the Publish service.
+        /// </summary>
+        public async Task<IServiceResponse> PublishAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             PublishResponse response = null;
 
@@ -5059,6 +5122,7 @@ namespace Opc.Ua
                 PublishRequest request = (PublishRequest)incoming;
 
                 response = await ServerInstance.PublishAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionAcknowledgements,cancellationToken).ConfigureAwait(false);
 
@@ -5083,7 +5147,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Republish_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
         #endif
-        public IServiceResponse Republish(IServiceRequest incoming)
+        public IServiceResponse Republish(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             RepublishResponse response = null;
 
@@ -5098,6 +5162,7 @@ namespace Opc.Ua
                 response = new RepublishResponse();
 
                 response.ResponseHeader = ServerInstance.Republish(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RetransmitSequenceNumber,
@@ -5139,9 +5204,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the Republish service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the Republish service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
         #endif
@@ -5169,9 +5234,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the Republish service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the Republish service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
         #endif
@@ -5194,10 +5259,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Republish_ASYNC)
-            /// <summary>
-            /// Invokes the Republish service.
-            /// </summary>
-            public async Task<IServiceResponse> RepublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the Republish service.
+        /// </summary>
+        public async Task<IServiceResponse> RepublishAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             RepublishResponse response = null;
 
@@ -5208,6 +5273,7 @@ namespace Opc.Ua
                 RepublishRequest request = (RepublishRequest)incoming;
 
                 response = await ServerInstance.RepublishAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RetransmitSequenceNumber,cancellationToken).ConfigureAwait(false);
@@ -5233,7 +5299,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
         #endif
-        public IServiceResponse TransferSubscriptions(IServiceRequest incoming)
+        public IServiceResponse TransferSubscriptions(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             TransferSubscriptionsResponse response = null;
 
@@ -5249,6 +5315,7 @@ namespace Opc.Ua
                 response = new TransferSubscriptionsResponse();
 
                 response.ResponseHeader = ServerInstance.TransferSubscriptions(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,
                    request.SendInitialValues,
@@ -5292,9 +5359,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the TransferSubscriptions service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the TransferSubscriptions service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
         #endif
@@ -5322,9 +5389,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the TransferSubscriptions service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the TransferSubscriptions service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
         #endif
@@ -5347,10 +5414,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
-            /// <summary>
-            /// Invokes the TransferSubscriptions service.
-            /// </summary>
-            public async Task<IServiceResponse> TransferSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the TransferSubscriptions service.
+        /// </summary>
+        public async Task<IServiceResponse> TransferSubscriptionsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             TransferSubscriptionsResponse response = null;
 
@@ -5361,6 +5428,7 @@ namespace Opc.Ua
                 TransferSubscriptionsRequest request = (TransferSubscriptionsRequest)incoming;
 
                 response = await ServerInstance.TransferSubscriptionsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,
                    request.SendInitialValues,cancellationToken).ConfigureAwait(false);
@@ -5386,7 +5454,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
         #endif
-        public IServiceResponse DeleteSubscriptions(IServiceRequest incoming)
+        public IServiceResponse DeleteSubscriptions(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             DeleteSubscriptionsResponse response = null;
 
@@ -5402,6 +5470,7 @@ namespace Opc.Ua
                 response = new DeleteSubscriptionsResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteSubscriptions(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,
                    out results,
@@ -5444,9 +5513,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the DeleteSubscriptions service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the DeleteSubscriptions service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
         #endif
@@ -5474,9 +5543,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the DeleteSubscriptions service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the DeleteSubscriptions service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
         #endif
@@ -5499,10 +5568,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteSubscriptions service.
-            /// </summary>
-            public async Task<IServiceResponse> DeleteSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the DeleteSubscriptions service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteSubscriptionsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             DeleteSubscriptionsResponse response = null;
 
@@ -5513,6 +5582,7 @@ namespace Opc.Ua
                 DeleteSubscriptionsRequest request = (DeleteSubscriptionsRequest)incoming;
 
                 response = await ServerInstance.DeleteSubscriptionsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,cancellationToken).ConfigureAwait(false);
 
@@ -5853,7 +5923,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
-        public IServiceResponse FindServers(IServiceRequest incoming)
+        public IServiceResponse FindServers(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             FindServersResponse response = null;
 
@@ -5868,6 +5938,7 @@ namespace Opc.Ua
                 response = new FindServersResponse();
 
                 response.ResponseHeader = ServerInstance.FindServers(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -5910,9 +5981,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the FindServers service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the FindServers service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
@@ -5940,9 +6011,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the FindServers service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the FindServers service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
@@ -5965,10 +6036,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
-            /// <summary>
-            /// Invokes the FindServers service.
-            /// </summary>
-            public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the FindServers service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             FindServersResponse response = null;
 
@@ -5979,6 +6050,7 @@ namespace Opc.Ua
                 FindServersRequest request = (FindServersRequest)incoming;
 
                 response = await ServerInstance.FindServersAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -6005,7 +6077,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
-        public IServiceResponse FindServersOnNetwork(IServiceRequest incoming)
+        public IServiceResponse FindServersOnNetwork(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             FindServersOnNetworkResponse response = null;
 
@@ -6021,6 +6093,7 @@ namespace Opc.Ua
                 response = new FindServersOnNetworkResponse();
 
                 response.ResponseHeader = ServerInstance.FindServersOnNetwork(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -6065,9 +6138,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the FindServersOnNetwork service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the FindServersOnNetwork service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
@@ -6095,9 +6168,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the FindServersOnNetwork service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the FindServersOnNetwork service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
@@ -6120,10 +6193,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-            /// <summary>
-            /// Invokes the FindServersOnNetwork service.
-            /// </summary>
-            public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             FindServersOnNetworkResponse response = null;
 
@@ -6134,6 +6207,7 @@ namespace Opc.Ua
                 FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
 
                 response = await ServerInstance.FindServersOnNetworkAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -6160,7 +6234,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
-        public IServiceResponse GetEndpoints(IServiceRequest incoming)
+        public IServiceResponse GetEndpoints(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             GetEndpointsResponse response = null;
 
@@ -6175,6 +6249,7 @@ namespace Opc.Ua
                 response = new GetEndpointsResponse();
 
                 response.ResponseHeader = ServerInstance.GetEndpoints(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -6217,9 +6292,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the GetEndpoints service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the GetEndpoints service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
@@ -6247,9 +6322,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the GetEndpoints service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the GetEndpoints service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
@@ -6272,10 +6347,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-            /// <summary>
-            /// Invokes the GetEndpoints service.
-            /// </summary>
-            public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the GetEndpoints service.
+        /// </summary>
+        public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             GetEndpointsResponse response = null;
 
@@ -6286,6 +6361,7 @@ namespace Opc.Ua
                 GetEndpointsRequest request = (GetEndpointsRequest)incoming;
 
                 response = await ServerInstance.GetEndpointsAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -6312,7 +6388,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
         #endif
-        public IServiceResponse RegisterServer(IServiceRequest incoming)
+        public IServiceResponse RegisterServer(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             RegisterServerResponse response = null;
 
@@ -6326,6 +6402,7 @@ namespace Opc.Ua
                 response = new RegisterServerResponse();
 
                 response.ResponseHeader = ServerInstance.RegisterServer(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server);
 
@@ -6364,9 +6441,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the RegisterServer service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the RegisterServer service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
         #endif
@@ -6394,9 +6471,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the RegisterServer service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the RegisterServer service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
         #endif
@@ -6419,10 +6496,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
-            /// <summary>
-            /// Invokes the RegisterServer service.
-            /// </summary>
-            public async Task<IServiceResponse> RegisterServerAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the RegisterServer service.
+        /// </summary>
+        public async Task<IServiceResponse> RegisterServerAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             RegisterServerResponse response = null;
 
@@ -6433,6 +6510,7 @@ namespace Opc.Ua
                 RegisterServerRequest request = (RegisterServerRequest)incoming;
 
                 response = await ServerInstance.RegisterServerAsync(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server,cancellationToken).ConfigureAwait(false);
 
@@ -6457,7 +6535,7 @@ namespace Opc.Ua
         #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
         [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
         #endif
-        public IServiceResponse RegisterServer2(IServiceRequest incoming)
+        public IServiceResponse RegisterServer2(IServiceRequest incoming, SecureChannelContext secureChannelContext)
         {
             RegisterServer2Response response = null;
 
@@ -6473,6 +6551,7 @@ namespace Opc.Ua
                 response = new RegisterServer2Response();
 
                 response.ResponseHeader = ServerInstance.RegisterServer2(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server,
                    request.DiscoveryConfiguration,
@@ -6516,9 +6595,9 @@ namespace Opc.Ua
             }
         }
         #else
-            /// <summary>
-            /// Asynchronously calls the RegisterServer2 service.
-            /// </summary>
+        /// <summary>
+        /// Asynchronously calls the RegisterServer2 service.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
         #endif
@@ -6546,9 +6625,9 @@ namespace Opc.Ua
             }
         }
 
-            /// <summary>
-            /// Waits for an asynchronous call to the RegisterServer2 service to complete.
-            /// </summary>
+        /// <summary>
+        /// Waits for an asynchronous call to the RegisterServer2 service to complete.
+        /// </summary>
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
         #endif
@@ -6571,10 +6650,10 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
-            /// <summary>
-            /// Invokes the RegisterServer2 service.
-            /// </summary>
-            public async Task<IServiceResponse> RegisterServer2Async(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Invokes the RegisterServer2 service.
+        /// </summary>
+        public async Task<IServiceResponse> RegisterServer2Async(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default)
         {
             RegisterServer2Response response = null;
 
@@ -6585,6 +6664,7 @@ namespace Opc.Ua
                 RegisterServer2Request request = (RegisterServer2Request)incoming;
 
                 response = await ServerInstance.RegisterServer2Async(
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server,
                    request.DiscoveryConfiguration,cancellationToken).ConfigureAwait(false);

@@ -1009,9 +1009,13 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback != null)
                 {
-                    IServiceResponse response = await m_callback.ProcessRequestAsync(
+                    var context = new SecureChannelContext(
                         channel.GlobalChannelId,
                         channel.EndpointDescription,
+                        RequestEncoding.Binary);
+
+                    IServiceResponse response = await m_callback.ProcessRequestAsync(
+                        context,
                         request).ConfigureAwait(false);
 
                     try
