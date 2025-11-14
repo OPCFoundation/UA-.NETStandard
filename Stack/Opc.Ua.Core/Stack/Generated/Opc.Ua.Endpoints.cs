@@ -128,7 +128,7 @@ namespace Opc.Ua
                 response = new FindServersResponse();
 
                 response.ResponseHeader = ServerInstance.FindServers(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -240,7 +240,7 @@ namespace Opc.Ua
                 FindServersRequest request = (FindServersRequest)incoming;
 
                 response = await ServerInstance.FindServersAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -283,7 +283,7 @@ namespace Opc.Ua
                 response = new FindServersOnNetworkResponse();
 
                 response.ResponseHeader = ServerInstance.FindServersOnNetwork(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -397,7 +397,7 @@ namespace Opc.Ua
                 FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
 
                 response = await ServerInstance.FindServersOnNetworkAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -439,7 +439,7 @@ namespace Opc.Ua
                 response = new GetEndpointsResponse();
 
                 response.ResponseHeader = ServerInstance.GetEndpoints(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -551,7 +551,7 @@ namespace Opc.Ua
                 GetEndpointsRequest request = (GetEndpointsRequest)incoming;
 
                 response = await ServerInstance.GetEndpointsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -601,7 +601,7 @@ namespace Opc.Ua
                 response = new CreateSessionResponse();
 
                 response.ResponseHeader = ServerInstance.CreateSession(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientDescription,
                    request.ServerUri,
@@ -734,7 +734,7 @@ namespace Opc.Ua
                 CreateSessionRequest request = (CreateSessionRequest)incoming;
 
                 response = await ServerInstance.CreateSessionAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientDescription,
                    request.ServerUri,
@@ -783,7 +783,7 @@ namespace Opc.Ua
                 response = new ActivateSessionResponse();
 
                 response.ResponseHeader = ServerInstance.ActivateSession(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientSignature,
                    request.ClientSoftwareCertificates,
@@ -901,7 +901,7 @@ namespace Opc.Ua
                 ActivateSessionRequest request = (ActivateSessionRequest)incoming;
 
                 response = await ServerInstance.ActivateSessionAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ClientSignature,
                    request.ClientSoftwareCertificates,
@@ -944,7 +944,7 @@ namespace Opc.Ua
                 response = new CloseSessionResponse();
 
                 response.ResponseHeader = ServerInstance.CloseSession(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.DeleteSubscriptions);
 
@@ -1052,7 +1052,7 @@ namespace Opc.Ua
                 CloseSessionRequest request = (CloseSessionRequest)incoming;
 
                 response = await ServerInstance.CloseSessionAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.DeleteSubscriptions,cancellationToken).ConfigureAwait(false);
 
@@ -1092,7 +1092,7 @@ namespace Opc.Ua
                 response = new CancelResponse();
 
                 response.ResponseHeader = ServerInstance.Cancel(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestHandle,
                    out cancelCount);
@@ -1202,7 +1202,7 @@ namespace Opc.Ua
                 CancelRequest request = (CancelRequest)incoming;
 
                 response = await ServerInstance.CancelAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestHandle,cancellationToken).ConfigureAwait(false);
 
@@ -1243,7 +1243,7 @@ namespace Opc.Ua
                 response = new AddNodesResponse();
 
                 response.ResponseHeader = ServerInstance.AddNodes(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToAdd,
                    out results,
@@ -1355,7 +1355,7 @@ namespace Opc.Ua
                 AddNodesRequest request = (AddNodesRequest)incoming;
 
                 response = await ServerInstance.AddNodesAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToAdd,cancellationToken).ConfigureAwait(false);
 
@@ -1396,7 +1396,7 @@ namespace Opc.Ua
                 response = new AddReferencesResponse();
 
                 response.ResponseHeader = ServerInstance.AddReferences(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToAdd,
                    out results,
@@ -1508,7 +1508,7 @@ namespace Opc.Ua
                 AddReferencesRequest request = (AddReferencesRequest)incoming;
 
                 response = await ServerInstance.AddReferencesAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToAdd,cancellationToken).ConfigureAwait(false);
 
@@ -1549,7 +1549,7 @@ namespace Opc.Ua
                 response = new DeleteNodesResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteNodes(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToDelete,
                    out results,
@@ -1661,7 +1661,7 @@ namespace Opc.Ua
                 DeleteNodesRequest request = (DeleteNodesRequest)incoming;
 
                 response = await ServerInstance.DeleteNodesAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToDelete,cancellationToken).ConfigureAwait(false);
 
@@ -1702,7 +1702,7 @@ namespace Opc.Ua
                 response = new DeleteReferencesResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteReferences(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToDelete,
                    out results,
@@ -1814,7 +1814,7 @@ namespace Opc.Ua
                 DeleteReferencesRequest request = (DeleteReferencesRequest)incoming;
 
                 response = await ServerInstance.DeleteReferencesAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReferencesToDelete,cancellationToken).ConfigureAwait(false);
 
@@ -1855,7 +1855,7 @@ namespace Opc.Ua
                 response = new BrowseResponse();
 
                 response.ResponseHeader = ServerInstance.Browse(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.RequestedMaxReferencesPerNode,
@@ -1969,7 +1969,7 @@ namespace Opc.Ua
                 BrowseRequest request = (BrowseRequest)incoming;
 
                 response = await ServerInstance.BrowseAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.RequestedMaxReferencesPerNode,
@@ -2012,7 +2012,7 @@ namespace Opc.Ua
                 response = new BrowseNextResponse();
 
                 response.ResponseHeader = ServerInstance.BrowseNext(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoints,
                    request.ContinuationPoints,
@@ -2125,7 +2125,7 @@ namespace Opc.Ua
                 BrowseNextRequest request = (BrowseNextRequest)incoming;
 
                 response = await ServerInstance.BrowseNextAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoints,
                    request.ContinuationPoints,cancellationToken).ConfigureAwait(false);
@@ -2167,7 +2167,7 @@ namespace Opc.Ua
                 response = new TranslateBrowsePathsToNodeIdsResponse();
 
                 response.ResponseHeader = ServerInstance.TranslateBrowsePathsToNodeIds(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.BrowsePaths,
                    out results,
@@ -2279,7 +2279,7 @@ namespace Opc.Ua
                 TranslateBrowsePathsToNodeIdsRequest request = (TranslateBrowsePathsToNodeIdsRequest)incoming;
 
                 response = await ServerInstance.TranslateBrowsePathsToNodeIdsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.BrowsePaths,cancellationToken).ConfigureAwait(false);
 
@@ -2319,7 +2319,7 @@ namespace Opc.Ua
                 response = new RegisterNodesResponse();
 
                 response.ResponseHeader = ServerInstance.RegisterNodes(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToRegister,
                    out registeredNodeIds);
@@ -2429,7 +2429,7 @@ namespace Opc.Ua
                 RegisterNodesRequest request = (RegisterNodesRequest)incoming;
 
                 response = await ServerInstance.RegisterNodesAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToRegister,cancellationToken).ConfigureAwait(false);
 
@@ -2468,7 +2468,7 @@ namespace Opc.Ua
                 response = new UnregisterNodesResponse();
 
                 response.ResponseHeader = ServerInstance.UnregisterNodes(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToUnregister);
 
@@ -2576,7 +2576,7 @@ namespace Opc.Ua
                 UnregisterNodesRequest request = (UnregisterNodesRequest)incoming;
 
                 response = await ServerInstance.UnregisterNodesAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToUnregister,cancellationToken).ConfigureAwait(false);
 
@@ -2620,7 +2620,7 @@ namespace Opc.Ua
                 response = new QueryFirstResponse();
 
                 response.ResponseHeader = ServerInstance.QueryFirst(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.NodeTypes,
@@ -2742,7 +2742,7 @@ namespace Opc.Ua
                 QueryFirstRequest request = (QueryFirstRequest)incoming;
 
                 response = await ServerInstance.QueryFirstAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.View,
                    request.NodeTypes,
@@ -2787,7 +2787,7 @@ namespace Opc.Ua
                 response = new QueryNextResponse();
 
                 response.ResponseHeader = ServerInstance.QueryNext(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoint,
                    request.ContinuationPoint,
@@ -2900,7 +2900,7 @@ namespace Opc.Ua
                 QueryNextRequest request = (QueryNextRequest)incoming;
 
                 response = await ServerInstance.QueryNextAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.ReleaseContinuationPoint,
                    request.ContinuationPoint,cancellationToken).ConfigureAwait(false);
@@ -2942,7 +2942,7 @@ namespace Opc.Ua
                 response = new ReadResponse();
 
                 response.ResponseHeader = ServerInstance.Read(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MaxAge,
                    request.TimestampsToReturn,
@@ -3056,7 +3056,7 @@ namespace Opc.Ua
                 ReadRequest request = (ReadRequest)incoming;
 
                 response = await ServerInstance.ReadAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MaxAge,
                    request.TimestampsToReturn,
@@ -3099,7 +3099,7 @@ namespace Opc.Ua
                 response = new HistoryReadResponse();
 
                 response.ResponseHeader = ServerInstance.HistoryRead(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryReadDetails,
                    request.TimestampsToReturn,
@@ -3214,7 +3214,7 @@ namespace Opc.Ua
                 HistoryReadRequest request = (HistoryReadRequest)incoming;
 
                 response = await ServerInstance.HistoryReadAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryReadDetails,
                    request.TimestampsToReturn,
@@ -3258,7 +3258,7 @@ namespace Opc.Ua
                 response = new WriteResponse();
 
                 response.ResponseHeader = ServerInstance.Write(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToWrite,
                    out results,
@@ -3370,7 +3370,7 @@ namespace Opc.Ua
                 WriteRequest request = (WriteRequest)incoming;
 
                 response = await ServerInstance.WriteAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.NodesToWrite,cancellationToken).ConfigureAwait(false);
 
@@ -3411,7 +3411,7 @@ namespace Opc.Ua
                 response = new HistoryUpdateResponse();
 
                 response.ResponseHeader = ServerInstance.HistoryUpdate(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryUpdateDetails,
                    out results,
@@ -3523,7 +3523,7 @@ namespace Opc.Ua
                 HistoryUpdateRequest request = (HistoryUpdateRequest)incoming;
 
                 response = await ServerInstance.HistoryUpdateAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.HistoryUpdateDetails,cancellationToken).ConfigureAwait(false);
 
@@ -3564,7 +3564,7 @@ namespace Opc.Ua
                 response = new CallResponse();
 
                 response.ResponseHeader = ServerInstance.Call(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MethodsToCall,
                    out results,
@@ -3676,7 +3676,7 @@ namespace Opc.Ua
                 CallRequest request = (CallRequest)incoming;
 
                 response = await ServerInstance.CallAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.MethodsToCall,cancellationToken).ConfigureAwait(false);
 
@@ -3717,7 +3717,7 @@ namespace Opc.Ua
                 response = new CreateMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.CreateMonitoredItems(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -3831,7 +3831,7 @@ namespace Opc.Ua
                 CreateMonitoredItemsRequest request = (CreateMonitoredItemsRequest)incoming;
 
                 response = await ServerInstance.CreateMonitoredItemsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -3874,7 +3874,7 @@ namespace Opc.Ua
                 response = new ModifyMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.ModifyMonitoredItems(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -3988,7 +3988,7 @@ namespace Opc.Ua
                 ModifyMonitoredItemsRequest request = (ModifyMonitoredItemsRequest)incoming;
 
                 response = await ServerInstance.ModifyMonitoredItemsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
@@ -4031,7 +4031,7 @@ namespace Opc.Ua
                 response = new SetMonitoringModeResponse();
 
                 response.ResponseHeader = ServerInstance.SetMonitoringMode(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoringMode,
@@ -4145,7 +4145,7 @@ namespace Opc.Ua
                 SetMonitoringModeRequest request = (SetMonitoringModeRequest)incoming;
 
                 response = await ServerInstance.SetMonitoringModeAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoringMode,
@@ -4190,7 +4190,7 @@ namespace Opc.Ua
                 response = new SetTriggeringResponse();
 
                 response.ResponseHeader = ServerInstance.SetTriggering(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TriggeringItemId,
@@ -4309,7 +4309,7 @@ namespace Opc.Ua
                 SetTriggeringRequest request = (SetTriggeringRequest)incoming;
 
                 response = await ServerInstance.SetTriggeringAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TriggeringItemId,
@@ -4353,7 +4353,7 @@ namespace Opc.Ua
                 response = new DeleteMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteMonitoredItems(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoredItemIds,
@@ -4466,7 +4466,7 @@ namespace Opc.Ua
                 DeleteMonitoredItemsRequest request = (DeleteMonitoredItemsRequest)incoming;
 
                 response = await ServerInstance.DeleteMonitoredItemsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoredItemIds,cancellationToken).ConfigureAwait(false);
@@ -4510,7 +4510,7 @@ namespace Opc.Ua
                 response = new CreateSubscriptionResponse();
 
                 response.ResponseHeader = ServerInstance.CreateSubscription(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestedPublishingInterval,
                    request.RequestedLifetimeCount,
@@ -4631,7 +4631,7 @@ namespace Opc.Ua
                 CreateSubscriptionRequest request = (CreateSubscriptionRequest)incoming;
 
                 response = await ServerInstance.CreateSubscriptionAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.RequestedPublishingInterval,
                    request.RequestedLifetimeCount,
@@ -4678,7 +4678,7 @@ namespace Opc.Ua
                 response = new ModifySubscriptionResponse();
 
                 response.ResponseHeader = ServerInstance.ModifySubscription(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RequestedPublishingInterval,
@@ -4797,7 +4797,7 @@ namespace Opc.Ua
                 ModifySubscriptionRequest request = (ModifySubscriptionRequest)incoming;
 
                 response = await ServerInstance.ModifySubscriptionAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RequestedPublishingInterval,
@@ -4843,7 +4843,7 @@ namespace Opc.Ua
                 response = new SetPublishingModeResponse();
 
                 response.ResponseHeader = ServerInstance.SetPublishingMode(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.PublishingEnabled,
                    request.SubscriptionIds,
@@ -4956,7 +4956,7 @@ namespace Opc.Ua
                 SetPublishingModeRequest request = (SetPublishingModeRequest)incoming;
 
                 response = await ServerInstance.SetPublishingModeAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.PublishingEnabled,
                    request.SubscriptionIds,cancellationToken).ConfigureAwait(false);
@@ -5002,7 +5002,7 @@ namespace Opc.Ua
                 response = new PublishResponse();
 
                 response.ResponseHeader = ServerInstance.Publish(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionAcknowledgements,
                    out subscriptionId,
@@ -5122,7 +5122,7 @@ namespace Opc.Ua
                 PublishRequest request = (PublishRequest)incoming;
 
                 response = await ServerInstance.PublishAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionAcknowledgements,cancellationToken).ConfigureAwait(false);
 
@@ -5162,7 +5162,7 @@ namespace Opc.Ua
                 response = new RepublishResponse();
 
                 response.ResponseHeader = ServerInstance.Republish(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RetransmitSequenceNumber,
@@ -5273,7 +5273,7 @@ namespace Opc.Ua
                 RepublishRequest request = (RepublishRequest)incoming;
 
                 response = await ServerInstance.RepublishAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.RetransmitSequenceNumber,cancellationToken).ConfigureAwait(false);
@@ -5315,7 +5315,7 @@ namespace Opc.Ua
                 response = new TransferSubscriptionsResponse();
 
                 response.ResponseHeader = ServerInstance.TransferSubscriptions(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,
                    request.SendInitialValues,
@@ -5428,7 +5428,7 @@ namespace Opc.Ua
                 TransferSubscriptionsRequest request = (TransferSubscriptionsRequest)incoming;
 
                 response = await ServerInstance.TransferSubscriptionsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,
                    request.SendInitialValues,cancellationToken).ConfigureAwait(false);
@@ -5470,7 +5470,7 @@ namespace Opc.Ua
                 response = new DeleteSubscriptionsResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteSubscriptions(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,
                    out results,
@@ -5582,7 +5582,7 @@ namespace Opc.Ua
                 DeleteSubscriptionsRequest request = (DeleteSubscriptionsRequest)incoming;
 
                 response = await ServerInstance.DeleteSubscriptionsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.SubscriptionIds,cancellationToken).ConfigureAwait(false);
 
@@ -5938,7 +5938,7 @@ namespace Opc.Ua
                 response = new FindServersResponse();
 
                 response.ResponseHeader = ServerInstance.FindServers(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -6050,7 +6050,7 @@ namespace Opc.Ua
                 FindServersRequest request = (FindServersRequest)incoming;
 
                 response = await ServerInstance.FindServersAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -6093,7 +6093,7 @@ namespace Opc.Ua
                 response = new FindServersOnNetworkResponse();
 
                 response.ResponseHeader = ServerInstance.FindServersOnNetwork(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -6207,7 +6207,7 @@ namespace Opc.Ua
                 FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
 
                 response = await ServerInstance.FindServersOnNetworkAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
@@ -6249,7 +6249,7 @@ namespace Opc.Ua
                 response = new GetEndpointsResponse();
 
                 response.ResponseHeader = ServerInstance.GetEndpoints(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -6361,7 +6361,7 @@ namespace Opc.Ua
                 GetEndpointsRequest request = (GetEndpointsRequest)incoming;
 
                 response = await ServerInstance.GetEndpointsAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
@@ -6402,7 +6402,7 @@ namespace Opc.Ua
                 response = new RegisterServerResponse();
 
                 response.ResponseHeader = ServerInstance.RegisterServer(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server);
 
@@ -6510,7 +6510,7 @@ namespace Opc.Ua
                 RegisterServerRequest request = (RegisterServerRequest)incoming;
 
                 response = await ServerInstance.RegisterServerAsync(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server,cancellationToken).ConfigureAwait(false);
 
@@ -6551,7 +6551,7 @@ namespace Opc.Ua
                 response = new RegisterServer2Response();
 
                 response.ResponseHeader = ServerInstance.RegisterServer2(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server,
                    request.DiscoveryConfiguration,
@@ -6664,7 +6664,7 @@ namespace Opc.Ua
                 RegisterServer2Request request = (RegisterServer2Request)incoming;
 
                 response = await ServerInstance.RegisterServer2Async(
-   secureChannelContext, 
+                   secureChannelContext,
                    request.RequestHeader,
                    request.Server,
                    request.DiscoveryConfiguration,cancellationToken).ConfigureAwait(false);
