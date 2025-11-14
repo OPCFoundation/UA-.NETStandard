@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -40,7 +42,7 @@ namespace Opc.Ua.Gds.Tests
 {
     public static class X509TestUtils
     {
-        public static void VerifyApplicationCertIntegrity(
+        public static async Task VerifyApplicationCertIntegrityAsync(
             byte[] certificate,
             byte[] privateKey,
             char[] privateKeyPassword,
@@ -88,10 +90,10 @@ namespace Opc.Ua.Gds.Tests
                 TrustedCertificates = issuerCertIdCollection
             };
             certValidator.Update(trustedStore, issuerStore, null);
-            NUnit.Framework.Assert.That(() => certValidator.Validate(newCert), Throws.Exception);
+            NUnit.Framework.Assert.That(async () => await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false), Throws.Exception);
             issuerStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(issuerStore, trustedStore, null);
-            certValidator.Validate(newCert);
+            await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false);
         }
 
         public static void VerifySignedApplicationCert(

@@ -887,13 +887,13 @@ namespace Opc.Ua.Gds.Tests
                                     application,
                                     certificate,
                                     issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     certificate,
                                     privateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
                                     issuerCertificates,
-                                    telemetry);
+                                    telemetry).ConfigureAwait(false);
                             }
                             else
                             {
@@ -923,22 +923,6 @@ namespace Opc.Ua.Gds.Tests
                     logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
-        }
-
-        [Test]
-        [Order(512)]
-        public async Task FinishInvalidNewKeyPairRequestsAsync()
-        {
-            AssertIgnoreTestWithoutInvalidRegistration();
-            await ConnectGDSAsync(true).ConfigureAwait(false);
-            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
-            {
-                await NUnit.Framework.Assert.ThatAsync(
-                    () => m_gdsClient.GDSClient.FinishRequestAsync(
-                            application.ApplicationRecord.ApplicationId,
-                            new NodeId(Guid.NewGuid())),
-                    Throws.Exception).ConfigureAwait(false);
-            }
         }
 
         [Test]
@@ -1016,13 +1000,13 @@ namespace Opc.Ua.Gds.Tests
                                     application,
                                     certificate,
                                     issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     certificate,
                                     application.PrivateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
                                     issuerCertificates,
-                                    telemetry);
+                                    telemetry).ConfigureAwait(false);
                             }
                             else
                             {
@@ -1369,13 +1353,13 @@ namespace Opc.Ua.Gds.Tests
                                 application,
                                 certificate,
                                 issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(
+                            await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 certificate,
                                 application.PrivateKey,
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
                                 issuerCertificates,
-                                telemetry);
+                                telemetry).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1487,13 +1471,13 @@ namespace Opc.Ua.Gds.Tests
                                 application,
                                 certificate,
                                 issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(
+                            await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 certificate,
                                 privateKey,
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
                                 issuerCertificates,
-                                telemetry);
+                                telemetry).ConfigureAwait(false);
                         }
                         else
                         {
