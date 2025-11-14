@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -120,12 +122,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Refreshes the conditions.
         /// </summary>
-        void ConditionRefresh2(uint monitoredItemId);
+        ValueTask ConditionRefresh2Async(uint monitoredItemId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Refreshes the conditions.
         /// </summary>
-        void ConditionRefresh();
+        ValueTask ConditionRefreshAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Updates the publishing parameters for the subscription.
@@ -141,12 +143,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Changes the monitoring mode for a set of items.
         /// </summary>
-        void SetMonitoringMode(
+
+        ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Enables/disables publishing for the subscription.

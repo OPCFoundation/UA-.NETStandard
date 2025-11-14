@@ -2231,19 +2231,17 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="monitoringMode">The monitoring mode to be set for the MonitoredItems.</param>
         /// <param name="monitoredItemIds">The list of MonitoredItems to modify.</param>
-        /// <param name="results">The list of results for the MonitoredItems to modify.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="SetMonitoringModeResponse"/>
         /// </returns>
-        public override ResponseHeader SetMonitoringMode(
+        public override async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
                 secureChannelContext,
@@ -2254,15 +2252,21 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.SetMonitoringMode(
+                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
                     context,
                     subscriptionId,
                     monitoringMode,
                     monitoredItemIds,
-                    out results,
-                    out diagnosticInfos);
+                    ct)
+                    .ConfigureAwait(false);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return new SetMonitoringModeResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {

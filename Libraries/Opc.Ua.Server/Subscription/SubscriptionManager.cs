@@ -237,7 +237,7 @@ namespace Opc.Ua.Server
 
                 // TODO: Ensure shutdown awaits completion and a cancellation token is passed
                 Task.Factory.StartNew(
-                    ConditionRefreshWorker,
+                    ConditionRefreshWorkerAsync,
                     default,
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
@@ -599,12 +599,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private void DoConditionRefresh(ISubscription subscription)
+        private async ValueTask DoConditionRefreshAsync(ISubscription subscription, CancellationToken cancellationToken = default)
         {
             try
             {
                 m_logger.LogTrace("Subscription ConditionRefresh started, Id={SubscriptionId}.", subscription.Id);
-                subscription.ConditionRefresh();
+                await subscription.ConditionRefreshAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -615,7 +616,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private void DoConditionRefresh2(ISubscription subscription, uint monitoredItemId)
+        private async ValueTask DoConditionRefresh2Async(ISubscription subscription, uint monitoredItemId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -623,7 +624,8 @@ namespace Opc.Ua.Server
                     "Subscription ConditionRefresh2 started, Id={SubscriptionId}, MonitoredItemId={MonitoredItemId}.",
                     subscription.Id,
                     monitoredItemId);
-                subscription.ConditionRefresh2(monitoredItemId);
+                await subscription.ConditionRefresh2Async(monitoredItemId, cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1706,13 +1708,12 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void SetMonitoringMode(
+        public ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
             // find subscription.
             if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription subscription))
@@ -1721,12 +1722,11 @@ namespace Opc.Ua.Server
             }
 
             // create the items.
-            subscription.SetMonitoringMode(
+            return subscription.SetMonitoringModeAsync(
                 context,
                 monitoringMode,
                 monitoredItemIds,
-                out results,
-                out diagnosticInfos);
+                cancellationToken);
         }
 
         /// <summary>
@@ -2074,7 +2074,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A single thread to execute the condition refresh.
         /// </summary>
-        private void ConditionRefreshWorker()
+        private async ValueTask ConditionRefreshWorkerAsync()
         {
             try
             {
@@ -2104,13 +2104,15 @@ namespace Opc.Ua.Server
                     }
                     else if (conditionRefreshTask.MonitoredItemId == 0)
                     {
-                        DoConditionRefresh(conditionRefreshTask.Subscription);
+                        await DoConditionRefreshAsync(conditionRefreshTask.Subscription)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
-                        DoConditionRefresh2(
+                        await DoConditionRefresh2Async(
                             conditionRefreshTask.Subscription,
-                            conditionRefreshTask.MonitoredItemId);
+                            conditionRefreshTask.MonitoredItemId)
+                            .ConfigureAwait(false);
                     }
 
                     // use shutdown event to end loop

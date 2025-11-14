@@ -2409,20 +2409,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calls a method defined on an object.
         /// </summary>
-        public virtual void Call(
-            OperationContext context,
-            CallMethodRequestCollection methodsToCall,
-            out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = CallAsync(
-                context,
-                methodsToCall).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
         public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
@@ -2535,18 +2521,6 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
-        }
-
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
-        public virtual void ConditionRefresh(
-            OperationContext context,
-            IList<IEventMonitoredItem> monitoredItems)
-        {
-            ConditionRefreshAsync(
-                context,
-                monitoredItems).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -3446,23 +3420,6 @@ namespace Opc.Ua.Server
                 // success.
                 errors[ii] = StatusCodes.Good;
             }
-        }
-
-        /// <summary>
-        /// Changes the monitoring mode for a set of items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void SetMonitoringMode(
-            OperationContext context,
-            MonitoringMode monitoringMode,
-            IList<IMonitoredItem> itemsToModify,
-            IList<ServiceResult> errors)
-        {
-            SetMonitoringModeAsync(
-                context,
-                monitoringMode,
-                itemsToModify,
-                errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>

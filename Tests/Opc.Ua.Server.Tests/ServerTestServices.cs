@@ -336,21 +336,14 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection monitoredItemIds,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.SetMonitoringMode(
-                SecureChannelContext,
-                requestHeader,
-                subscriptionId,
-                monitoringMode,
-                monitoredItemIds,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            var response = new SetMonitoringModeResponse
-            {
-                ResponseHeader = responseHeader,
-                Results = results,
-                DiagnosticInfos = diagnosticInfos
-            };
-            return new ValueTask<SetMonitoringModeResponse>(response);
+            return new ValueTask<SetMonitoringModeResponse>(
+                m_server.SetMonitoringModeAsync(
+                    SecureChannelContext,
+                    requestHeader,
+                    subscriptionId,
+                    monitoringMode,
+                    monitoredItemIds,
+                    ct));
         }
 
         public ValueTask<RepublishResponse> RepublishAsync(
