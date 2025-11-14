@@ -87,13 +87,7 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public async Task TearDownAsync()
         {
-            SetSecureChannelContext();
-            await m_server.CloseSessionAsync(m_requestHeader, CancellationToken.None).ConfigureAwait(false);
-        }
-
-        private void SetSecureChannelContext()
-        {
-            SecureChannelContext.Current = m_secureChannelContext;
+            await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -102,8 +96,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestModellingRulesPopulatedAsync()
         {
-            SetSecureChannelContext();
-
             // Browse ServerCapabilities->ModellingRules
             NodeId modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
 
@@ -120,6 +112,7 @@ namespace Opc.Ua.Server.Tests
             var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
 
             BrowseResponse browseResponse = await m_server.BrowseAsync(
+                m_secureChannelContext,
                 m_requestHeader,
                 null,
                 0,
@@ -167,8 +160,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestModellingRulesHaveCorrectTypeAsync()
         {
-            SetSecureChannelContext();
-
             NodeId modellingRulesNodeId = ObjectIds.Server_ServerCapabilities_ModellingRules;
 
             var browseRequest = new BrowseDescription
@@ -184,6 +175,7 @@ namespace Opc.Ua.Server.Tests
             var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
 
             BrowseResponse browseResponse = await m_server.BrowseAsync(
+                m_secureChannelContext,
                 m_requestHeader,
                 null,
                 0,

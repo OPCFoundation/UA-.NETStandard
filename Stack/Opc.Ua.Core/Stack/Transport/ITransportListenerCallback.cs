@@ -24,14 +24,12 @@ namespace Opc.Ua
         /// <summary>
         /// Processes a request received via a binary encoded channel.
         /// </summary>
-        /// <param name="channelId">A unique identifier for the secure channel which is the source of the request.</param>
-        /// <param name="endpointDescription">The description of the endpoint which the secure channel is using.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="request">The incoming request.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The response to return over the secure channel.</returns>
         Task<IServiceResponse> ProcessRequestAsync(
-            string channelId,
-            EndpointDescription endpointDescription,
+            SecureChannelContext secureChannelContext,
             IServiceRequest request,
             CancellationToken cancellationToken = default);
 

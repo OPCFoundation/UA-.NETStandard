@@ -470,6 +470,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public virtual OperationContext ValidateRequest(
             RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
             RequestType requestType)
         {
             if (requestHeader == null)
@@ -484,7 +485,7 @@ namespace Opc.Ua.Server
                 // check for create session request.
                 if (requestType is RequestType.CreateSession or RequestType.ActivateSession)
                 {
-                    return new OperationContext(requestHeader, requestType);
+                    return new OperationContext(requestHeader, secureChannelContext, requestType);
                 }
 
                 // find session.
@@ -505,20 +506,20 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(args.Error);
                         }
 
-                        return new OperationContext(requestHeader, requestType, args.Identity);
+                        return new OperationContext(requestHeader, secureChannelContext, requestType, args.Identity);
                     }
 
                     throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                 }
 
                 // validate request header.
-                session.ValidateRequest(requestHeader, requestType);
+                session.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
                 // validate user has permissions for additional info
                 session.ValidateDiagnosticInfo(requestHeader);
 
                 // return context.
-                return new OperationContext(requestHeader, requestType, session);
+                return new OperationContext(requestHeader, secureChannelContext, requestType, session);
             }
             catch (Exception e)
             {

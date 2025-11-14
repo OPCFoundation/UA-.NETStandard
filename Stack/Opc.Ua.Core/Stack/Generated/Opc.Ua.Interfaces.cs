@@ -379,7 +379,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the CreateSession service.
         /// </summary>
-        Task<IServiceResponse> CreateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> CreateSessionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -410,7 +410,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the ActivateSession service.
         /// </summary>
-        Task<IServiceResponse> ActivateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> ActivateSessionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -441,7 +441,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the CloseSession service.
         /// </summary>
-        Task<IServiceResponse> CloseSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> CloseSessionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -472,7 +472,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the Cancel service.
         /// </summary>
-        Task<IServiceResponse> CancelAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> CancelAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -503,7 +503,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the AddNodes service.
         /// </summary>
-        Task<IServiceResponse> AddNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> AddNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -534,7 +534,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the AddReferences service.
         /// </summary>
-        Task<IServiceResponse> AddReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> AddReferencesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -565,7 +565,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the DeleteNodes service.
         /// </summary>
-        Task<IServiceResponse> DeleteNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> DeleteNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -596,7 +596,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the DeleteReferences service.
         /// </summary>
-        Task<IServiceResponse> DeleteReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> DeleteReferencesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -627,7 +627,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the Browse service.
         /// </summary>
-        Task<IServiceResponse> BrowseAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> BrowseAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -658,7 +658,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the BrowseNext service.
         /// </summary>
-        Task<IServiceResponse> BrowseNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> BrowseNextAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -689,7 +689,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        Task<IServiceResponse> TranslateBrowsePathsToNodeIdsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> TranslateBrowsePathsToNodeIdsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -720,7 +720,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the RegisterNodes service.
         /// </summary>
-        Task<IServiceResponse> RegisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> RegisterNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -751,7 +751,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the UnregisterNodes service.
         /// </summary>
-        Task<IServiceResponse> UnregisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> UnregisterNodesAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -782,7 +782,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the QueryFirst service.
         /// </summary>
-        Task<IServiceResponse> QueryFirstAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> QueryFirstAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -813,7 +813,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the QueryNext service.
         /// </summary>
-        Task<IServiceResponse> QueryNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> QueryNextAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -844,7 +844,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the Read service.
         /// </summary>
-        Task<IServiceResponse> ReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> ReadAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -875,7 +875,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the HistoryRead service.
         /// </summary>
-        Task<IServiceResponse> HistoryReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> HistoryReadAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -906,7 +906,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the Write service.
         /// </summary>
-        Task<IServiceResponse> WriteAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> WriteAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -937,7 +937,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the HistoryUpdate service.
         /// </summary>
-        Task<IServiceResponse> HistoryUpdateAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> HistoryUpdateAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -968,7 +968,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the Call service.
         /// </summary>
-        Task<IServiceResponse> CallAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> CallAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -999,7 +999,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the CreateMonitoredItems service.
         /// </summary>
-        Task<IServiceResponse> CreateMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> CreateMonitoredItemsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1030,7 +1030,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the ModifyMonitoredItems service.
         /// </summary>
-        Task<IServiceResponse> ModifyMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> ModifyMonitoredItemsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1061,7 +1061,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the SetMonitoringMode service.
         /// </summary>
-        Task<IServiceResponse> SetMonitoringModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> SetMonitoringModeAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1092,7 +1092,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the SetTriggering service.
         /// </summary>
-        Task<IServiceResponse> SetTriggeringAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> SetTriggeringAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1123,7 +1123,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the DeleteMonitoredItems service.
         /// </summary>
-        Task<IServiceResponse> DeleteMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> DeleteMonitoredItemsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1154,7 +1154,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the CreateSubscription service.
         /// </summary>
-        Task<IServiceResponse> CreateSubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> CreateSubscriptionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1185,7 +1185,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the ModifySubscription service.
         /// </summary>
-        Task<IServiceResponse> ModifySubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> ModifySubscriptionAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1216,7 +1216,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the SetPublishingMode service.
         /// </summary>
-        Task<IServiceResponse> SetPublishingModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> SetPublishingModeAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1247,7 +1247,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the Publish service.
         /// </summary>
-        Task<IServiceResponse> PublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> PublishAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1278,7 +1278,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the Republish service.
         /// </summary>
-        Task<IServiceResponse> RepublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> RepublishAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1309,7 +1309,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the TransferSubscriptions service.
         /// </summary>
-        Task<IServiceResponse> TransferSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> TransferSubscriptionsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -1340,7 +1340,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the DeleteSubscriptions service.
         /// </summary>
-        Task<IServiceResponse> DeleteSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> DeleteSubscriptionsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
     }
@@ -2843,7 +2843,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the FindServers service.
         /// </summary>
-        Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -2874,7 +2874,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the FindServersOnNetwork service.
         /// </summary>
-        Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -2905,7 +2905,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the GetEndpoints service.
         /// </summary>
-        Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
     }
@@ -3123,7 +3123,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the RegisterServer service.
         /// </summary>
-        Task<IServiceResponse> RegisterServerAsync(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> RegisterServerAsync(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
 
@@ -3154,7 +3154,7 @@ namespace Opc.Ua
         /// <summary>
         /// The async operation contract for the RegisterServer2 service.
         /// </summary>
-        Task<IServiceResponse> RegisterServer2Async(IServiceRequest incoming, CancellationToken cancellationToken = default);
+        Task<IServiceResponse> RegisterServer2Async(IServiceRequest incoming, SecureChannelContext secureChannelContext, CancellationToken cancellationToken = default);
         #endif
         #endif
     }

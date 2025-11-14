@@ -84,6 +84,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <param name="localeIds">The locale ids.</param>
@@ -93,6 +94,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="FindServersResponse"/> object
         /// </returns>
         public override async Task<FindServersResponse> FindServersAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
             StringCollection localeIds,
@@ -185,6 +187,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <param name="localeIds">The locale ids.</param>
@@ -194,6 +197,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="GetEndpointsResponse"/> object
         /// </returns>
         public override async Task<GetEndpointsResponse> GetEndpointsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
             StringCollection localeIds,
@@ -309,6 +313,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="clientDescription">Application description for the client application.</param>
         /// <param name="serverUri">The server URI.</param>
@@ -323,6 +328,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="CreateSessionResponse"/> object
         /// </returns>
         public override async Task<CreateSessionResponse> CreateSessionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ApplicationDescription clientDescription,
             string serverUri,
@@ -344,7 +350,7 @@ namespace Opc.Ua.Server
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
-            OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSession);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CreateSession);
             ISession session = null;
             try
             {
@@ -692,6 +698,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="clientSignature">The client signature.</param>
         /// <param name="clientSoftwareCertificates">The client software certificates.</param>
@@ -703,6 +710,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ActivateSessionResponse"/> object
         /// </returns>
         public override async Task<ActivateSessionResponse> ActivateSessionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             SignatureData clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
@@ -715,7 +723,7 @@ namespace Opc.Ua.Server
             StatusCodeCollection results = null;
             DiagnosticInfoCollection diagnosticInfos = null;
 
-            OperationContext context = ValidateRequest(requestHeader, RequestType.ActivateSession);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.ActivateSession);
             // validate client's software certificates.
             var softwareCertificates = new List<SoftwareCertificate>();
 
@@ -938,15 +946,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the CloseSession service using a task based request.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are deleted.</param>
         /// <param name="ct">The cancellation token.</param>
         public override async Task<CloseSessionResponse> CloseSessionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool deleteSubscriptions,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.CloseSession);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CloseSession);
             try
             {
                 ISession session = ServerInternal.SessionManager
@@ -988,6 +998,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestHandle">The request handle assigned to the request.</param>
         /// <param name="cancelCount">The number of cancelled requests.</param>
@@ -995,13 +1006,14 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Cancel(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint requestHandle,
             out uint cancelCount)
         {
             cancelCount = 0;
 
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Cancel);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Cancel);
 
             try
             {
@@ -1033,13 +1045,14 @@ namespace Opc.Ua.Server
         /// Invokes the Browse service using async Task based request.
         /// </summary>
         public override async Task<BrowseResponse> BrowseAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Browse);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Browse);
 
             try
             {
@@ -1085,12 +1098,13 @@ namespace Opc.Ua.Server
         /// Invokes the BrowseNext service using async Task based request.
         /// </summary>
         public override async Task<BrowseNextResponse> BrowseNextAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.BrowseNext);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.BrowseNext);
 
             try
             {
@@ -1134,6 +1148,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="nodesToRegister">The list of NodeIds to register.</param>
         /// <param name="registeredNodeIds">The list of NodeIds identifying the registered nodes. </param>
@@ -1141,13 +1156,14 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader RegisterNodes(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
             out NodeIdCollection registeredNodeIds)
         {
             registeredNodeIds = null;
 
-            OperationContext context = ValidateRequest(requestHeader, RequestType.RegisterNodes);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.RegisterNodes);
 
             try
             {
@@ -1181,16 +1197,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="nodesToUnregister">The list of NodeIds to unregister</param>
         /// <returns>
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader UnregisterNodes(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.UnregisterNodes);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.UnregisterNodes);
 
             try
             {
@@ -1226,11 +1244,13 @@ namespace Opc.Ua.Server
         /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
         /// </summary>
         public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.TranslateBrowsePathsToNodeIds);
 
@@ -1285,13 +1305,14 @@ namespace Opc.Ua.Server
         /// Invokes the Read service using async Task based request.
         /// </summary>
         public override async Task<ReadResponse> ReadAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Read);
 
             try
             {
@@ -1338,6 +1359,7 @@ namespace Opc.Ua.Server
         /// Invokes the HistoryRead service using async Task based request.
         /// </summary>
         public override async Task<HistoryReadResponse> HistoryReadAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
@@ -1345,7 +1367,7 @@ namespace Opc.Ua.Server
             HistoryReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryRead);
 
             try
             {
@@ -1405,11 +1427,12 @@ namespace Opc.Ua.Server
         /// Invokes the Write service using async Task based request.
         /// </summary>
         public override async Task<WriteResponse> WriteAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Write);
 
             try
             {
@@ -1451,11 +1474,12 @@ namespace Opc.Ua.Server
         /// Invokes the HistoryUpdate service using async Task based request.
         /// </summary>
         public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryUpdate);
 
             try
             {
@@ -1497,6 +1521,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestedPublishingInterval">The cyclic rate that the Subscription is being requested to return Notifications to the Client.</param>
         /// <param name="requestedLifetimeCount">The client-requested lifetime count for the Subscription</param>
@@ -1512,6 +1537,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader CreateSubscription(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -1525,6 +1551,7 @@ namespace Opc.Ua.Server
             out uint revisedMaxKeepAliveCount)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.CreateSubscription);
 
@@ -1568,12 +1595,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionIds">The list of Subscriptions to transfer.</param>
         /// <param name="sendInitialValues">If the initial values should be sent.</param>
         /// <param name="results">The list of result StatusCodes for the Subscriptions to transfer.</param>
         /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
         public override ResponseHeader TransferSubscriptions(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
@@ -1584,6 +1613,7 @@ namespace Opc.Ua.Server
             diagnosticInfos = null;
 
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.TransferSubscriptions);
 
@@ -1623,6 +1653,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionIds">The list of Subscriptions to delete.</param>
         /// <param name="results">The list of result StatusCodes for the Subscriptions to delete.</param>
@@ -1631,12 +1662,14 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader DeleteSubscriptions(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.DeleteSubscriptions);
 
@@ -1675,6 +1708,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the Publish service using async Task based request.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionAcknowledgements">The list of acknowledgements for one or more Subscriptions.</param>
         /// <param name="ct">The cancellation token.</param>
@@ -1682,11 +1716,12 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="PublishResponse"/>
         /// </returns>
         public override async Task<PublishResponse> PublishAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Publish);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Publish);
 
             try
             {
@@ -1750,6 +1785,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="retransmitSequenceNumber">The sequence number of a specific NotificationMessage to be republished.</param>
@@ -1758,12 +1794,13 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Republish(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
             out NotificationMessage notificationMessage)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Republish);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Republish);
 
             try
             {
@@ -1797,6 +1834,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="requestedPublishingInterval">The cyclic rate that the Subscription is being requested to return Notifications to the Client.</param>
@@ -1811,6 +1849,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader ModifySubscription(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
@@ -1823,6 +1862,7 @@ namespace Opc.Ua.Server
             out uint revisedMaxKeepAliveCount)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.ModifySubscription);
 
@@ -1865,6 +1905,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="publishingEnabled">If set to <c>true</c> publishing of NotificationMessages is enabled for the Subscription.</param>
         /// <param name="subscriptionIds">The list of subscription ids.</param>
@@ -1874,6 +1915,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetPublishingMode(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
@@ -1881,6 +1923,7 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.SetPublishingMode);
 
@@ -1920,6 +1963,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="triggeringItemId">The id for the MonitoredItem used as the triggering item.</param>
@@ -1933,6 +1977,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetTriggering(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
@@ -1948,7 +1993,7 @@ namespace Opc.Ua.Server
             removeResults = null;
             removeDiagnosticInfos = null;
 
-            OperationContext context = ValidateRequest(requestHeader, RequestType.SetTriggering);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.SetTriggering);
 
             try
             {
@@ -2001,6 +2046,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id that will report notifications.</param>
         /// <param name="timestampsToReturn">The type of timestamps to be returned for the MonitoredItems.</param>
@@ -2011,6 +2057,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader CreateMonitoredItems(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
@@ -2019,6 +2066,7 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.CreateMonitoredItems);
 
@@ -2059,6 +2107,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="timestampsToReturn">The type of timestamps to be returned for the MonitoredItems.</param>
@@ -2069,6 +2118,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader ModifyMonitoredItems(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
@@ -2077,6 +2127,7 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.ModifyMonitoredItems);
 
@@ -2117,6 +2168,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="monitoredItemIds">The list of MonitoredItems to delete.</param>
@@ -2126,6 +2178,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader DeleteMonitoredItems(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
@@ -2133,6 +2186,7 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.DeleteMonitoredItems);
 
@@ -2172,6 +2226,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="monitoringMode">The monitoring mode to be set for the MonitoredItems.</param>
@@ -2182,6 +2237,7 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetMonitoringMode(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
@@ -2190,6 +2246,7 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.SetMonitoringMode);
 
@@ -2230,6 +2287,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the Call service using async Task based request.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="methodsToCall">The methods to call.</param>
         /// <param name="ct">The cancellation token</param>
@@ -2237,11 +2295,12 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override async Task<CallResponse> CallAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Call);
+            OperationContext context = ValidateRequest(secureChannelContext,requestHeader, RequestType.Call);
 
             try
             {
@@ -2690,9 +2749,11 @@ namespace Opc.Ua.Server
         /// Verifies that the request header is valid.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual OperationContext ValidateRequest(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             RequestType requestType)
         {
@@ -2704,7 +2765,7 @@ namespace Opc.Ua.Server
             }
 
             OperationContext context = ServerInternal.SessionManager
-                .ValidateRequest(requestHeader, requestType);
+                .ValidateRequest(requestHeader, secureChannelContext, requestType);
 
             ServerUtils.EventLog.ServerCall(context.RequestType, context.RequestId);
             m_logger.LogTrace("Server Call={RequestType}, Id={RequestId}", context.RequestType, context.RequestId);

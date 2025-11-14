@@ -141,11 +141,14 @@ namespace Opc.Ua.Server.Tests
 
         public ILogger Logger { get; }
 
-        public ServerTestServices(ISessionServer server, ITelemetryContext telemetry)
+        public SecureChannelContext SecureChannelContext { get; set; }
+
+        public ServerTestServices(ISessionServer server, SecureChannelContext secureChannelContext, ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
             Logger = telemetry.CreateLogger<ServerTestServices>();
             m_server = server;
+            SecureChannelContext = secureChannelContext;
         }
 
         public ValueTask<BrowseResponse> BrowseAsync(
@@ -156,6 +159,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             return new ValueTask<BrowseResponse>(m_server.BrowseAsync(
+                SecureChannelContext,
                 requestHeader,
                 view,
                 requestedMaxReferencesPerNode,
@@ -170,6 +174,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             return new ValueTask<BrowseNextResponse>(m_server.BrowseNextAsync(
+                SecureChannelContext,
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
@@ -187,6 +192,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.CreateSubscription(
+                SecureChannelContext,
                 requestHeader,
                 requestedPublishingInterval,
                 requestedLifetimeCount,
@@ -217,6 +223,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.CreateMonitoredItems(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
@@ -243,6 +250,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.ModifySubscription(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 requestedPublishingInterval,
@@ -271,6 +279,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.ModifyMonitoredItems(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
@@ -292,6 +301,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             return new ValueTask<PublishResponse>(m_server.PublishAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionAcknowledgements,
                 ct));
@@ -304,6 +314,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.SetPublishingMode(
+                SecureChannelContext,
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
@@ -326,6 +337,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.SetMonitoringMode(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 monitoringMode,
@@ -348,6 +360,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.Republish(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
@@ -366,6 +379,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.DeleteSubscriptions(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
                 out StatusCodeCollection results,
@@ -386,6 +400,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             ResponseHeader responseHeader = m_server.TransferSubscriptions(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
@@ -406,6 +421,7 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct = default)
         {
             return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(m_server.TranslateBrowsePathsToNodeIdsAsync(
+                SecureChannelContext,
                 requestHeader,
                 browsePaths,
                 ct));

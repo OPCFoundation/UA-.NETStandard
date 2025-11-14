@@ -41,10 +41,12 @@ namespace Opc.Ua.Server
         /// Initializes the context with a session.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <param name="identity">The identity used in the request.</param>
         public OperationContext(
             RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
             RequestType requestType,
             IUserIdentity identity = null)
         {
@@ -53,7 +55,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
-            ChannelContext = SecureChannelContext.Current;
+            ChannelContext = secureChannelContext;
             Session = null;
             UserIdentity = identity;
             PreferredLocales = Array.Empty<string>();
@@ -75,10 +77,12 @@ namespace Opc.Ua.Server
         /// Initializes the context with a session.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <param name="session">The session.</param>
         public OperationContext(
             RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
             RequestType requestType,
             ISession session)
         {
@@ -87,7 +91,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
-            ChannelContext = SecureChannelContext.Current;
+            ChannelContext = secureChannelContext;
             Session = session ?? throw new ArgumentNullException(nameof(session));
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;

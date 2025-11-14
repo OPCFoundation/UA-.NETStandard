@@ -341,7 +341,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
+        public virtual void ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType)
         {
             if (requestHeader == null)
             {
@@ -350,10 +350,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                // get the request context for the current thread.
-                SecureChannelContext context = SecureChannelContext.Current;
 
-                if (context == null || !IsSecureChannelValid(context.SecureChannelId))
+                if (secureChannelContext == null || !IsSecureChannelValid(secureChannelContext.SecureChannelId))
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
                     throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);

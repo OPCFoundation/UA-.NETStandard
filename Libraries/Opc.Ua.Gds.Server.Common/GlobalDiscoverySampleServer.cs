@@ -137,10 +137,11 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         protected override OperationContext ValidateRequest(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             RequestType requestType)
         {
-            OperationContext context = base.ValidateRequest(requestHeader, requestType);
+            OperationContext context = base.ValidateRequest(secureChannelContext, requestHeader, requestType);
 
             if (requestType == RequestType.Write)
             {

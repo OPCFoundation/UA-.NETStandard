@@ -92,12 +92,13 @@ namespace Opc.Ua.Server.Tests
             }
 
             // set security context
-            SecureChannelContext.Current
+            var secureChannelContext
                 = new SecureChannelContext(sessionName, endpoint, RequestEncoding.Binary);
             var requestHeader = new RequestHeader();
 
             // Create session
             CreateSessionResponse createSessionResponse = await server.CreateSessionAsync(
+                secureChannelContext,
                 requestHeader,
                 null,
                 null,
@@ -113,6 +114,7 @@ namespace Opc.Ua.Server.Tests
             // Activate session
             requestHeader.AuthenticationToken = createSessionResponse.AuthenticationToken;
             ActivateSessionResponse activateSessionResponse = await server.ActivateSessionAsync(
+                secureChannelContext,
                 requestHeader,
                 createSessionResponse.ServerSignature,
                 [],
@@ -122,7 +124,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
             ValidateResponse(activateSessionResponse.ResponseHeader);
 
-            return (requestHeader, SecureChannelContext.Current);
+            return (requestHeader, secureChannelContext);
         }
 
         /// <summary>
@@ -130,10 +132,14 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="server">The server where the session is active.</param>
         /// <param name="requestHeader">The request header of the session.</param>
-        public static async Task CloseSessionAsync(this SessionServerBase server, RequestHeader requestHeader, CancellationToken ct)
+        public static async Task CloseSessionAsync(
+            this SessionServerBase server,
+            SecureChannelContext secureChannelContext,
+            RequestHeader requestHeader,
+            CancellationToken ct)
         {
             // close session
-            CloseSessionResponse response = await server.CloseSessionAsync(requestHeader, true, ct).ConfigureAwait(false);
+            CloseSessionResponse response = await server.CloseSessionAsync(secureChannelContext, requestHeader, true, ct).ConfigureAwait(false);
             ValidateResponse(response.ResponseHeader);
         }
 

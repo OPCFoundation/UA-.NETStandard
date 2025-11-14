@@ -61,6 +61,7 @@ namespace Opc.Ua.Client.Tests
         private SessionManagerWithLimits SessionManagerForTest { get; set; }
 
         public override Task<BrowseResponse> BrowseAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
@@ -68,6 +69,7 @@ namespace Opc.Ua.Client.Tests
             CancellationToken ct)
         {
             return base.BrowseAsync(
+                secureChannelContext,
                 requestHeader,
                 view,
                 TestMaxBrowseReferencesPerNode,

@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
         /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
-        OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType);
+        OperationContext ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
     }
 
     /// <summary>
