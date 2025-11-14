@@ -371,9 +371,7 @@ namespace Opc.Ua.Bindings
                 };
 
                 // limit the number of concurrent connections, if supported
-                PropertyInfo? maxConnectionsPerServerProperty = handler.GetType()
-                    .GetProperty("MaxConnectionsPerServer");
-                maxConnectionsPerServerProperty?.SetValue(handler, kMaxConnectionsPerServer);
+                handler.MaxConnectionsPerServer = kMaxConnectionsPerServer;
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings!.ClientCertificate != null)
@@ -396,86 +394,76 @@ namespace Opc.Ua.Bindings
                         m_logger.LogError(ce, "Copy of the private key for https was denied");
                     }
 #endif
-                    PropertyInfo? certProperty = handler.GetType().GetProperty("ClientCertificates");
-                    if (certProperty != null)
-                    {
-                        var clientCertificates = (X509CertificateCollection?)certProperty.GetValue(
-                            handler);
-                        _ = clientCertificates?.Add(clientCertificate);
-                    }
+                    handler.ClientCertificates.Add(clientCertificate);
                 }
 
-                PropertyInfo? propertyInfo = handler.GetType()
-                    .GetProperty("ServerCertificateCustomValidationCallback");
-                if (propertyInfo != null)
+                Func<
+                    HttpRequestMessage,
+                    X509Certificate2,
+                    X509Chain,
+                    SslPolicyErrors,
+                    bool
+                >? serverCertificateCustomValidationCallback;
+
+                try
                 {
-                    Func<
-                        HttpRequestMessage,
-                        X509Certificate2,
-                        X509Chain,
-                        SslPolicyErrors,
-                        bool
-                    >? serverCertificateCustomValidationCallback;
-
-                    try
+                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
                     {
-                        serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                        try
                         {
-                            try
+                            var validationChain = new X509Certificate2Collection();
+                            if (chain != null && chain.ChainElements != null)
                             {
-                                var validationChain = new X509Certificate2Collection();
-                                if (chain != null && chain.ChainElements != null)
-                                {
-                                    int i = 0;
-                                    m_logger.LogInformation(
-                                        Utils.TraceMasks.Security,
-                                        "{ChannelType} Validate server chain:",
-                                        nameof(HttpsTransportChannel));
-                                    foreach (X509ChainElement element in chain.ChainElements)
-                                    {
-                                        m_logger.LogInformation(
-                                            Utils.TraceMasks.Security,
-                                            "{Index}: {Certificate}",
-                                            i,
-                                            element.Certificate.AsLogSafeString());
-                                        validationChain.Add(element.Certificate);
-                                        i++;
-                                    }
-                                }
-                                else
-                                {
-                                    m_logger.LogInformation(
-                                        Utils.TraceMasks.Security,
-                                        "{ChannelType} Validate Server Certificate: {Certificate}",
-                                        cert.AsLogSafeString(),
-                                        nameof(HttpsTransportChannel));
-                                    validationChain.Add(cert);
-                                }
-
-                                m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
-
-                                return true;
-                            }
-                            catch (Exception ex)
-                            {
-                                m_logger.LogError(
-                                    ex,
-                                    "{ChannelType} Failed to validate certificate.",
+                                int i = 0;
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "{ChannelType} Validate server chain:",
                                     nameof(HttpsTransportChannel));
+                                foreach (X509ChainElement element in chain.ChainElements)
+                                {
+                                    m_logger.LogInformation(
+                                        Utils.TraceMasks.Security,
+                                        "{Index}: {Certificate}",
+                                        i,
+                                        element.Certificate.AsLogSafeString());
+                                    validationChain.Add(element.Certificate);
+                                    i++;
+                                }
                             }
-                            return false;
-                        };
-                        propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
+                            else
+                            {
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "{ChannelType} Validate Server Certificate: {Certificate}",
+                                    cert.AsLogSafeString(),
+                                    nameof(HttpsTransportChannel));
+                                validationChain.Add(cert);
+                            }
 
-                        m_logger.LogInformation(
-                            "{ChannelType} ServerCertificate callback enabled.",
-                            nameof(HttpsTransportChannel));
-                    }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // client may throw if not supported (e.g. UWP)
-                        serverCertificateCustomValidationCallback = null;
-                    }
+                            m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
+
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(
+                                ex,
+                                "{ChannelType} Failed to validate certificate.",
+                                nameof(HttpsTransportChannel));
+                        }
+                        return false;
+                    };
+
+                    handler.ServerCertificateCustomValidationCallback = serverCertificateCustomValidationCallback!;
+
+                    m_logger.LogInformation(
+                        "{ChannelType} ServerCertificate callback enabled.",
+                        nameof(HttpsTransportChannel));
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    // client may throw if not supported (e.g. UWP)
+                    serverCertificateCustomValidationCallback = null;
                 }
 
 #pragma warning disable CA5399 // HttpClient is created without enabling CheckCertificateRevocationList
