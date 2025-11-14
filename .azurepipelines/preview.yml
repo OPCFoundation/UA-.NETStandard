@@ -95,7 +95,7 @@ jobs:
     displayName: Pack Nuget ${{parameters.config}}
     inputs:
       command: pack
-      packagesToPack:  'UA.slnx'
+      packagesToPack:  'UA Core Library.slnx'
       configuration: ${{parameters.config}}
       configurationToPack: ${{parameters.config}}
       nobuild: true
@@ -140,11 +140,6 @@ jobs:
         nuGetFeedType: 'internal'
         publishVstsFeed: '$(VSTSFEED)'
         allowPackageConflicts: true
-  - task: CmdLine@2
-    displayName: 'Remove Quickstarts.Servers'
-    inputs:
-      script: |
-        del /q /s $(Build.ArtifactStagingDirectory)\OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers.*.*nupkg
   - task: PublishPipelineArtifact@1
     displayName: 'Publish Artifacts'
     inputs:
