@@ -405,11 +405,11 @@ namespace Quickstarts.ReferenceServer
             {
                 if (m_userCertificateValidator != null)
                 {
-                    m_userCertificateValidator.Validate(certificate);
+                    m_userCertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
                 }
                 else
                 {
-                    CertificateValidator.Validate(certificate);
+                    CertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
                 }
             }
             catch (Exception e)

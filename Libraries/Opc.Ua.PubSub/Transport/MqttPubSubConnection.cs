@@ -789,7 +789,7 @@ namespace Opc.Ua.PubSub.Transport
                 UrlScheme = connectionUri.Scheme;
             }
 
-            MqttClientProtocolConfiguration transportProtocolConfiguration =
+            var transportProtocolConfiguration =
                 new MqttClientProtocolConfiguration(PubSubConnectionConfiguration.ConnectionProperties, m_logger);
 
             var mqttProtocolVersion = (MqttProtocolVersion)
@@ -940,7 +940,7 @@ namespace Opc.Ua.PubSub.Transport
                     return Application.OnValidateBrokerCertificate(brokerCertificate);
                 }
 
-                m_certificateValidator?.Validate(brokerCertificate);
+                m_certificateValidator?.ValidateAsync(brokerCertificate, default).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {

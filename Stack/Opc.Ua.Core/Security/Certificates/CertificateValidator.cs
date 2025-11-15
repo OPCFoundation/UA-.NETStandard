@@ -497,29 +497,6 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Validates the specified certificate against the trust list.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        public void Validate(X509Certificate2 certificate)
-        {
-            Validate([certificate]);
-        }
-
-        /// <summary>
-        /// Validates a certificate.
-        /// </summary>
-        /// <remarks>
-        /// Each UA application may have a list of trusted certificates that is different from
-        /// all other UA applications that may be running on the same machine. As a result, the
-        /// certificate validator cannot rely completely on the Windows certificate store and
-        /// user or machine specific CTLs (certificate trust lists).
-        /// </remarks>
-        public virtual void Validate(X509Certificate2Collection certificateChain)
-        {
-            Validate(certificateChain, null);
-        }
-
         /// <inheritdoc/>
         public Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct)
         {
@@ -590,8 +567,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// Validates a certificate with domain validation check.
-        /// <see cref="Validate(X509Certificate2Collection)"/>
         /// </summary>
+        [Obsolete("Use ValidateAsync")]
         public virtual void Validate(X509Certificate2Collection chain, ConfiguredEndpoint endpoint)
         {
             X509Certificate2 certificate = chain[0];
@@ -754,10 +731,7 @@ namespace Opc.Ua
 
                 if (issuer != null)
                 {
-                    if (validationErrors != null)
-                    {
-                        validationErrors[certificate] = revocationStatus;
-                    }
+                    validationErrors?[certificate] = revocationStatus;
 
                     if (issuers.Find(iss =>
                             string.Equals(

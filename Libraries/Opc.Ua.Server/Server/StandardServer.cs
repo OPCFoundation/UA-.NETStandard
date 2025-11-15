@@ -340,10 +340,10 @@ namespace Opc.Ua.Server
             uint maxResponseMessageSize,
             CancellationToken ct)
         {
-            NodeId sessionId = 0;
-            NodeId authenticationToken = null;
+            NodeId sessionId;
+            NodeId authenticationToken;
             double revisedSessionTimeout = 0;
-            byte[] serverNonce = null;
+            byte[] serverNonce;
             byte[] serverCertificate = null;
             EndpointDescriptionCollection serverEndpoints = null;
             SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
@@ -413,7 +413,7 @@ namespace Opc.Ua.Server
                                         clientDescription.ApplicationUri);
                                 }
 
-                                CertificateValidator.Validate(clientCertificateChain);
+                                await CertificateValidator.ValidateAsync(clientCertificateChain, ct).ConfigureAwait(false);
                             }
                         }
                     }
@@ -719,7 +719,7 @@ namespace Opc.Ua.Server
             SignatureData userTokenSignature,
             CancellationToken ct)
         {
-            byte[] serverNonce = null;
+            byte[] serverNonce;
             StatusCodeCollection results = null;
             DiagnosticInfoCollection diagnosticInfos = null;
 
@@ -2574,11 +2574,8 @@ namespace Opc.Ua.Server
                 lock (m_registrationLock)
                 {
                     // halt any outstanding timer.
-                    if (m_registrationTimer != null)
-                    {
-                        m_registrationTimer.Dispose();
-                        m_registrationTimer = null;
-                    }
+                    m_registrationTimer?.Dispose();
+                    m_registrationTimer = null;
                 }
 
                 if (await RegisterWithDiscoveryServerAsync().ConfigureAwait(false))
@@ -3191,11 +3188,10 @@ namespace Opc.Ua.Server
                 m_serverInternal.SetAggregateManager(
                     CreateAggregateManager(m_serverInternal, configuration));
 
-                    // create the manager responsible for modelling rules.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
-                    m_serverInternal.SetModellingRulesManager(
-                        CreateModellingRulesManager(m_serverInternal, configuration));
-
+                // create the manager responsible for modelling rules.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
+                m_serverInternal.SetModellingRulesManager(
+                    CreateModellingRulesManager(m_serverInternal, configuration));
 
                 // start the session manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
@@ -3302,11 +3298,8 @@ namespace Opc.Ua.Server
                     m_lastRegistrationInterval = m_minRegistrationInterval;
 
                     // start registration timer.
-                    if (m_registrationTimer != null)
-                    {
-                        m_registrationTimer.Dispose();
-                        m_registrationTimer = null;
-                    }
+                    m_registrationTimer?.Dispose();
+                    m_registrationTimer = null;
 
                     if (m_maxRegistrationInterval > 0)
                     {
@@ -3364,11 +3357,8 @@ namespace Opc.Ua.Server
             // halt any outstanding timer.
             lock (m_registrationLock)
             {
-                if (m_registrationTimer != null)
-                {
-                    m_registrationTimer.Dispose();
-                    m_registrationTimer = null;
-                }
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
             }
 
             // attempt graceful shutdown the server.
