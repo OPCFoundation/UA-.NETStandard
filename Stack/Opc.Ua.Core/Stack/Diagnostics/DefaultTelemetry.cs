@@ -53,7 +53,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configure"></param>
         /// <returns></returns>
-        public ITelemetryContext Create(Action<ILoggingBuilder> configure)
+        public static ITelemetryContext Create(Action<ILoggingBuilder> configure)
         {
             return new DefaultTelemetry(configure);
         }

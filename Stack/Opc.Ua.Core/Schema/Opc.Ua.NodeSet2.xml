@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-10-31T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-11-08T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.06" PublicationDate="2025-10-31T00:00:00Z" ModelVersion="1.5.6" />
+    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.06" PublicationDate="2025-11-08T00:00:00Z" ModelVersion="1.5.6" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -985,7 +985,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-10-31T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-11-08T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15961" BrowseName="IsNamespaceSubset" ParentNodeId="i=15957" DataType="Boolean">
@@ -1096,7 +1096,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.5</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.6</String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=3068" BrowseName="NodeVersion" DataType="String">
@@ -72838,7 +72838,7 @@ ZXMueHNkIg0KICB0YXJnZXROYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8y
 MDA4LzAyL1R5cGVzLnhzZCINCiAgZWxlbWVudEZvcm1EZWZhdWx0PSJxdWFsaWZpZWQiDQo+DQog
 IDx4czphbm5vdGF0aW9uPg0KICAgIDx4czphcHBpbmZvPg0KICAgICAgPHVhOk1vZGVsIE1vZGVs
 VXJpPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvIiBWZXJzaW9uPSIxLjA1LjA2IiBQdWJs
-aWNhdGlvbkRhdGU9IjIwMjUtMTAtMzFUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
+aWNhdGlvbkRhdGU9IjIwMjUtMTEtMDhUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
 CiAgPC94czphbm5vdGF0aW9uPg0KICANCiAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIgdHlw
 ZT0ieHM6Ym9vbGVhbiIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mQm9vbGVh
 biI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIg

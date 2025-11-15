@@ -466,9 +466,9 @@ namespace Opc.Ua.Bindings
                     serverCertificateCustomValidationCallback = null;
                 }
 
-#pragma warning disable CA5399 // HttpClient is created without enabling CheckCertificateRevocationList
+#pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 m_client = new HttpClient(handler);
-#pragma warning restore CA5399 // HttpClient is created without enabling CheckCertificateRevocationList
+#pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
             }
             catch (Exception ex)
             {

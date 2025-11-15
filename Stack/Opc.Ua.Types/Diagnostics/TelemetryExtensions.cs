@@ -221,7 +221,8 @@ namespace Opc.Ua
 
                     if (m_fileName == null)
                     {
-                        Debug.Fail(traceString);
+                        // Causes issues when using Opc.Ua.DefaultTelemetry
+                        // Debug.Fail(traceString);
                         return;
                     }
 
