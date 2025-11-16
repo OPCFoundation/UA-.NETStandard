@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
+ * 
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -177,7 +177,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -207,7 +207,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
-            public virtual FindServersResponseMessage EndFindServers(IAsyncResult ar)
+        public virtual FindServersResponseMessage EndFindServers(IAsyncResult ar)
         {
             try
             {
@@ -224,7 +224,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
         /// <summary>
         /// Invokes the FindServers service.
@@ -334,7 +334,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -364,7 +364,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
-            public virtual FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult ar)
+        public virtual FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult ar)
         {
             try
             {
@@ -381,7 +381,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
@@ -488,7 +488,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -518,7 +518,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
-            public virtual GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult ar)
+        public virtual GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult ar)
         {
             try
             {
@@ -535,7 +535,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         /// <summary>
         /// Invokes the GetEndpoints service.
@@ -671,7 +671,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginCreateSession(CreateSessionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCreateSession(CreateSessionMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -701,7 +701,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
         #endif
-            public virtual CreateSessionResponseMessage EndCreateSession(IAsyncResult ar)
+        public virtual CreateSessionResponseMessage EndCreateSession(IAsyncResult ar)
         {
             try
             {
@@ -718,7 +718,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
         /// <summary>
         /// Invokes the CreateSession service.
@@ -838,7 +838,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginActivateSession(ActivateSessionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginActivateSession(ActivateSessionMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -868,7 +868,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
         #endif
-            public virtual ActivateSessionResponseMessage EndActivateSession(IAsyncResult ar)
+        public virtual ActivateSessionResponseMessage EndActivateSession(IAsyncResult ar)
         {
             try
             {
@@ -885,7 +885,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
         /// <summary>
         /// Invokes the ActivateSession service.
@@ -989,7 +989,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginCloseSession(CloseSessionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCloseSession(CloseSessionMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -1019,7 +1019,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
         #endif
-            public virtual CloseSessionResponseMessage EndCloseSession(IAsyncResult ar)
+        public virtual CloseSessionResponseMessage EndCloseSession(IAsyncResult ar)
         {
             try
             {
@@ -1036,7 +1036,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
         /// <summary>
         /// Invokes the CloseSession service.
@@ -1139,7 +1139,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginCancel(CancelMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCancel(CancelMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -1169,7 +1169,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
         #endif
-            public virtual CancelResponseMessage EndCancel(IAsyncResult ar)
+        public virtual CancelResponseMessage EndCancel(IAsyncResult ar)
         {
             try
             {
@@ -1186,7 +1186,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
         /// <summary>
         /// Invokes the Cancel service.
@@ -1292,7 +1292,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginAddNodes(AddNodesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginAddNodes(AddNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -1322,7 +1322,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
         #endif
-            public virtual AddNodesResponseMessage EndAddNodes(IAsyncResult ar)
+        public virtual AddNodesResponseMessage EndAddNodes(IAsyncResult ar)
         {
             try
             {
@@ -1339,7 +1339,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
         /// <summary>
         /// Invokes the AddNodes service.
@@ -1445,7 +1445,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginAddReferences(AddReferencesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginAddReferences(AddReferencesMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -1475,7 +1475,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
         #endif
-            public virtual AddReferencesResponseMessage EndAddReferences(IAsyncResult ar)
+        public virtual AddReferencesResponseMessage EndAddReferences(IAsyncResult ar)
         {
             try
             {
@@ -1492,7 +1492,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
         /// <summary>
         /// Invokes the AddReferences service.
@@ -1598,7 +1598,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginDeleteNodes(DeleteNodesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteNodes(DeleteNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -1628,7 +1628,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
         #endif
-            public virtual DeleteNodesResponseMessage EndDeleteNodes(IAsyncResult ar)
+        public virtual DeleteNodesResponseMessage EndDeleteNodes(IAsyncResult ar)
         {
             try
             {
@@ -1645,7 +1645,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
         /// <summary>
         /// Invokes the DeleteNodes service.
@@ -1751,7 +1751,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginDeleteReferences(DeleteReferencesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteReferences(DeleteReferencesMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -1781,7 +1781,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
         #endif
-            public virtual DeleteReferencesResponseMessage EndDeleteReferences(IAsyncResult ar)
+        public virtual DeleteReferencesResponseMessage EndDeleteReferences(IAsyncResult ar)
         {
             try
             {
@@ -1798,7 +1798,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
         /// <summary>
         /// Invokes the DeleteReferences service.
@@ -1906,7 +1906,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginBrowse(BrowseMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginBrowse(BrowseMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -1936,7 +1936,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
         #endif
-            public virtual BrowseResponseMessage EndBrowse(IAsyncResult ar)
+        public virtual BrowseResponseMessage EndBrowse(IAsyncResult ar)
         {
             try
             {
@@ -1953,7 +1953,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_Browse_ASYNC)
         /// <summary>
         /// Invokes the Browse service.
@@ -2062,7 +2062,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginBrowseNext(BrowseNextMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginBrowseNext(BrowseNextMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -2092,7 +2092,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
         #endif
-            public virtual BrowseNextResponseMessage EndBrowseNext(IAsyncResult ar)
+        public virtual BrowseNextResponseMessage EndBrowseNext(IAsyncResult ar)
         {
             try
             {
@@ -2109,7 +2109,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
         /// <summary>
         /// Invokes the BrowseNext service.
@@ -2216,7 +2216,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -2246,7 +2246,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         #endif
-            public virtual TranslateBrowsePathsToNodeIdsResponseMessage EndTranslateBrowsePathsToNodeIds(IAsyncResult ar)
+        public virtual TranslateBrowsePathsToNodeIdsResponseMessage EndTranslateBrowsePathsToNodeIds(IAsyncResult ar)
         {
             try
             {
@@ -2263,7 +2263,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
@@ -2366,7 +2366,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginRegisterNodes(RegisterNodesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRegisterNodes(RegisterNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -2396,7 +2396,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
         #endif
-            public virtual RegisterNodesResponseMessage EndRegisterNodes(IAsyncResult ar)
+        public virtual RegisterNodesResponseMessage EndRegisterNodes(IAsyncResult ar)
         {
             try
             {
@@ -2413,7 +2413,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
         /// <summary>
         /// Invokes the RegisterNodes service.
@@ -2513,7 +2513,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginUnregisterNodes(UnregisterNodesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginUnregisterNodes(UnregisterNodesMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -2543,7 +2543,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
         #endif
-            public virtual UnregisterNodesResponseMessage EndUnregisterNodes(IAsyncResult ar)
+        public virtual UnregisterNodesResponseMessage EndUnregisterNodes(IAsyncResult ar)
         {
             try
             {
@@ -2560,7 +2560,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
         /// <summary>
         /// Invokes the UnregisterNodes service.
@@ -2679,7 +2679,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginQueryFirst(QueryFirstMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginQueryFirst(QueryFirstMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -2709,7 +2709,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
         #endif
-            public virtual QueryFirstResponseMessage EndQueryFirst(IAsyncResult ar)
+        public virtual QueryFirstResponseMessage EndQueryFirst(IAsyncResult ar)
         {
             try
             {
@@ -2726,7 +2726,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
         /// <summary>
         /// Invokes the QueryFirst service.
@@ -2837,7 +2837,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginQueryNext(QueryNextMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginQueryNext(QueryNextMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -2867,7 +2867,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
         #endif
-            public virtual QueryNextResponseMessage EndQueryNext(IAsyncResult ar)
+        public virtual QueryNextResponseMessage EndQueryNext(IAsyncResult ar)
         {
             try
             {
@@ -2884,7 +2884,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
         /// <summary>
         /// Invokes the QueryNext service.
@@ -2993,7 +2993,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginRead(ReadMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRead(ReadMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -3023,7 +3023,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
         #endif
-            public virtual ReadResponseMessage EndRead(IAsyncResult ar)
+        public virtual ReadResponseMessage EndRead(IAsyncResult ar)
         {
             try
             {
@@ -3040,7 +3040,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_Read_ASYNC)
         /// <summary>
         /// Invokes the Read service.
@@ -3151,7 +3151,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginHistoryRead(HistoryReadMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginHistoryRead(HistoryReadMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -3181,7 +3181,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
         #endif
-            public virtual HistoryReadResponseMessage EndHistoryRead(IAsyncResult ar)
+        public virtual HistoryReadResponseMessage EndHistoryRead(IAsyncResult ar)
         {
             try
             {
@@ -3198,7 +3198,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
         /// <summary>
         /// Invokes the HistoryRead service.
@@ -3307,7 +3307,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginWrite(WriteMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginWrite(WriteMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -3337,7 +3337,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
         #endif
-            public virtual WriteResponseMessage EndWrite(IAsyncResult ar)
+        public virtual WriteResponseMessage EndWrite(IAsyncResult ar)
         {
             try
             {
@@ -3354,7 +3354,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_Write_ASYNC)
         /// <summary>
         /// Invokes the Write service.
@@ -3460,7 +3460,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginHistoryUpdate(HistoryUpdateMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginHistoryUpdate(HistoryUpdateMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -3490,7 +3490,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
         #endif
-            public virtual HistoryUpdateResponseMessage EndHistoryUpdate(IAsyncResult ar)
+        public virtual HistoryUpdateResponseMessage EndHistoryUpdate(IAsyncResult ar)
         {
             try
             {
@@ -3507,7 +3507,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
         /// <summary>
         /// Invokes the HistoryUpdate service.
@@ -3613,7 +3613,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginCall(CallMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCall(CallMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -3643,7 +3643,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
         #endif
-            public virtual CallResponseMessage EndCall(IAsyncResult ar)
+        public virtual CallResponseMessage EndCall(IAsyncResult ar)
         {
             try
             {
@@ -3660,7 +3660,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_Call_ASYNC)
         /// <summary>
         /// Invokes the Call service.
@@ -3768,7 +3768,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginCreateMonitoredItems(CreateMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCreateMonitoredItems(CreateMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -3798,7 +3798,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
         #endif
-            public virtual CreateMonitoredItemsResponseMessage EndCreateMonitoredItems(IAsyncResult ar)
+        public virtual CreateMonitoredItemsResponseMessage EndCreateMonitoredItems(IAsyncResult ar)
         {
             try
             {
@@ -3815,7 +3815,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
@@ -3925,7 +3925,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginModifyMonitoredItems(ModifyMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginModifyMonitoredItems(ModifyMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -3955,7 +3955,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
         #endif
-            public virtual ModifyMonitoredItemsResponseMessage EndModifyMonitoredItems(IAsyncResult ar)
+        public virtual ModifyMonitoredItemsResponseMessage EndModifyMonitoredItems(IAsyncResult ar)
         {
             try
             {
@@ -3972,7 +3972,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
@@ -4082,7 +4082,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginSetMonitoringMode(SetMonitoringModeMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginSetMonitoringMode(SetMonitoringModeMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -4112,7 +4112,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
         #endif
-            public virtual SetMonitoringModeResponseMessage EndSetMonitoringMode(IAsyncResult ar)
+        public virtual SetMonitoringModeResponseMessage EndSetMonitoringMode(IAsyncResult ar)
         {
             try
             {
@@ -4129,7 +4129,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
         /// <summary>
         /// Invokes the SetMonitoringMode service.
@@ -4246,7 +4246,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginSetTriggering(SetTriggeringMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginSetTriggering(SetTriggeringMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -4276,7 +4276,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
         #endif
-            public virtual SetTriggeringResponseMessage EndSetTriggering(IAsyncResult ar)
+        public virtual SetTriggeringResponseMessage EndSetTriggering(IAsyncResult ar)
         {
             try
             {
@@ -4293,7 +4293,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
         /// <summary>
         /// Invokes the SetTriggering service.
@@ -4403,7 +4403,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginDeleteMonitoredItems(DeleteMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteMonitoredItems(DeleteMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -4433,7 +4433,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
         #endif
-            public virtual DeleteMonitoredItemsResponseMessage EndDeleteMonitoredItems(IAsyncResult ar)
+        public virtual DeleteMonitoredItemsResponseMessage EndDeleteMonitoredItems(IAsyncResult ar)
         {
             try
             {
@@ -4450,7 +4450,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
@@ -4568,7 +4568,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginCreateSubscription(CreateSubscriptionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCreateSubscription(CreateSubscriptionMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -4598,7 +4598,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
         #endif
-            public virtual CreateSubscriptionResponseMessage EndCreateSubscription(IAsyncResult ar)
+        public virtual CreateSubscriptionResponseMessage EndCreateSubscription(IAsyncResult ar)
         {
             try
             {
@@ -4615,7 +4615,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
         /// <summary>
         /// Invokes the CreateSubscription service.
@@ -4734,7 +4734,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginModifySubscription(ModifySubscriptionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginModifySubscription(ModifySubscriptionMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -4764,7 +4764,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
         #endif
-            public virtual ModifySubscriptionResponseMessage EndModifySubscription(IAsyncResult ar)
+        public virtual ModifySubscriptionResponseMessage EndModifySubscription(IAsyncResult ar)
         {
             try
             {
@@ -4781,7 +4781,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
         /// <summary>
         /// Invokes the ModifySubscription service.
@@ -4893,7 +4893,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginSetPublishingMode(SetPublishingModeMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginSetPublishingMode(SetPublishingModeMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -4923,7 +4923,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
         #endif
-            public virtual SetPublishingModeResponseMessage EndSetPublishingMode(IAsyncResult ar)
+        public virtual SetPublishingModeResponseMessage EndSetPublishingMode(IAsyncResult ar)
         {
             try
             {
@@ -4940,7 +4940,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
         /// <summary>
         /// Invokes the SetPublishingMode service.
@@ -5059,7 +5059,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginPublish(PublishMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginPublish(PublishMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -5089,7 +5089,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
         #endif
-            public virtual PublishResponseMessage EndPublish(IAsyncResult ar)
+        public virtual PublishResponseMessage EndPublish(IAsyncResult ar)
         {
             try
             {
@@ -5106,7 +5106,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_Publish_ASYNC)
         /// <summary>
         /// Invokes the Publish service.
@@ -5210,7 +5210,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginRepublish(RepublishMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRepublish(RepublishMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -5240,7 +5240,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
         #endif
-            public virtual RepublishResponseMessage EndRepublish(IAsyncResult ar)
+        public virtual RepublishResponseMessage EndRepublish(IAsyncResult ar)
         {
             try
             {
@@ -5257,7 +5257,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_Republish_ASYNC)
         /// <summary>
         /// Invokes the Republish service.
@@ -5365,7 +5365,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginTransferSubscriptions(TransferSubscriptionsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginTransferSubscriptions(TransferSubscriptionsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -5395,7 +5395,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
         #endif
-            public virtual TransferSubscriptionsResponseMessage EndTransferSubscriptions(IAsyncResult ar)
+        public virtual TransferSubscriptionsResponseMessage EndTransferSubscriptions(IAsyncResult ar)
         {
             try
             {
@@ -5412,7 +5412,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
         /// <summary>
         /// Invokes the TransferSubscriptions service.
@@ -5519,7 +5519,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginDeleteSubscriptions(DeleteSubscriptionsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteSubscriptions(DeleteSubscriptionsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -5549,7 +5549,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
         #endif
-            public virtual DeleteSubscriptionsResponseMessage EndDeleteSubscriptions(IAsyncResult ar)
+        public virtual DeleteSubscriptionsResponseMessage EndDeleteSubscriptions(IAsyncResult ar)
         {
             try
             {
@@ -5566,7 +5566,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
@@ -5987,7 +5987,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -6017,7 +6017,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
         #endif
-            public virtual FindServersResponseMessage EndFindServers(IAsyncResult ar)
+        public virtual FindServersResponseMessage EndFindServers(IAsyncResult ar)
         {
             try
             {
@@ -6034,7 +6034,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
         /// <summary>
         /// Invokes the FindServers service.
@@ -6144,7 +6144,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -6174,7 +6174,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
         #endif
-            public virtual FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult ar)
+        public virtual FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult ar)
         {
             try
             {
@@ -6191,7 +6191,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
@@ -6298,7 +6298,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -6328,7 +6328,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
         #endif
-            public virtual GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult ar)
+        public virtual GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult ar)
         {
             try
             {
@@ -6345,7 +6345,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         /// <summary>
         /// Invokes the GetEndpoints service.
@@ -6447,7 +6447,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
         #endif
-            public virtual IAsyncResult BeginRegisterServer(RegisterServerMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRegisterServer(RegisterServerMessage message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -6477,7 +6477,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
         #endif
-            public virtual RegisterServerResponseMessage EndRegisterServer(IAsyncResult ar)
+        public virtual RegisterServerResponseMessage EndRegisterServer(IAsyncResult ar)
         {
             try
             {
@@ -6494,7 +6494,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
         /// <summary>
         /// Invokes the RegisterServer service.
@@ -6601,7 +6601,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
         #endif
-            public virtual IAsyncResult BeginRegisterServer2(RegisterServer2Message message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRegisterServer2(RegisterServer2Message message, AsyncCallback callback, object callbackData)
         {
             try
             {
@@ -6631,7 +6631,7 @@ namespace Opc.Ua
         #if NET_STANDARD_OBSOLETE_APM
         [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
         #endif
-            public virtual RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult ar)
+        public virtual RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult ar)
         {
             try
             {
@@ -6648,7 +6648,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-
+         
         #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
         /// <summary>
         /// Invokes the RegisterServer2 service.
