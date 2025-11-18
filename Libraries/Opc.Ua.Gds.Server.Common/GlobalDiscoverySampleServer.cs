@@ -297,7 +297,7 @@ namespace Opc.Ua.Gds.Server
             X509Certificate2 certificate = token.GetOrCreateCertificate(MessageContext.Telemetry);
             try
             {
-                CertificateValidator.Validate(certificate);
+                CertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
             }
             catch (Exception e)
             {

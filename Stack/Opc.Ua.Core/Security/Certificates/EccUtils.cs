@@ -1120,7 +1120,7 @@ namespace Opc.Ua
                 }
 
                 // validate the sender.
-                Validator?.Validate(senderCertificateChain);
+                Validator?.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
             }
 
             // extract the send certificate and any chain.

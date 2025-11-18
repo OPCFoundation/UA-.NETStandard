@@ -1455,7 +1455,7 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
-                m_configuration.CertificateValidator.Validate(m_serverCertificate);
+                await m_configuration.CertificateValidator.ValidateAsync(m_serverCertificate, ct).ConfigureAwait(false);
             }
 
             // validate server nonce and security parameters for user identity.

@@ -24,16 +24,6 @@ namespace Opc.Ua
         /// <summary>
         /// Validates a certificate.
         /// </summary>
-        void Validate(X509Certificate2 certificate);
-
-        /// <summary>
-        /// Validates a certificate chain.
-        /// </summary>
-        void Validate(X509Certificate2Collection certificateChain);
-
-        /// <summary>
-        /// Validates a certificate.
-        /// </summary>
         Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct);
 
         /// <summary>

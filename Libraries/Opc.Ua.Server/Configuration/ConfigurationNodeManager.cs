@@ -577,7 +577,7 @@ namespace Opc.Ua.Server
                         }
                         issuerStore.TrustedCertificates = issuerCollection;
                         certValidator.Update(issuerStore, issuerStore, null);
-                        certValidator.Validate(newCert);
+                        await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

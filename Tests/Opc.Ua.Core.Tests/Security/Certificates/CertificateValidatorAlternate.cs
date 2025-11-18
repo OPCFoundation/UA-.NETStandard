@@ -186,7 +186,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// A signed app cert that has no keyid information.
         /// </summary>
         [Test]
-        public void CertificateWithoutKeyID()
+        public async Task CertificateWithoutKeyIDAsync()
         {
             // a valid app cert
             using X509Certificate2 appCert = CertificateFactory
@@ -196,14 +196,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(appCert);
 
             m_certValidator.RejectUnknownRevocationStatus = true;
-            m_certValidator.Validate(appCert);
+            await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Certificate with combinations of optional fields in the AKI.
         /// </summary>
         [Theory]
-        public void CertificateWithAuthorityKeyID(
+        public async Task CertificateWithAuthorityKeyIDAsync(
             bool subjectKeyIdentifier,
             bool issuerName,
             bool serialNumber)
@@ -231,13 +231,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             if (!subjectKeyIdentifier && !serialNumber)
             {
                 ServiceResultException result = NUnit.Framework.Assert
-                    .Throws<ServiceResultException>(() =>
-                        m_certValidator.Validate(appCert));
+                    .ThrowsAsync<ServiceResultException>(async () =>
+                        await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false));
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
             else
             {
-                m_certValidator.Validate(appCert);
+                await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -245,7 +245,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// App cert from alternate Root without KeyID.
         /// </summary>
         [Theory]
-        public void AlternateRootCertificateWithoutAuthorityKeyID(
+        public async Task AlternateRootCertificateWithoutAuthorityKeyIDAsync(
             bool rejectUnknownRevocationStatus)
         {
             ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate(
@@ -261,8 +261,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
             ServiceResultException result = NUnit.Framework.Assert
-                .Throws<ServiceResultException>(() =>
-                    m_certValidator.Validate(altAppCert));
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await m_certValidator.ValidateAsync(altAppCert, CancellationToken.None).ConfigureAwait(false));
 
             TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
         }
@@ -272,7 +272,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// validate that any combination of AKI is not validated.
         /// </summary>
         [Theory]
-        public void AlternateRootCertificateWithAuthorityKeyID(
+        public async Task AlternateRootCertificateWithAuthorityKeyIDAsync(
             bool subjectKeyIdentifier,
             bool issuerName,
             bool serialNumber)
@@ -304,8 +304,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // should not pass!
             m_certValidator.RejectUnknownRevocationStatus = false;
             ServiceResultException result = NUnit.Framework.Assert
-                .Throws<ServiceResultException>(() =>
-                    m_certValidator.Validate(altAppCert));
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await m_certValidator.ValidateAsync(altAppCert, CancellationToken.None).ConfigureAwait(false));
             TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
         }
 
@@ -352,7 +352,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
                 CertificateValidator certValidator = validator.Update();
-                certValidator.Validate(leafCert);
+                await certValidator.ValidateAsync(leafCert, CancellationToken.None).ConfigureAwait(false);
             }
 
             // validate using server/client chain sent over the wire
@@ -364,8 +364,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 CertificateValidator certValidator = validator.Update();
                 ServiceResultException result = NUnit.Framework.Assert
-                    .Throws<ServiceResultException>(() =>
-                        certValidator.Validate(collection));
+                    .ThrowsAsync<ServiceResultException>(async () =>
+                        await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));
 
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
@@ -377,8 +377,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
                 CertificateValidator certValidator = validator.Update();
                 ServiceResultException result = NUnit.Framework.Assert
-                    .Throws<ServiceResultException>(() =>
-                        certValidator.Validate(collection));
+                    .ThrowsAsync<ServiceResultException>(async () =>
+                        await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));
 
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
