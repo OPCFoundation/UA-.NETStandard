@@ -150,6 +150,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the info object associated with the SecurityPolicyUri.
+        /// </summary>
+        public static SecurityPolicyInfo GetInfo(string securityPolicyUri)
+        {
+            if (s_securityPolicyUriToInfo.Value.TryGetValue(securityPolicyUri, out SecurityPolicyInfo info) &&
+                IsPlatformSupportedName(info.Name))
+            {
+                return info;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Returns the uri associated with the display name. This includes http and all
         /// other supported platform security policies.
         /// </summary>
@@ -652,6 +666,49 @@ namespace Opc.Ua
                 return keyValuePairs.ToFrozenDictionary();
 #else
                 return new ReadOnlyDictionary<string, string>(keyValuePairs);
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary of uris to SecurityPolicyInfo excluding base uri
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyUriToInfo =
+            new(() =>
+            {
+#if NET8_0_OR_GREATER
+                return s_securityPolicyNameToInfo.Value.ToFrozenDictionary(k => k.Value.Uri, k => k.Value);
+#else
+                return new ReadOnlyDictionary<string, SecurityPolicyInfo>(
+                    s_securityPolicyNameToInfo.Value.ToDictionary(k => k.Value.Uri, k => k.Value));
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary for names to SecurityPolicyInfo excluding base uri
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyNameToInfo =
+            new(() =>
+            {
+                FieldInfo[] fields = typeof(SecurityPolicies).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<string, SecurityPolicyInfo>();
+                foreach (FieldInfo field in fields)
+                {
+                    string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
+                    if (field.Name == nameof(BaseUri) ||
+                        field.Name == nameof(Https) ||
+                        !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    keyValuePairs.Add(field.Name, new SecurityPolicyInfo(field.Name, policyUri));
+                }
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<string, SecurityPolicyInfo>(keyValuePairs);
 #endif
             });
     }
