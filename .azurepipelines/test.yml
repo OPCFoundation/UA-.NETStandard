@@ -47,6 +47,12 @@ jobs:
       packageType: 'sdk'
       version: '8.0.x'
   - task: UseDotNet@2
+    displayName: 'Install .NET 9.0'
+    condition: eq('${{parameters.framework}}', 'net9.0')
+    inputs:
+      packageType: 'sdk'
+      version: '9.0.x'
+  - task: UseDotNet@2
     displayName: 'Install .NET 10.0'
     inputs:
       packageType: 'sdk'
