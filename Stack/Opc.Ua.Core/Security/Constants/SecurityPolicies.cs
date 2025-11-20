@@ -103,6 +103,12 @@ namespace Opc.Ua
 
         private static bool IsPlatformSupportedName(string name)
         {
+            // If name contains BaseUri trim the BaseUri part
+            if (name.StartsWith(BaseUri, StringComparison.Ordinal))
+            {
+                name = name.Substring(BaseUri.Length);
+            }
+
             // all RSA
             if (name.Equals(nameof(None), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256), StringComparison.Ordinal) ||

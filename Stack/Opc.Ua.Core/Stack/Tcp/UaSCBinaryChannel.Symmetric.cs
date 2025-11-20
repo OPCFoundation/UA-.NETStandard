@@ -135,7 +135,13 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         protected void CalculateSymmetricKeySizes()
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(SecurityPolicyUri)
+            var securityPolicyUri = SecurityPolicyUri;
+            if (securityPolicyUri.StartsWith(SecurityPolicies.BaseUri, StringComparison.Ordinal))
+            {
+                securityPolicyUri = securityPolicyUri.Substring(SecurityPolicies.BaseUri.Length);
+            }
+
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
