@@ -133,9 +133,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Restore a subscription and its monitored items after a restart from a template
+        /// </summary>
+        public static async ValueTask<Subscription> RestoreAsync(
+            IServerInternal server,
+            IStoredSubscription storedSubscription,
+            CancellationToken cancellationToken = default)
+        {
+            var subscription = new Subscription(server, storedSubscription);
+
+            await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
+                .ConfigureAwait(false);
+
+            return subscription;
+        }
+
+        /// <summary>
         /// Initialize subscription after a restart from a template
         /// </summary>
-        public Subscription(IServerInternal server, IStoredSubscription storedSubscription)
+        protected Subscription(IServerInternal server, IStoredSubscription storedSubscription)
         {
             if (server.IsRunning)
             {
@@ -213,8 +229,6 @@ namespace Opc.Ua.Server
                 OnUpdateDiagnostics);
 
             TraceState(LogLevel.Information, TraceStateId.Config, "RESTORED");
-
-            RestoreMonitoredItems(storedSubscription.MonitoredItems);
         }
 
         /// <summary>
@@ -2549,8 +2563,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore MonitoredItems after a Server restart
         /// </summary>
-        protected virtual void RestoreMonitoredItems(
-            IEnumerable<IStoredMonitoredItem> storedMonitoredItems)
+        protected virtual async ValueTask RestoreMonitoredItemsAsync(
+            IEnumerable<IStoredMonitoredItem> storedMonitoredItems,
+            CancellationToken cancellationToken = default)
         {
             int count = storedMonitoredItems.Count();
 
@@ -2562,10 +2577,11 @@ namespace Opc.Ua.Server
                 monitoredItems.Add(null);
             }
 
-            m_server.NodeManager.RestoreMonitoredItems(
+            await m_server.NodeManager.RestoreMonitoredItemsAsync(
                 [.. storedMonitoredItems],
                 monitoredItems,
-                m_savedOwnerIdentity);
+                m_savedOwnerIdentity,
+                cancellationToken).ConfigureAwait(false);
 
             lock (m_lock)
             {

@@ -86,7 +86,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Starts up the manager makes it ready to create subscriptions.
         /// </summary>
-        void Startup();
+        ValueTask StartupAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Closes all subscriptions and rejects any new requests.
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore durable subscriptions after a server restart
         /// </summary>
-        void RestoreSubscriptions();
+        ValueTask RestoreSubscriptionsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes group of subscriptions.

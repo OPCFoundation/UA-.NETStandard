@@ -2859,22 +2859,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException"></exception>
-        public virtual void RestoreMonitoredItems(
-            IList<IStoredMonitoredItem> itemsToRestore,
-            IList<IMonitoredItem> monitoredItems,
-            IUserIdentity savedOwnerIdentity)
-        {
-            RestoreMonitoredItemsAsync(
-                itemsToRestore,
-                monitoredItems,
-                savedOwnerIdentity).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Restore a set of monitored items after a Server Restart.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
-        /// <exception cref="InvalidOperationException"></exception>
         public virtual async ValueTask RestoreMonitoredItemsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,

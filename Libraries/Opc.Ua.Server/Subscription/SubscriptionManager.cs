@@ -217,12 +217,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Starts up the manager makes it ready to create subscriptions.
         /// </summary>
-        public virtual void Startup()
+        public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
         {
             lock (m_lock)
             {
                 // restore subscriptions on startup
-                RestoreSubscriptions();
+                await RestoreSubscriptionsAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
                 m_shutdownEvent.Reset();
 
@@ -322,7 +323,7 @@ namespace Opc.Ua.Server
         /// Restore durable subscriptions after a server restart
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public virtual void RestoreSubscriptions()
+        public virtual async ValueTask RestoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             if (m_server.IsRunning)
             {
@@ -363,7 +364,8 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    subscription = RestoreSubscription(storedSubscription);
+                    subscription = await RestoreSubscriptionAsync(storedSubscription, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -387,7 +389,9 @@ namespace Opc.Ua.Server
         /// Restore a subscription after a restart
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual ISubscription RestoreSubscription(IStoredSubscription storedSubscription)
+        protected virtual async ValueTask<ISubscription> RestoreSubscriptionAsync(
+            IStoredSubscription storedSubscription,
+            CancellationToken cancellationToken = default)
         {
             if (m_subscriptions.Count >= m_maxSubscriptionCount)
             {
@@ -416,7 +420,8 @@ namespace Opc.Ua.Server
                 storedSubscription.MaxNotificationsPerPublish);
 
             // create the subscription.
-            var subscription = new Subscription(m_server, storedSubscription);
+            var subscription = await Subscription.RestoreAsync(m_server, storedSubscription, cancellationToken)
+                .ConfigureAwait(false);
 
             uint publishingIntervalCount;
 
@@ -2074,7 +2079,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A single thread to execute the condition refresh.
         /// </summary>
-        private async ValueTask ConditionRefreshWorkerAsync()
+        private async Task ConditionRefreshWorkerAsync()
         {
             try
             {
