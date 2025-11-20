@@ -490,7 +490,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < references.Count; ii++)
             {
-                node.ReferenceTable.Add(references[ii]);
+                if (!node.ReferenceTable.Contains(references[ii]))
+                {
+                    node.ReferenceTable.Add(references[ii]);
+                }
             }
 
             table.Attach(node);
