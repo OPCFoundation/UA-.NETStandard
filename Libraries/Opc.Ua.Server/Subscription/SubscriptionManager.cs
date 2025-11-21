@@ -881,14 +881,14 @@ namespace Opc.Ua.Server
                             return queue;
                         }
                 );
-
-                // get the count for the diagnostics.
-                publishingIntervalCount = GetPublishingIntervalCount();
             }
             finally
             {
                 m_semaphoreSlim.Release();
             }
+
+            // get the count for the diagnostics.
+            publishingIntervalCount = GetPublishingIntervalCount();
 
             lock (m_statusMessagesLock)
             {
@@ -1067,8 +1067,11 @@ namespace Opc.Ua.Server
                     // check for pending status message that may have arrived while waiting.
                     if (ReturnPendingStatusMessage(context, out statusMessage, out statusSubscriptionId))
                     {
-                        // requeue the subscription that was ready to publish.
-                        queue.Requeue(subscription);
+                        if (subscription != null)
+                        {
+                            // requeue the subscription that was ready to publish.
+                            queue.Requeue(subscription);
+                        }
 
                         return new PublishResponse
                         {
@@ -1078,6 +1081,11 @@ namespace Opc.Ua.Server
                             Results = acknowledgeResults,
                             DiagnosticInfos = acknowledgeDiagnosticInfos
                         };
+                    }
+
+                    if (subscription == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNoSubscription);
                     }
 
                     bool moreNotifications = false;

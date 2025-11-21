@@ -259,7 +259,18 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    request.Tcs.TrySetException(new ServiceResultException(statusCode));
+                    // for good status codes return to caller (SubscriptionManager) with null subscription
+                    // to publish queued StatusMessages from there
+                    if (ServiceResult.IsGood(statusCode))
+                    {
+                        request.Tcs.TrySetResult(null);
+                    }
+                    // throw a ServiceResultException for bad status codes
+                    else
+                    {
+                        request.Tcs.TrySetException(new ServiceResultException(statusCode));
+                    }
+                    
                     request.Dispose();
                     return true;
                 }
