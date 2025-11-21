@@ -301,7 +301,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual async ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
-            // only store subscriptions if durable subscriptions are enabeld
+            // only store subscriptions if durable subscriptions are enabled
             if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
             {
                 return;
