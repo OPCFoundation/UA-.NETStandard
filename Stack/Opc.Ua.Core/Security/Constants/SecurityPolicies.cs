@@ -157,10 +157,19 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns the info object associated with the SecurityPolicyUri.
+        /// Supports both full URI and short name (without BaseUri prefix).
         /// </summary>
         public static SecurityPolicyInfo GetInfo(string securityPolicyUri)
         {
+            // Try full URI lookup first (e.g., "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256")
             if (s_securityPolicyUriToInfo.Value.TryGetValue(securityPolicyUri, out SecurityPolicyInfo info) &&
+                IsPlatformSupportedName(info.Name))
+            {
+                return info;
+            }
+
+            // Try short name lookup (e.g., "Basic256Sha256")
+            if (s_securityPolicyNameToInfo.Value.TryGetValue(securityPolicyUri, out info) &&
                 IsPlatformSupportedName(info.Name))
             {
                 return info;
@@ -695,11 +704,14 @@ namespace Opc.Ua
         private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyNameToInfo =
             new(() =>
             {
-                FieldInfo[] fields = typeof(SecurityPolicies).GetFields(
+                FieldInfo[] policyFields = typeof(SecurityPolicies).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                FieldInfo[] infoFields = typeof(SecurityPolicyInfo).GetFields(
                     BindingFlags.Public | BindingFlags.Static);
 
                 var keyValuePairs = new Dictionary<string, SecurityPolicyInfo>();
-                foreach (FieldInfo field in fields)
+                foreach (FieldInfo field in policyFields)
                 {
                     string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
                     if (field.Name == nameof(BaseUri) ||
@@ -709,7 +721,18 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    keyValuePairs.Add(field.Name, new SecurityPolicyInfo(field.Name, policyUri));
+                    // Find the corresponding SecurityPolicyInfo field by name
+                    FieldInfo infoField = Array.Find(infoFields, f => f.Name == field.Name);
+                    if (infoField != null && infoField.FieldType == typeof(SecurityPolicyInfo))
+                    {
+                        SecurityPolicyInfo info = (SecurityPolicyInfo)infoField.GetValue(null);
+                        keyValuePairs.Add(field.Name, info);
+                    }
+                    else
+                    {
+                        // Fallback to creating a minimal instance for unknown policies
+                        keyValuePairs.Add(field.Name, new SecurityPolicyInfo(policyUri, field.Name));
+                    }
                 }
 #if NET8_0_OR_GREATER
                 return keyValuePairs.ToFrozenDictionary();

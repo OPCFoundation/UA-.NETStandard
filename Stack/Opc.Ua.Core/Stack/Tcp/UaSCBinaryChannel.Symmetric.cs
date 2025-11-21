@@ -230,15 +230,34 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ComputeKeys(ChannelToken token)
         {
+            // Strip BaseUri prefix to get short name for dictionary lookup
+            var securityPolicyUri = SecurityPolicyUri;
+            if (securityPolicyUri.StartsWith(SecurityPolicies.BaseUri, StringComparison.Ordinal))
+            {
+                securityPolicyUri = securityPolicyUri.Substring(SecurityPolicies.BaseUri.Length);
+            }
+
+            token.SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            if (token.SecurityPolicy == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    SecurityPolicyUri);
+            }
+
             if (SecurityMode == MessageSecurityMode.None)
             {
                 return;
             }
 
-            token.SecurityPolicy = SecurityPolicies.GetInfo(SecurityPolicyUri);
-
             byte[] serverSecret = token.ServerNonce;
             byte[] clientSecret = token.ClientNonce;
+
+            m_logger?.LogInformation(
+                "[ComputeKeys] KeyDerivationAlgorithm: {Algo}",
+                token.SecurityPolicy.KeyDerivationAlgorithm);
 
             if (token.SecurityPolicy.KeyDerivationAlgorithm == KeyDerivationAlgorithm.PSha1 ||
                 token.SecurityPolicy.KeyDerivationAlgorithm == KeyDerivationAlgorithm.PSha256)
@@ -614,10 +633,11 @@ namespace Opc.Ua.Bindings
 
             int headerSize = decoder.Position;
 
+            int decryptedCount = buffer.Count - headerSize;
             if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
                 // decrypt the message.
-                Decrypt(
+                decryptedCount = Decrypt(
                     token,
                     new ArraySegment<byte>(
                         buffer.Array,
@@ -627,9 +647,14 @@ namespace Opc.Ua.Bindings
             }
 
             int paddingCount = 0;
-            if (SecurityMode != MessageSecurityMode.None)
+            if (SecurityMode != MessageSecurityMode.None &&
+                !token.SecurityPolicy.NoSymmetricEncryptionPadding)
             {
-                int signatureStart = buffer.Offset + buffer.Count - SymmetricSignatureSize;
+                int signatureStart =
+                    buffer.Offset +
+                    headerSize +
+                    decryptedCount -
+                    SymmetricSignatureSize;
 
                 // extract signature.
                 byte[] signature = new byte[SymmetricSignatureSize];
@@ -642,7 +667,7 @@ namespace Opc.Ua.Bindings
                         new ArraySegment<byte>(
                             buffer.Array,
                             buffer.Offset,
-                            buffer.Count - SymmetricSignatureSize),
+                            headerSize + decryptedCount - SymmetricSignatureSize),
                         isRequest))
                 {
                     m_logger.LogError("ChannelId {Id}: Could not verify signature on message.", Id);
@@ -671,6 +696,11 @@ namespace Opc.Ua.Bindings
                     paddingCount++;
                 }
             }
+            else if (SecurityMode != MessageSecurityMode.None)
+            {
+                // AEAD algorithms are verified during decrypt.
+                paddingCount = 0;
+            }
 
             // extract request id and sequence number.
             sequenceNumber = decoder.ReadUInt32(null);
@@ -682,11 +712,13 @@ namespace Opc.Ua.Bindings
                 TcpMessageLimits.SymmetricHeaderSize +
                 TcpMessageLimits.SequenceHeaderSize;
             int sizeOfBody =
-                buffer.Count -
-                TcpMessageLimits.SymmetricHeaderSize -
+                decryptedCount -
                 TcpMessageLimits.SequenceHeaderSize -
                 paddingCount -
-                SymmetricSignatureSize;
+                (SecurityMode != MessageSecurityMode.None &&
+                 !token.SecurityPolicy.NoSymmetricEncryptionPadding
+                    ? SymmetricSignatureSize
+                    : 0);
 
             return new ArraySegment<byte>(buffer.Array, startOfBody, sizeOfBody);
         }
@@ -751,16 +783,41 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToEncrypt,
             bool useClientKeys)
         {
-            if (SecurityPolicyUri == SecurityPolicies.None)
-            {
-                return;
-            }
-
             byte[] encryptingKey = useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey;
             byte[] iv = useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector;
             byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
 
             bool signOnly = SecurityMode == MessageSecurityMode.Sign;
+
+            if (SecurityPolicyUri == SecurityPolicies.None)
+            {
+                return;
+            }
+
+            // For CBC based policies the caller already applied padding and signatures.
+            if (token.SecurityPolicy.SymmetricEncryptionAlgorithm is SymmetricEncryptionAlgorithm.Aes128Cbc
+                or SymmetricEncryptionAlgorithm.Aes256Cbc)
+            {
+                if (signOnly)
+                {
+                    return;
+                }
+
+                using var aes = Aes.Create();
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.None;
+                aes.Key = encryptingKey;
+                aes.IV = iv;
+
+                using ICryptoTransform encryptor = aes.CreateEncryptor();
+                encryptor.TransformBlock(
+                    dataToEncrypt.Array,
+                    dataToEncrypt.Offset,
+                    dataToEncrypt.Count,
+                    dataToEncrypt.Array,
+                    dataToEncrypt.Offset);
+                return;
+            }
 
             ArraySegment<byte> result = EccUtils.SymmetricEncryptAndSign(
                 dataToEncrypt,
@@ -781,14 +838,14 @@ namespace Opc.Ua.Bindings
         /// Decrypts and verifies the data in a buffer using symmetric encryption.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
-        protected void Decrypt(
+        protected int Decrypt(
             ChannelToken token,
             ArraySegment<byte> dataToDecrypt,
             bool useClientKeys)
         {
             if (SecurityPolicyUri == SecurityPolicies.None)
             {
-                return;
+                return dataToDecrypt.Count;
             }
 
             byte[] encryptingKey = useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey;
@@ -796,6 +853,32 @@ namespace Opc.Ua.Bindings
             byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
 
             bool signOnly = SecurityMode == MessageSecurityMode.Sign;
+
+            // For CBC based policies the caller will verify signatures and remove padding.
+            if (token.SecurityPolicy.SymmetricEncryptionAlgorithm is SymmetricEncryptionAlgorithm.Aes128Cbc
+                or SymmetricEncryptionAlgorithm.Aes256Cbc)
+            {
+                if (signOnly)
+                {
+                    return dataToDecrypt.Count;
+                }
+
+                using var aes = Aes.Create();
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.None;
+                aes.Key = encryptingKey;
+                aes.IV = iv;
+
+                using ICryptoTransform decryptor = aes.CreateDecryptor();
+                decryptor.TransformBlock(
+                    dataToDecrypt.Array,
+                    dataToDecrypt.Offset,
+                    dataToDecrypt.Count,
+                    dataToDecrypt.Array,
+                    dataToDecrypt.Offset);
+
+                return dataToDecrypt.Count;
+            }
 
             ArraySegment<byte> result = EccUtils.SymmetricDecryptAndVerify(
                 dataToDecrypt,
@@ -810,6 +893,9 @@ namespace Opc.Ua.Bindings
             {
                 Buffer.BlockCopy(result.Array, result.Offset, dataToDecrypt.Array, dataToDecrypt.Offset, result.Count);
             }
+
+            // return the decrypted size (without authentication tag/padding)
+            return result.Count - dataToDecrypt.Offset;
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
