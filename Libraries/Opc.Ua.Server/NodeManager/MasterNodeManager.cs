@@ -414,9 +414,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Shuts down the node managers.
         /// </summary>
-        public virtual async ValueTask ShutdownAsync()
+        public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
-            await m_startupShutdownSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -427,7 +427,7 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {
-                    await nodeManager.DeleteAddressSpaceAsync()
+                    await nodeManager.DeleteAddressSpaceAsync(cancellationToken)
                         .ConfigureAwait(false);
                 }
             }
@@ -2409,20 +2409,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calls a method defined on an object.
         /// </summary>
-        public virtual void Call(
-            OperationContext context,
-            CallMethodRequestCollection methodsToCall,
-            out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = CallAsync(
-                context,
-                methodsToCall).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
         public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
@@ -2535,18 +2521,6 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
-        }
-
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
-        public virtual void ConditionRefresh(
-            OperationContext context,
-            IList<IEventMonitoredItem> monitoredItems)
-        {
-            ConditionRefreshAsync(
-                context,
-                monitoredItems).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -2878,22 +2852,6 @@ namespace Opc.Ua.Server
                     errors[ii] = StatusCodes.Good;
                 }
             }
-        }
-
-        /// <summary>
-        /// Restore a set of monitored items after a Server Restart.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
-        /// <exception cref="InvalidOperationException"></exception>
-        public virtual void RestoreMonitoredItems(
-            IList<IStoredMonitoredItem> itemsToRestore,
-            IList<IMonitoredItem> monitoredItems,
-            IUserIdentity savedOwnerIdentity)
-        {
-            RestoreMonitoredItemsAsync(
-                itemsToRestore,
-                monitoredItems,
-                savedOwnerIdentity).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -3446,23 +3404,6 @@ namespace Opc.Ua.Server
                 // success.
                 errors[ii] = StatusCodes.Good;
             }
-        }
-
-        /// <summary>
-        /// Changes the monitoring mode for a set of items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void SetMonitoringMode(
-            OperationContext context,
-            MonitoringMode monitoringMode,
-            IList<IMonitoredItem> itemsToModify,
-            IList<ServiceResult> errors)
-        {
-            SetMonitoringModeAsync(
-                context,
-                monitoringMode,
-                itemsToModify,
-                errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>

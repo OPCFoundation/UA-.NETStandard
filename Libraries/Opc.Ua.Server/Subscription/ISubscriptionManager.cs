@@ -86,22 +86,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Starts up the manager makes it ready to create subscriptions.
         /// </summary>
-        void Startup();
+        ValueTask StartupAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Closes all subscriptions and rejects any new requests.
         /// </summary>
-        void Shutdown();
+        ValueTask ShutdownAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
-        void StoreSubscriptions();
+        ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Restore durable subscriptions after a server restart
         /// </summary>
-        void RestoreSubscriptions();
+        ValueTask RestoreSubscriptionsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes group of subscriptions.
@@ -212,13 +212,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Changes the monitoring mode for a set of items.
         /// </summary>
-        void SetMonitoringMode(
+        ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Signals that a session is closing.

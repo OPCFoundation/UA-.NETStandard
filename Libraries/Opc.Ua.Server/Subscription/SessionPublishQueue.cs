@@ -244,6 +244,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Try to publish a custom status message
         /// using a queued publish request.
+        /// Returns true if a queued request was found and processed.
+        /// Returns the found publish request immediately to the caller.
+        /// If status code is good, the caller is expected to publish any queued status messages.
+        /// If status code is bad a ServiceResultException is thrown to the caller.
         /// </summary>
         public bool TryPublishCustomStatus(StatusCode statusCode)
         {
@@ -259,7 +263,17 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    request.Tcs.TrySetException(new ServiceResultException(statusCode));
+                    // for good status codes return to caller (SubscriptionManager) with null subscription
+                    // to publish queued StatusMessages from there
+                    if (ServiceResult.IsGood(statusCode))
+                    {
+                        request.Tcs.TrySetResult(null);
+                    }
+                    // throw a ServiceResultException for bad status codes
+                    else
+                    {
+                        request.Tcs.TrySetException(new ServiceResultException(statusCode));
+                    }
                     request.Dispose();
                     return true;
                 }

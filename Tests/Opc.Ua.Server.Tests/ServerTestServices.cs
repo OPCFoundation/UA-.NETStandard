@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests
             byte priority,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.CreateSubscription(
+            return new ValueTask<CreateSubscriptionResponse>(m_server.CreateSubscriptionAsync(
                 SecureChannelContext,
                 requestHeader,
                 requestedPublishingInterval,
@@ -200,19 +200,7 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish,
                 publishingEnabled,
                 priority,
-                out uint subscriptionId,
-                out double revisedPublishingInterval,
-                out uint revisedLifetimeCount,
-                out uint revisedMaxKeepAliveCount);
-            var response = new CreateSubscriptionResponse
-            {
-                ResponseHeader = responseHeader,
-                SubscriptionId = subscriptionId,
-                RevisedPublishingInterval = revisedPublishingInterval,
-                RevisedLifetimeCount = revisedLifetimeCount,
-                RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
-            };
-            return new ValueTask<CreateSubscriptionResponse>(response);
+                ct));
         }
 
         public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
@@ -222,21 +210,13 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemCreateRequestCollection itemsToCreate,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.CreateMonitoredItems(
+            return new ValueTask<CreateMonitoredItemsResponse>(m_server.CreateMonitoredItemsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToCreate,
-                out MonitoredItemCreateResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            var response = new CreateMonitoredItemsResponse
-            {
-                ResponseHeader = responseHeader,
-                Results = results,
-                DiagnosticInfos = diagnosticInfos
-            };
-            return new ValueTask<CreateMonitoredItemsResponse>(response);
+                ct));
         }
 
         public ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
@@ -249,7 +229,7 @@ namespace Opc.Ua.Server.Tests
             byte priority,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.ModifySubscription(
+            return new ValueTask<ModifySubscriptionResponse>(m_server.ModifySubscriptionAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
@@ -258,17 +238,7 @@ namespace Opc.Ua.Server.Tests
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
                 priority,
-                out double revisedPublishingInterval,
-                out uint revisedLifetimeCount,
-                out uint revisedMaxKeepAliveCount);
-            var response = new ModifySubscriptionResponse
-            {
-                ResponseHeader = responseHeader,
-                RevisedPublishingInterval = revisedPublishingInterval,
-                RevisedLifetimeCount = revisedLifetimeCount,
-                RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
-            };
-            return new ValueTask<ModifySubscriptionResponse>(response);
+                ct));
         }
 
         public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
@@ -278,21 +248,13 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemModifyRequestCollection itemsToModify,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.ModifyMonitoredItems(
+            return new ValueTask<ModifyMonitoredItemsResponse>(m_server.ModifyMonitoredItemsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToModify,
-                out MonitoredItemModifyResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            var response = new ModifyMonitoredItemsResponse
-            {
-                ResponseHeader = responseHeader,
-                Results = results,
-                DiagnosticInfos = diagnosticInfos
-            };
-            return new ValueTask<ModifyMonitoredItemsResponse>(response);
+                ct));
         }
 
         public ValueTask<PublishResponse> PublishAsync(
@@ -313,20 +275,12 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection subscriptionIds,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.SetPublishingMode(
+            return new ValueTask<SetPublishingModeResponse>(m_server.SetPublishingModeAsync(
                 SecureChannelContext,
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            var response = new SetPublishingModeResponse
-            {
-                ResponseHeader = responseHeader,
-                Results = results,
-                DiagnosticInfos = diagnosticInfos
-            };
-            return new ValueTask<SetPublishingModeResponse>(response);
+                ct));
         }
 
         public ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
@@ -336,21 +290,14 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection monitoredItemIds,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.SetMonitoringMode(
-                SecureChannelContext,
-                requestHeader,
-                subscriptionId,
-                monitoringMode,
-                monitoredItemIds,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            var response = new SetMonitoringModeResponse
-            {
-                ResponseHeader = responseHeader,
-                Results = results,
-                DiagnosticInfos = diagnosticInfos
-            };
-            return new ValueTask<SetMonitoringModeResponse>(response);
+            return new ValueTask<SetMonitoringModeResponse>(
+                m_server.SetMonitoringModeAsync(
+                    SecureChannelContext,
+                    requestHeader,
+                    subscriptionId,
+                    monitoringMode,
+                    monitoredItemIds,
+                    ct));
         }
 
         public ValueTask<RepublishResponse> RepublishAsync(
@@ -359,18 +306,12 @@ namespace Opc.Ua.Server.Tests
             uint retransmitSequenceNumber,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.Republish(
+            return new ValueTask<RepublishResponse>(m_server.RepublishAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
-                out NotificationMessage notificationMessage);
-            var response = new RepublishResponse
-            {
-                ResponseHeader = responseHeader,
-                NotificationMessage = notificationMessage
-            };
-            return new ValueTask<RepublishResponse>(response);
+                ct));
         }
 
         public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
@@ -378,19 +319,11 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection subscriptionIds,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.DeleteSubscriptions(
+            return new ValueTask<DeleteSubscriptionsResponse>(m_server.DeleteSubscriptionsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            var response = new DeleteSubscriptionsResponse
-            {
-                ResponseHeader = responseHeader,
-                Results = results,
-                DiagnosticInfos = diagnosticInfos
-            };
-            return new ValueTask<DeleteSubscriptionsResponse>(response);
+                ct));
         }
 
         public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
@@ -399,20 +332,12 @@ namespace Opc.Ua.Server.Tests
             bool sendInitialValues,
             CancellationToken ct = default)
         {
-            ResponseHeader responseHeader = m_server.TransferSubscriptions(
+            return new ValueTask<TransferSubscriptionsResponse>(m_server.TransferSubscriptionsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
-                out TransferResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            var response = new TransferSubscriptionsResponse
-            {
-                ResponseHeader = responseHeader,
-                Results = results,
-                DiagnosticInfos = diagnosticInfos
-            };
-            return new ValueTask<TransferSubscriptionsResponse>(response);
+                ct));
         }
 
         public ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
