@@ -1083,9 +1083,11 @@ namespace Opc.Ua.Server
                         };
                     }
 
+                    // false alarm or race condition, requeue the request.
                     if (subscription == null)
                     {
-                        throw new ServiceResultException(StatusCodes.BadNoSubscription);
+                        requeue = true;
+                        continue;
                     }
 
                     bool moreNotifications = false;
