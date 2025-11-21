@@ -414,9 +414,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Shuts down the node managers.
         /// </summary>
-        public virtual async ValueTask ShutdownAsync()
+        public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
-            await m_startupShutdownSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -427,7 +427,7 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {
-                    await nodeManager.DeleteAddressSpaceAsync()
+                    await nodeManager.DeleteAddressSpaceAsync(cancellationToken)
                         .ConfigureAwait(false);
                 }
             }

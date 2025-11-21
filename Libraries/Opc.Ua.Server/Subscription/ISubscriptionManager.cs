@@ -91,12 +91,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Closes all subscriptions and rejects any new requests.
         /// </summary>
-        void Shutdown();
+        ValueTask ShutdownAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
-        void StoreSubscriptions();
+        ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Restore durable subscriptions after a server restart

@@ -3410,9 +3410,9 @@ namespace Opc.Ua.Server
                     {
                         m_serverInternal.SessionManager.SessionChannelKeepAlive
                             -= SessionChannelKeepAliveEvent;
-                        m_serverInternal.SubscriptionManager.Shutdown();
+                        await m_serverInternal.SubscriptionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
                         m_serverInternal.SessionManager.Shutdown();
-                        await m_serverInternal.NodeManager.ShutdownAsync().ConfigureAwait(false);
+                        await m_serverInternal.NodeManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
                     }
                 }
                 finally

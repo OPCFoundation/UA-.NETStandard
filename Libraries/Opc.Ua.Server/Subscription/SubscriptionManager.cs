@@ -109,13 +109,18 @@ namespace Opc.Ua.Server
                 List<ISubscription> subscriptions = null;
                 List<SessionPublishQueue> publishQueues = null;
 
-                lock (m_lock)
+                m_semaphoreSlim.Wait();
+                try
                 {
                     publishQueues = [.. m_publishQueues.Values];
                     m_publishQueues.Clear();
 
                     subscriptions = [.. m_subscriptions.Values];
                     m_subscriptions.Clear();
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
                 }
 
                 foreach (SessionPublishQueue publishQueue in publishQueues)
@@ -130,6 +135,7 @@ namespace Opc.Ua.Server
 
                 Utils.SilentDispose(m_shutdownEvent);
                 Utils.SilentDispose(m_conditionRefreshEvent);
+                Utils.SilentDispose(m_semaphoreSlim);
             }
         }
 
@@ -219,7 +225,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // restore subscriptions on startup
                 await RestoreSubscriptionsAsync(cancellationToken)
@@ -228,7 +235,7 @@ namespace Opc.Ua.Server
                 m_shutdownEvent.Reset();
 
                 // TODO: Ensure shutdown awaits completion and a cancellation token is passed
-                Task.Factory.StartNew(
+                _ = Task.Factory.StartNew(
                     () => PublishSubscriptions(m_publishingResolution),
                     default,
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
@@ -237,20 +244,25 @@ namespace Opc.Ua.Server
                 m_conditionRefreshEvent.Reset();
 
                 // TODO: Ensure shutdown awaits completion and a cancellation token is passed
-                Task.Factory.StartNew(
+                _ = Task.Factory.StartNew(
                     ConditionRefreshWorkerAsync,
                     default,
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
         /// <summary>
         /// Closes all subscriptions and rejects any new requests.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // stop the publishing thread.
                 m_shutdownEvent.Set();
@@ -267,7 +279,8 @@ namespace Opc.Ua.Server
                 m_publishQueues.Clear();
 
                 // store subscriptions to be able to restore them after a restart
-                StoreSubscriptions();
+                await StoreSubscriptionsAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
                 // dispose of subscriptions objects.
                 foreach (ISubscription subscription in m_subscriptions.Values)
@@ -277,12 +290,16 @@ namespace Opc.Ua.Server
 
                 m_subscriptions.Clear();
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
         }
 
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
-        public virtual void StoreSubscriptions()
+        public virtual async ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             // only store subscriptions if durable subscriptions are enabeld
             if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
@@ -511,12 +528,17 @@ namespace Opc.Ua.Server
                     // mark the subscriptions as abandoned.
                     else
                     {
-                        lock (m_lock)
+                        m_semaphoreSlim.Wait();
+                        try
                         {
                             (m_abandonedSubscriptions ??= []).Add(subscription);
                             m_logger.LogWarning(
                                 "Subscription ABANDONED, Id={SubscriptionId}.",
                                 subscription.Id);
+                        }
+                        finally
+                        {
+                            m_semaphoreSlim.Release();
                         }
                     }
                 }
@@ -646,7 +668,8 @@ namespace Opc.Ua.Server
         {
             ISubscription subscription = null;
 
-            lock (m_lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 // remove from publish queue.
                 if (m_subscriptions.TryGetValue(subscriptionId, out subscription))
@@ -687,6 +710,10 @@ namespace Opc.Ua.Server
 
                 // remove subscription.
                 m_subscriptions.TryRemove(subscriptionId, out _);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
 
             if (subscription != null)
@@ -752,19 +779,16 @@ namespace Opc.Ua.Server
         {
             var publishingDiagnostics = new Dictionary<double, uint>();
 
-            lock (m_lock)
+            foreach (ISubscription subscription in m_subscriptions.Values)
             {
-                foreach (ISubscription subscription in m_subscriptions.Values)
+                double publishingInterval = subscription.PublishingInterval;
+
+                if (!publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
                 {
-                    double publishingInterval = subscription.PublishingInterval;
-
-                    if (!publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
-                    {
-                        total = 0;
-                    }
-
-                    publishingDiagnostics[publishingInterval] = total + 1;
+                    total = 0;
                 }
+
+                publishingDiagnostics[publishingInterval] = total + 1;
             }
 
             return (uint)publishingDiagnostics.Count;
@@ -829,7 +853,8 @@ namespace Opc.Ua.Server
                 priority,
                 publishingEnabled);
 
-            lock (m_lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 // save subscription.
                 if (!m_subscriptions.TryAdd(subscriptionId, subscription))
@@ -859,6 +884,10 @@ namespace Opc.Ua.Server
 
                 // get the count for the diagnostics.
                 publishingIntervalCount = GetPublishingIntervalCount();
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
 
             lock (m_statusMessagesLock)
@@ -1381,7 +1410,8 @@ namespace Opc.Ua.Server
                     }
 
                     // transfer session, add subscription to publish queue
-                    lock (m_lock)
+                    m_semaphoreSlim.Wait();
+                    try
                     {
                         subscription.TransferSession(context, sendInitialValues);
 
@@ -1409,6 +1439,10 @@ namespace Opc.Ua.Server
                                 m_maxPublishRequestCount);
                         }
                         publishQueue.Add(subscription);
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
                     }
 
                     lock (m_statusMessagesLock)
@@ -1476,7 +1510,8 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        lock (m_lock)
+                        m_semaphoreSlim.Wait();
+                        try
                         {
                             // trigger publish response to return status immediately
                             if (m_publishQueues.TryGetValue(
@@ -1501,6 +1536,10 @@ namespace Opc.Ua.Server
                                 // check to remove queued requests if no subscriptions are active
                                 ownerPublishQueue.RemoveQueuedRequests();
                             }
+                        }
+                        finally
+                        {
+                            m_semaphoreSlim.Release();
                         }
                     }
 
@@ -1994,7 +2033,8 @@ namespace Opc.Ua.Server
                     SessionPublishQueue[] queues = null;
                     ISubscription[] abandonedSubscriptions = null;
 
-                    lock (m_lock)
+                    m_semaphoreSlim.Wait();
+                    try
                     {
                         // collect active session queues.
                         queues = new SessionPublishQueue[m_publishQueues.Count];
@@ -2011,6 +2051,10 @@ namespace Opc.Ua.Server
                                 abandonedSubscriptions[ii] = m_abandonedSubscriptions[ii];
                             }
                         }
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
                     }
 
                     // check the publish timer for each subscription.
@@ -2043,12 +2087,17 @@ namespace Opc.Ua.Server
                         // schedule cleanup on a background thread.
                         if (subscriptionsToDelete.Count > 0)
                         {
-                            lock (m_lock)
+                            m_semaphoreSlim.Wait();
+                            try
                             {
                                 for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
                                 {
                                     m_abandonedSubscriptions.Remove(subscriptionsToDelete[ii]);
                                 }
+                            }
+                            finally
+                            {
+                                m_semaphoreSlim.Release();
                             }
 
                             CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
@@ -2217,7 +2266,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly Lock m_lock = new();
+        private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private uint m_lastSubscriptionId;
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
