@@ -274,7 +274,6 @@ namespace Opc.Ua.Server
                     {
                         request.Tcs.TrySetException(new ServiceResultException(statusCode));
                     }
-                    
                     request.Dispose();
                     return true;
                 }
