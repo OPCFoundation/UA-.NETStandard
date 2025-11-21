@@ -247,7 +247,7 @@ namespace Opc.Ua.Server
         /// Returns true if a queued request was found and processed.
         /// Returns the found publish request immediately to the caller.
         /// If status code is good, the caller is expected to publish any queued status messages.
-        /// If satus code is bad a ServiceResultException is thrown to the caller.
+        /// If status code is bad a ServiceResultException is thrown to the caller.
         /// </summary>
         public bool TryPublishCustomStatus(StatusCode statusCode)
         {
