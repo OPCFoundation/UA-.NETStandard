@@ -3693,7 +3693,7 @@ namespace Opc.Ua.Server
 
             // Initialize input arguments to empty collection if null.
             // Methods with only output parameters (no input parameters) are valid.
-            callMethodRequest.InputArguments ??= [];
+            callMethodRequest.InputArguments ??= new VariantCollection();
 
             return StatusCodes.Good;
         }

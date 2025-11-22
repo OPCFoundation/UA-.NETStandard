@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 ObjectId = new NodeId(1000),
                 MethodId = new NodeId(2000),
-                InputArguments = [] // Empty collection
+                InputArguments = new VariantCollection() // Empty collection
             };
 
             // Encode
@@ -104,7 +104,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 ObjectId = new NodeId(1000),
                 MethodId = new NodeId(2000),
-                InputArguments = [new Variant(42), new Variant("test")]
+                InputArguments = new VariantCollection { new Variant(42), new Variant("test") }
             };
 
             // Encode
