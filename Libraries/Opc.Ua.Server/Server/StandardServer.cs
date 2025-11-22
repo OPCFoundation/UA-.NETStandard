@@ -2446,8 +2446,8 @@ namespace Opc.Ua.Server
 
             // try each endpoint.
             if (m_registrationEndpoints != null)
-                {
-                    foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
+            {
+                foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
                     {
                         RegistrationClient client = null;
                         int i = 0;
