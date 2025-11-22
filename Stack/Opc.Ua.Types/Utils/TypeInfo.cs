@@ -301,6 +301,14 @@ namespace Opc.Ua
                 {
                     // Constructor threw an exception, fall back to Structure
                 }
+                catch (MethodAccessException)
+                {
+                    // No permission to create instance, fall back to Structure
+                }
+                catch (NotSupportedException)
+                {
+                    // Type is not supported for instantiation, fall back to Structure
+                }
             }
 
             return dataTypeId;
