@@ -283,32 +283,23 @@ namespace Opc.Ua
             if (dataTypeId == DataTypeIds.Structure &&
                 typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
             {
-                // Try to get the TypeId from the type's property
-                var typeIdProperty = type.GetProperty("TypeId", BindingFlags.Public | BindingFlags.Static);
-                if (typeIdProperty != null && typeIdProperty.PropertyType == typeof(ExpandedNodeId))
-                {
-                    var expandedNodeId = (ExpandedNodeId)typeIdProperty.GetValue(null);
-                    if (expandedNodeId != null && !NodeId.IsNull(expandedNodeId))
-                    {
-                        return ExpandedNodeId.ToNodeId(expandedNodeId, null);
-                    }
-                }
-
-                // Fallback: try to create an instance and get its TypeId
+                // Try to create an instance and get its TypeId
+                // All well-known IEncodeable types have parameterless constructors and instance TypeId properties
                 try
                 {
-                    if (type.GetConstructor(Type.EmptyTypes) != null)
+                    var instance = Activator.CreateInstance(type) as IEncodeable;
+                    if (instance?.TypeId != null)
                     {
-                        var instance = Activator.CreateInstance(type) as IEncodeable;
-                        if (instance?.TypeId != null)
-                        {
-                            return ExpandedNodeId.ToNodeId(instance.TypeId, null);
-                        }
+                        return ExpandedNodeId.ToNodeId(instance.TypeId, null);
                     }
                 }
-                catch
+                catch (MissingMethodException)
                 {
-                    // If we can't create an instance, fall back to Structure
+                    // Type doesn't have a parameterless constructor, fall back to Structure
+                }
+                catch (TargetInvocationException)
+                {
+                    // Constructor threw an exception, fall back to Structure
                 }
             }
 
