@@ -2436,11 +2436,7 @@ namespace Opc.Ua.Server
             var configuration = new ApplicationConfiguration(Configuration);
 
             // use a dedicated certificate validator with the registration, but derive behavior from server config
-            var registrationCertificateValidator = new CertificateValidationEventHandler(
-                RegistrationValidator_CertificateValidation);
             configuration.CertificateValidator = new CertificateValidator(MessageContext.Telemetry);
-            configuration.CertificateValidator.CertificateValidation
-                += registrationCertificateValidator;
             await configuration
                 .CertificateValidator.UpdateAsync(
                     configuration.SecurityConfiguration,
@@ -2448,10 +2444,8 @@ namespace Opc.Ua.Server
                     ct)
                 .ConfigureAwait(false);
 
-            try
-            {
-                // try each endpoint.
-                if (m_registrationEndpoints != null)
+            // try each endpoint.
+            if (m_registrationEndpoints != null)
                 {
                     foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
                     {
@@ -2557,41 +2551,12 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
-                    // retry to start with RegisterServer2 if both failed
-                    m_useRegisterServer2 = true;
-                }
+                // retry to start with RegisterServer2 if both failed
+                m_useRegisterServer2 = true;
             }
-            finally
-            {
-                configuration.CertificateValidator.CertificateValidation -= registrationCertificateValidator;
-            }
+
             m_registeredWithDiscoveryServer = false;
             return false;
-        }
-
-        /// <summary>
-        /// Checks that the domains in the certificate match the current host.
-        /// </summary>
-        private void RegistrationValidator_CertificateValidation(
-            CertificateValidator sender,
-            CertificateValidationEventArgs e)
-        {
-            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
-
-            foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
-            {
-                foreach (System.Net.IPAddress actualAddress in Utils.GetHostAddresses(domain))
-                {
-                    foreach (System.Net.IPAddress targetAddress in targetAddresses)
-                    {
-                        if (targetAddress.Equals(actualAddress))
-                        {
-                            e.Accept = true;
-                            return;
-                        }
-                    }
-                }
-            }
         }
 
         /// <summary>
