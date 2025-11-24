@@ -390,6 +390,30 @@ namespace Opc.Ua
         /// <summary>
         /// Compares string fields of two distinguished names.
         /// </summary>
+        /// <summary>
+        /// Normalizes distinguished name field abbreviations to handle platform-specific variations.
+        /// For example, Windows may use 'S=' while OpenSSL uses 'ST=' for stateOrProvinceName.
+        /// </summary>
+        /// <param name="field">The distinguished name field to normalize.</param>
+        /// <returns>The normalized field with standardized abbreviations.</returns>
+        private static string NormalizeDistinguishedNameField(string field)
+        {
+            if (string.IsNullOrEmpty(field))
+            {
+                return field;
+            }
+
+            // Handle state/province: S= -> ST=
+            // Windows may use S= while documentation and OpenSSL use ST=
+            if (field.StartsWith("S=", StringComparison.OrdinalIgnoreCase) &&
+                !field.StartsWith("ST=", StringComparison.OrdinalIgnoreCase))
+            {
+                return "ST=" + field.Substring(2);
+            }
+
+            return field;
+        }
+
         private static bool CompareDistinguishedNameFields(
             List<string> fields1,
             List<string> fields2)
@@ -397,13 +421,17 @@ namespace Opc.Ua
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
+                // Normalize field abbreviations to handle platform-specific variations
+                string normalizedField1 = NormalizeDistinguishedNameField(fields1[ii]);
+                string normalizedField2 = NormalizeDistinguishedNameField(fields2[ii]);
+
                 StringComparison comparison = StringComparison.Ordinal;
-                if (fields1[ii].StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
+                if (normalizedField1.StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
                 {
                     // DC hostnames may have different case
                     comparison = StringComparison.OrdinalIgnoreCase;
                 }
-                if (!string.Equals(fields1[ii], fields2[ii], comparison))
+                if (!string.Equals(normalizedField1, normalizedField2, comparison))
                 {
                     return false;
                 }
