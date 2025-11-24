@@ -116,6 +116,7 @@ namespace Opc.Ua.Client.Tests
     ///     Throughput = 100 / 0.1408 = 710 ops/sec
     /// </summary>
     [TestFixture]
+    [Explicit]
     [Category("Client")]
     [Category("SecurityPolicyBenchmark")]
     [SetCulture("en-us")]
