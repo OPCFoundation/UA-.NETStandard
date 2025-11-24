@@ -55,10 +55,10 @@ namespace Opc.Ua.Client.Tests
     }
 
     /// <summary>
-    /// Benchmarks for measuring CPU, Memory, and Message throughput across all Security Policies.
+    /// Benchmarks for measuring CPU, Memory, Latency, and Message Throughput across all Security Policies.
     /// These benchmarks help detect performance regressions when changes are made to security-related code.
     ///
-    /// Total: 126 benchmarks (14 methods × 9 (None is excluded) security policies)
+    /// Total: 162 benchmarks (18 methods × 9 security policies - None is excluded)
     ///
     /// USAGE:
     ///   cd Tests/Opc.Ua.Client.Tests
@@ -86,19 +86,34 @@ namespace Opc.Ua.Client.Tests
     ///   cat BenchmarkDotNet.Artifacts/results/*.csv
     ///
     /// Available benchmark methods:
-    ///   - ReadSmallMessageAsync, ReadSmallMessageBurstAsync
-    ///   - ReadMediumMessageAsync, ReadMediumMessageBurstAsync
-    ///   - ReadLargeMessageAsync, ReadLargeMessageBurstAsync
-    ///   - WriteSmallMessageAsync, WriteSmallMessageBurstAsync
+    ///   Latency benchmarks:
+    ///   - ReadSmallMessageAsync, ReadMediumMessageAsync, ReadLargeMessageAsync
+    ///   - WriteSmallMessageAsync
     ///   - BrowseAsync, BrowseMultipleNodesAsync
     ///   - CallMethodAsync
     ///   - CreateCloseSessionAsync, SessionLifecycleWithReadAsync
     ///   - MixedWorkloadAsync
     ///
+    ///   Throughput benchmarks (operations/second):
+    ///   - ReadSmallMessageBurstAsync, ReadMediumMessageBurstAsync, ReadLargeMessageBurstAsync
+    ///   - WriteSmallMessageBurstAsync
+    ///   - ReadThroughputAsync, WriteThroughputAsync
+    ///   - BrowseThroughputAsync, CallThroughputAsync
+    ///
     /// Available security policies (9 total, None is excluded):
     ///   - Basic128Rsa15, Basic256, Basic256Sha256
     ///   - Aes128_Sha256_RsaOaep, Aes256_Sha256_RsaPss
     ///   - ECC_nistP256, ECC_nistP384, ECC_brainpoolP256r1, ECC_brainpoolP384r1
+    ///
+    /// THROUGHPUT CALCULATION:
+    ///   Throughput benchmarks execute 100 operations and measure total time.
+    ///   Calculate ops/sec using: Throughput = 100 / (Mean time in seconds)
+    ///
+    ///   Example from results:
+    ///     Method: 'Read 100 ops (for throughput)'
+    ///     SecurityPolicy: Basic128Rsa15
+    ///     Mean: 140.8 ms = 0.1408 seconds
+    ///     Throughput = 100 / 0.1408 = 710 ops/sec
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -672,6 +687,130 @@ namespace Opc.Ua.Client.Tests
                 requests,
                 CancellationToken.None
             ).ConfigureAwait(false);
+        }
+        #endregion
+
+        #region Throughput Benchmarks
+        /// <summary>
+        /// Benchmark: Read throughput - measures read operations per second.
+        /// Executes 100 read operations and calculates ops/sec from elapsed time.
+        /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
+        /// </summary>
+        [Test, Order(850)]
+        [Benchmark(Description = "Read 100 ops (for throughput)")]
+        public async Task ReadThroughputAsync()
+        {
+            const int operationCount = 100;
+            for (int i = 0; i < operationCount; i++)
+            {
+                await Session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Both,
+                    m_smallReadValueIds,
+                    CancellationToken.None
+                ).ConfigureAwait(false);
+            }
+            // Throughput = 100 operations / Mean time in seconds
+            // Example: Mean=1000ms → Throughput = 100/1.0 = 100 ops/sec
+        }
+
+        /// <summary>
+        /// Benchmark: Write throughput - measures write operations per second.
+        /// Executes 100 write operations and calculates ops/sec from elapsed time.
+        /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
+        /// </summary>
+        [Test, Order(851)]
+        [Benchmark(Description = "Write 100 ops (for throughput)")]
+        public async Task WriteThroughputAsync()
+        {
+            const int operationCount = 100;
+            for (int i = 0; i < operationCount; i++)
+            {
+                var writeValues = new WriteValueCollection(
+                    m_smallTestSet.Select(nodeId => new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(i))
+                    })
+                );
+
+                await Session.WriteAsync(
+                    null,
+                    writeValues,
+                    CancellationToken.None
+                ).ConfigureAwait(false);
+            }
+            // Throughput = 100 operations / Mean time in seconds
+        }
+
+        /// <summary>
+        /// Benchmark: Browse throughput - measures browse operations per second.
+        /// Executes 100 browse operations and calculates ops/sec from elapsed time.
+        /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
+        /// </summary>
+        [Test, Order(852)]
+        [Benchmark(Description = "Browse 100 ops (for throughput)")]
+        public async Task BrowseThroughputAsync()
+        {
+            var nodesToBrowse = new BrowseDescriptionCollection
+            {
+                new BrowseDescription
+                {
+                    NodeId = ObjectIds.ObjectsFolder,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                    IncludeSubtypes = true,
+                    NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            };
+
+            const int operationCount = 100;
+            for (int i = 0; i < operationCount; i++)
+            {
+                await Session.BrowseAsync(
+                    null,
+                    null,
+                    0,
+                    nodesToBrowse,
+                    CancellationToken.None
+                ).ConfigureAwait(false);
+            }
+            // Throughput = 100 operations / Mean time in seconds
+        }
+
+        /// <summary>
+        /// Benchmark: Call throughput - measures method call operations per second.
+        /// Executes 100 call operations and calculates ops/sec from elapsed time.
+        /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
+        /// </summary>
+        [Test, Order(853)]
+        [Benchmark(Description = "Call 100 ops (for throughput)")]
+        public async Task CallThroughputAsync()
+        {
+            var inputArguments = new VariantCollection { new Variant((uint)0) };
+            var requests = new CallMethodRequestCollection
+            {
+                new CallMethodRequest
+                {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_GetMonitoredItems,
+                    InputArguments = inputArguments
+                }
+            };
+
+            const int operationCount = 100;
+            for (int i = 0; i < operationCount; i++)
+            {
+                await Session.CallAsync(
+                    null,
+                    requests,
+                    CancellationToken.None
+                ).ConfigureAwait(false);
+            }
+            // Throughput = 100 operations / Mean time in seconds
         }
         #endregion
 
