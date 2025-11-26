@@ -102,6 +102,16 @@ namespace Opc.Ua.Bindings
         public SecurityPolicyInfo SecurityPolicy { get; set; }
 
         /// <summary>
+        /// The secret used to compute the keys.
+        /// </summary>
+        internal byte[] Secret { get; set; }
+
+        /// <summary>
+        /// The previous server nonce used to compute the keys.
+        /// </summary>
+        internal byte[] PreviousSecret { get; set; }
+
+        /// <summary>
         /// The nonce provided by the client.
         /// </summary>
         public byte[] ClientNonce { get; set; }
@@ -140,5 +150,10 @@ namespace Opc.Ua.Bindings
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
         internal byte[] ServerInitializationVector { get; set; }
+
+        /// <summary>
+        /// The secret used to re-activate sessions on a new secure channel.
+        /// </summary>
+        internal byte[] SessionActivationSecret { get; set; }
     }
 }

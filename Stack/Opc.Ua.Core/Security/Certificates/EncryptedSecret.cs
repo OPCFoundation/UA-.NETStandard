@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 #if CURVE25519
@@ -46,8 +47,13 @@ namespace Opc.Ua
             ReceiverNonce = receiverNonce;
             ReceiverCertificate = receiverCertificate;
             Validator = validator;
-            SecurityPolicyUri = securityPolicyUri;
+            SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
             Context = context;
+
+            if (SecurityPolicy == null)
+            {
+                throw new ArgumentException($"Cannot resolve SecurityPolicy '{securityPolicyUri}'.", nameof(securityPolicyUri));
+            }
         }
 
         /// <summary>
@@ -86,343 +92,62 @@ namespace Opc.Ua
         public CertificateValidator Validator { get; }
 
         /// <summary>
-        /// Gets or sets the security policy URI.
+        /// Gets or sets the security policy.
         /// </summary>
-        public string SecurityPolicyUri { get; private set; }
+        public SecurityPolicyInfo SecurityPolicy { get; private set; }
 
         /// <summary>
         /// Service message context to use
         /// </summary>
         public IServiceMessageContext Context { get; }
 
-        /// <summary>
-        /// Encrypts a secret using the specified nonce, encrypting key, and initialization vector (IV).
-        /// </summary>
-        /// <param name="secret">The secret to encrypt.</param>
-        /// <param name="nonce">The nonce to use for encryption.</param>
-        /// <param name="encryptingKey">The key to use for encryption.</param>
-        /// <param name="iv">The initialization vector to use for encryption.</param>
-        /// <returns>The encrypted secret.</returns>
-        /// <exception cref="ServiceResultException"></exception>
-        private byte[] EncryptSecret(
-            byte[] secret,
-            byte[] nonce,
-            byte[] encryptingKey,
-            byte[] iv)
-        {
-#if CURVE25519
-            bool useAuthenticatedEncryption = false;
-            if (SenderCertificate.BcCertificate.GetPublicKey() is Ed25519PublicKeyParameters
-                || SenderCertificate.BcCertificate.GetPublicKey() is Ed448PublicKeyParameters)
-            {
-                useAuthenticatedEncryption = true;
-            }
-#endif
-            byte[] dataToEncrypt = null;
-
-            using (var encoder = new BinaryEncoder(Context))
-            {
-                encoder.WriteByteString(null, nonce);
-                encoder.WriteByteString(null, secret);
-
-                // add padding.
-                int paddingSize = iv.Length - ((encoder.Position + 2) % iv.Length);
-                paddingSize %= iv.Length;
-
-                if (secret.Length + paddingSize < iv.Length)
-                {
-                    paddingSize += iv.Length;
-                }
-
-                for (int ii = 0; ii < paddingSize; ii++)
-                {
-                    encoder.WriteByte(null, (byte)(paddingSize & 0xFF));
-                }
-
-                encoder.WriteUInt16(null, (ushort)paddingSize);
-
-                dataToEncrypt = encoder.CloseAndReturnBuffer();
-            }
-#if CURVE25519
-            if (useAuthenticatedEncryption)
-            {
-                return EncryptWithChaCha20Poly1305(encryptingKey, iv, dataToEncrypt);
-            }
-#endif
-            using (var aes = Aes.Create())
-            {
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;
-                aes.Key = encryptingKey;
-                aes.IV = iv;
-
-#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector, which could be potentially repeatable
-                using ICryptoTransform encryptor = aes.CreateEncryptor();
-#pragma warning restore CA5401 // Symmetric encryption uses non-default initialization vector, which could be potentially repeatable
-                if (dataToEncrypt.Length % encryptor.InputBlockSize != 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "Input data is not an even number of encryption blocks.");
-                }
-
-                encryptor.TransformBlock(dataToEncrypt, 0, dataToEncrypt.Length, dataToEncrypt, 0);
-            }
-
-            return dataToEncrypt;
-        }
-
-#if CURVE25519
-        /// <summary>
-        /// Encrypts the given data using the ChaCha20Poly1305 algorithm with the provided key and initialization vector (IV).
-        /// </summary>
-        /// <param name="encryptingKey">The key used for encryption.</param>
-        /// <param name="iv">The initialization vector used for encryption.</param>
-        /// <param name="dataToEncrypt">The data to be encrypted.</param>
-        /// <returns>The encrypted data.</returns>
-        private static byte[] EncryptWithChaCha20Poly1305(byte[] encryptingKey, byte[] iv, byte[] dataToEncrypt)
-        {
-            Utils.Trace($"EncryptKey={Utils.ToHexString(encryptingKey)}");
-            Utils.Trace($"EncryptIV={Utils.ToHexString(iv)}");
-
-            int signatureLength = 16;
-
-            AeadParameters parameters = new AeadParameters(
-                new KeyParameter(encryptingKey),
-                signatureLength * 8,
-                iv,
-                null);
-
-            ChaCha20Poly1305 encryptor = new ChaCha20Poly1305();
-            encryptor.Init(true, parameters);
-
-            byte[] ciphertext = new byte[encryptor.GetOutputSize(dataToEncrypt.Length)];
-            int length = encryptor.ProcessBytes(dataToEncrypt, 0, dataToEncrypt.Length, ciphertext, 0);
-            length += encryptor.DoFinal(ciphertext, length);
-
-            if (ciphertext.Length != length)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    $"CipherText not the expected size. [{ciphertext.Length} != {length}]");
-            }
-
-            return ciphertext;
-        }
-
-        /// <summary>
-        /// Decrypts the given data using the ChaCha20Poly1305 algorithm with the provided key and initialization vector (IV).
-        /// </summary>
-        /// <param name="encryptingKey">The key used for encryption.</param>
-        /// <param name="iv">The initialization vector used for encryption.</param>
-        /// <param name="dataToDecrypt">The data to be decrypted.</param>
-        /// <param name="offset">The offset in the data to start decrypting from.</param>
-        /// <param name="count">The number of bytes to decrypt.</param>
-        /// <returns>An <see cref="ArraySegment{T}"/> containing the decrypted data.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the plaintext is not the expected size or too short, or if the nonce is invalid.</exception>
-        private ArraySegment<byte> DecryptWithChaCha20Poly1305(
-            byte[] encryptingKey,
-            byte[] iv,
-            byte[] dataToDecrypt,
-            int offset,
-            int count)
-        {
-            Utils.Trace($"EncryptKey={Utils.ToHexString(encryptingKey)}");
-            Utils.Trace($"EncryptIV={Utils.ToHexString(iv)}");
-
-            int signatureLength = 16;
-
-            AeadParameters parameters = new AeadParameters(
-                new KeyParameter(encryptingKey),
-                signatureLength * 8,
-                iv,
-                null);
-
-            ChaCha20Poly1305 decryptor = new ChaCha20Poly1305();
-            decryptor.Init(false, parameters);
-
-            byte[] plaintext = new byte[decryptor.GetOutputSize(count)];
-            int length = decryptor.ProcessBytes(dataToDecrypt, offset, count, plaintext, 0);
-            length += decryptor.DoFinal(plaintext, length);
-
-            if (plaintext.Length != length || plaintext.Length < iv.Length)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    $"PlainText not the expected size or too short. [{count} != {length}]");
-            }
-
-            ushort paddingSize = plaintext[length - 1];
-            paddingSize <<= 8;
-            paddingSize += plaintext[length - 2];
-
-            int notvalid = (paddingSize < length) ? 0 : 1;
-            int start = length - paddingSize - 2;
-
-            for (int ii = 0; ii < length - 2 && ii < paddingSize; ii++)
-            {
-                if (start < 0 || start + ii >= plaintext.Length)
-                {
-                    notvalid |= 1;
-                    continue;
-                }
-
-                notvalid |= plaintext[start + ii] ^ (paddingSize & 0xFF);
-            }
-
-            if (notvalid != 0)
-            {
-                throw new ServiceResultException(StatusCodes.BadNonceInvalid);
-            }
-
-            return new ArraySegment<byte>(plaintext, 0, start);
-        }
-#endif
-
-        /// <summary>
-        /// Decrypts the specified data using the provided encrypting key and initialization vector (IV).
-        /// </summary>
-        /// <param name="dataToDecrypt">The data to decrypt.</param>
-        /// <param name="offset">The offset in the data to start decrypting from.</param>
-        /// <param name="count">The number of bytes to decrypt.</param>
-        /// <param name="encryptingKey">The key to use for decryption.</param>
-        /// <param name="iv">The initialization vector to use for decryption.</param>
-        /// <returns>The decrypted data.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the input data is not an even number of encryption blocks or if the nonce is invalid.</exception>
-        private ArraySegment<byte> DecryptSecret(
-            byte[] dataToDecrypt,
-            int offset,
-            int count,
-            byte[] encryptingKey,
-            byte[] iv)
-        {
-#if CURVE25519
-            bool useAuthenticatedEncryption = false;
-            if (SenderCertificate.BcCertificate.GetPublicKey() is Ed25519PublicKeyParameters
-                || SenderCertificate.BcCertificate.GetPublicKey() is Ed448PublicKeyParameters)
-            {
-                useAuthenticatedEncryption = true;
-            }
-            if (useAuthenticatedEncryption)
-            {
-                return DecryptWithChaCha20Poly1305(encryptingKey, iv, dataToDecrypt, offset, count);
-            }
-#endif
-            using (var aes = Aes.Create())
-            {
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;
-                aes.Key = encryptingKey;
-                aes.IV = iv;
-
-                using ICryptoTransform decryptor = aes.CreateDecryptor();
-                if (count % decryptor.InputBlockSize != 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "Input data is not an even number of encryption blocks.");
-                }
-
-                decryptor.TransformBlock(dataToDecrypt, offset, count, dataToDecrypt, offset);
-            }
-
-            ushort paddingSize = dataToDecrypt[offset + count - 1];
-            paddingSize <<= 8;
-            paddingSize += dataToDecrypt[offset + count - 2];
-
-            int notvalid = paddingSize < count ? 0 : 1;
-            int start = offset + count - paddingSize - 2;
-
-            for (int ii = 0; ii < count - 2 && ii < paddingSize; ii++)
-            {
-                if (start < 0 || start + ii >= dataToDecrypt.Length)
-                {
-                    notvalid |= 1;
-                    continue;
-                }
-
-                notvalid |= dataToDecrypt[start + ii] ^ (paddingSize & 0xFF);
-            }
-
-            if (notvalid != 0)
-            {
-                throw new ServiceResultException(StatusCodes.BadNonceInvalid);
-            }
-
-            return new ArraySegment<byte>(dataToDecrypt, offset, count - paddingSize);
-        }
-
-        private static readonly byte[] s_label = System.Text.Encoding.UTF8.GetBytes("opcua-secret");
+        private static readonly byte[] s_secretLabel = System.Text.Encoding.UTF8.GetBytes("opcua-secret");
 
         /// <summary>
         /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
         /// </summary>
-        /// <param name="securityPolicyUri">The security policy URI.</param>
-        /// <param name="senderNonce">The sender nonce.</param>
-        /// <param name="receiverNonce">The receiver nonce.</param>
-        /// <param name="forDecryption">if set to <c>true</c>, creates the keys for decryption; otherwise, creates the keys for encryption.</param>
-        /// <param name="encryptingKey">The encrypting key.</param>
-        /// <param name="iv">The initialization vector (IV).</param>
         private static void CreateKeysForEcc(
-            string securityPolicyUri,
-            Nonce senderNonce,
-            Nonce receiverNonce,
+            SecurityPolicyInfo securityPolicy,
+            Nonce localNonce,
+            Nonce remoteNonce,
             bool forDecryption,
             out byte[] encryptingKey,
             out byte[] iv)
         {
-            int encryptingKeySize;
-            int blockSize;
-            HashAlgorithmName algorithmName;
-
-            switch (securityPolicyUri)
-            {
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    blockSize = 16;
-                    encryptingKeySize = 16;
-                    algorithmName = HashAlgorithmName.SHA256;
-                    break;
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    encryptingKeySize = 32;
-                    blockSize = 16;
-                    algorithmName = HashAlgorithmName.SHA384;
-                    break;
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    encryptingKeySize = 32;
-                    blockSize = 12;
-                    algorithmName = HashAlgorithmName.SHA256;
-                    break;
-                default:
-                    encryptingKeySize = 32;
-                    blockSize = 16;
-                    algorithmName = HashAlgorithmName.SHA256;
-                    break;
-            }
+            int encryptingKeySize = securityPolicy.SymmetricEncryptionKeyLength;
+            int blockSize = securityPolicy.InitializationVectorLength;
 
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
+            byte[] secret = localNonce.GenerateSecret(remoteNonce, null);
             byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
-            byte[] salt = Utils.Append(keyLength, s_label, senderNonce.Data, receiverNonce.Data);
+
+            byte[] salt = (forDecryption) ?
+                Utils.Append(keyLength, s_secretLabel, remoteNonce.Data, localNonce.Data) :
+                Utils.Append(keyLength, s_secretLabel, localNonce.Data, remoteNonce.Data);
+
+            System.Console.WriteLine(
+                $"LOCAL={Utils.ToHexString(localNonce.Data).Substring(0, 8)} " +
+                $"REMOTE={Utils.ToHexString(remoteNonce.Data).Substring(0, 8)} " +
+                $"SALT={Utils.ToHexString(salt).Substring(0, 8)} ");
 
             byte[] keyData;
+
             if (forDecryption)
             {
-                keyData = receiverNonce.DeriveKey(
-                    senderNonce,
+                keyData = remoteNonce.DeriveKey(
+                    secret,
                     salt,
-                    algorithmName,
+                    securityPolicy.KeyDerivationAlgorithm,
                     encryptingKeySize + blockSize);
             }
             else
             {
-                keyData = senderNonce.DeriveKey(
-                    receiverNonce,
+                keyData = localNonce.DeriveKey(
+                    secret,
                     salt,
-                    algorithmName,
+                    securityPolicy.KeyDerivationAlgorithm,
                     encryptingKeySize + blockSize);
             }
 
@@ -443,7 +168,7 @@ namespace Opc.Ua
             byte[] message = null;
             int lengthPosition = 0;
 
-            int signatureLength = EccUtils.GetSignatureLength(SenderCertificate);
+            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
 
             using (var encoder = new BinaryEncoder(Context))
             {
@@ -454,7 +179,7 @@ namespace Opc.Ua
                 lengthPosition = encoder.Position;
                 encoder.WriteUInt32(null, 0);
 
-                encoder.WriteString(null, SecurityPolicyUri);
+                encoder.WriteString(null, SecurityPolicy.Uri);
 
                 byte[] senderCertificate = null;
 
@@ -498,24 +223,32 @@ namespace Opc.Ua
                 encoder.WriteByteString(null, receiverNonce);
 
                 // create keys.
-                if (EccUtils.IsEccPolicy(SecurityPolicyUri))
-                {
-                    CreateKeysForEcc(
-                        SecurityPolicyUri,
-                        SenderNonce,
-                        ReceiverNonce,
-                        false,
-                        out encryptingKey,
-                        out iv);
-                }
+                CreateKeysForEcc(
+                    SecurityPolicy,
+                    SenderNonce,
+                    ReceiverNonce,
+                    false,
+                    out encryptingKey,
+                    out iv);
 
-                // encrypt  secret,
-                byte[] encryptedData = EncryptSecret(secret, nonce, encryptingKey, iv);
+                // reserves space for padding and tag that is added by SymmetricEncryptAndSign.
+                var dataToEncrypt = new byte[4096];
+                using var stream = new MemoryStream(dataToEncrypt);
+                using var secretEncoder = new BinaryEncoder(stream, Context, false);
+
+                secretEncoder.WriteByteString(null, nonce);
+                secretEncoder.WriteByteString(null, secret);
+
+                var encryptedData = CryptoUtils.SymmetricEncryptAndSign(
+                    new ArraySegment<byte>(dataToEncrypt, 0, secretEncoder.Position),
+                    SecurityPolicy,
+                    encryptingKey,
+                    iv);
 
                 // append encrypted secret.
-                for (int ii = 0; ii < encryptedData.Length; ii++)
+                for (int ii = encryptedData.Offset; ii < encryptedData.Offset + encryptedData.Count; ii++)
                 {
-                    encoder.WriteByte(null, encryptedData[ii]);
+                    encoder.WriteByte(null, encryptedData.Array[ii]);
                 }
 
                 // save space for signature.
@@ -534,27 +267,16 @@ namespace Opc.Ua
             message[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
             message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
-            // get the algorithm used for the signature.
-            HashAlgorithmName signatureAlgorithm;
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    signatureAlgorithm = HashAlgorithmName.SHA384;
-                    break;
-                default:
-                    signatureAlgorithm = HashAlgorithmName.SHA256;
-                    break;
-            }
-
             var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
-            byte[] signature = EccUtils.Sign(dataToSign, SenderCertificate, signatureAlgorithm);
+            byte[] signature = CryptoUtils.Sign(dataToSign, SenderCertificate, SecurityPolicy.AsymmetricSignatureAlgorithm);
+
             Buffer.BlockCopy(
                 signature,
                 0,
                 message,
                 message.Length - signatureLength,
                 signatureLength);
+
             return message;
         }
 
@@ -595,25 +317,11 @@ namespace Opc.Ua
             // get the start of data.
             int startOfData = decoder.Position + dataToDecrypt.Offset;
 
-            SecurityPolicyUri = decoder.ReadString(null);
+            SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null));
 
-            if (!EccUtils.IsEccPolicy(SecurityPolicyUri))
+            if (SecurityPolicy.CertificateKeyFamily != CertificateKeyFamily.ECC)
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
-            }
-
-            // get the algorithm used for the signature.
-            HashAlgorithmName signatureAlgorithm;
-
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    signatureAlgorithm = HashAlgorithmName.SHA384;
-                    break;
-                default:
-                    signatureAlgorithm = HashAlgorithmName.SHA256;
-                    break;
             }
 
             // extract the send certificate and any chain.
@@ -673,7 +381,7 @@ namespace Opc.Ua
 
             int startOfEncryption = decoder.Position;
 
-            SenderNonce = Nonce.CreateNonce(SecurityPolicyUri, senderPublicKey);
+            SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey);
 
             if (!Utils.IsEqual(receiverPublicKey, ReceiverNonce.Data))
             {
@@ -683,7 +391,7 @@ namespace Opc.Ua
             }
 
             // check the signature.
-            int signatureLength = EccUtils.GetSignatureLength(SenderCertificate);
+            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
 
             if (signatureLength >= length)
             {
@@ -703,7 +411,7 @@ namespace Opc.Ua
                 0,
                 startOfData + (int)length - signatureLength);
 
-            if (!EccUtils.Verify(dataToSign, signature, SenderCertificate, signatureAlgorithm))
+            if (!CryptoUtils.Verify(dataToSign, signature, SenderCertificate, SecurityPolicy.AsymmetricSignatureAlgorithm))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
@@ -742,17 +450,19 @@ namespace Opc.Ua
                 telemetry);
 
             CreateKeysForEcc(
-                SecurityPolicyUri,
-                SenderNonce,
+                SecurityPolicy,
                 ReceiverNonce,
+                SenderNonce,
                 true,
                 out byte[] encryptingKey,
                 out byte[] iv);
 
-            ArraySegment<byte> plainText = DecryptSecret(
-                dataToDecrypt.Array,
-                dataToDecrypt.Offset,
-                dataToDecrypt.Count,
+            byte[] bytes = new byte[dataToDecrypt.Count];
+            Buffer.BlockCopy(dataToDecrypt.Array, dataToDecrypt.Offset, bytes, 0, dataToDecrypt.Count);
+
+            ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
+                new ArraySegment<byte>(bytes),
+                SecurityPolicy,
                 encryptingKey,
                 iv);
 
@@ -761,6 +471,7 @@ namespace Opc.Ua
                 plainText.Offset,
                 plainText.Count,
                 Context);
+
             byte[] actualNonce = decoder.ReadByteString(null);
 
             if (expectedNonce != null && expectedNonce.Length > 0)

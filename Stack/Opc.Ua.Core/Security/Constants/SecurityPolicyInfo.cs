@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 
 namespace Opc.Ua
@@ -98,6 +99,11 @@ namespace Opc.Ua
         public AsymmetricSignatureAlgorithm CertificateSignatureAlgorithm { get; private set; }
 
         /// <summary>
+        /// Returns algorithm family used to create asymmetric key pairs used with Certificates.
+        /// </summary>
+        public CertificateKeyFamily CertificateKeyFamily { get; private set; }
+
+        /// <summary>
         /// The algorithm used to create asymmetric key pairs used with Certificates.
         /// </summary>
         public CertificateKeyAlgorithm CertificateKeyAlgorithm { get; private set; }
@@ -134,9 +140,20 @@ namespace Opc.Ua
         public bool LegacySequenceNumbers { get; private set; }
 
         /// <summary>
+        /// If TRUE, the enhancements to the SecureChannel are required for the SecurityPolicy.
+        /// • Channel-bound Signature calculations in CreateSession/ActivateSession;
+        /// • Session transfer tokens in ActivateSession;
+        /// • Chained symmetric key derivation when renewing SecureChannels.
+        /// • Allow padding when using Authenticated Encryption;
+        /// </summary>
+        public bool SecureChannelEnhancements { get; private set; }
+
+        /// <summary>
         /// Whether the padding is required with symmetric encryption.
         /// </summary>
         public bool NoSymmetricEncryptionPadding =>
+            SymmetricEncryptionAlgorithm == SymmetricEncryptionAlgorithm.Aes256Gcm ||
+            SymmetricEncryptionAlgorithm == SymmetricEncryptionAlgorithm.Aes128Gcm ||
             SymmetricEncryptionAlgorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305;
 
         /// <summary>
@@ -152,10 +169,121 @@ namespace Opc.Ua
              BitConverter.GetBytes(SymmetricEncryptionKeyLength + InitializationVectorLength);
 
         /// <summary>
+        /// Returns the data to be signed by the server when creating a session.
+        /// </summary>
+        public byte[] GetUserTokenSignatureData(
+            byte[] secureChanneHash,
+            byte[] serverNonce,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] clientNonce)
+        {
+            byte[] data = null;
+
+            if (SecureChannelEnhancements)
+            {
+                data = Utils.Append(
+                    secureChanneHash,
+                    serverNonce,
+                    serverCertificate,
+                    serverChannelCertificate,
+                    clientCertificate,
+                    clientChannelCertificate,
+                    clientNonce);
+            }
+            else
+            {
+                data = Utils.Append(
+                    serverCertificate,
+                    serverNonce);
+            }
+
+            System.Console.WriteLine($"UserTokenSignatureData={Opc.Ua.Bindings.TcpMessageType.KeyToString(data)}");
+            return data;
+        }
+
+        /// <summary>
+        /// Returns the data to be signed by the server when creating a session.
+        /// </summary>
+        public byte[] GetServerSignatureData(
+            byte[] secureChanneHash,
+            byte[] clientNonce,
+            byte[] serverChannelCertificate,
+            byte[] clientCertificate,
+            byte[] clientChannelCertificate,
+            byte[] serverNonce)
+        {
+            byte[] data = null;
+
+            if (SecureChannelEnhancements)
+            {
+                data = Utils.Append(
+                    secureChanneHash,
+                    clientNonce,
+                    serverChannelCertificate,
+                    clientChannelCertificate,
+                    serverNonce);
+
+                System.Console.WriteLine($"secureChanneHash={Opc.Ua.Bindings.TcpMessageType.KeyToString(secureChanneHash)}");
+                System.Console.WriteLine($"clientNonce={Opc.Ua.Bindings.TcpMessageType.KeyToString(clientNonce)}");
+                System.Console.WriteLine($"serverChannelCertificate={Opc.Ua.Bindings.TcpMessageType.KeyToString(serverChannelCertificate)}");
+                System.Console.WriteLine($"clientChannelCertificate={Opc.Ua.Bindings.TcpMessageType.KeyToString(clientChannelCertificate)}");
+                System.Console.WriteLine($"serverNonce={Opc.Ua.Bindings.TcpMessageType.KeyToString(serverNonce)}");
+
+            }
+            else
+            {
+                data = Utils.Append(
+                    clientCertificate,
+                    clientNonce);
+            }
+
+            System.Console.WriteLine($"ServerSignatureData={Opc.Ua.Bindings.TcpMessageType.KeyToString(data)}");
+            return data;
+        }
+
+        /// <summary>
+        /// Returns the data to be signed by the client when creating a session.
+        /// </summary>
+        public byte[] GetClientSignatureData(
+            byte[] secureChannelHash,
+            byte[] serverNonce,
+            byte[] serverCertificate,
+            byte[] serverChannelCertificate,
+            byte[] clientChannelCertificate,
+            byte[] clientNonce)
+        {
+            byte[] data = null;
+
+            if (SecureChannelEnhancements)
+            {
+                data = Utils.Append(
+                    secureChannelHash,
+                    serverNonce,
+                    serverCertificate,
+                    serverChannelCertificate,
+                    clientChannelCertificate,
+                    clientNonce);
+            }
+            else
+            {
+                data = Utils.Append(
+                    serverCertificate,
+                    serverNonce);
+            }
+
+            System.Console.WriteLine($"ClientSignatureData={Opc.Ua.Bindings.TcpMessageType.KeyToString(data)}");
+            return data;
+        }
+
+        /// <summary>
         /// Returns a HMAC based on the symmetric signature algorithm.
         /// </summary>
         public HMAC CreateSignatureHmac(byte[] signingKey)
         {
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
             return SymmetricSignatureAlgorithm switch
             {
                 SymmetricSignatureAlgorithm.HmacSha1 => new HMACSHA1(signingKey),
@@ -163,6 +291,7 @@ namespace Opc.Ua
                 SymmetricSignatureAlgorithm.HmacSha384 => new HMACSHA384(signingKey),
                 _ => null
             };
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
         }
 
         /// <summary>
@@ -195,12 +324,14 @@ namespace Opc.Ua
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.None,
+            CertificateKeyFamily = CertificateKeyFamily.None,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.None,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.None,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.None,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.None,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.None,
-            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.None
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.None,
+            SecureChannelEnhancements = false
         };
 
         /// <summary>
@@ -219,6 +350,7 @@ namespace Opc.Ua
             LegacySequenceNumbers = true,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.RsaOaepSha1,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha1,
+            CertificateKeyFamily = CertificateKeyFamily.RSA,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha1,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.None,
@@ -244,6 +376,7 @@ namespace Opc.Ua
             LegacySequenceNumbers = true,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.RsaOaepSha1,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha1,
+            CertificateKeyFamily = CertificateKeyFamily.RSA,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha1,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.None,
@@ -268,6 +401,7 @@ namespace Opc.Ua
             LegacySequenceNumbers = true,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.RsaOaepSha1,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
+            CertificateKeyFamily = CertificateKeyFamily.RSA,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.None,
@@ -292,6 +426,7 @@ namespace Opc.Ua
             LegacySequenceNumbers = true,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.RsaOaepSha1,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
+            CertificateKeyFamily = CertificateKeyFamily.RSA,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.PSha256,
@@ -314,6 +449,7 @@ namespace Opc.Ua
             LegacySequenceNumbers = true,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.RsaOaepSha256,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPssSha256,
+            CertificateKeyFamily = CertificateKeyFamily.RSA,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.None,
@@ -326,9 +462,9 @@ namespace Opc.Ua
         };
 
         /// <summary>
-        /// ECC_curve25519 is a required minimum security policy. It uses ChaChaPoly and 256 bit encryption.
+        /// ECC curve25519 is a required minimum security policy. It uses ChaChaPoly and 256 bit encryption.
         /// </summary>
-        public static readonly SecurityPolicyInfo ECC_curve25519 = new(SecurityPolicies.ECC_curve25519)
+        public readonly static SecurityPolicyInfo ECC_curve25519 = new(SecurityPolicies.ECC_curve25519)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -340,19 +476,73 @@ namespace Opc.Ua
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure25519,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.Curve25519,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure25519,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.Curve25519,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = false,
             IsDeprecated = false
         };
 
         /// <summary>
-        /// ECC_curve448 is a required minimum security policy. It uses ChaChaPoly and 256 bit encryption.
+        /// ECC curve25519 is a required minimum security policy. It uses AES-GCM for symmetric encryption.
         /// </summary>
-        public static readonly SecurityPolicyInfo ECC_curve448 = new(SecurityPolicies.ECC_curve448)
+        public readonly static SecurityPolicyInfo ECC_curve25519_AES = new(SecurityPolicies.ECC_curve25519_AES)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 128 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 256,
+            MaxAsymmetricKeyLength = 256,
+            SecureChannelNonceLength = 32,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure25519,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.Curve25519,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure25519,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.Curve25519,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// ECC curve25519 is a required minimum security policy. It uses ChaCha20Poly1305 for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_curve25519_ChaChaPoly = new(SecurityPolicies.ECC_curve25519_ChaChaPoly)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 256,
+            MaxAsymmetricKeyLength = 256,
+            SecureChannelNonceLength = 32,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure25519,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.Curve25519,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure25519,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.Curve25519,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// ECC curve448 is a required minimum security policy. It uses ChaChaPoly and 256 bit encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_curve448 = new(SecurityPolicies.ECC_curve448)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -364,19 +554,73 @@ namespace Opc.Ua
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure448,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.Curve448,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure448,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.Curve448,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = false,
             IsDeprecated = false
         };
 
         /// <summary>
-        /// ECC nistP256 is a required minimum security policy.
+        /// ECC curve448 is a required minimum security policy. It uses AES-GCM for symmetric encryption.
         /// </summary>
-        public static readonly SecurityPolicyInfo ECC_nistP256 = new(SecurityPolicies.ECC_nistP256)
+        public readonly static SecurityPolicyInfo ECC_curve448_AES = new(SecurityPolicies.ECC_curve448_AES)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 128 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 456,
+            MaxAsymmetricKeyLength = 456,
+            SecureChannelNonceLength = 56,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure448,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.Curve448,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure448,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.Curve448,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// ECC Curve448 is a required minimum security policy. It uses ChaCha20Poly1305 for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_curve448_ChaChaPoly = new(SecurityPolicies.ECC_curve448_ChaChaPoly)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 456,
+            MaxAsymmetricKeyLength = 456,
+            SecureChannelNonceLength = 56,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure448,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.Curve448,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaPure448,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.Curve448,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC nistP256 is a required minimum security policy.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_nistP256 = new(SecurityPolicies.ECC_nistP256)
         {
             DerivedSignatureKeyLength = 256 / 8,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -388,19 +632,73 @@ namespace Opc.Ua
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
+            SecureChannelEnhancements = false,
             IsDeprecated = false
         };
 
         /// <summary>
-        /// ECC nistP384 is an optional high security policy.
+        /// The ECC_nistP256_AES is an ECC nistP256 variant that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public static readonly SecurityPolicyInfo ECC_nistP384 = new(SecurityPolicies.ECC_nistP384)
+        public readonly static SecurityPolicyInfo ECC_nistP256_AES = new(SecurityPolicies.ECC_nistP256_AES)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 128 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 256,
+            MaxAsymmetricKeyLength = 256,
+            SecureChannelNonceLength = 64,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC_nistP256_AES is an ECC nistP256 variant that uses ChaCha20Poly1305 for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_nistP256_ChaChaPoly = new(SecurityPolicies.ECC_nistP256_ChaChaPoly)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 256,
+            MaxAsymmetricKeyLength = 256,
+            SecureChannelNonceLength = 64,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC nistP384 is an optional high security policy.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_nistP384 = new(SecurityPolicies.ECC_nistP384)
         {
             DerivedSignatureKeyLength = 384 / 8,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -412,19 +710,73 @@ namespace Opc.Ua
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP384,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP384,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha384,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha384,
+            SecureChannelEnhancements = false,
             IsDeprecated = false
         };
 
         /// <summary>
-        /// ECC brainpoolP256r1 is a required minimum security policy.
+        /// The ECC nistP384 is an optional high security policy that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public static readonly SecurityPolicyInfo ECC_brainpoolP256r1 = new(SecurityPolicies.ECC_brainpoolP256r1)
+        public readonly static SecurityPolicyInfo ECC_nistP384_AES = new(SecurityPolicies.ECC_nistP384_AES)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 384,
+            MaxAsymmetricKeyLength = 384,
+            SecureChannelNonceLength = 96,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP384,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP384,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha384,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC nistP384 is an optional high security policy that uses ChaCha20Poly1305 for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_nistP384_ChaChaPoly = new(SecurityPolicies.ECC_nistP384_ChaChaPoly)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 384,
+            MaxAsymmetricKeyLength = 384,
+            SecureChannelNonceLength = 96,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP384,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP384,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha384,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC brainpoolP256r1 is a required minimum security policy.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1 = new(SecurityPolicies.ECC_brainpoolP256r1)
         {
             DerivedSignatureKeyLength = 256 / 8,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -436,23 +788,77 @@ namespace Opc.Ua
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP256r1,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
+            SecureChannelEnhancements = false,
             IsDeprecated = false
         };
 
         /// <summary>
-        /// ECC brainpoolP384r1 is an optional high security policy.
+        /// The ECC_brainpoolP256r1_AES is an ECC brainpoolP256 variant that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public static readonly SecurityPolicyInfo ECC_brainpoolP384r1 = new(SecurityPolicies.ECC_brainpoolP384r1)
+        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_AES = new (SecurityPolicies.ECC_brainpoolP256r1_AES)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 128 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 256,
+            MaxAsymmetricKeyLength = 256,
+            SecureChannelNonceLength = 64,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP256r1,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP256r1,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC_brainpoolP256_AES is an ECC brainpoolP256 variant that uses ChaCha20Poly1305 for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 256,
+            MaxAsymmetricKeyLength = 256,
+            SecureChannelNonceLength = 64,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP256r1,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP256r1,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC brainpoolP384r1 is an optional high security policy.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1 = new(SecurityPolicies.ECC_brainpoolP384r1)
         {
             DerivedSignatureKeyLength = 384 / 8,
             SymmetricEncryptionKeyLength = 256 / 8,
-            InitializationVectorLength = 128 / 8,
+            InitializationVectorLength = 96 / 8,
             SymmetricSignatureLength = 384 / 8,
             MinAsymmetricKeyLength = 384,
             MaxAsymmetricKeyLength = 384,
@@ -460,14 +866,141 @@ namespace Opc.Ua
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP384r1,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP384r1,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha384,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha384,
+            SecureChannelEnhancements = false,
             IsDeprecated = false
         };
+
+        /// <summary>
+        /// The ECC brainpoolP384r1 is an optional high security policy that uses AES-GCM for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1_AES = new(SecurityPolicies.ECC_brainpoolP384r1_AES)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 384,
+            MaxAsymmetricKeyLength = 384,
+            SecureChannelNonceLength = 96,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP384r1,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP384r1,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha384,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Gcm,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes256Gcm,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The ECC brainpoolP384r1 is an optional high security policy that uses ChaCha20Poly1305 for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 384,
+            MaxAsymmetricKeyLength = 384,
+            SecureChannelNonceLength = 96,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            CertificateKeyFamily = CertificateKeyFamily.ECC,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP384r1,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha384,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP384r1,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha384,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The RSA_DH_AES_GCM is an high security policy that uses AES GCM for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo RSA_DH_AES_GCM = new(SecurityPolicies.RSA_DH_AES_GCM)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 128 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 2048,
+            MaxAsymmetricKeyLength = 4096,
+            SecureChannelNonceLength = 96,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPssSha256,
+            CertificateKeyFamily = CertificateKeyFamily.RSA,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Gcm,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+
+        /// <summary>
+        /// The RSA_DH_ChaChaPoly is an high security policy that uses ChaCha20Poly1305 for symmetric encryption.
+        /// </summary>
+        public readonly static SecurityPolicyInfo RSA_DH_ChaChaPoly = new(SecurityPolicies.RSA_DH_ChaChaPoly)
+        {
+            DerivedSignatureKeyLength = 0,
+            SymmetricEncryptionKeyLength = 256 / 8,
+            InitializationVectorLength = 96 / 8,
+            SymmetricSignatureLength = 128 / 8,
+            MinAsymmetricKeyLength = 2048,
+            MaxAsymmetricKeyLength = 4096,
+            SecureChannelNonceLength = 64,
+            LegacySequenceNumbers = false,
+            AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPssSha256,
+            CertificateKeyFamily = CertificateKeyFamily.RSA,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
+            CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
+            EphemeralKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
+            KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
+            SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
+            SecureChannelEnhancements = true,
+            IsDeprecated = false
+        };
+    }
+
+    /// <summary>
+    /// The algorithm family used to generate key pairs.
+    /// </summary>
+    public enum CertificateKeyFamily
+    {
+        /// <summary>
+        /// Does not apply.
+        /// </summary>
+        None,
+
+        /// <summary>
+        /// The RSA algorithm.
+        /// </summary>
+        RSA,
+
+        /// <summary>
+        /// Ellipic curve algorithms.
+        /// </summary>
+        ECC
     }
 
     /// <summary>
@@ -655,9 +1188,14 @@ namespace Opc.Ua
         ChaCha20Poly1305,
 
         /// <summary>
-        /// AES GCM with 128 bit tag
+        /// AES GCM with 128 bit key
         /// </summary>
-        Aes128Gcm
+        Aes128Gcm,
+
+        /// <summary>
+        /// AES GCM with 256 bit key
+        /// </summary>
+        Aes256Gcm
     }
 
     /// <summary>

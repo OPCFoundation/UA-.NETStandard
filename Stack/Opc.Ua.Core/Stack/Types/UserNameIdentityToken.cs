@@ -58,7 +58,7 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            if (!EccUtils.IsEccPolicy(securityPolicyUri))
+            if (!CryptoUtils.IsEccPolicy(securityPolicyUri))
             {
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
@@ -98,7 +98,7 @@ namespace Opc.Ua
                     receiverCertificate,
                     receiverEphemeralKey,
                     senderCertificate,
-                    Nonce.CreateNonce(securityPolicyUri),
+                    Nonce.CreateNonce(SecurityPolicies.GetInfo(securityPolicyUri)),
                     null,
                     doNotEncodeSenderCertificate);
 
@@ -138,7 +138,7 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            if (!EccUtils.IsEccPolicy(securityPolicyUri))
+            if (!CryptoUtils.IsEccPolicy(securityPolicyUri))
             {
                 var encryptedData = new EncryptedData
                 {

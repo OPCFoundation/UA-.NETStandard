@@ -35,11 +35,6 @@ namespace Opc.Ua
     public interface ISecureChannel
     {
         /// <summary>
-        /// Gets the channel's current security token.
-        /// </summary>
-        ChannelToken? CurrentToken { get; }
-
-        /// <summary>
         /// Register for token change events
         /// </summary>
         event ChannelTokenActivatedEventHandler OnTokenActivated;
@@ -98,6 +93,26 @@ namespace Opc.Ua
         /// Throws if the channel is not yet opened.
         /// </summary>
         EndpointConfiguration EndpointConfiguration { get; }
+
+        /// <summary>
+        /// The unique identifier for the secure channel.
+        /// </summary>
+        byte[] SecureChannelHash { get; }
+
+        /// <summary>
+        /// A secret used to re-activate sessions on a new secure channel.
+        /// </summary>
+        byte[] SessionActivationSecret { get; }
+
+        /// <summary>
+        /// The client certificate used to establsih the secure channel.
+        /// </summary>
+        byte[] ClientChannelCertificate { get; }
+
+        /// <summary>
+        /// The server certificate used to establsih the secure channel.
+        /// </summary>
+        byte[] ServerChannelCertificate { get; }
 
         /// <summary>
         /// Gets the context used when serializing messages exchanged

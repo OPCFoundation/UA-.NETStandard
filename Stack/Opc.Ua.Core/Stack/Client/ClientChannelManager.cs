@@ -362,6 +362,18 @@ namespace Opc.Ua
             public IServiceMessageContext MessageContext => m_channel.MessageContext;
 
             /// <inheritdoc/>
+            public byte[] SecureChannelHash => m_channel?.SecureChannelHash ?? [];
+
+            /// <inheritdoc/>
+            public byte[] SessionActivationSecret => m_channel?.SessionActivationSecret ?? [];
+
+            /// <inheritdoc/>
+            public byte[] ClientChannelCertificate => m_channel?.ClientChannelCertificate ?? [];
+
+            /// <inheritdoc/>
+            public byte[] ServerChannelCertificate => m_channel?.ServerChannelCertificate ?? [];
+
+            /// <inheritdoc/>
             public int OperationTimeout
             {
                 get => m_channel.OperationTimeout;

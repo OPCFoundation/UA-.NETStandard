@@ -537,10 +537,19 @@ namespace Opc.Ua.Server
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
-                        serverSignature = SecurityPolicies.Sign(
-                            instanceCertificate,
+                        SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
+
+                        byte[] dataToSign = securityPolicy.GetServerSignatureData(
+                            context.ChannelContext.SecureChannelHash,
+                            clientNonce,
+                            context.ChannelContext.ServerChannelCertificate,
+                            parsedClientCertificate.RawData,
+                            context.ChannelContext.ClientChannelCertificate,
+                            serverNonce);
+
+                        serverSignature = SecurityPolicies.CreateSignatureData(
                             context.SecurityPolicyUri,
+                            instanceCertificate,
                             dataToSign);
                     }
                 }
@@ -640,18 +649,18 @@ namespace Opc.Ua.Server
 
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
-                    if (ii.Key == "ECDHPolicyUri")
+                    if (ii.Key == AdditionalParameterNames.ECDHPolicyUri)
                     {
                         string policyUri = ii.Value.ToString();
 
-                        if (EccUtils.IsEccPolicy(policyUri))
+                        if (CryptoUtils.IsEccPolicy(policyUri))
                         {
                             session.SetEccUserTokenSecurityPolicy(policyUri);
                             EphemeralKeyType key = session.GetNewEccKey();
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = "ECDHKey",
+                                    Key = AdditionalParameterNames.ECDHKey,
                                     Value = new ExtensionObject(key)
                                 });
                         }
@@ -660,7 +669,7 @@ namespace Opc.Ua.Server
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = "ECDHKey",
+                                    Key = AdditionalParameterNames.ECDHKey,
                                     Value = StatusCodes.BadSecurityPolicyRejected
                                 });
                         }
@@ -689,7 +698,7 @@ namespace Opc.Ua.Server
             {
                 response = new AdditionalParametersType();
                 response.Parameters
-                    .Add(new KeyValuePair { Key = "ECDHKey", Value = new ExtensionObject(key) });
+                    .Add(new KeyValuePair { Key = AdditionalParameterNames.ECDHKey, Value = new ExtensionObject(key) });
             }
 
             return response;

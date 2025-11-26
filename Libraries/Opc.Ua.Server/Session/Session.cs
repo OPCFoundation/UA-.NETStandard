@@ -312,7 +312,7 @@ namespace Opc.Ua.Server
 
                 var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data };
 
-                key.Signature = EccUtils.Sign(
+                key.Signature = CryptoUtils.Sign(
                     new ArraySegment<byte>(key.PublicKey),
                     m_serverCertificate,
                     m_eccUserTokenSecurityPolicyUri);
@@ -473,15 +473,21 @@ namespace Opc.Ua.Server
                             StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(
-                        m_serverCertificate.RawData,
-                        m_serverNonce.Data);
+                    var securityPolicy = SecurityPolicies.GetInfo(EndpointDescription.SecurityPolicyUri);
 
-                    if (!SecurityPolicies.Verify(
-                            ClientCertificate,
+                    byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                        context.ChannelContext.SecureChannelHash,
+                        m_serverNonce.Data,
+                        m_serverCertificate.RawData,
+                        context.ChannelContext.ServerChannelCertificate,
+                        context.ChannelContext.ClientChannelCertificate,
+                        ClientNonce);
+
+                    if (!SecurityPolicies.VerifySignatureData(
+                            clientSignature,
                             EndpointDescription.SecurityPolicyUri,
-                            dataToSign,
-                            clientSignature))
+                            ClientCertificate,
+                            dataToSign))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -502,15 +508,19 @@ namespace Opc.Ua.Server
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(
+                            dataToSign = securityPolicy.GetClientSignatureData(
+                                context.ChannelContext.SecureChannelHash,
+                                m_serverNonce.Data,
                                 serverCertificateChainData,
-                                m_serverNonce.Data);
+                                context.ChannelContext.ServerChannelCertificate,
+                                context.ChannelContext.ClientChannelCertificate,
+                                ClientNonce);
 
-                            if (!SecurityPolicies.Verify(
-                                    ClientCertificate,
-                                    EndpointDescription.SecurityPolicyUri,
-                                    dataToSign,
-                                    clientSignature))
+                            if (!SecurityPolicies.VerifySignatureData(
+                                  clientSignature,
+                                  EndpointDescription.SecurityPolicyUri,
+                                  ClientCertificate,
+                                  dataToSign))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadApplicationSignatureInvalid);
@@ -543,6 +553,7 @@ namespace Opc.Ua.Server
 
                 // validate the user identity token.
                 identityToken = ValidateUserIdentityToken(
+                    context,
                     userIdentityToken,
                     userTokenSignature,
                     out userTokenPolicy);
@@ -848,6 +859,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private UserIdentityToken ValidateUserIdentityToken(
+            OperationContext context,
             ExtensionObject identityToken,
             SignatureData userTokenSignature,
             out UserTokenPolicy policy)
@@ -1040,9 +1052,16 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    byte[] dataToSign = Utils.Append(
+                    var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+                    byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
+                        context.ChannelContext.SecureChannelHash,
+                        m_serverNonce.Data,
                         m_serverCertificate.RawData,
-                        m_serverNonce.Data);
+                        context.ChannelContext.ServerChannelCertificate,
+                        ClientCertificate?.RawData,
+                        context.ChannelContext.ClientChannelCertificate,
+                        ClientNonce ?? []);
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_server.Telemetry))
                     {

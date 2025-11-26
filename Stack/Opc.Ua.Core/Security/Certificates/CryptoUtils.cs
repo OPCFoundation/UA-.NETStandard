@@ -13,6 +13,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
@@ -32,7 +33,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines functions to implement ECC cryptography.
     /// </summary>
-    public static class EccUtils
+    public static class CryptoUtils
     {
         /// <summary>
         /// The name of the NIST P-256 curve.
@@ -64,9 +65,11 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEccPolicy(string securityPolicyUri)
         {
-            if (securityPolicyUri != null)
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            if (info != null)
             {
-                return securityPolicyUri.Contains("#ECC_", StringComparison.Ordinal);
+                return info.CertificateKeyFamily == CertificateKeyFamily.ECC;
             }
 
             return false;
@@ -332,8 +335,8 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate,
             string securityPolicyUri)
         {
-            HashAlgorithmName algorithm = GetSignatureAlgorithmName(securityPolicyUri);
-            return Sign(dataToSign, signingCertificate, algorithm);
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            return Sign(dataToSign, signingCertificate, info.AsymmetricSignatureAlgorithm);
         }
 
         /// <summary>
@@ -343,53 +346,23 @@ namespace Opc.Ua
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm)
+            AsymmetricSignatureAlgorithm algorithm)
         {
-#if CURVE25519
-            var publicKey = signingCertificate.BcCertificate.GetPublicKey();
+            // get the algorithm used for the signature.
+            HashAlgorithmName hashAlgorithm;
 
-            if (publicKey is Ed25519PublicKeyParameters)
+            switch (algorithm)
             {
-                var signer = new Ed25519Signer();
-
-                signer.Init(true, signingCertificate.BcPrivateKey);
-                signer.BlockUpdate(dataToSign.Array, dataToSign.Offset, dataToSign.Count);
-                byte[] signature = signer.GenerateSignature();
-#if DEBUG
-                var verifier = new Ed25519Signer();
-
-                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
-                verifier.BlockUpdate(dataToSign.Array, dataToSign.Offset, dataToSign.Count);
-
-                if (!verifier.VerifySignature(signature))
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Could not verify signature.");
-                }
-#endif
-                return signature;
+                case AsymmetricSignatureAlgorithm.EcdsaSha384:
+                    hashAlgorithm = HashAlgorithmName.SHA384;
+                    break;
+                case AsymmetricSignatureAlgorithm.EcdsaSha256:
+                    hashAlgorithm = HashAlgorithmName.SHA256;
+                    break;
+                default:
+                    throw new NotSupportedException($"AsymmetricSignatureAlgorithm not supported: {algorithm}");
             }
 
-            if (publicKey is Ed448PublicKeyParameters)
-            {
-                var signer = new Ed448Signer(new byte[32]);
-
-                signer.Init(true, signingCertificate.BcPrivateKey);
-                signer.BlockUpdate(dataToSign.Array, dataToSign.Offset, dataToSign.Count);
-                byte[] signature = signer.GenerateSignature();
-#if DEBUG
-                var verifier = new Ed448Signer(new byte[32]);
-
-                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
-                verifier.BlockUpdate(dataToSign.Array, dataToSign.Offset, dataToSign.Count);
-
-                if (!verifier.VerifySignature(signature))
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Could not verify signature.");
-                }
-#endif
-                return signature;
-            }
-#endif
             ECDsa senderPrivateKey =
                 signingCertificate.GetECDsaPrivateKey()
                 ?? throw new ServiceResultException(
@@ -402,19 +375,7 @@ namespace Opc.Ua
                     dataToSign.Array,
                     dataToSign.Offset,
                     dataToSign.Count,
-                    algorithm);
-
-#if DEBUGxxx
-                using (ECDsa ecdsa = EccUtils.GetPublicKey(new X509Certificate2(signingCertificate.RawData)))
-                {
-                    if (!ecdsa.VerifyData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, signature, algorithm))
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadSecurityChecksFailed,
-                            "Could not verify signature.");
-                    }
-                }
-#endif
+                    hashAlgorithm);
 
                 return signature;
             }
@@ -429,11 +390,20 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate,
             string securityPolicyUri)
         {
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            if (info == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    $"Unknown security policy: {securityPolicyUri}");
+            }
+
             return Verify(
                 dataToVerify,
                 signature,
                 signingCertificate,
-                GetSignatureAlgorithmName(securityPolicyUri));
+                info.AsymmetricSignatureAlgorithm);
         }
 
         /// <summary>
@@ -443,48 +413,31 @@ namespace Opc.Ua
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm)
+            AsymmetricSignatureAlgorithm algorithm)
         {
-#if CURVE25519
-            var publicKey = signingCertificate.BcCertificate.GetPublicKey();
+            // get the algorithm used for the signature.
+            HashAlgorithmName hashAlgorithm;
 
-            if (publicKey is Ed25519PublicKeyParameters)
+            switch (algorithm)
             {
-                var verifier = new Ed25519Signer();
-
-                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
-                verifier.BlockUpdate(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count);
-
-                if (!verifier.VerifySignature(signature))
-                {
-                    return false;
-                }
-
-                return true;
+                case AsymmetricSignatureAlgorithm.EcdsaSha384:
+                    hashAlgorithm = HashAlgorithmName.SHA384;
+                    break;
+                case AsymmetricSignatureAlgorithm.EcdsaSha256:
+                    hashAlgorithm = HashAlgorithmName.SHA256;
+                    break;
+                default:
+                    throw new NotSupportedException($"AsymmetricSignatureAlgorithm not supported: {algorithm}.");
             }
 
-            if (publicKey is Ed448PublicKeyParameters)
-            {
-                var verifier = new Ed448Signer(new byte[32]);
-
-                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
-                verifier.BlockUpdate(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count);
-
-                if (!verifier.VerifySignature(signature))
-                {
-                    return false;
-                }
-
-                return true;
-            }
-#endif
             using ECDsa ecdsa = GetPublicKey(signingCertificate);
+
             return ecdsa.VerifyData(
                 dataToVerify.Array,
                 dataToVerify.Offset,
                 dataToVerify.Count,
                 signature,
-                algorithm);
+                hashAlgorithm);
         }
 
         /// <summary>
@@ -561,21 +514,15 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the buffer using the algorithm specified by the security policy.
         /// </summary>
-        /// <param name="data">The data to encrypt.</param>
-        /// <param name="securityPolicy">The security policy to use.</param>
-        /// <param name="encryptingKey">The key to use for encryption.</param>
-        /// <param name="iv">The initialization vector to use for encryption.</param>
-        /// <param name="signingKey">The key to use for signing.</param>
-        /// <param name="signOnly">If TRUE, the data is not encrypted.</param>
-        /// <returns>The encrypted buffer.</returns>
-        /// <exception cref="NotSupportedException"></exception>
         public static ArraySegment<byte> SymmetricEncryptAndSign(
             ArraySegment<byte> data,
             SecurityPolicyInfo securityPolicy,
             byte[] encryptingKey,
             byte[] iv,
             byte[] signingKey = null,
-            bool signOnly = false)
+            bool signOnly = false,
+            uint tokenId = 0,
+            uint lastSequenceNumber = 0)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
@@ -587,7 +534,7 @@ namespace Opc.Ua
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
 #if NET8_0_OR_GREATER
-                return EncryptWithAesGcm(encryptingKey, iv, signOnly, data);
+                return EncryptWithAesGcm(data, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber);
 #else
                 throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
 #endif
@@ -601,7 +548,8 @@ namespace Opc.Ua
                     encryptingKey,
                     iv,
                     signOnly,
-                    true);
+                    tokenId,
+                    lastSequenceNumber);
 #else
                 throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
 #endif
@@ -632,6 +580,7 @@ namespace Opc.Ua
 
             if (!signOnly)
             {
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
                 using var aes = Aes.Create();
 
                 aes.Mode = CipherMode.CBC;
@@ -640,6 +589,7 @@ namespace Opc.Ua
                 aes.IV = iv;
 
                 using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
 
                 encryptor.TransformBlock(
                     data.Array,
@@ -653,6 +603,23 @@ namespace Opc.Ua
         }
 
 #if NET8_0_OR_GREATER
+        private static byte[] ApplyAeadMask(uint tokenId, uint lastSequenceNumber, byte[] iv)
+        {
+            var copy = new byte[iv.Length];
+            Buffer.BlockCopy(iv, 0, copy, 0, iv.Length);
+
+            copy[0] ^= (byte)((tokenId & 0x000000FF));
+            copy[1] ^= (byte)((tokenId & 0x0000FF00) >> 8);
+            copy[2] ^= (byte)((tokenId & 0x00FF0000) >> 16);
+            copy[3] ^= (byte)((tokenId & 0xFF000000) >> 24);
+            copy[4] ^= (byte)((lastSequenceNumber & 0x000000FF));
+            copy[5] ^= (byte)((lastSequenceNumber & 0x0000FF00) >> 8);
+            copy[6] ^= (byte)((lastSequenceNumber & 0x00FF0000) >> 16);
+            copy[7] ^= (byte)((lastSequenceNumber & 0xFF000000) >> 24);
+
+            return copy;
+        }
+
         private const int kChaChaPolyIvLength = 12;
         private const int kChaChaPolyTagLength = 16;
 
@@ -661,7 +628,8 @@ namespace Opc.Ua
             byte[] encryptingKey,
             byte[] iv,
             bool signOnly,
-            bool noPadding)
+            uint tokenId,
+            uint lastSequenceNumber)
         {
             if (encryptingKey == null || encryptingKey.Length != 32)
             {
@@ -671,11 +639,6 @@ namespace Opc.Ua
             if (iv == null || iv.Length != kChaChaPolyIvLength)
             {
                 throw new ArgumentException("ChaCha20-Poly1305 requires a 96-bit (12-byte) nonce.", nameof(iv));
-            }
-
-            if (!noPadding && !signOnly)
-            {
-                data = AddPadding(data, iv.Length);
             }
 
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
@@ -688,12 +651,21 @@ namespace Opc.Ua
 
             using var chacha = new ChaCha20Poly1305(encryptingKey);
 
+            iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
+
             chacha.Encrypt(
                 iv,
                 signOnly ? Array.Empty<byte>() : data,
                 ciphertext,
                 tag,
                 extraData);
+
+#if xDEBUG
+            Console.WriteLine($"E.iv={TcpMessageType.KeyToString(iv)}");
+            Console.WriteLine($"E.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
+            Console.WriteLine($"E.tag={TcpMessageType.KeyToString(tag)}");
+            Console.WriteLine($"E.ciphertext={TcpMessageType.KeyToString(ciphertext)}");
+#endif
 
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
@@ -716,7 +688,8 @@ namespace Opc.Ua
            byte[] encryptingKey,
            byte[] iv,
            bool signOnly,
-           bool noPadding)
+           uint tokenId,
+           uint lastSequenceNumber)
         {
             if (encryptingKey == null || encryptingKey.Length != 32)
             {
@@ -752,6 +725,15 @@ namespace Opc.Ua
 
             using var chacha = new ChaCha20Poly1305(encryptingKey);
 
+            iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
+
+#if xDEBUG
+            Console.WriteLine($"D.iv={TcpMessageType.KeyToString(iv)}");
+            Console.WriteLine($"D.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
+            Console.WriteLine($"D.tag={TcpMessageType.KeyToString(tag.ToArray())}");
+            Console.WriteLine($"D.ciphertext={TcpMessageType.KeyToString(encryptedData.ToArray())}");
+#endif
+
             chacha.Decrypt(
                 iv,
                 encryptedData,
@@ -765,11 +747,6 @@ namespace Opc.Ua
                 Buffer.BlockCopy(plaintext, 0, data.Array, data.Offset, encryptedData.Count);
             }
 
-            if (!noPadding && !signOnly)
-            {
-                return RemovePadding(new ArraySegment<byte>(data.Array, data.Offset, data.Count - kChaChaPolyTagLength), iv.Length);
-            }
-
             return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count - kChaChaPolyTagLength);
         }
 #endif
@@ -779,10 +756,12 @@ namespace Opc.Ua
         private const int kAesGcmTagLength = 16;
 
         private static ArraySegment<byte> EncryptWithAesGcm(
+            ArraySegment<byte> data,
             byte[] encryptingKey,
             byte[] iv,
             bool signOnly,
-            ArraySegment<byte> data)
+            uint tokenId,
+            uint lastSequenceNumber)
         {
             if (encryptingKey == null)
             {
@@ -792,11 +771,6 @@ namespace Opc.Ua
             if (iv == null || iv.Length != kAesGcmIvLength)
             {
                 throw new ArgumentException("AES-GCM requires a 96-bit (12-byte) IV/nonce.", nameof(iv));
-            }
-
-            if (!signOnly)
-            {
-                data = AddPadding(data, iv.Length);
             }
 
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
@@ -809,12 +783,22 @@ namespace Opc.Ua
 
             using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
 
+            //Console.WriteLine($"Prior={TcpMessageType.KeyToString(iv)} tokenId={tokenId} lastSequenceNumber={lastSequenceNumber}");
+            iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
+
             aesGcm.Encrypt(
                 iv,
                 signOnly ? Array.Empty<byte>() : data,
                 ciphertext,
                 tag,
                 extraData);
+
+#if xDEBUG
+            Console.WriteLine($"E.iv={TcpMessageType.KeyToString(iv)}");
+            Console.WriteLine($"E.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
+            Console.WriteLine($"E.tag={TcpMessageType.KeyToString(tag)}");
+            Console.WriteLine($"E.ciphertext={TcpMessageType.KeyToString(ciphertext)}");
+#endif
 
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
@@ -836,7 +820,9 @@ namespace Opc.Ua
             ArraySegment<byte> data,
             byte[] encryptingKey,
             byte[] iv,
-            bool signOnly)
+            bool signOnly,
+            uint tokenId,
+            uint lastSequenceNumber)
         {
             if (encryptingKey == null)
             {
@@ -872,6 +858,16 @@ namespace Opc.Ua
 
             using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
 
+            //Console.WriteLine($"Prior={TcpMessageType.KeyToString(iv)} tokenId={tokenId} lastSequenceNumber={lastSequenceNumber}");
+            iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
+
+#if xDEBUG
+            Console.WriteLine($"D.iv={TcpMessageType.KeyToString(iv)}");
+            Console.WriteLine($"D.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
+            Console.WriteLine($"D.tag={TcpMessageType.KeyToString(tag.ToArray())}");
+            Console.WriteLine($"D.ciphertext={TcpMessageType.KeyToString(encryptedData.ToArray())}");
+#endif
+
             aesGcm.Decrypt(
                 iv,
                 encryptedData,
@@ -885,27 +881,24 @@ namespace Opc.Ua
                 Buffer.BlockCopy(plaintext, 0, data.Array, data.Offset, encryptedData.Count);
             }
 
-            if (!signOnly)
-            {
-                return RemovePadding(new ArraySegment<byte>(data.Array, data.Offset, data.Count - kAesGcmTagLength), iv.Length);
-            }
-
             return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count - kAesGcmTagLength);
         }
 #endif
 
-        /// <summary>
-        /// Decrypts the buffer using the algorithm specified by the security policy.
-        /// </summary>
-        /// <exception cref="CryptographicException"></exception>
-        /// <exception cref="NotSupportedException"></exception>
+            /// <summary>
+            /// Decrypts the buffer using the algorithm specified by the security policy.
+            /// </summary>
+            /// <exception cref="CryptographicException"></exception>
+            /// <exception cref="NotSupportedException"></exception>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
            SecurityPolicyInfo securityPolicy,
            byte[] encryptingKey,
            byte[] iv,
            byte[] signingKey = null,
-           bool signOnly = false)
+           bool signOnly = false,
+           uint tokenId = 0,
+           uint lastSequenceNumber = 0)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
@@ -917,7 +910,7 @@ namespace Opc.Ua
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
 #if NET8_0_OR_GREATER
-                return DecryptWithAesGcm(data, encryptingKey, iv, signOnly);
+                return DecryptWithAesGcm(data, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber);
 #else
                 throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
 #endif
@@ -931,7 +924,8 @@ namespace Opc.Ua
                     encryptingKey,
                     iv,
                     signOnly,
-                    true);
+                    tokenId,
+                    lastSequenceNumber);
 #else
                 throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
 #endif

@@ -606,7 +606,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate.</param>
         public static string GetECDsaQualifier(X509Certificate2 certificate)
         {
-            return EccUtils.GetECDsaQualifier(certificate);
+            return CryptoUtils.GetECDsaQualifier(certificate);
         }
 
         /// <summary>

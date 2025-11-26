@@ -75,8 +75,8 @@ namespace Quickstarts.ConsoleReferenceClient
             byte[] userpassword = null;
             string userCertificateThumbprint = null;
             byte[] userCertificatePassword = null;
-            bool logConsole = false;
-            bool appLog = false;
+            bool logConsole = true;
+            bool appLog = true;
             bool fileLog = false;
             bool renewCertificate = false;
             bool loadTypes = false;
@@ -184,7 +184,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
                 },
                 {
-                    "f|fetchall",
+                    "fa|fetchall",
                     "Fetch all nodes",
                     f =>
                     {
@@ -333,7 +333,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     logConsole,
                     fileLog,
                     appLog,
-                    LogLevel.Information);
+                    LogLevel.Warning);
 
                 // delete old certificate
                 if (renewCertificate)
@@ -369,6 +369,14 @@ namespace Quickstarts.ConsoleReferenceClient
                 var quitCTS = new CancellationTokenSource();
                 CancellationToken ct = quitCTS.Token;
                 ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                // insert security tester.
+                var tester = new SecurityTestClient.RunTest(config, telemetry);
+
+                if (await tester.RunAsync(quitEvent, ct).ConfigureAwait(false))
+                {
+                    return;
+                }
 
                 var userIdentity = new UserIdentity();
 

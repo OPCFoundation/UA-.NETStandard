@@ -50,9 +50,11 @@ namespace Opc.Ua
             X509Certificate2 certificate = Certificate ??
                 CertificateFactory.Create(m_certificateData);
 
-            SignatureData signatureData = SecurityPolicies.Sign(
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            SignatureData signatureData = SecurityPolicies.CreateSignatureData(
+                info,
                 certificate,
-                securityPolicyUri,
                 dataToSign);
 
             m_certificateData = certificate.RawData;
@@ -75,11 +77,13 @@ namespace Opc.Ua
                 X509Certificate2 certificate = Certificate ??
                     CertificateFactory.Create(m_certificateData);
 
-                bool valid = SecurityPolicies.Verify(
+                var info = SecurityPolicies.GetInfo(securityPolicyUri);
+
+                bool valid = SecurityPolicies.VerifySignatureData(
+                    signatureData,
+                    info,
                     certificate,
-                    securityPolicyUri,
-                    dataToVerify,
-                    signatureData);
+                    dataToVerify);
 
                 m_certificateData = certificate.RawData;
 

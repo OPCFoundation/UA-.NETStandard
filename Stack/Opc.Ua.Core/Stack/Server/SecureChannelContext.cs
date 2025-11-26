@@ -26,14 +26,26 @@ namespace Opc.Ua
         /// <param name="secureChannelId">The secure channel identifier.</param>
         /// <param name="endpointDescription">The endpoint description.</param>
         /// <param name="messageEncoding">The message encoding.</param>
+        /// <param name="secureChannelHash">The unique hash for the secure channel calculated during channel creation.</param>
+        /// <param name="sessionActivationSecret">A secret used to re-activate sessions on a new secure channel.</param>
+        /// <param name="clientChannelCertificate">The client certificate used to establsih the secure channel.</param>
+        /// <param name="serverChannelCertificate">The server certificate used to establsih the secure channel.</param>
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription endpointDescription,
-            RequestEncoding messageEncoding)
+            RequestEncoding messageEncoding,
+            byte[] clientChannelCertificate,
+            byte[] serverChannelCertificate,
+            byte[] secureChannelHash = null,
+            byte[] sessionActivationSecret = null)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
             MessageEncoding = messageEncoding;
+            ClientChannelCertificate = clientChannelCertificate;
+            ServerChannelCertificate = serverChannelCertificate;
+            SecureChannelHash = secureChannelHash;
+            SessionActivationSecret = sessionActivationSecret;
         }
 
         /// <summary>
@@ -53,6 +65,26 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The message encoding.</value>
         public RequestEncoding MessageEncoding { get; }
+
+        /// <summary>
+        /// The unique hash for the secure channel calculated during channel creation.
+        /// </summary>
+        public byte[] SecureChannelHash { get; }
+
+        /// <summary>
+        /// A secret used to re-activate sessions on a new secure channel.
+        /// </summary>
+        public byte[] SessionActivationSecret { get; }
+
+        /// <summary>
+        /// The client certificate used to establsih the secure channel.
+        /// </summary>
+        public byte[] ClientChannelCertificate { get; }
+
+        /// <summary>
+        /// The server certificate used to establsih the secure channel.
+        /// </summary>
+        public byte[] ServerChannelCertificate { get; }
 
         /// <summary>
         /// The active secure channel for the thread.

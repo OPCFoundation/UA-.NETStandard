@@ -14,35 +14,35 @@
     <ApplicationCertificates>
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP256</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>NistP256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP384</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>NistP384</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP256r1</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP384r1</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
@@ -51,17 +51,17 @@
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>
+      <StorePath>./pki/issuer</StorePath>
     </TrustedIssuerCertificates>
     <!-- Where the trust list is stored -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>
+      <StorePath>./pki/trusted</StorePath>
     </TrustedPeerCertificates>
     <!-- The directory used to store invalid certificates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/rejected</StorePath>
+      <StorePath>./pki/rejected</StorePath>
     </RejectedCertificateStore>
     <MaxRejectedCertificates>5</MaxRejectedCertificates>
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
@@ -77,12 +77,12 @@
     <!-- Where the User issuer certificates are stored -->
     <UserIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuerUser</StorePath>
+      <StorePath>./pki/issuerUser</StorePath>
     </UserIssuerCertificates>
     <!-- Where the User trust list is stored-->
     <TrustedUserCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedUser</StorePath>
+      <StorePath>./pki/trustedUser</StorePath>
     </TrustedUserCertificates>
   </SecurityConfiguration>
   <TransportConfigurations></TransportConfigurations>
@@ -94,11 +94,11 @@
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
     <ChannelLifetime>30000</ChannelLifetime>
-    <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
+    <SecurityTokenLifetime>30000</SecurityTokenLifetime>
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>opc.https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
+      <!--<ua:String>opc.https://localhost:62540/Quickstarts/ReferenceServer</ua:String>-->
       <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
       <!--<ua:String>https://localhost:62542/Quickstarts/ReferenceServer</ua:String>-->
     </BaseAddresses>
@@ -122,6 +122,7 @@
     -->
     <SecurityPolicies>
       <!-- the first policy is used for the https endpoint -->
+      <!--
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
@@ -134,10 +135,34 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
+      -->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256</SecurityPolicyUri>
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>-->
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_AES</SecurityPolicyUri>
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_ChaChaPoly</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384_AES</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_AES</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_ChaChaPoly</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_AES</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_ChaChaPoly</SecurityPolicyUri>-->
       </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>-->
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_AES</SecurityPolicyUri>
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_ChaChaPoly</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384_AES</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384_ChaChaPoly</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_AES</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_ChaChaPoly</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_AES</SecurityPolicyUri>-->
+        <!--<SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_ChaChaPoly</SecurityPolicyUri>-->
+      </ServerSecurityPolicy>
+      <!--
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384</SecurityPolicyUri>
@@ -152,10 +177,6 @@
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
@@ -166,20 +187,11 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1</SecurityPolicyUri>
       </ServerSecurityPolicy>
+      -->
       <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      <!-- deprecated security policies for reference only 
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      -->
     </SecurityPolicies>
     <MinRequestThreadCount>5</MinRequestThreadCount>
     <MaxRequestThreadCount>100</MaxRequestThreadCount>
@@ -335,7 +347,7 @@
     </ua:XmlElement>
   </Extensions>
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/OPC Foundation/Logs/Quickstarts.ReferenceServer.log.txt</OutputFilePath>
+    <OutputFilePath>./Logs/Quickstarts.ReferenceServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

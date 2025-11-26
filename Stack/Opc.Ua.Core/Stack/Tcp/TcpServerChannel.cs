@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -256,7 +257,7 @@ namespace Opc.Ua.Bindings
                     State = TcpChannelState.Open;
 
                     // send response.
-                    SendOpenSecureChannelResponse(requestId, token, request);
+                    SendOpenSecureChannelResponse(requestId, token, request, true);
 
                     // send any queued responses.
                     ResetQueuedResponses(OnChannelReconnected);
@@ -285,6 +286,8 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 SetResponseRequired(true);
+
+                m_logger.LogWarning("IN:{Id}", TcpMessageType.GetTypeAndSize(messageChunk));
 
                 try
                 {
@@ -549,13 +552,26 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                m_oscRequestSignature = null;
+                byte[] signature;
+
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
                     ServerCertificate,
                     out channelId,
                     out clientCertificate,
                     out requestId,
-                    out sequenceNumber);
+                    out sequenceNumber,
+                    m_oscRequestSignature,
+                    out signature);
+
+                // don't keep signature if secure channel enhancements are not used.
+                m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
+
+                Console.WriteLine($"OSC IN={TcpMessageType.KeyToString(messageBody)}");
+                Console.WriteLine($"oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
+                Console.WriteLine($"signatureHash={TcpMessageType.KeyToString(signature)}");
+                Console.WriteLine($"State={State}");
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -664,6 +680,8 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
+                token.PreviousSecret = CurrentToken?.Secret;
+
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce;
                 if (!ValidateNonce(ClientCertificate, token.ClientNonce))
@@ -775,11 +793,11 @@ namespace Opc.Ua.Bindings
                 // send the response.
                 if (requestType == SecurityTokenRequestType.Renew)
                 {
-                    SendOpenSecureChannelResponse(requestId, RenewedToken, request);
+                    SendOpenSecureChannelResponse(requestId, RenewedToken, request, true);
                 }
                 else
                 {
-                    SendOpenSecureChannelResponse(requestId, CurrentToken, request);
+                    SendOpenSecureChannelResponse(requestId, CurrentToken, request, false);
                 }
 
                 // notify reverse
@@ -851,7 +869,8 @@ namespace Opc.Ua.Bindings
         private void SendOpenSecureChannelResponse(
             uint requestId,
             ChannelToken token,
-            OpenSecureChannelRequest request)
+            OpenSecureChannelRequest request,
+            bool renew)
         {
             m_logger.LogDebug("ChannelId {Id}: SendOpenSecureChannelResponse()", ChannelId);
 
@@ -867,6 +886,7 @@ namespace Opc.Ua.Bindings
             response.ServerNonce = token.ServerNonce;
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
+            byte[] signature;
 
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
@@ -874,7 +894,14 @@ namespace Opc.Ua.Bindings
                 ServerCertificate,
                 ServerCertificateChain,
                 ClientCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length));
+                new ArraySegment<byte>(buffer, 0, buffer.Length),
+                m_oscRequestSignature,
+                out signature);
+
+            if (!renew)
+            {
+                ComputeSecureChannelHash(signature);
+            }
 
             // write the message to the server.
             try
@@ -1326,6 +1353,7 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private ReverseConnectAsyncResult m_pendingReverseHello;
+        private byte[] m_oscRequestSignature;
 
         private static readonly string s_implementationString =
             ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();

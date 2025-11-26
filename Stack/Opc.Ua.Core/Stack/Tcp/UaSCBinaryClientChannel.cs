@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -535,6 +536,11 @@ namespace Opc.Ua.Bindings
             ChannelToken token = CreateToken();
             token.ClientNonce = CreateNonce(ClientCertificate);
 
+            if (renew)
+            {
+                token.PreviousSecret = CurrentToken?.Secret;
+            }
+
             // construct the request.
             var request = new OpenSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
@@ -549,6 +555,11 @@ namespace Opc.Ua.Bindings
             // encode the request.
             byte[] buffer = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
 
+            ClientChannelCertificate = ClientCertificate?.RawData;
+            ServerChannelCertificate = ServerCertificate?.RawData;
+
+            byte[] signature;
+
             // write the asymmetric message.
             BufferCollection? chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
@@ -556,7 +567,12 @@ namespace Opc.Ua.Bindings
                 ClientCertificate,
                 ClientCertificateChain,
                 ServerCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length));
+                new ArraySegment<byte>(buffer, 0, buffer.Length),
+                m_oscRequestSignature,
+                out signature);
+
+            // don't keep signature if secure channel enhancements are not used.
+            m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
 
             // save token.
             m_requestedToken = token;
@@ -611,13 +627,29 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber;
             try
             {
+                byte[] signature;
+
+                Console.WriteLine($"OSC IN={TcpMessageType.KeyToString(messageChunk)}");
+
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
                     ClientCertificate,
                     out channelId,
                     out serverCertificate,
                     out requestId,
-                    out sequenceNumber);
+                    out sequenceNumber,
+                    m_oscRequestSignature,
+                    out signature);
+
+                if (PreviousToken == null)
+                {
+                    ComputeSecureChannelHash(signature);
+                }
+
+                Console.WriteLine($"OSC OUT={TcpMessageType.KeyToString(messageBody)}");
+                Console.WriteLine($"oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
+                Console.WriteLine($"signature={TcpMessageType.KeyToString(signature)}");
+                Console.WriteLine($"State={State}");
             }
             catch (Exception e)
             {
@@ -783,6 +815,8 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
+            //m_logger.LogWarning("IN:{Size}", TcpMessageType.GetTypeAndSize(messageChunk));
+
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
             {
@@ -1748,5 +1782,6 @@ namespace Opc.Ua.Bindings
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+        private byte[]? m_oscRequestSignature;
     }
 }

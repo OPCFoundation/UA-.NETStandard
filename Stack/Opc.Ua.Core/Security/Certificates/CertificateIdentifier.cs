@@ -691,7 +691,7 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
-                    return EccUtils.GetEccCertificateTypeId(certificate);
+                    return CryptoUtils.GetEccCertificateTypeId(certificate);
                 case Oids.RsaPkcs1Sha256:
                 case Oids.RsaPkcs1Sha384:
                 case Oids.RsaPkcs1Sha512:
@@ -722,7 +722,7 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
-                    NodeId certType = EccUtils.GetEccCertificateTypeId(certificate);
+                    NodeId certType = CryptoUtils.GetEccCertificateTypeId(certificate);
                     if (certType.IsNullNodeId)
                     {
                         return false;
@@ -778,32 +778,45 @@ namespace Opc.Ua
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     result.Add(ObjectTypeIds.RsaSha256ApplicationCertificateType);
-                    goto default;
+                    break;
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccNistP256ApplicationCertificateType);
                     goto case SecurityPolicies.ECC_nistP384;
                 case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccNistP384ApplicationCertificateType);
-                    goto default;
+                    break;
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
                     goto case SecurityPolicies.ECC_brainpoolP384r1;
                 case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
-                    goto default;
+                    break;
                 case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccCurve25519ApplicationCertificateType);
-                    goto default;
+                    break;
                 case SecurityPolicies.ECC_curve448:
+                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccCurve448ApplicationCertificateType);
-                    goto default;
+                    break;
                 case SecurityPolicies.Https:
                     result.Add(ObjectTypeIds.HttpsCertificateType);
-                    goto default;
-                default:
-                    return result;
+                    break;
             }
+            return result;
         }
 
         /// <summary>

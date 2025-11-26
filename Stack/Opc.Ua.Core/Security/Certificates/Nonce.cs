@@ -50,79 +50,68 @@ namespace Opc.Ua
         /// </summary>
         public byte[] Data { get; private set; }
 
+        internal byte[] GenerateSecret(
+            Nonce remoteNonce,
+            byte[] previousSecret)
+        {
+            byte[] ikm = null;
+
+#if NET8_0_OR_GREATER
+#if xDEBUG
+            Span<char> privateKey = stackalloc char[2048];
+
+            if (m_ecdh.TryExportECPrivateKeyPem(privateKey, out int charsWritten))
+            {
+                Console.WriteLine($"Private Key PEM ({charsWritten} chars):");
+            }
+#endif
+
+            ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
+
+            if (previousSecret != null)
+            {
+                for (int ii = 0; ii < ikm.Length && ii < previousSecret.Length; ii++)
+                {
+                    ikm[ii] ^= previousSecret[ii];
+                }
+            }
+#endif
+            return ikm;
+        }
+
         /// <summary>
         /// Derives a key from the remote nonce, using the specified salt, hash algorithm, and length.
         /// </summary>
-        /// <param name="remoteNonce">The remote nonce to use in key derivation.</param>
+        /// <param name="secret">The secret to use in key derivation.</param>
         /// <param name="salt">The salt to use in key derivation.</param>
         /// <param name="algorithm">The hash algorithm to use in key derivation.</param>
         /// <param name="length">The length of the derived key.</param>
         /// <returns>The derived key.</returns>
         public byte[] DeriveKey(
-            Nonce remoteNonce,
+            byte[] secret,
             byte[] salt,
-            HashAlgorithmName algorithm,
+            KeyDerivationAlgorithm algorithm,
             int length)
         {
-#if CURVE25519
-            if (m_bcKeyPair != null)
-            {
-                var localPublicKey = m_bcKeyPair.Public;
-
-                if (localPublicKey is X25519PublicKeyParameters)
-                {
-                    X25519Agreement agreement = new X25519Agreement();
-                    agreement.Init(m_bcKeyPair.Private);
-
-                    var key = new X25519PublicKeyParameters(remoteNonce.Data, 0);
-                    byte[] secret = new byte[agreement.AgreementSize];
-                    agreement.CalculateAgreement(key, secret, 0);
-
-                    HkdfBytesGenerator generator = new HkdfBytesGenerator(new Sha256Digest());
-                    generator.Init(new HkdfParameters(secret, salt, salt));
-
-                    byte[] output = new byte[length];
-                    generator.GenerateBytes(output, 0, output.Length);
-                    return output;
-                }
-
-                if (localPublicKey is X448PublicKeyParameters)
-                {
-                    X448Agreement agreement = new X448Agreement();
-                    agreement.Init(m_bcKeyPair.Private);
-
-                    var key = new X448PublicKeyParameters(remoteNonce.Data, 0);
-                    byte[] secret = new byte[agreement.AgreementSize];
-                    agreement.CalculateAgreement(key, secret, 0);
-
-                    HkdfBytesGenerator generator = new HkdfBytesGenerator(new Sha256Digest());
-                    generator.Init(new HkdfParameters(secret, salt, salt));
-
-                    byte[] output = new byte[length];
-                    generator.GenerateBytes(output, 0, output.Length);
-                    return output;
-                }
-
-                throw new NotSupportedException();
-            }
-#endif
             if (m_ecdh != null)
             {
-                byte[] secret = m_ecdh.DeriveKeyFromHmac(
-                    remoteNonce.m_ecdh.PublicKey,
-                    algorithm,
-                    salt,
-                    null,
-                    null);
+                HMAC hmac = algorithm switch
+                {
+                    KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(salt),
+                    KeyDerivationAlgorithm.HKDFSha384 => new HMACSHA384(salt),
+                    _ => new HMACSHA256(salt)
+                };
+
+                //byte[] secret2 = m_ecdh.DeriveKeyFromHmac(
+                //    remoteNonce.m_ecdh.PublicKey,
+                //    algorithm,
+                //    salt,
+                //    null,
+                //    null);
+
+                //System.Console.WriteLine($"PRK2={Utils.ToHexString(secret2).Substring(0, 8)}");
 
                 byte[] output = new byte[length];
-
-                HMAC hmac = algorithm.Name switch
-                {
-                    "SHA256" => new HMACSHA256(secret),
-                    "SHA384" => new HMACSHA384(secret),
-                    _ => new HMACSHA256(secret)
-                };
 
                 byte counter = 1;
 
@@ -162,50 +151,45 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a nonce for the specified security policy URI and nonce length.
         /// </summary>
-        /// <param name="securityPolicyUri">The security policy URI.</param>
-        /// <returns>A <see cref="Nonce"/> object containing the generated nonce.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(string securityPolicyUri)
         {
-            if (securityPolicyUri == null)
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            return CreateNonce(info);
+        }
+
+        /// <summary>
+        /// Creates a nonce for the specified security policy and nonce length.
+        /// </summary>
+        public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy)
+        {
+            if (securityPolicy == null)
             {
-                throw new ArgumentNullException(nameof(securityPolicyUri));
+                throw new ArgumentNullException(nameof(securityPolicy));
             }
 
-            switch (securityPolicyUri)
+            switch (securityPolicy.CertificateKeyAlgorithm)
             {
-                case SecurityPolicies.ECC_nistP256:
+                case CertificateKeyAlgorithm.NistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256);
-                case SecurityPolicies.ECC_nistP384:
+                case CertificateKeyAlgorithm.NistP384:
                     return CreateNonce(ECCurve.NamedCurves.nistP384);
-                case SecurityPolicies.ECC_brainpoolP256r1:
+                case CertificateKeyAlgorithm.BrainpoolP256r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1);
-                case SecurityPolicies.ECC_brainpoolP384r1:
+                case CertificateKeyAlgorithm.BrainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
-#if CURVE25519
-                case SecurityPolicies.ECC_curve25519:
-                    return CreateNonceForCurve25519();
-                case SecurityPolicies.ECC_curve448:
-                    return CreateNonceForCurve448();
-#endif
                 default:
-                    uint rsaNonceLength = GetNonceLength(securityPolicyUri);
-                    return new Nonce { Data = CreateRandomNonceData(rsaNonceLength) };
+                    return new Nonce { Data = CreateRandomNonceData(securityPolicy.SecureChannelNonceLength) };
             }
         }
 
         /// <summary>
         /// Creates a new Nonce object for the specified security policy URI and nonce data.
         /// </summary>
-        /// <param name="securityPolicyUri">The security policy URI.</param>
-        /// <param name="nonceData">The nonce data.</param>
-        /// <returns>A new Nonce object.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
-        public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
+        public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy, byte[] nonceData)
         {
-            if (securityPolicyUri == null)
+            if (securityPolicy == null)
             {
-                throw new ArgumentNullException(nameof(securityPolicyUri));
+                throw new ArgumentNullException(nameof(securityPolicy));
             }
 
             if (nonceData == null)
@@ -215,19 +199,19 @@ namespace Opc.Ua
 
             var nonce = new Nonce { Data = nonceData };
 
-            switch (securityPolicyUri)
+            switch (securityPolicy.CertificateKeyAlgorithm)
             {
-                case SecurityPolicies.ECC_nistP256:
+                case CertificateKeyAlgorithm.NistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
-                case SecurityPolicies.ECC_nistP384:
+                case CertificateKeyAlgorithm.NistP384:
                     return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData);
-                case SecurityPolicies.ECC_brainpoolP256r1:
+                case CertificateKeyAlgorithm.BrainpoolP256r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
-                case SecurityPolicies.ECC_brainpoolP384r1:
+                case CertificateKeyAlgorithm.BrainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
-                case SecurityPolicies.ECC_curve25519:
+                case CertificateKeyAlgorithm.Curve25519:
                     return CreateNonceForCurve25519(nonceData);
-                case SecurityPolicies.ECC_curve448:
+                case CertificateKeyAlgorithm.Curve448:
                     return CreateNonceForCurve448(nonceData);
                 default:
                     return nonce;
@@ -238,7 +222,7 @@ namespace Opc.Ua
         /// Generates a Nonce for cryptographic functions of a given length.
         /// </summary>
         /// <returns>The requested Nonce as a</returns>
-        public static byte[] CreateRandomNonceData(uint length)
+        public static byte[] CreateRandomNonceData(int length)
         {
             byte[] randomBytes = new byte[length];
             s_rng.GetBytes(randomBytes);
@@ -251,9 +235,9 @@ namespace Opc.Ua
         public static bool ValidateNonce(
             byte[] nonce,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            SecurityPolicyInfo securityPolicy)
         {
-            return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+            return ValidateNonce(nonce, securityMode, securityPolicy.SecureChannelNonceLength);
         }
 
         /// <summary>
@@ -262,7 +246,7 @@ namespace Opc.Ua
         public static bool ValidateNonce(
             byte[] nonce,
             MessageSecurityMode securityMode,
-            uint minNonceLength)
+            int minNonceLength)
         {
             // no nonce needed for no security.
             if (securityMode == MessageSecurityMode.None)
@@ -286,36 +270,6 @@ namespace Opc.Ua
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Returns the length of the symmetric encryption key for a security policy.
-        /// </summary>
-        public static uint GetNonceLength(string securityPolicyUri)
-        {
-            switch (securityPolicyUri)
-            {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.ECC_curve25519:
-                    return 32;
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    // Q.X + Q.Y = 32 + 32 = 64
-                    return 64;
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    // Q.X + Q.Y = 48 + 48 = 96
-                    return 96;
-                case SecurityPolicies.ECC_curve448:
-                    // Q.X
-                    return 56;
-                default:
-                    // Minimum nonce length by default
-                    return s_minNonceLength;
-            }
         }
 
         /// <summary>

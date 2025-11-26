@@ -10,6 +10,11 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
+using System.Globalization;
+using System.Text;
+using Microsoft.Extensions.Logging;
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -140,6 +145,46 @@ namespace Opc.Ua.Bindings
                     }
 
             }
+        }
+
+        internal static string GetTypeAndSize(ArraySegment<byte> chunk)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int ii = 0; ii < 1; ii++)
+            {
+                uint size = BitConverter.ToUInt32(chunk.Array ?? [], 4);
+                sb.Append(Encoding.ASCII.GetString(chunk.Array ?? [], 0, 4));
+                sb.Append("=>");
+                sb.Append(BitConverter.ToUInt32(chunk.Array ?? [], 4));
+                sb.Append((size != chunk.Count) ? " X " : " O ");
+                sb.Append(chunk.Count);
+            }
+
+            return sb.ToString();
+        }
+
+        internal static string KeyToString(ArraySegment<byte> key)
+        {
+            byte[] bytes = new byte[key.Count];
+            Buffer.BlockCopy(key.Array ?? [], key.Offset, bytes, 0, key.Count);
+            return KeyToString(bytes);
+        }
+
+        internal static string KeyToString(byte[] key)
+        {
+            if (key == null || key.Length == 0)
+            {
+                return "0:---";
+            }
+
+            if (key.Length <= 16)
+            {
+                return key.Length.ToString(CultureInfo.InvariantCulture) + ":" + Utils.ToHexString(key);
+            }
+
+            var text = Utils.ToHexString(key);
+            return $"{key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length-8, 8)}";
         }
     }
 
