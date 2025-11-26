@@ -408,7 +408,11 @@ namespace Opc.Ua
             if (field.StartsWith("S=", StringComparison.OrdinalIgnoreCase) &&
                 !field.StartsWith("ST=", StringComparison.OrdinalIgnoreCase))
             {
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+                return string.Concat("ST=", field.AsSpan(2));
+#else
                 return "ST=" + field.Substring(2);
+#endif
             }
 
             return field;
