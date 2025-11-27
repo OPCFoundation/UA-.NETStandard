@@ -2440,7 +2440,7 @@ namespace Opc.Ua.Server
             await configuration
                 .CertificateValidator.UpdateAsync(
                     configuration.SecurityConfiguration,
-                    applicationUri: null,
+                    configuration.ApplicationUri,
                     ct)
                 .ConfigureAwait(false);
 
