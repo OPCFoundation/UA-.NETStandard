@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (BaseEventState)Activator.CreateInstance(GetType());
+            var clone = (BaseEventState)Activator.CreateInstance(GetType(), Parent);
             return CloneChildren(clone);
         }
     }
