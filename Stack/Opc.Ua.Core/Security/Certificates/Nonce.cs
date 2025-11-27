@@ -68,6 +68,8 @@ namespace Opc.Ua
 
             ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
 
+            Console.WriteLine($"GenerateSecretRaw:ikm={Opc.Ua.Bindings.TcpMessageType.KeyToString(ikm)}");
+
             if (previousSecret != null)
             {
                 for (int ii = 0; ii < ikm.Length && ii < previousSecret.Length; ii++)
@@ -75,6 +77,9 @@ namespace Opc.Ua
                     ikm[ii] ^= previousSecret[ii];
                 }
             }
+
+            Console.WriteLine($"GenerateSecret:ikm={Opc.Ua.Bindings.TcpMessageType.KeyToString(ikm)}");
+            Console.WriteLine($"GenerateSecret:previousSecret={Opc.Ua.Bindings.TcpMessageType.KeyToString(previousSecret)}");
 #endif
             return ikm;
         }

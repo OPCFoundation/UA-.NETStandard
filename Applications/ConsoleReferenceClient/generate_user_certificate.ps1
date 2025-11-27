@@ -29,6 +29,8 @@ foreach ($d in @($certDir, $privateDir)) {
 foreach ($curve in $curves) {
 
     Write-Host "Generating certificate for curve: $curve"
+    
+    $signatureAlgorithm = if ($curve -match 'P384') { 'SHA384' } else { 'SHA256' }
 
     # Create certificate parameters and dynamically insert the curve
     $params = @{
@@ -38,10 +40,11 @@ foreach ($curve in $curves) {
             '2.5.29.37={text}1.3.6.1.5.5.7.3.2'
             '2.5.29.17={text}upn=iama.tester@example.com'
         )
-        KeyUsage          = 'DigitalSignature'
-        KeyAlgorithm      = "ECDSA_$curve"    # <-- dynamic!
-        CurveExport       = 'CurveName'
-        CertStoreLocation = 'Cert:\CurrentUser\My'
+        KeyUsage           = @('DigitalSignature', 'NonRepudiation')
+        KeyAlgorithm       = "ECDSA_$curve"    # <-- dynamic!
+        CurveExport        = 'CurveName'
+        HashAlgorithm = $signatureAlgorithm
+        CertStoreLocation  = 'Cert:\CurrentUser\My'
     }
 
     # 1. Create cert
@@ -68,7 +71,7 @@ $rsaParams = @{
         '2.5.29.37={text}1.3.6.1.5.5.7.3.2'
         '2.5.29.17={text}upn=iama.tester@example.com'
     )
-    KeyUsage          = 'DigitalSignature'
+    KeyUsage          = @('DigitalSignature','DataEncipherment','NonRepudiation','KeyEncipherment')
     KeyAlgorithm      = 'RSA'
     KeyLength         = 2048
     CertStoreLocation = 'Cert:\CurrentUser\My'

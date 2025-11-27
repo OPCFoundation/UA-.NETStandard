@@ -793,7 +793,8 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
-#if xDEBUG
+#if DEBUG
+            Console.WriteLine($"E.encryptingKey={TcpMessageType.KeyToString(encryptingKey)}");
             Console.WriteLine($"E.iv={TcpMessageType.KeyToString(iv)}");
             Console.WriteLine($"E.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
             Console.WriteLine($"E.tag={TcpMessageType.KeyToString(tag)}");
@@ -862,6 +863,7 @@ namespace Opc.Ua
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
 #if xDEBUG
+            Console.WriteLine($"D.encryptingKey={TcpMessageType.KeyToString(encryptingKey)}");
             Console.WriteLine($"D.iv={TcpMessageType.KeyToString(iv)}");
             Console.WriteLine($"D.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
             Console.WriteLine($"D.tag={TcpMessageType.KeyToString(tag.ToArray())}");

@@ -109,6 +109,13 @@ namespace Opc.Ua.Server
         SessionDiagnosticsDataType SessionDiagnostics { get; }
 
         /// <summary>
+        /// Validates a session transfer token before activating the session.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="sessionActivationToken"></param>
+        void ValidateSessionTransferToken(OperationContext context, byte[] sessionActivationToken);
+
+        /// <summary>
         /// Activates the session and binds it to the current secure channel.
         /// </summary>
         bool Activate(

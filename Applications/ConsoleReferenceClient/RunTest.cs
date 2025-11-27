@@ -25,6 +25,7 @@ namespace SecurityTestClient
         private ISession m_session;
 
         const string ServerUrl = "opc.tcp://localhost:62541";
+        //const string ServerUrl = "opc.tcp://WhiteCat:4880/Softing/OpcUa/TestServer";
         const int kMaxSearchDepth = 128;
         const int ReconnectPeriod = 1000;
         const int ReconnectPeriodExponentialBackoff = 15000;
@@ -107,9 +108,12 @@ namespace SecurityTestClient
                     ServerUrl,
                     ct).ConfigureAwait(false);
 
+                // endpoints = endpoints.Where(x => x.SecurityPolicyUri == SecurityPolicies.ECC_nistP256_AesGcm).ToList();
+
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_context);
                 var userNameidentity = new UserIdentity("sysadmin", new UTF8Encoding(false).GetBytes("demo"));
+                // var userNameidentity = new UserIdentity("usr", new UTF8Encoding(false).GetBytes("pwd"));
 
                 foreach (var ii in endpoints)
                 {
@@ -119,7 +123,7 @@ namespace SecurityTestClient
 
                     var certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);
 
-                    foreach (var identity in new UserIdentity[] { userNameidentity, certificateIdentity })
+                    foreach (var identity in new UserIdentity[] { userNameidentity })
                     {
                         try
                         {
@@ -144,7 +148,7 @@ namespace SecurityTestClient
 
                             m_logger.LogWarning("Waiting for SecureChannel renew");
 
-                            for (int count = 0; count < 10; count++)
+                            for (int count = 0; count < 15; count++)
                             {
                                 var result = await session.ReadAsync(
                                     null,
@@ -166,6 +170,8 @@ namespace SecurityTestClient
 
                                 await Task.Delay(5000, ct).ConfigureAwait(false);
                             }
+
+                            await session.UpdateSessionAsync(identity, null, ct).ConfigureAwait(false);
 
                             await session.CloseAsync(true, ct: ct).ConfigureAwait(false);
                         }

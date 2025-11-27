@@ -558,6 +558,7 @@ namespace Opc.Ua.Bindings
             ClientChannelCertificate = ClientCertificate?.RawData;
             ServerChannelCertificate = ServerCertificate?.RawData;
 
+            m_oscRequestSignature = null;
             byte[] signature;
 
             // write the asymmetric message.
@@ -629,8 +630,6 @@ namespace Opc.Ua.Bindings
             {
                 byte[] signature;
 
-                Console.WriteLine($"OSC IN={TcpMessageType.KeyToString(messageChunk)}");
-
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
                     ClientCertificate,
@@ -641,15 +640,14 @@ namespace Opc.Ua.Bindings
                     m_oscRequestSignature,
                     out signature);
 
-                if (PreviousToken == null)
+                if (State == TcpChannelState.Opening)
                 {
                     ComputeSecureChannelHash(signature);
                 }
 
-                Console.WriteLine($"OSC OUT={TcpMessageType.KeyToString(messageBody)}");
-                Console.WriteLine($"oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
-                Console.WriteLine($"signature={TcpMessageType.KeyToString(signature)}");
-                Console.WriteLine($"State={State}");
+                Console.WriteLine($"OSC:m_oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
+                Console.WriteLine($"OSC:signature={TcpMessageType.KeyToString(signature)}");
+                Console.WriteLine($"OSC:SecureChannelHash={TcpMessageType.KeyToString(SecureChannelHash)}");
             }
             catch (Exception e)
             {
@@ -815,7 +813,7 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            //m_logger.LogWarning("IN:{Size}", TcpMessageType.GetTypeAndSize(messageChunk));
+            m_logger.LogWarning("IN:{Size}", TcpMessageType.GetTypeAndSize(messageChunk));
 
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))

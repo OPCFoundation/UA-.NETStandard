@@ -1078,25 +1078,6 @@ namespace Opc.Ua.Server
                     Utils.Clone(session?.IdentityToken),
                     false);
 
-                if (softwareCertificates != null)
-                {
-                    // build the list of SignedSoftwareCertificate
-                    var signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
-                    foreach (SoftwareCertificate softwareCertificate in softwareCertificates)
-                    {
-                        var item = new SignedSoftwareCertificate
-                        {
-                            CertificateData = softwareCertificate.SignedCertificate.RawData
-                        };
-                        signedSoftwareCertificates.Add(item);
-                    }
-                    e.SetChildValue(
-                        systemContext,
-                        BrowseNames.ClientSoftwareCertificates,
-                        signedSoftwareCertificates.ToArray(),
-                        false);
-                }
-
                 server.ReportAuditEvent(systemContext, e);
             }
             catch (Exception e)

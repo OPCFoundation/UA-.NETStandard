@@ -379,15 +379,15 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     result = 10;
                     break;
-                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_AesGcm:
                 case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
-                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_AesGcm:
                 case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                     result = 12;
                     break;
-                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_AesGcm:
                 case SecurityPolicies.ECC_nistP384_ChaChaPoly:
-                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_AesGcm:
                 case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     result = 14;
                     break;

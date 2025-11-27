@@ -84,7 +84,7 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the ECC_nistP256 security policy with AES-GCM.
         /// </summary>
-        public const string ECC_nistP256_AES = ECC_nistP256 + "_AES";
+        public const string ECC_nistP256_AesGcm = ECC_nistP256 + "_AesGcm";
 
         /// <summary>
         /// The URI for the ECC_nistP256 security policy with ChaCha20Poly1305.
@@ -99,7 +99,7 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the ECC_nistP384 security policy with AES-GCM.
         /// </summary>
-        public const string ECC_nistP384_AES = ECC_nistP384 + "_AES";
+        public const string ECC_nistP384_AesGcm = ECC_nistP384 + "_AesGcm";
 
         /// <summary>
         /// The URI for the ECC_nistP384 security policy with ChaCha20Poly1305.
@@ -114,7 +114,7 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the ECC_brainpoolP256r1 security policy with AES-GCM.
         /// </summary>
-        public const string ECC_brainpoolP256r1_AES = ECC_brainpoolP256r1 + "_AES";
+        public const string ECC_brainpoolP256r1_AesGcm = ECC_brainpoolP256r1 + "_AesGcm";
 
         /// <summary>
         /// The URI for the ECC_brainpoolP256r1 security policy with ChaCha20Poly1305.
@@ -129,7 +129,7 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the ECC_brainpoolP384r1 security policy with AES-GCM.
         /// </summary>
-        public const string ECC_brainpoolP384r1_AES = ECC_brainpoolP384r1 + "_AES";
+        public const string ECC_brainpoolP384r1_AesGcm = ECC_brainpoolP384r1 + "_AesGcm";
 
         /// <summary>
         /// The URI for the ECC_brainpoolP384r1 security policy with ChaCha20Poly1305.
@@ -137,14 +137,14 @@ namespace Opc.Ua
         public const string ECC_brainpoolP384r1_ChaChaPoly = ECC_brainpoolP384r1 + "_ChaChaPoly";
 
         /// <summary>
-        /// The URI for the ECC_curve25519 security policy.
+        /// The URI for the ECC_curve25519 security policy.brainpoolP384r1_AesGcm
         /// </summary>
         public const string ECC_curve25519 = BaseUri + "ECC_curve25519";
 
         /// <summary>
         /// The URI for the ECC_curve25519 security policy with AES-GCM.
         /// </summary>
-        public const string ECC_curve25519_AES = ECC_curve25519 + "_AES";
+        public const string ECC_curve25519_AesGcm = ECC_curve25519 + "_AesGcm";
 
         /// <summary>
         /// The URI for the ECC_curve25519 security policy with ChaCha20Poly1305.
@@ -159,7 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the ECC_curve448 security policy with AES-GCM.
         /// </summary>
-        public const string ECC_curve448_AES = ECC_curve448 + "_AES";
+        public const string ECC_curve448_AesGcm = ECC_curve448 + "_AesGcm";
 
         /// <summary>
         /// The URI for the ECC_curve448 security policy with ChaCha20Poly1305.
@@ -197,28 +197,28 @@ namespace Opc.Ua
                 return true;
             }
             if (name.Equals(nameof(ECC_nistP256), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_nistP256_AES), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_nistP256_AesGcm), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_nistP256_ChaChaPoly), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
                     ObjectTypeIds.EccNistP256ApplicationCertificateType);
             }
             if (name.Equals(nameof(ECC_nistP384), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_nistP384_AES), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_nistP384_AesGcm), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_nistP384_ChaChaPoly), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
                     ObjectTypeIds.EccNistP384ApplicationCertificateType);
             }
             if (name.Equals(nameof(ECC_brainpoolP256r1), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_brainpoolP256r1_AES), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_brainpoolP256r1_AesGcm), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_brainpoolP256r1_ChaChaPoly), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
                     ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
             }
             if (name.Equals(nameof(ECC_brainpoolP384r1), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_brainpoolP384r1_AES), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_brainpoolP384r1_AesGcm), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_brainpoolP384r1_ChaChaPoly), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
@@ -226,10 +226,10 @@ namespace Opc.Ua
             }
 
             if (name.Equals(nameof(ECC_curve25519), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve25519_AES), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_curve25519_AesGcm), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_curve25519_ChaChaPoly), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_curve448), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448_AES), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_curve448_AesGcm), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_curve448_ChaChaPoly), StringComparison.Ordinal))
             {
 #if CURVE25519

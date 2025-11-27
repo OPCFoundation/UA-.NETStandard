@@ -141,6 +141,17 @@ namespace Opc.Ua.Server
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
         OperationContext ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
+
+        /// <summary>
+        /// Validates the session transfer token prior to processing an ActivateSession request.
+        /// </summary>
+        /// <param name="context">The operation context in which the validation is performed.</param>
+        /// <param name="authenticationToken">The authentication token associated with the session.</param>
+        /// <param name="sessionActivationToken">The activation token used to verify the session transfer.</param>
+        void ValidateSessionTransferToken(
+            OperationContext context,
+            NodeId authenticationToken,
+            byte[] sessionActivationToken);
     }
 
     /// <summary>

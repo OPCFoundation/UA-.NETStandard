@@ -178,13 +178,24 @@ namespace Opc.Ua.Bindings
                 return "0:---";
             }
 
+            byte checksum = 0;
+
+            foreach (var item in key)
+            {
+                checksum ^= item;
+            }
+
             if (key.Length <= 16)
             {
-                return key.Length.ToString(CultureInfo.InvariantCulture) + ":" + Utils.ToHexString(key);
+                return key.Length.ToString(CultureInfo.InvariantCulture) +
+                    ":" +
+                    Utils.ToHexString(key) +
+                    "=>" +
+                    checksum.ToString(CultureInfo.InvariantCulture);
             }
 
             var text = Utils.ToHexString(key);
-            return $"{key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length-8, 8)}";
+            return $"{key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length-8, 8)}=>{checksum}";
         }
     }
 

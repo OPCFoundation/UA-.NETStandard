@@ -738,63 +738,8 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (context?.SecurityPolicyUri != SecurityPolicies.None)
-                {
-                    bool diagnosticsExist = false;
-
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        diagnosticInfos = [];
-                    }
-
-                    results = [];
-                    diagnosticInfos = [];
-
-                    foreach (SignedSoftwareCertificate signedCertificate in clientSoftwareCertificates)
-                    {
-                        ServiceResult result = SoftwareCertificate.Validate(
-                            CertificateValidator,
-                            signedCertificate.CertificateData,
-                            m_serverInternal.Telemetry,
-                            out SoftwareCertificate softwareCertificate);
-
-                        if (ServiceResult.IsBad(result))
-                        {
-                            results.Add(result.Code);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                                    ServerInternal,
-                                    context,
-                                    result,
-                                    m_logger);
-                                diagnosticInfos.Add(diagnosticInfo);
-                                diagnosticsExist = true;
-                            }
-                        }
-                        else
-                        {
-                            softwareCertificates.Add(softwareCertificate);
-                            results.Add(StatusCodes.Good);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                diagnosticInfos.Add(null);
-                            }
-                        }
-                    }
-
-                    if (!diagnosticsExist && diagnosticInfos != null)
-                    {
-                        diagnosticInfos.Clear();
-                    }
-                }
-
-                // check if certificates meet the server's requirements.
-                ValidateSoftwareCertificates(softwareCertificates);
+                // validate the session transfer token if provided.
+                VerifySessionTransferToken(context, requestHeader);
 
                 // activate the session.
                 (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
@@ -815,6 +760,7 @@ namespace Opc.Ua.Server
 
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
+
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;
@@ -878,6 +824,46 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
+        }
+
+        /// <summary>
+        /// Verifies the session transfer token.
+        /// </summary>
+        protected bool VerifySessionTransferToken(OperationContext context, RequestHeader requestHeader)
+        {
+            byte[] sessionTransferToken = null;
+
+            var parameters =
+                ExtensionObject.ToEncodeable(
+                    requestHeader.AdditionalHeader) as AdditionalParametersType;
+
+            if (parameters != null)
+            {
+                foreach (KeyValuePair ii in parameters.Parameters)
+                {
+                    if (ii.Key == AdditionalParameterNames.SessionTransferToken)
+                    {
+                        if (ii.Value.TypeInfo != TypeInfo.Scalars.ByteString || ii.Value.Value is not byte[])
+                        {
+                            m_logger.LogWarning(
+                                "SessionTransferToken has an invalid DataType. Ignored.");
+                        }
+
+                        if (ii.Value.Value is byte[] token)
+                        {
+                            sessionTransferToken = token;
+                            break;
+                        } 
+                    }
+                }
+            }
+
+            ServerInternal.SessionManager.ValidateSessionTransferToken(
+                context,
+                requestHeader.AuthenticationToken,
+                sessionTransferToken);
+
+            return true;
         }
 
         /// <summary>
@@ -2770,16 +2756,6 @@ namespace Opc.Ua.Server
             ServiceResult result)
         {
             throw new ServiceResultException(result);
-        }
-
-        /// <summary>
-        /// Inspects the software certificates provided by the server.
-        /// </summary>
-        /// <param name="softwareCertificates">The software certificates.</param>
-        protected virtual void ValidateSoftwareCertificates(
-            List<SoftwareCertificate> softwareCertificates)
-        {
-            // always accept valid certificates.
         }
 
         /// <summary>

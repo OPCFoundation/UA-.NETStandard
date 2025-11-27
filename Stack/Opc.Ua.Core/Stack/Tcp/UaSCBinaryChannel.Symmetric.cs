@@ -249,6 +249,7 @@ namespace Opc.Ua.Bindings
                 token.ServerSigningKey = signingKey;
                 token.ServerEncryptingKey = encryptingKey;
                 token.ServerInitializationVector = iv;
+                token.SessionActivationSecret = null;
             }
             else
             {

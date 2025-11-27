@@ -310,6 +310,103 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Validates a session activation token.
+        /// </summary>
+        public bool ValidateSessionActivationToken(
+            byte[] sessionActivationToken,
+            byte[] newSecureChannelHash,
+            byte[] oldSessionActivatationSecret)
+        {
+            if (SecureChannelEnhancements == false)
+            {
+                // tokens are not used when secure channel enhancements are disabled.
+                return true;
+            }
+
+            if (sessionActivationToken == null || sessionActivationToken.Length == 0)
+            {
+                return false;
+            }
+
+            if (oldSessionActivatationSecret == null || oldSessionActivatationSecret.Length == 0)
+            {
+                return false;
+            }
+
+            if (newSecureChannelHash == null || newSecureChannelHash.Length == 0)
+            {
+                return false;
+            }
+
+            HMAC hmac;
+            
+            switch (KeyDerivationAlgorithm)
+            {
+                default:
+                case KeyDerivationAlgorithm.HKDFSha256:
+                    hmac = new HMACSHA256(oldSessionActivatationSecret);
+                    break;
+                case KeyDerivationAlgorithm.HKDFSha384:
+                    hmac = new HMACSHA384(oldSessionActivatationSecret);
+                    break;
+            }
+
+            using (hmac)
+            {
+                byte[] expectedToken = hmac.ComputeHash(newSecureChannelHash);
+
+                if (!Utils.IsEqual(expectedToken, sessionActivationToken))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Creats a session activation token.
+        /// </summary>
+        public byte[] CreateSessionActivationToken(
+            byte[] newSecureChannelHash,
+            byte[] oldSessionActivatationSecret)
+        {
+            if (SecureChannelEnhancements == false)
+            {
+                // tokens are not used when secure channel enhancements are disabled.
+                return null;
+            }
+
+            if (oldSessionActivatationSecret == null || oldSessionActivatationSecret.Length == 0)
+            {
+                return null;
+            }
+
+            if (newSecureChannelHash == null || newSecureChannelHash.Length == 0)
+            {
+                return null;
+            }
+
+            HMAC hmac;
+
+            switch (KeyDerivationAlgorithm)
+            {
+                default:
+                case KeyDerivationAlgorithm.HKDFSha256:
+                    hmac = new HMACSHA256(oldSessionActivatationSecret);
+                    break;
+                case KeyDerivationAlgorithm.HKDFSha384:
+                    hmac = new HMACSHA384(oldSessionActivatationSecret);
+                    break;
+            }
+
+            using (hmac)
+            {
+                return hmac.ComputeHash(newSecureChannelHash);
+            }
+        }
+
+        /// <summary>
         /// The security policy that does not provide any security.
         /// </summary>
         public static readonly SecurityPolicyInfo None = new(SecurityPolicies.None)
@@ -490,7 +587,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC curve25519 is a required minimum security policy. It uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve25519_AES = new(SecurityPolicies.ECC_curve25519_AES)
+        public readonly static SecurityPolicyInfo ECC_curve25519_AesGcm = new(SecurityPolicies.ECC_curve25519_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -568,7 +665,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC curve448 is a required minimum security policy. It uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve448_AES = new(SecurityPolicies.ECC_curve448_AES)
+        public readonly static SecurityPolicyInfo ECC_curve448_AesGcm = new(SecurityPolicies.ECC_curve448_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -644,12 +741,12 @@ namespace Opc.Ua
         };
 
         /// <summary>
-        /// The ECC_nistP256_AES is an ECC nistP256 variant that uses AES-GCM for symmetric encryption.
+        /// The ECC_nistP256_AesGcm is an ECC nistP256 variant that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP256_AES = new(SecurityPolicies.ECC_nistP256_AES)
+        public readonly static SecurityPolicyInfo ECC_nistP256_AesGcm = new(SecurityPolicies.ECC_nistP256_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
-            SymmetricEncryptionKeyLength = 128 / 8,
+            SymmetricEncryptionKeyLength = 256 / 8,
             InitializationVectorLength = 96 / 8,
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 256,
@@ -670,7 +767,7 @@ namespace Opc.Ua
         };
 
         /// <summary>
-        /// The ECC_nistP256_AES is an ECC nistP256 variant that uses ChaCha20Poly1305 for symmetric encryption.
+        /// The ECC_nistP256_AesGcm is an ECC nistP256 variant that uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
         public readonly static SecurityPolicyInfo ECC_nistP256_ChaChaPoly = new(SecurityPolicies.ECC_nistP256_ChaChaPoly)
         {
@@ -724,7 +821,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC nistP384 is an optional high security policy that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP384_AES = new(SecurityPolicies.ECC_nistP384_AES)
+        public readonly static SecurityPolicyInfo ECC_nistP384_AesGcm = new(SecurityPolicies.ECC_nistP384_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -800,9 +897,9 @@ namespace Opc.Ua
         };
 
         /// <summary>
-        /// The ECC_brainpoolP256r1_AES is an ECC brainpoolP256 variant that uses AES-GCM for symmetric encryption.
+        /// The ECC_brainpoolP256r1_AesGcm is an ECC brainpoolP256 variant that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_AES = new (SecurityPolicies.ECC_brainpoolP256r1_AES)
+        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_AesGcm = new (SecurityPolicies.ECC_brainpoolP256r1_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -880,7 +977,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC brainpoolP384r1 is an optional high security policy that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1_AES = new(SecurityPolicies.ECC_brainpoolP384r1_AES)
+        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1_AesGcm = new(SecurityPolicies.ECC_brainpoolP384r1_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,

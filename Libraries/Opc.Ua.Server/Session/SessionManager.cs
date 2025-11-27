@@ -535,6 +535,34 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validates the session transfer token prior to processing an ActivateSession request.
+        /// </summary>
+        public void ValidateSessionTransferToken(
+            OperationContext context,
+            NodeId authenticationToken,
+            byte[] sessionActivationToken)
+        {
+            ISession session = null;
+
+            if (!m_sessions.TryGetValue(authenticationToken, out session))
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            }
+
+            if (session.SecureChannelId != context.ChannelContext.SecureChannelId)
+            {
+                session.ValidateSessionTransferToken(context, sessionActivationToken);
+            }
+#if DEBUG
+            // always check when debugging.
+            else if (sessionActivationToken != null)
+            {
+                session.ValidateSessionTransferToken(context, sessionActivationToken);
+            }
+#endif
+        }
+
+        /// <summary>
         /// Creates a new instance of a session.
         /// </summary>
         protected virtual ISession CreateSession(

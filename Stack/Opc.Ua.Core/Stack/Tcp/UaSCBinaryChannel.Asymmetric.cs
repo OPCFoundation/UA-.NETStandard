@@ -719,6 +719,10 @@ namespace Opc.Ua.Bindings
                         encoder.WriteRawBytes(signature, 0, signature.Length);
                     }
 
+                    Console.WriteLine($"OSC:dataToSign={TcpMessageType.KeyToString(dataToSign)}");
+                    Console.WriteLine($"OSC:signature={TcpMessageType.KeyToString(signature)}");
+                    Console.WriteLine($"OSC:Thumbprint={senderCertificate?.Thumbprint}");
+
                     int messageSize = encoder.Close();
 
                     // encrypt the data.
@@ -753,9 +757,6 @@ namespace Opc.Ua.Bindings
 
                 // ensure the buffers don't get clean up on exit.
                 success = true;
-
-                Console.WriteLine($"OSC IN={TcpMessageType.KeyToString(messageBody)}");
-                Console.WriteLine($"OSC OUT={TcpMessageType.KeyToString(chunksToSend[0])}");
 
                 return chunksToSend;
             }
@@ -984,8 +985,11 @@ namespace Opc.Ua.Bindings
                     _ => SHA256.Create()
                 };
 
-                Console.WriteLine($"signature={TcpMessageType.KeyToString(signature)}");
                 SecureChannelHash = hash.ComputeHash(signature, 0, signature.Length);
+
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.WriteLine($"SecureChannelHash={TcpMessageType.KeyToString(SecureChannelHash)}");
+                Console.ForegroundColor = ConsoleColor.White;
             }
         }
 
@@ -1142,6 +1146,11 @@ namespace Opc.Ua.Bindings
                     plainText.Offset,
                     plainText.Count - signatureSize);
             }
+
+
+            Console.WriteLine($"OSC:dataToVerify={TcpMessageType.KeyToString(dataToVerify)}");
+            Console.WriteLine($"OSC:signature={TcpMessageType.KeyToString(signature)}");
+            Console.WriteLine($"OSC:Thumbprint={senderCertificate?.Thumbprint}");
 
             // verify the signature.
             if (!Verify(dataToVerify, signature, senderCertificate))
@@ -1350,22 +1359,22 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.Pkcs1);
                 case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_AesGcm:
                 case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_AesGcm:
                 case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                 case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_AesGcm:
                 case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                 case SecurityPolicies.ECC_curve448:
-                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_AesGcm:
                 case SecurityPolicies.ECC_curve448_ChaChaPoly:
                 case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_AesGcm:
                 case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_AesGcm:
                 case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     goto default;
                 default:

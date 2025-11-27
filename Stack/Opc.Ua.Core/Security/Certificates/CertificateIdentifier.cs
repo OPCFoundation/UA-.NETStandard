@@ -783,32 +783,32 @@ namespace Opc.Ua
                     result.Add(ObjectTypeIds.RsaSha256ApplicationCertificateType);
                     break;
                 case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP256_AES:
+                case SecurityPolicies.ECC_nistP256_AesGcm:
                 case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccNistP256ApplicationCertificateType);
                     goto case SecurityPolicies.ECC_nistP384;
                 case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_nistP384_AES:
+                case SecurityPolicies.ECC_nistP384_AesGcm:
                 case SecurityPolicies.ECC_nistP384_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccNistP384ApplicationCertificateType);
                     break;
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP256r1_AES:
+                case SecurityPolicies.ECC_brainpoolP256r1_AesGcm:
                 case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
                     goto case SecurityPolicies.ECC_brainpoolP384r1;
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.ECC_brainpoolP384r1_AES:
+                case SecurityPolicies.ECC_brainpoolP384r1_AesGcm:
                 case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
                     break;
                 case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve25519_AES:
+                case SecurityPolicies.ECC_curve25519_AesGcm:
                 case SecurityPolicies.ECC_curve25519_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccCurve25519ApplicationCertificateType);
                     break;
                 case SecurityPolicies.ECC_curve448:
-                case SecurityPolicies.ECC_curve448_AES:
+                case SecurityPolicies.ECC_curve448_AesGcm:
                 case SecurityPolicies.ECC_curve448_ChaChaPoly:
                     result.Add(ObjectTypeIds.EccCurve448ApplicationCertificateType);
                     break;

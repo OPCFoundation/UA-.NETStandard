@@ -903,6 +903,10 @@ namespace Opc.Ua.Bindings
                 ComputeSecureChannelHash(signature);
             }
 
+            Console.WriteLine($"OSC:m_oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
+            Console.WriteLine($"OSC:Signature={TcpMessageType.KeyToString(signature)}");
+            Console.WriteLine($"OSC:SecureChannelHash={TcpMessageType.KeyToString(SecureChannelHash)}");
+
             // write the message to the server.
             try
             {

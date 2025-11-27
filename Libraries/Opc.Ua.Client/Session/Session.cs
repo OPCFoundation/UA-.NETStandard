@@ -1196,8 +1196,6 @@ namespace Opc.Ua.Client
             byte[] serverCertificateData = response.ServerCertificate;
             SignatureData serverSignature = response.ServerSignature;
             EndpointDescriptionCollection serverEndpoints = response.ServerEndpoints;
-            SignedSoftwareCertificateCollection serverSoftwareCertificates = response
-                .ServerSoftwareCertificates;
 
             m_sessionTimeout = response.RevisedSessionTimeout;
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
@@ -1232,8 +1230,6 @@ namespace Opc.Ua.Client
                     clientCertificateChainData,
                     m_clientNonce,
                     serverNonce);
-
-                HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
@@ -1298,8 +1294,7 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 // send the software certificates assigned to the client.
-                SignedSoftwareCertificateCollection clientSoftwareCertificates
-                    = GetSoftwareCertificates();
+                SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
 
                 // copy the preferred locales if provided.
                 if (preferredLocales != null && preferredLocales.Count > 0)
@@ -1309,14 +1304,14 @@ namespace Opc.Ua.Client
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
-                        null,
-                        clientSignature,
-                        clientSoftwareCertificates,
-                        m_preferredLocales,
-                        new ExtensionObject(identityToken),
-                        userTokenSignature,
-                        ct)
-                    .ConfigureAwait(false);
+                    null,
+                    clientSignature,
+                    clientSoftwareCertificates,
+                    m_preferredLocales,
+                    new ExtensionObject(identityToken),
+                    userTokenSignature,
+                    ct)
+                .ConfigureAwait(false);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
@@ -1337,12 +1332,6 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                if (clientSoftwareCertificates?.Count > 0 &&
-                    (certificateResults == null || certificateResults.Count == 0))
-                {
-                    m_logger.LogInformation("Empty results were received for the ActivateSession call.");
-                }
-
                 // fetch namespaces.
                 await FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
@@ -1354,6 +1343,7 @@ namespace Opc.Ua.Client
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
                     m_serverCertificate = serverCertificate;
+                    m_sessionActivationSecret = TransportChannel.SessionActivationSecret;
 
                     // update system context.
                     m_systemContext.PreferredLocales = m_preferredLocales;
@@ -1523,11 +1513,16 @@ namespace Opc.Ua.Client
                 m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
             // send the software certificates assigned to the client.
-            SignedSoftwareCertificateCollection clientSoftwareCertificates
-                = GetSoftwareCertificates();
+            SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
+
+            // during debugging send the sesson transfer token on all activations.
+            RequestHeader? requestHeader = null;
+#if DEBUG
+            requestHeader = CreateRequestHeaderForSessionActivationToken(securityPolicy);
+#endif
 
             ActivateSessionResponse response = await ActivateSessionAsync(
-                null,
+                requestHeader,
                 clientSignature,
                 clientSoftwareCertificates,
                 preferredLocales,
@@ -2396,8 +2391,7 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 // send the software certificates assigned to the client.
-                SignedSoftwareCertificateCollection clientSoftwareCertificates
-                    = GetSoftwareCertificates();
+                SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
 
                 m_logger.LogInformation("Session REPLACING channel for {SessionId}.", SessionId);
 
@@ -2465,7 +2459,14 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                var header = new RequestHeader { TimeoutHint = kReconnectTimeout };
+                var header = CreateRequestHeaderForSessionActivationToken(securityPolicy);
+
+                if (header == null)
+                {
+                    header = new RequestHeader();
+                }
+
+                header.TimeoutHint = kReconnectTimeout;
 
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeout.CancelAfter(TimeSpan.FromMilliseconds(kReconnectTimeout / 2));
@@ -2697,14 +2698,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Returns the software certificates assigned to the application.
-        /// </summary>
-        protected virtual SignedSoftwareCertificateCollection GetSoftwareCertificates()
-        {
-            return [];
-        }
-
-        /// <summary>
         /// Handles an error when validating the application instance certificate provided by the server.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2713,26 +2706,6 @@ namespace Opc.Ua.Client
             ServiceResult result)
         {
             throw new ServiceResultException(result);
-        }
-
-        /// <summary>
-        /// Handles an error when validating software certificates provided by the server.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        protected virtual void OnSoftwareCertificateError(
-            SignedSoftwareCertificate signedCertificate,
-            ServiceResult result)
-        {
-            throw new ServiceResultException(result);
-        }
-
-        /// <summary>
-        /// Inspects the software certificates provided by the server.
-        /// </summary>
-        protected virtual void ValidateSoftwareCertificates(
-            List<SoftwareCertificate> softwareCertificates)
-        {
-            // always accept valid certificates.
         }
 
         /// <summary>
@@ -4235,38 +4208,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Handles the validation of server software certificates and application callback.
-        /// </summary>
-        private void HandleSignedSoftwareCertificates(
-            SignedSoftwareCertificateCollection serverSoftwareCertificates)
-        {
-            // get a validator to check certificates provided by server.
-            CertificateValidator validator = m_configuration.CertificateValidator;
-
-            // validate software certificates.
-            var softwareCertificates = new List<SoftwareCertificate>();
-
-            foreach (SignedSoftwareCertificate signedCertificate in serverSoftwareCertificates)
-            {
-                ServiceResult result = SoftwareCertificate.Validate(
-                    validator,
-                    signedCertificate.CertificateData,
-                    m_telemetry,
-                    out SoftwareCertificate softwareCertificate);
-
-                if (ServiceResult.IsBad(result))
-                {
-                    OnSoftwareCertificateError(signedCertificate, result);
-                }
-
-                softwareCertificates.Add(softwareCertificate);
-            }
-
-            // check if software certificates meet application requirements.
-            ValidateSoftwareCertificates(softwareCertificates);
-        }
-
-        /// <summary>
         /// Processes the response from a publish request.
         /// </summary>
         private void ProcessPublishResponse(
@@ -4877,6 +4818,32 @@ namespace Opc.Ua.Client
             return requestHeader;
         }
 
+        private RequestHeader? CreateRequestHeaderForSessionActivationToken(SecurityPolicyInfo securityPolicy)
+        {
+            if (m_sessionActivationSecret == null)
+            {
+                return null;
+            }
+
+            var sessionActivationToken = securityPolicy.CreateSessionActivationToken(
+                TransportChannel.SecureChannelHash,
+                m_sessionActivationSecret);
+
+            var requestHeader = new RequestHeader();
+            var parameters = new AdditionalParametersType();
+
+            parameters.Parameters.Add(
+                new KeyValuePair
+                {
+                    Key = AdditionalParameterNames.SessionTransferToken,
+                    Value = sessionActivationToken
+                });
+
+            requestHeader.AdditionalHeader = new ExtensionObject(parameters);
+      
+            return requestHeader;
+        }
+
         /// <summary>
         /// Create a subscription the provided item options
         /// </summary>
@@ -5030,6 +4997,7 @@ namespace Opc.Ua.Client
         private byte[]? m_serverNonce;
         private byte[]? m_clientNonce;
         private byte[]? m_previousServerNonce;
+        private byte[]? m_sessionActivationSecret;
         private X509Certificate2? m_serverCertificate;
         private uint m_publishCounter;
         private int m_tooManyPublishRequests;
