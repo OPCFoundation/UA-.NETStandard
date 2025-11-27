@@ -120,11 +120,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Indicates that an explicit signature is not present.
-        /// </summary>
-        private bool AuthenticatedEncryption { get; set; }
-
-        /// <summary>
         /// The byte length of the MAC (a.k.a signature) attached to each message.
         /// </summary>
         private int SymmetricSignatureSize { get; set; }
@@ -137,71 +132,25 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Calculates the symmetric key sizes based on the current security policy.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void CalculateSymmetricKeySizes()
         {
-            AuthenticatedEncryption = false;
-
-            switch (SecurityPolicyUri)
+            var securityPolicyUri = SecurityPolicyUri;
+            if (securityPolicyUri.StartsWith(SecurityPolicies.BaseUri, StringComparison.Ordinal))
             {
-                case SecurityPolicies.Basic128Rsa15:
-                    SymmetricSignatureSize = 20;
-                    m_signatureKeySize = 16;
-                    m_encryptionKeySize = 16;
-                    EncryptionBlockSize = 16;
-                    break;
-                case SecurityPolicies.Basic256:
-                    SymmetricSignatureSize = 20;
-                    m_signatureKeySize = 24;
-                    m_encryptionKeySize = 32;
-                    EncryptionBlockSize = 16;
-                    break;
-                case SecurityPolicies.Basic256Sha256:
-                    SymmetricSignatureSize = 32;
-                    m_signatureKeySize = 32;
-                    m_encryptionKeySize = 32;
-                    EncryptionBlockSize = 16;
-                    break;
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                    SymmetricSignatureSize = 32;
-                    m_signatureKeySize = 32;
-                    m_encryptionKeySize = 16;
-                    EncryptionBlockSize = 16;
-                    break;
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    SymmetricSignatureSize = 32;
-                    m_signatureKeySize = 32;
-                    m_encryptionKeySize = 32;
-                    EncryptionBlockSize = 16;
-                    break;
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    SymmetricSignatureSize = 32;
-                    m_signatureKeySize = 32;
-                    m_encryptionKeySize = 16;
-                    EncryptionBlockSize = 16;
-                    break;
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    AuthenticatedEncryption = true;
-                    SymmetricSignatureSize = 16;
-                    m_signatureKeySize = 32;
-                    m_encryptionKeySize = 32;
-                    EncryptionBlockSize = 12;
-                    break;
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    SymmetricSignatureSize = 48;
-                    m_signatureKeySize = 48;
-                    m_encryptionKeySize = 32;
-                    EncryptionBlockSize = 16;
-                    break;
-                default:
-                    SymmetricSignatureSize = 0;
-                    m_signatureKeySize = 0;
-                    m_encryptionKeySize = 0;
-                    EncryptionBlockSize = 1;
-                    break;
+                securityPolicyUri = securityPolicyUri.Substring(SecurityPolicies.BaseUri.Length);
             }
+
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    SecurityPolicyUri);
+
+            SymmetricSignatureSize = info.SymmetricSignatureLength;
+            m_signatureKeySize = info.DerivedSignatureKeyLength;
+            m_encryptionKeySize = info.SymmetricEncryptionKeyLength;
+            EncryptionBlockSize = info.InitializationVectorLength != 0 ? info.InitializationVectorLength : 1;
         }
 
         private void DeriveKeysWithPSHA(
@@ -239,22 +188,28 @@ namespace Opc.Ua.Bindings
         }
 
         private void DeriveKeysWithHKDF(
-            HashAlgorithmName algorithmName,
-            byte[] salt,
             ChannelToken token,
+            byte[] salt,
             bool isServer)
         {
-            int length = m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize;
+            int length =
+                token.SecurityPolicy.DerivedSignatureKeyLength +
+                token.SecurityPolicy.SymmetricEncryptionKeyLength +
+                token.SecurityPolicy.InitializationVectorLength;
 
-            byte[] output = m_localNonce.DeriveKey(m_remoteNonce, salt, algorithmName, length);
+            byte[] prk = m_localNonce.DeriveKey(
+                m_remoteNonce,
+                salt,
+                token.SecurityPolicy.GetKeyDerivationHashAlgorithmName(),
+                length);
 
             byte[] signingKey = new byte[m_signatureKeySize];
             byte[] encryptingKey = new byte[m_encryptionKeySize];
             byte[] iv = new byte[EncryptionBlockSize];
 
-            Buffer.BlockCopy(output, 0, signingKey, 0, signingKey.Length);
-            Buffer.BlockCopy(output, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
-            Buffer.BlockCopy(output, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
+            Buffer.BlockCopy(prk, 0, signingKey, 0, signingKey.Length);
+            Buffer.BlockCopy(prk, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
+            Buffer.BlockCopy(prk, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
 
             if (isServer)
             {
@@ -275,6 +230,23 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ComputeKeys(ChannelToken token)
         {
+            // Strip BaseUri prefix to get short name for dictionary lookup
+            var securityPolicyUri = SecurityPolicyUri;
+            if (securityPolicyUri.StartsWith(SecurityPolicies.BaseUri, StringComparison.Ordinal))
+            {
+                securityPolicyUri = securityPolicyUri.Substring(SecurityPolicies.BaseUri.Length);
+            }
+
+            token.SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            if (token.SecurityPolicy == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    SecurityPolicyUri);
+            }
+
             if (SecurityMode == MessageSecurityMode.None)
             {
                 return;
@@ -283,169 +255,44 @@ namespace Opc.Ua.Bindings
             byte[] serverSecret = token.ServerNonce;
             byte[] clientSecret = token.ClientNonce;
 
-            HashAlgorithmName algorithmName = HashAlgorithmName.SHA256;
-            switch (SecurityPolicyUri)
+            m_logger?.LogInformation(
+                "[ComputeKeys] KeyDerivationAlgorithm: {Algo}",
+                token.SecurityPolicy.KeyDerivationAlgorithm);
+
+            if (token.SecurityPolicy.KeyDerivationAlgorithm == KeyDerivationAlgorithm.PSha1 ||
+                token.SecurityPolicy.KeyDerivationAlgorithm == KeyDerivationAlgorithm.PSha256)
             {
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                {
-                    algorithmName = HashAlgorithmName.SHA256;
-                    byte[] length =
-                        SecurityMode == MessageSecurityMode.Sign
-                            ? s_hkdfAes128SignOnlyKeyLength
-                            : s_hkdfAes128SignAndEncryptKeyLength;
-                    byte[] serverSalt = Utils.Append(
-                        length,
-                        s_hkdfServerLabel,
-                        serverSecret,
-                        clientSecret);
-                    byte[] clientSalt = Utils.Append(
-                        length,
-                        s_hkdfClientLabel,
-                        clientSecret,
-                        serverSecret);
-
-#if DEBUG
-                    m_logger.LogDebug("Length={Length}", Utils.ToHexString(length));
-                    m_logger.LogDebug("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogDebug("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogDebug("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
-                    m_logger.LogDebug("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
-#endif
-
-                    DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
-                    DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
-                    break;
-                }
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                {
-                    algorithmName = HashAlgorithmName.SHA384;
-                    byte[] length =
-                        SecurityMode == MessageSecurityMode.Sign
-                            ? s_hkdfAes256SignOnlyKeyLength
-                            : s_hkdfAes256SignAndEncryptKeyLength;
-                    byte[] serverSalt = Utils.Append(
-                        length,
-                        s_hkdfServerLabel,
-                        serverSecret,
-                        clientSecret);
-                    byte[] clientSalt = Utils.Append(
-                        length,
-                        s_hkdfClientLabel,
-                        clientSecret,
-                        serverSecret);
-
-#if DEBUG
-                    m_logger.LogDebug("Length={Length}", Utils.ToHexString(length));
-                    m_logger.LogDebug("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogDebug("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogDebug("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
-                    m_logger.LogDebug("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
-#endif
-
-                    DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
-                    DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
-                    break;
-                }
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                {
-                    algorithmName = HashAlgorithmName.SHA256;
-                    byte[] length = s_hkdfChaCha20Poly1305KeyLength;
-                    byte[] serverSalt = Utils.Append(
-                        length,
-                        s_hkdfServerLabel,
-                        serverSecret,
-                        clientSecret);
-                    byte[] clientSalt = Utils.Append(
-                        length,
-                        s_hkdfClientLabel,
-                        clientSecret,
-                        serverSecret);
-
-#if DEBUG
-                    m_logger.LogDebug("Length={Length}", Utils.ToHexString(length));
-                    m_logger.LogDebug("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogDebug("ServerSecret={ServerSecret}", Utils.ToHexString(clientSecret));
-                    m_logger.LogDebug("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
-                    m_logger.LogDebug("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
-#endif
-
-                    DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
-                    DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
-                    break;
-                }
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                    algorithmName = HashAlgorithmName.SHA1;
-                    goto default;
-                default:
-                    DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);
-                    DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
-                    break;
+                HashAlgorithmName algorithmName = token.SecurityPolicy.GetKeyDerivationHashAlgorithmName();
+                DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);
+                DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
             }
-
-            switch (SecurityPolicyUri)
+            else
             {
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    // create encryptors.
-                    var aesCbcEncryptorProvider = Aes.Create();
-                    aesCbcEncryptorProvider.Mode = CipherMode.CBC;
-                    aesCbcEncryptorProvider.Padding = PaddingMode.None;
-                    aesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
-                    aesCbcEncryptorProvider.IV = token.ClientInitializationVector;
-                    token.ClientEncryptor = aesCbcEncryptorProvider;
+                byte[] keyData = SecurityMode == MessageSecurityMode.Sign
+                    ? token.SecurityPolicy.KeyDataLength
+                    : token.SecurityPolicy.KeyDataLength;
 
-                    var aesCbcDecryptorProvider = Aes.Create();
-                    aesCbcDecryptorProvider.Mode = CipherMode.CBC;
-                    aesCbcDecryptorProvider.Padding = PaddingMode.None;
-                    aesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
-                    aesCbcDecryptorProvider.IV = token.ServerInitializationVector;
-                    token.ServerEncryptor = aesCbcDecryptorProvider;
-                    break;
-                default:
-                    // TODO: is this even legal or should we throw? What are the implications
-                    token.ClientEncryptor = null;
-                    token.ServerEncryptor = null;
-                    break;
-            }
+                byte[] serverSalt = Utils.Append(
+                    keyData,
+                    s_hkdfServerLabel,
+                    serverSecret,
+                    clientSecret);
+                byte[] clientSalt = Utils.Append(
+                    keyData,
+                    s_hkdfClientLabel,
+                    clientSecret,
+                    serverSecret);
 
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
-                    token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
-                    token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
-#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
-                    break;
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
-                    token.ClientHmac = new HMACSHA256(token.ClientSigningKey);
-                    break;
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    token.ServerHmac = new HMACSHA384(token.ServerSigningKey);
-                    token.ClientHmac = new HMACSHA384(token.ClientSigningKey);
-                    break;
-                default:
-                    // TODO: is this even legal or should we throw? What are the implications
-                    token.ServerHmac = null;
-                    token.ClientHmac = null;
-                    break;
+#if DEBUG
+                m_logger.LogDebug("KeyData={KeyData}", Utils.ToHexString(keyData));
+                m_logger.LogDebug("ClientSecret={ClientSecret}", Utils.ToHexString(clientSecret));
+                m_logger.LogDebug("ServerSecret={ServerSecret}", Utils.ToHexString(serverSecret));
+                m_logger.LogDebug("ServerSalt={ServerSalt}", Utils.ToHexString(serverSalt));
+                m_logger.LogDebug("ClientSalt={ClientSalt}", Utils.ToHexString(clientSalt));
+#endif
+
+                DeriveKeysWithHKDF(token, serverSalt, true);
+                DeriveKeysWithHKDF(token, clientSalt, false);
             }
         }
 
@@ -478,8 +325,8 @@ namespace Opc.Ua.Bindings
                 const int headerSize = TcpMessageLimits.SymmetricHeaderSize +
                     TcpMessageLimits.SequenceHeaderSize;
 
-                // no padding byte.
-                if (AuthenticatedEncryption)
+                // no padding byte for authenticated encryption.
+                if (token.SecurityPolicy.NoSymmetricEncryptionPadding)
                 {
                     maxPayloadSize++;
                 }
@@ -597,7 +444,7 @@ namespace Opc.Ua.Bindings
                     int padding = 0;
 
                     if (SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                        !AuthenticatedEncryption)
+                        !token.SecurityPolicy.NoSymmetricEncryptionPadding)
                     {
                         // reserve one byte for the padding size.
                         count++;
@@ -631,7 +478,7 @@ namespace Opc.Ua.Bindings
 
                     // write padding.
                     if (SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                        !AuthenticatedEncryption)
+                        !token.SecurityPolicy.NoSymmetricEncryptionPadding)
                     {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                         if (padding > 1)
@@ -653,7 +500,7 @@ namespace Opc.Ua.Bindings
                     // calculate and write signature.
                     if (SecurityMode != MessageSecurityMode.None)
                     {
-                        if (AuthenticatedEncryption)
+                        if (token.SecurityPolicy.NoSymmetricEncryptionPadding)
                         {
                             strm.Seek(SymmetricSignatureSize, SeekOrigin.Current);
                         }
@@ -672,8 +519,8 @@ namespace Opc.Ua.Bindings
                     }
 
                     if ((SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                        !AuthenticatedEncryption) ||
-                        (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption))
+                        !token.SecurityPolicy.NoSymmetricEncryptionPadding) ||
+                        (SecurityMode != MessageSecurityMode.None && token.SecurityPolicy.NoSymmetricEncryptionPadding))
                     {
                         // encrypt the data.
                         var dataToEncrypt = new ArraySegment<byte>(
@@ -786,10 +633,11 @@ namespace Opc.Ua.Bindings
 
             int headerSize = decoder.Position;
 
+            int decryptedCount = buffer.Count - headerSize;
             if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
                 // decrypt the message.
-                Decrypt(
+                decryptedCount = Decrypt(
                     token,
                     new ArraySegment<byte>(
                         buffer.Array,
@@ -799,9 +647,14 @@ namespace Opc.Ua.Bindings
             }
 
             int paddingCount = 0;
-            if (SecurityMode != MessageSecurityMode.None)
+            if (SecurityMode != MessageSecurityMode.None &&
+                !token.SecurityPolicy.NoSymmetricEncryptionPadding)
             {
-                int signatureStart = buffer.Offset + buffer.Count - SymmetricSignatureSize;
+                int signatureStart =
+                    buffer.Offset +
+                    headerSize +
+                    decryptedCount -
+                    SymmetricSignatureSize;
 
                 // extract signature.
                 byte[] signature = new byte[SymmetricSignatureSize];
@@ -814,7 +667,7 @@ namespace Opc.Ua.Bindings
                         new ArraySegment<byte>(
                             buffer.Array,
                             buffer.Offset,
-                            buffer.Count - SymmetricSignatureSize),
+                            headerSize + decryptedCount - SymmetricSignatureSize),
                         isRequest))
                 {
                     m_logger.LogError("ChannelId {Id}: Could not verify signature on message.", Id);
@@ -843,6 +696,11 @@ namespace Opc.Ua.Bindings
                     paddingCount++;
                 }
             }
+            else if (SecurityMode != MessageSecurityMode.None)
+            {
+                // AEAD algorithms are verified during decrypt.
+                paddingCount = 0;
+            }
 
             // extract request id and sequence number.
             sequenceNumber = decoder.ReadUInt32(null);
@@ -854,11 +712,13 @@ namespace Opc.Ua.Bindings
                 TcpMessageLimits.SymmetricHeaderSize +
                 TcpMessageLimits.SequenceHeaderSize;
             int sizeOfBody =
-                buffer.Count -
-                TcpMessageLimits.SymmetricHeaderSize -
+                decryptedCount -
                 TcpMessageLimits.SequenceHeaderSize -
                 paddingCount -
-                SymmetricSignatureSize;
+                (SecurityMode != MessageSecurityMode.None &&
+                 !token.SecurityPolicy.NoSymmetricEncryptionPadding
+                    ? SymmetricSignatureSize
+                    : 0);
 
             return new ArraySegment<byte>(buffer.Array, startOfBody, sizeOfBody);
         }
@@ -915,7 +775,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Decrypts the data in a buffer using symmetric encryption.
+        /// Encrypts and signs the data in a buffer using symmetric encryption.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         protected void Encrypt(
@@ -923,93 +783,119 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToEncrypt,
             bool useClientKeys)
         {
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.None:
-                    break;
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    SymmetricEncrypt(token, dataToEncrypt, useClientKeys);
-                    break;
+            byte[] encryptingKey = useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey;
+            byte[] iv = useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector;
+            byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
 
-#if CURVE25519
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
+            bool signOnly = SecurityMode == MessageSecurityMode.Sign;
+
+            if (SecurityPolicyUri == SecurityPolicies.None)
+            {
+                return;
+            }
+
+            // For CBC based policies the caller already applied padding and signatures.
+            if (token.SecurityPolicy.SymmetricEncryptionAlgorithm is SymmetricEncryptionAlgorithm.Aes128Cbc
+                or SymmetricEncryptionAlgorithm.Aes256Cbc)
+            {
+                if (signOnly)
                 {
-                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        // narowing conversion can safely be done on m_localSequenceNumber
-                        SymmetricEncryptWithChaCha20Poly1305(
-                            token,
-                            (uint)m_localSequenceNumber,
-                            dataToEncrypt,
-                            useClientKeys);
-                        break;
-                    }
-                    // narowing conversion can safely be done on m_localSequenceNumber
-                    SymmetricSignWithPoly1305(token, (uint)m_localSequenceNumber, dataToEncrypt, useClientKeys);
-                    break;
+                    return;
                 }
-#endif
-                default:
-                    throw new NotSupportedException(SecurityPolicyUri);
+
+                using var aes = Aes.Create();
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.None;
+                aes.Key = encryptingKey;
+                aes.IV = iv;
+
+                using ICryptoTransform encryptor = aes.CreateEncryptor();
+                encryptor.TransformBlock(
+                    dataToEncrypt.Array,
+                    dataToEncrypt.Offset,
+                    dataToEncrypt.Count,
+                    dataToEncrypt.Array,
+                    dataToEncrypt.Offset);
+                return;
+            }
+
+            ArraySegment<byte> result = EccUtils.SymmetricEncryptAndSign(
+                dataToEncrypt,
+                token.SecurityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                signOnly);
+
+            // Copy result back to original buffer if different
+            if (result.Array != dataToEncrypt.Array || result.Offset != dataToEncrypt.Offset)
+            {
+                Buffer.BlockCopy(result.Array, result.Offset, dataToEncrypt.Array, dataToEncrypt.Offset, result.Count);
             }
         }
 
         /// <summary>
-        /// Decrypts the data in a buffer using symmetric encryption.
+        /// Decrypts and verifies the data in a buffer using symmetric encryption.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
-        protected void Decrypt(
+        protected int Decrypt(
             ChannelToken token,
             ArraySegment<byte> dataToDecrypt,
             bool useClientKeys)
         {
-            switch (SecurityPolicyUri)
+            if (SecurityPolicyUri == SecurityPolicies.None)
             {
-                case SecurityPolicies.None:
-                    break;
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    SymmetricDecrypt(token, dataToDecrypt, useClientKeys);
-                    break;
-
-#if CURVE25519
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                {
-                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        SymmetricDecryptWithChaCha20Poly1305(
-                            token,
-                            m_remoteSequenceNumber,
-                            dataToDecrypt,
-                            useClientKeys);
-                        break;
-                    }
-
-                    SymmetricVerifyWithPoly1305(token, m_remoteSequenceNumber, dataToDecrypt, useClientKeys);
-                    break;
-                }
-#endif
-
-                default:
-                    throw new NotSupportedException(SecurityPolicyUri);
+                return dataToDecrypt.Count;
             }
+
+            byte[] encryptingKey = useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey;
+            byte[] iv = useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector;
+            byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
+
+            bool signOnly = SecurityMode == MessageSecurityMode.Sign;
+
+            // For CBC based policies the caller will verify signatures and remove padding.
+            if (token.SecurityPolicy.SymmetricEncryptionAlgorithm is SymmetricEncryptionAlgorithm.Aes128Cbc
+                or SymmetricEncryptionAlgorithm.Aes256Cbc)
+            {
+                if (signOnly)
+                {
+                    return dataToDecrypt.Count;
+                }
+
+                using var aes = Aes.Create();
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.None;
+                aes.Key = encryptingKey;
+                aes.IV = iv;
+
+                using ICryptoTransform decryptor = aes.CreateDecryptor();
+                decryptor.TransformBlock(
+                    dataToDecrypt.Array,
+                    dataToDecrypt.Offset,
+                    dataToDecrypt.Count,
+                    dataToDecrypt.Array,
+                    dataToDecrypt.Offset);
+
+                return dataToDecrypt.Count;
+            }
+
+            ArraySegment<byte> result = EccUtils.SymmetricDecryptAndVerify(
+                dataToDecrypt,
+                token.SecurityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                signOnly);
+
+            // Copy result back to original buffer if different
+            if (result.Array != dataToDecrypt.Array || result.Offset != dataToDecrypt.Offset)
+            {
+                Buffer.BlockCopy(result.Array, result.Offset, dataToDecrypt.Array, dataToDecrypt.Offset, result.Count);
+            }
+
+            // return the decrypted size (without authentication tag/padding)
+            return result.Count - dataToDecrypt.Offset;
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
@@ -1021,8 +907,9 @@ namespace Opc.Ua.Bindings
             ReadOnlySpan<byte> dataToSign,
             bool useClientKeys)
         {
-            // get HMAC object.
-            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
+            byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
+
+            using HMAC hmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
 
             // compute hash.
             int hashSizeInBytes = hmac.HashSize >> 3;
@@ -1049,8 +936,10 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToSign,
             bool useClientKeys)
         {
-            // get HMAC object.
-            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
+            byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
+
+            using HMAC hmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
+            
             // compute hash.
             var istrm = new MemoryStream(
                 dataToSign.Array,
@@ -1075,8 +964,9 @@ namespace Opc.Ua.Bindings
             ReadOnlySpan<byte> dataToVerify,
             bool useClientKeys)
         {
-            // get HMAC object.
-            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
+            byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
+
+            using HMAC hmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
 
             // compute hash.
             int hashSizeInBytes = hmac.HashSize >> 3;
@@ -1103,8 +993,9 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToVerify,
             bool useClientKeys)
         {
-            // get HMAC object.
-            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
+            byte[] signingKey = useClientKeys ? token.ClientSigningKey : token.ServerSigningKey;
+
+            using HMAC hmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
 
             var istrm = new MemoryStream(
                 dataToVerify.Array,
@@ -1140,67 +1031,7 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        /// <summary>
-        /// Encrypts a message using a symmetric algorithm.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private static void SymmetricEncrypt(
-            ChannelToken token,
-            ArraySegment<byte> dataToEncrypt,
-            bool useClientKeys)
-        {
-            SymmetricAlgorithm encryptingKey =
-                (useClientKeys ? token.ClientEncryptor : token.ServerEncryptor)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object.");
 
-            using ICryptoTransform encryptor = encryptingKey.CreateEncryptor();
-            byte[] blockToEncrypt = dataToEncrypt.Array;
-
-            int start = dataToEncrypt.Offset;
-            int count = dataToEncrypt.Count;
-
-            if (count % encryptor.InputBlockSize != 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Input data is not an even number of encryption blocks.");
-            }
-            encryptor.TransformBlock(blockToEncrypt, start, count, blockToEncrypt, start);
-        }
-
-        /// <summary>
-        /// Decrypts a message using a symmetric algorithm.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private static void SymmetricDecrypt(
-            ChannelToken token,
-            ArraySegment<byte> dataToDecrypt,
-            bool useClientKeys)
-        {
-            // get the decrypting key.
-            SymmetricAlgorithm decryptingKey =
-                (useClientKeys ? token.ClientEncryptor : token.ServerEncryptor)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object.");
-
-            using ICryptoTransform decryptor = decryptingKey.CreateDecryptor();
-            byte[] blockToDecrypt = dataToDecrypt.Array;
-
-            int start = dataToDecrypt.Offset;
-            int count = dataToDecrypt.Count;
-
-            if (count % decryptor.InputBlockSize != 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Input data is not an even number of encryption blocks.");
-            }
-
-            decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
-        }
 
 #if CURVE25519
         /// <summary>

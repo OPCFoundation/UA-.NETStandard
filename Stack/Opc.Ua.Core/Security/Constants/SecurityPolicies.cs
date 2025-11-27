@@ -103,6 +103,12 @@ namespace Opc.Ua
 
         private static bool IsPlatformSupportedName(string name)
         {
+            // If name contains BaseUri trim the BaseUri part
+            if (name.StartsWith(BaseUri, StringComparison.Ordinal))
+            {
+                name = name.Substring(BaseUri.Length);
+            }
+
             // all RSA
             if (name.Equals(nameof(None), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256), StringComparison.Ordinal) ||
@@ -147,6 +153,29 @@ namespace Opc.Ua
 #endif
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns the info object associated with the SecurityPolicyUri.
+        /// Supports both full URI and short name (without BaseUri prefix).
+        /// </summary>
+        public static SecurityPolicyInfo GetInfo(string securityPolicyUri)
+        {
+            // Try full URI lookup first (e.g., "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256")
+            if (s_securityPolicyUriToInfo.Value.TryGetValue(securityPolicyUri, out SecurityPolicyInfo info) &&
+                IsPlatformSupportedName(info.Name))
+            {
+                return info;
+            }
+
+            // Try short name lookup (e.g., "Basic256Sha256")
+            if (s_securityPolicyNameToInfo.Value.TryGetValue(securityPolicyUri, out info) &&
+                IsPlatformSupportedName(info.Name))
+            {
+                return info;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -652,6 +681,63 @@ namespace Opc.Ua
                 return keyValuePairs.ToFrozenDictionary();
 #else
                 return new ReadOnlyDictionary<string, string>(keyValuePairs);
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary of uris to SecurityPolicyInfo excluding base uri
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyUriToInfo =
+            new(() =>
+            {
+#if NET8_0_OR_GREATER
+                return s_securityPolicyNameToInfo.Value.ToFrozenDictionary(k => k.Value.Uri, k => k.Value);
+#else
+                return new ReadOnlyDictionary<string, SecurityPolicyInfo>(
+                    s_securityPolicyNameToInfo.Value.ToDictionary(k => k.Value.Uri, k => k.Value));
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary for names to SecurityPolicyInfo excluding base uri
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyNameToInfo =
+            new(() =>
+            {
+                FieldInfo[] policyFields = typeof(SecurityPolicies).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                FieldInfo[] infoFields = typeof(SecurityPolicyInfo).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<string, SecurityPolicyInfo>();
+                foreach (FieldInfo field in policyFields)
+                {
+                    string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
+                    if (field.Name == nameof(BaseUri) ||
+                        field.Name == nameof(Https) ||
+                        !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    // Find the corresponding SecurityPolicyInfo field by name
+                    FieldInfo infoField = Array.Find(infoFields, f => f.Name == field.Name);
+                    if (infoField != null && infoField.FieldType == typeof(SecurityPolicyInfo))
+                    {
+                        SecurityPolicyInfo info = (SecurityPolicyInfo)infoField.GetValue(null);
+                        keyValuePairs.Add(field.Name, info);
+                    }
+                    else
+                    {
+                        // Fallback to creating a minimal instance for unknown policies
+                        keyValuePairs.Add(field.Name, new SecurityPolicyInfo(policyUri, field.Name));
+                    }
+                }
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<string, SecurityPolicyInfo>(keyValuePairs);
 #endif
             });
     }
