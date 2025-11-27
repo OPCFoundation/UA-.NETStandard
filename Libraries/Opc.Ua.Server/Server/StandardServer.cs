@@ -529,7 +529,7 @@ namespace Opc.Ua.Server
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
                     // return the software certificates assigned to the server.
-                    serverSoftwareCertificates = [.. ServerProperties.SoftwareCertificates];
+                    serverSoftwareCertificates = new();
 
                     // sign the nonce provided by the client.
                     serverSignature = null;

@@ -31,7 +31,6 @@ namespace Opc.Ua
             BuildNumber = string.Empty;
             BuildDate = DateTime.MinValue;
             DatatypeAssemblies = [];
-            SoftwareCertificates = [];
         }
 
         /// <summary>
@@ -68,10 +67,5 @@ namespace Opc.Ua
         /// The assemblies that contain encodeable types that could be uses a variable values.
         /// </summary>
         public StringCollection DatatypeAssemblies { get; }
-
-        /// <summary>
-        /// The software certificates granted to the server.
-        /// </summary>
-        public SignedSoftwareCertificateCollection SoftwareCertificates { get; }
     }
 }

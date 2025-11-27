@@ -417,7 +417,7 @@ namespace Opc.Ua
             SymmetricSignatureLength = 0,
             MinAsymmetricKeyLength = 0,
             MaxAsymmetricKeyLength = 0,
-            SecureChannelNonceLength = 0,
+            SecureChannelNonceLength = 32,
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.None,
