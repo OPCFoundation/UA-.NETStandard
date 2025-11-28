@@ -185,9 +185,10 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUpAsync()
+        public new async Task SetUpAsync()
         {
-            return base.SetUpAsync();
+            await base.SetUpAsync().ConfigureAwait(false);
+            await PrepareTestDataAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -506,6 +507,7 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Browse 10 nodes")]
         public async Task BrowseMultipleNodesAsync()
         {
+            //await Task.Delay(5000);
             var nodesToBrowse = new BrowseDescriptionCollection(
                 m_smallTestSet.Select(nodeId => new BrowseDescription
                 {
