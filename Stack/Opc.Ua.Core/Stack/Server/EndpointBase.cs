@@ -1043,7 +1043,7 @@ namespace Opc.Ua
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = await m_service.InvokeAsync(Request,SecureChannelContext, cancellationToken)
+                            m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
                                 .ConfigureAwait(false);
                         }
                     }
@@ -1162,11 +1162,7 @@ namespace Opc.Ua
                 {
                     if (e is OperationCanceledException)
                     {
-                        if (timeoutHintCts?.IsCancellationRequested == true ||
-                            m_cancellationToken.IsCancellationRequested)
-                        {
-                            e = new ServiceResultException(StatusCodes.BadTimeout);
-                        }
+                        e = new ServiceResultException(StatusCodes.BadTimeout);
                     }
                     m_vts.SetResult(m_endpoint.CreateFault(Request, e));
                 }
