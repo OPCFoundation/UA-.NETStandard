@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
@@ -76,7 +77,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<IServiceResponse> ProcessRequestAsync(
+        public ValueTask<IServiceResponse> ProcessRequestAsync(
             SecureChannelContext secureChannelContext,
             IServiceRequest request,
             CancellationToken cancellationToken = default)
@@ -777,7 +778,7 @@ namespace Opc.Ua
             /// thread that calls IServerBase.ScheduleIncomingRequest().
             /// This method always traps any exceptions and reports them to the client as a fault.
             /// </remarks>
-            public async Task CallAsync(CancellationToken cancellationToken = default)
+            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 await OnProcessRequestAsync(null, cancellationToken).ConfigureAwait(false);
             }
@@ -1088,8 +1089,8 @@ namespace Opc.Ua
                 m_endpoint = endpoint;
                 SecureChannelContext = context;
                 Request = request;
-                m_tcs = new TaskCompletionSource<IServiceResponse>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
+                m_vts = s_vtsPool.Get();
+                m_vts.Reset();
                 m_service = m_endpoint.FindService(Request.TypeId);
                 m_cancellationToken = cancellationToken;
             }
@@ -1104,7 +1105,7 @@ namespace Opc.Ua
             /// Process an incoming request
             /// </summary>
             /// <returns></returns>
-            public Task<IServiceResponse> ProcessAsync(CancellationToken cancellationToken = default)
+            public ValueTask<IServiceResponse> ProcessAsync(CancellationToken cancellationToken = default)
             {
                 try
                 {
@@ -1112,14 +1113,14 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
                 }
 
-                return m_tcs.Task;
+                return m_vts.Task;
             }
 
             /// <inheritdoc/>
-            public async Task CallAsync(CancellationToken cancellationToken = default)
+            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 using CancellationTokenSource timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
                     new CancellationTokenSource((int)Request.RequestHeader.TimeoutHint) : null;
@@ -1154,37 +1155,53 @@ namespace Opc.Ua
                     using (activity)
                     {
                         IServiceResponse response = await m_service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
-                        m_tcs.TrySetResult(response);
+                        m_vts.SetResult(response);
                     }
                 }
                 catch (Exception e)
                 {
                     if (e is OperationCanceledException)
                     {
-                        e = new ServiceResultException(StatusCodes.BadTimeout);
+                        if (timeoutHintCts?.IsCancellationRequested == true ||
+                            m_cancellationToken.IsCancellationRequested)
+                        {
+                            e = new ServiceResultException(StatusCodes.BadTimeout);
+                        }
                     }
-
-                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
+                }
+                finally
+                {
+                    s_vtsPool.Return(m_vts);
                 }
             }
 
             /// <inheritdoc/>
             public void OperationCompleted(IServiceResponse response, ServiceResult error)
             {
-                if (ServiceResult.IsBad(error))
+                try
                 {
-                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
+                    if (ServiceResult.IsBad(error))
+                    {
+                        m_vts.SetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
+                    }
+                    else
+                    {
+                        m_vts.SetResult(response);
+                    }
                 }
-                else
+                finally
                 {
-                    m_tcs.TrySetResult(response);
+                    s_vtsPool.Return(m_vts);
                 }
             }
 
             private readonly EndpointBase m_endpoint;
             private readonly ServiceDefinition m_service;
-            private readonly TaskCompletionSource<IServiceResponse> m_tcs;
+            private readonly ManualResetValueTaskSource<IServiceResponse> m_vts;
             private readonly CancellationToken m_cancellationToken;
+            private static readonly ObjectPool<ManualResetValueTaskSource<IServiceResponse>> s_vtsPool =
+                new(() => new ManualResetValueTaskSource<IServiceResponse>(), 100);
         }
 
         /// <summary>

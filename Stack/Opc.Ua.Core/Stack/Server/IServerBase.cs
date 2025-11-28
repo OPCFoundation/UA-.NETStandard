@@ -113,7 +113,7 @@ namespace Opc.Ua
         /// thread that calls IServerBase.ScheduleIncomingRequest().
         /// This method always traps any exceptions and reports them to the client as a fault.
         /// </remarks>
-        Task CallAsync(CancellationToken cancellationToken = default);
+        ValueTask CallAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Used to indicate that the asynchronous operation has completed.
