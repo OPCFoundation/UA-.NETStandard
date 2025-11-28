@@ -1074,7 +1074,7 @@ namespace Opc.Ua
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected class EndpointIncomingRequest : IEndpointIncomingRequest
+        protected readonly struct EndpointIncomingRequest : IEndpointIncomingRequest
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -1082,17 +1082,17 @@ namespace Opc.Ua
             public EndpointIncomingRequest(
                 EndpointBase endpoint,
                 SecureChannelContext context,
-                IServiceRequest request)
+                IServiceRequest request,
+                CancellationToken cancellationToken = default)
             {
                 m_endpoint = endpoint;
                 SecureChannelContext = context;
                 Request = request;
                 m_tcs = new TaskCompletionSource<IServiceResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
+                m_service = m_endpoint.FindService(Request.TypeId);
+                m_cancellationToken = cancellationToken;
             }
-
-            /// <inheritdoc/>
-            public object Calldata { get; set; }
 
             /// <inheritdoc/>
             public SecureChannelContext SecureChannelContext { get; }
@@ -1108,10 +1108,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_cancellationToken = cancellationToken;
-                    m_cancellationToken.Register(() => m_tcs.TrySetCanceled());
-                    m_service = m_endpoint.FindService(Request.TypeId);
-                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this, m_cancellationToken);
+                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this, cancellationToken);
                 }
                 catch (Exception e)
                 {
@@ -1185,9 +1182,9 @@ namespace Opc.Ua
             }
 
             private readonly EndpointBase m_endpoint;
-            private CancellationToken m_cancellationToken;
-            private ServiceDefinition m_service;
+            private readonly ServiceDefinition m_service;
             private readonly TaskCompletionSource<IServiceResponse> m_tcs;
+            private readonly CancellationToken m_cancellationToken;
         }
 
         /// <summary>

@@ -106,12 +106,6 @@ namespace Opc.Ua
         SecureChannelContext SecureChannelContext { get; }
 
         /// <summary>
-        /// Gets or sets the call data associated with the request.
-        /// </summary>
-        /// <value>The call data.</value>
-        object Calldata { get; set; }
-
-        /// <summary>
         /// Used to call the default asynchronous handler.
         /// </summary>
         /// <remarks>
