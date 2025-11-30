@@ -11,9 +11,9 @@
 */
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1089,8 +1089,7 @@ namespace Opc.Ua
                 m_endpoint = endpoint;
                 SecureChannelContext = context;
                 Request = request;
-                m_vts = s_vtsPool.Get();
-                m_vts.Reset();
+                m_vts = ServiceResponsePooledValueTaskSource.Create();
                 m_service = m_endpoint.FindService(Request.TypeId);
                 m_cancellationToken = cancellationToken;
             }
@@ -1166,38 +1165,25 @@ namespace Opc.Ua
                     }
                     m_vts.SetResult(m_endpoint.CreateFault(Request, e));
                 }
-                finally
-                {
-                    s_vtsPool.Return(m_vts);
-                }
             }
 
             /// <inheritdoc/>
             public void OperationCompleted(IServiceResponse response, ServiceResult error)
             {
-                try
+                if (ServiceResult.IsBad(error))
                 {
-                    if (ServiceResult.IsBad(error))
-                    {
-                        m_vts.SetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
-                    }
-                    else
-                    {
-                        m_vts.SetResult(response);
-                    }
+                    m_vts.SetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
                 }
-                finally
+                else
                 {
-                    s_vtsPool.Return(m_vts);
+                    m_vts.SetResult(response);
                 }
             }
 
             private readonly EndpointBase m_endpoint;
             private readonly ServiceDefinition m_service;
-            private readonly ManualResetValueTaskSource<IServiceResponse> m_vts;
+            private readonly ServiceResponsePooledValueTaskSource m_vts;
             private readonly CancellationToken m_cancellationToken;
-            private static readonly ObjectPool<ManualResetValueTaskSource<IServiceResponse>> s_vtsPool =
-                new(() => new ManualResetValueTaskSource<IServiceResponse>(), 100);
         }
 
         /// <summary>
