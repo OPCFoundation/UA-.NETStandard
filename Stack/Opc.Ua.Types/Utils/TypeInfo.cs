@@ -279,6 +279,38 @@ namespace Opc.Ua
                 }
             }
 
+            // Check if the type implements IEncodeable and has a specific TypeId
+            if (dataTypeId == DataTypeIds.Structure &&
+                typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
+            {
+                // Try to create an instance and get its TypeId
+                // All well-known IEncodeable types have parameterless constructors and instance TypeId properties
+                try
+                {
+                    var instance = Activator.CreateInstance(type) as IEncodeable;
+                    if (instance?.TypeId != null)
+                    {
+                        return ExpandedNodeId.ToNodeId(instance.TypeId, null);
+                    }
+                }
+                catch (MissingMethodException)
+                {
+                    // Type doesn't have a parameterless constructor, fall back to Structure
+                }
+                catch (TargetInvocationException)
+                {
+                    // Constructor threw an exception, fall back to Structure
+                }
+                catch (MethodAccessException)
+                {
+                    // No permission to create instance, fall back to Structure
+                }
+                catch (NotSupportedException)
+                {
+                    // Type is not supported for instantiation, fall back to Structure
+                }
+            }
+
             return dataTypeId;
         }
 
