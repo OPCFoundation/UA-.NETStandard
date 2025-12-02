@@ -29,8 +29,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with default values.
+        /// Initializes the object with default values and a new encodeable factory.
         /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <remarks>
+        /// A new <see cref="IEncodeableFactory"/> instance is created via <see cref="EncodeableFactory.Create()"/>.
+        /// To use a private factory that is isolated from other instances in the same process,
+        /// use <see cref="ServiceMessageContext(ITelemetryContext, IEncodeableFactory)"/> instead.
+        /// </remarks>
         public ServiceMessageContext(ITelemetryContext telemetry)
             : this(telemetry, null)
         {
