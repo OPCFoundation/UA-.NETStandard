@@ -404,5 +404,54 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 }
             }
         }
+
+        /// <summary>
+        /// Tests that key frames are sent after KeyFrameCount intervals even when there are no data changes.
+        /// This verifies the fix for issue #2622: KeyFrame is not sent if no changed values
+        /// </summary>
+        [Test(Description = "Verify KeyFrame is sent after KeyFrameCount intervals without data changes")]
+        public void KeyFrameSentWithoutDataChanges([Values(3, 5)] int keyFrameCount)
+        {
+            // Arrange - create a simple DataSetWriter with specified KeyFrameCount
+            var writer = new DataSetWriterDataType
+            {
+                DataSetWriterId = 1,
+                KeyFrameCount = Convert.ToUInt32(keyFrameCount)
+            };
+
+            var writerGroupPublishState = new WriterGroupPublishState();
+
+            // Act & Assert
+
+            // First call should be a key frame (interval 0)
+            bool isDelta = writerGroupPublishState.IsDeltaFrame(writer, out uint seq1);
+            Assert.That(isDelta, Is.False, "First message should be a key frame");
+            Assert.That(seq1, Is.EqualTo(1), "First sequence number should be 1");
+
+            // Subsequent calls before KeyFrameCount should be delta frames
+            for (int i = 1; i < keyFrameCount; i++)
+            {
+                isDelta = writerGroupPublishState.IsDeltaFrame(writer, out uint seqDelta);
+                Assert.That(isDelta, Is.True, $"Message {i + 1} should be a delta frame");
+                Assert.That(seqDelta, Is.EqualTo(i + 1), $"Sequence number should be {i + 1}");
+            }
+
+            // After KeyFrameCount intervals, we should get another key frame
+            isDelta = writerGroupPublishState.IsDeltaFrame(writer, out uint seqKeyFrame);
+            Assert.That(isDelta, Is.False, $"Message {keyFrameCount + 1} should be a key frame");
+            Assert.That(seqKeyFrame, Is.EqualTo(keyFrameCount + 1), $"Sequence number should be {keyFrameCount + 1}");
+
+            // Verify the cycle continues correctly
+            for (int i = 1; i < keyFrameCount; i++)
+            {
+                isDelta = writerGroupPublishState.IsDeltaFrame(writer, out _);
+                Assert.That(isDelta, Is.True, $"Message {keyFrameCount + i + 1} should be a delta frame");
+            }
+
+            // And another key frame
+            isDelta = writerGroupPublishState.IsDeltaFrame(writer, out uint seqKeyFrame2);
+            Assert.That(isDelta, Is.False, $"Message {2 * keyFrameCount + 1} should be a key frame");
+            Assert.That(seqKeyFrame2, Is.EqualTo(2 * keyFrameCount + 1), $"Sequence number should be {2 * keyFrameCount + 1}");
+        }
     }
 }
