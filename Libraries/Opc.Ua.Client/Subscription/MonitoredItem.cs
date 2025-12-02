@@ -938,7 +938,7 @@ namespace Opc.Ua.Client
 
             NotificationMessage message = datachange.Message;
 
-            if (message == null)
+            if (message == null || datachange.Value == null)
             {
                 return null;
             }
