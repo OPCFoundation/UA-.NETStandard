@@ -1611,7 +1611,7 @@ namespace Opc.Ua
 
                     foreach (IEndpointIncomingRequest request in m_queue.ToList())
                     {
-                        Utils.SilentDispose(request);
+                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
                     }
 #if NETSTANDARD2_1_OR_GREATER
                     m_queue.Clear();

@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// <param name="request">The incoming request.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The response to return over the secure channel.</returns>
-        Task<IServiceResponse> ProcessRequestAsync(
+        ValueTask<IServiceResponse> ProcessRequestAsync(
             SecureChannelContext secureChannelContext,
             IServiceRequest request,
             CancellationToken cancellationToken = default);

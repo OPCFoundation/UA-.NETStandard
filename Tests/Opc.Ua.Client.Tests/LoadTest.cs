@@ -236,8 +236,9 @@ namespace Opc.Ua.Client.Tests
                     /* expected */
                 }
 
-                // Wait for notifications to be processed
-                await Task.Delay(publishingInterval * 10).ConfigureAwait(false);
+                // Wait for server to process last write (testDurationSeconds / writeCount -> time for a single write)
+                // + some publishing intervals for notifications to be processed
+                await Task.Delay((testDurationSeconds / (writeCount - 1)) + (publishingInterval * 10)).ConfigureAwait(false);
 
                 // Verification
                 TestContext.Out.WriteLine($"Writer task wrote {writeCount} times.");
