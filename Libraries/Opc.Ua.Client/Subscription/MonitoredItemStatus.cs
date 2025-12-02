@@ -263,5 +263,23 @@ namespace Opc.Ua.Client
         {
             Error = error;
         }
+
+        /// <summary>
+        /// Updates the error state based on a notification result.
+        /// When a bad status code is received in a notification,
+        /// the error is set. When a good status code is received,
+        /// the error is cleared.
+        /// </summary>
+        internal void SetNotificationResult(ServiceResult? result)
+        {
+            if (result == null || ServiceResult.IsGood(result))
+            {
+                Error = null;
+            }
+            else
+            {
+                Error = result;
+            }
+        }
     }
 }

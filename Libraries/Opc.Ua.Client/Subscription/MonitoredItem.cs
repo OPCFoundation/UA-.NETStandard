@@ -581,6 +581,10 @@ namespace Opc.Ua.Client
                                 datachange.Value.Value,
                                 ClientHandle);
                         }
+
+                        // update the monitored item status based on the notification status code
+                        ServiceResult? serviceResult = GetServiceResult(datachange);
+                        Status.SetNotificationResult(serviceResult);
                     }
 
                     m_dataCache.OnNotification(datachange);
