@@ -671,7 +671,7 @@ namespace Opc.Ua
                 {
                     logger.LogWarning(
                         "Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
-                    return InvokeAsync(request, null).GetAwaiter().GetResult();
+                    return InvokeAsync(request, secureChannelContext).GetAwaiter().GetResult();
                 }
                 return m_invokeService?.Invoke(request, secureChannelContext);
             }
@@ -1075,7 +1075,7 @@ namespace Opc.Ua
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected readonly struct EndpointIncomingRequest : IEndpointIncomingRequest
+        protected readonly struct EndpointIncomingRequest : IEndpointIncomingRequest, IEquatable<EndpointIncomingRequest>
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -1178,6 +1178,40 @@ namespace Opc.Ua
                 {
                     m_vts.SetResult(response);
                 }
+            }
+
+            /// <inheritdoc/>
+            public override bool Equals(object obj)
+            {
+                if (obj is EndpointIncomingRequest other)
+                {
+                    return Request.RequestHeader.Equals(other.Request.RequestHeader);
+                }
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public override int GetHashCode()
+            {
+                return Request.RequestHeader.GetHashCode();
+            }
+
+            /// <inheritdoc/>
+            public static bool operator ==(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            {
+                return left.Equals(right);
+            }
+
+            /// <inheritdoc/>
+            public static bool operator !=(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            {
+                return !(left == right);
+            }
+
+            /// <inheritdoc/>
+            public bool Equals(EndpointIncomingRequest other)
+            {
+                return Request.RequestHeader.Equals(other.Request.RequestHeader);
             }
 
             private readonly EndpointBase m_endpoint;
