@@ -416,7 +416,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var writer = new DataSetWriterDataType
             {
                 DataSetWriterId = 1,
-                KeyFrameCount = Convert.ToUInt32(keyFrameCount)
+                KeyFrameCount = (uint)keyFrameCount
             };
 
             var writerGroupPublishState = new WriterGroupPublishState();
