@@ -155,10 +155,31 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the message context from the configuration.
         /// </summary>
+        /// <param name="clonedFactory">This parameter is obsolete and ignored. A new factory instance is always created.</param>
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
-        public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
+        [Obsolete("Use CreateMessageContext() without parameters or CreateMessageContext(IEncodeableFactory) instead.")]
+        public ServiceMessageContext CreateMessageContext(bool clonedFactory)
         {
-            var messageContext = new ServiceMessageContext(m_telemetry);
+            return CreateMessageContext((IEncodeableFactory)null);
+        }
+
+        /// <summary>
+        /// Creates the message context from the configuration.
+        /// </summary>
+        /// <returns>A new instance of a ServiceMessageContext object with a new encodeable factory.</returns>
+        public ServiceMessageContext CreateMessageContext()
+        {
+            return CreateMessageContext((IEncodeableFactory)null);
+        }
+
+        /// <summary>
+        /// Creates the message context from the configuration with a private encodeable factory.
+        /// </summary>
+        /// <param name="factory">The private encodeable factory to use. If null, a new factory will be created.</param>
+        /// <returns>A new instance of a ServiceMessageContext object.</returns>
+        public ServiceMessageContext CreateMessageContext(IEncodeableFactory factory)
+        {
+            var messageContext = new ServiceMessageContext(m_telemetry, factory);
 
             if (TransportQuotas != null)
             {

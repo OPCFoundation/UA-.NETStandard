@@ -232,7 +232,7 @@ namespace Opc.Ua.Client
             }
 
             // create message context.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            ServiceMessageContext messageContext = configuration.CreateMessageContext();
 
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)

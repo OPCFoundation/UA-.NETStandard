@@ -32,6 +32,16 @@ namespace Opc.Ua
         /// Initializes the object with default values.
         /// </summary>
         public ServiceMessageContext(ITelemetryContext telemetry)
+            : this(telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with default values and an optional private encodeable factory.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="factory">The private encodeable factory to use. If null, a new factory will be created.</param>
+        public ServiceMessageContext(ITelemetryContext telemetry, IEncodeableFactory factory)
         {
             Telemetry = telemetry;
             MaxStringLength = DefaultEncodingLimits.MaxStringLength;
@@ -42,7 +52,7 @@ namespace Opc.Ua
             MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
-            m_factory = EncodeableFactory.Create();
+            m_factory = factory ?? EncodeableFactory.Create();
         }
 
         /// <summary>

@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Client
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration;
-            MessageContext = configuration.CreateMessageContext(true);
+            MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
             m_sessionFactory = sessionFactory ??
                 new DefaultSessionFactory(MessageContext.Telemetry)
