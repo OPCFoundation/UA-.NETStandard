@@ -127,8 +127,9 @@ var writeValue = new WriteValue
 {
     NodeId = nodeId,
     AttributeId = Attributes.Value,
-    Value = new DataValue(dataValue.WrappedValue)
+    Value = new DataValue
     {
+        Value = extensionObject,
         SourceTimestamp = DateTime.UtcNow
     }
 };
@@ -514,10 +515,12 @@ var response = await session.ReadAsync(
 - Use verbose logging to see what types are discovered
 
 ```csharp
-// Enable detailed logging
+// Enable detailed logging through telemetry context
 var telemetry = session.MessageContext.Telemetry;
-var logger = telemetry.CreateLogger<ComplexTypeSystem>();
 var complexTypeSystem = new ComplexTypeSystem(session, telemetry);
+
+// The ComplexTypeSystem will log detailed information during type loading
+await complexTypeSystem.LoadAsync();
 ```
 
 ### Values Still Encoded as ExtensionObject
@@ -597,10 +600,10 @@ Interface for accessing properties of complex types.
 #### Methods and Properties
 
 ```csharp
-// Access by index
+// Access property by zero-based index
 object this[int index] { get; set; }
 
-// Access by name
+// Access property by name
 object this[string name] { get; set; }
 
 // Get property count
@@ -657,4 +660,4 @@ void SetValue(object o, object v)         // Set property value
 
 - [Platform Build Documentation](PlatformBuild.md) - Information about building and versioning
 - [Observability Documentation](Observability.md) - Information about logging and telemetry
-- [Reference Client Documentation](../Applications/ConsoleReferenceClient/README.md) - Example client implementation
+- [Console Reference Client](../Applications/ConsoleReferenceClient/README.md) - Example client implementation
