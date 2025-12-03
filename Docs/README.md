@@ -12,6 +12,7 @@ UA Core stack related:
 * Improved support for [Logging](Logging.md) with `ILogger` and `EventSource`.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Support for [ECC Certificates](Docs/EccProfiles.md).
+* Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
 
 Reference application related:
 * [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
