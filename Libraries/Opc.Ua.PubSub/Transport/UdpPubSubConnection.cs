@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 lock (Lock)
                 {
-                    return m_publisherUdpClients;
+                    return m_publisherUdpClients.AsReadOnly();
                 }
             }
         }
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 lock (Lock)
                 {
-                    return m_subscriberUdpClients;
+                    return m_subscriberUdpClients.AsReadOnly();
                 }
             }
         }
