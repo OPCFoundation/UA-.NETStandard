@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            // Create a BaseDataVariableState with byte[] value
+            // Create a BaseDataVariableState for ByteString testing
             var variableState = new BaseDataVariableState<byte[]>(null);
             var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)

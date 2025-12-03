@@ -543,7 +543,7 @@ namespace Opc.Ua
             {
                 // If we have a valid DataType and ValueRank, use them to construct the TypeInfo
                 // This is necessary to distinguish between byte[] (Byte array) and ByteString
-                if (m_value != null && m_dataType != null && !NodeId.IsNull(m_dataType))
+                if (m_value != null && !NodeId.IsNull(m_dataType))
                 {
                     BuiltInType builtInType = TypeInfo.GetBuiltInType(m_dataType);
                     if (builtInType != BuiltInType.Null)
