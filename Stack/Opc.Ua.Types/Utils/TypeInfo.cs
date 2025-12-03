@@ -12,6 +12,7 @@
 
 using System;
 using System.Globalization;
+using System.Numerics;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -2255,6 +2256,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static bool ToBoolean(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return !bigInteger.IsZero;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2298,6 +2305,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static sbyte ToSByte(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (sbyte)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2341,6 +2354,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static byte ToByte(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (byte)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2384,6 +2403,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static short ToInt16(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (short)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2427,6 +2452,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static ushort ToUInt16(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (ushort)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2473,6 +2504,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static int ToInt32(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (int)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2518,6 +2555,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static uint ToUInt32(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (uint)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2563,6 +2606,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static long ToInt64(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (long)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2608,6 +2657,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static ulong ToUInt64(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (ulong)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2653,6 +2708,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static float ToFloat(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (float)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2696,6 +2757,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static double ToDouble(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return (double)bigInteger;
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
@@ -2739,6 +2806,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static string ToString(object value, TypeInfo sourceType)
         {
+            // handle BigInteger conversion
+            if (value is BigInteger bigInteger)
+            {
+                return bigInteger.ToString(CultureInfo.InvariantCulture);
+            }
+
             // handle for supported conversions.
             switch (sourceType.BuiltInType)
             {
