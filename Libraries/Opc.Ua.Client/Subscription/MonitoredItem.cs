@@ -136,6 +136,8 @@ namespace Opc.Ua.Client
             State = state;
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
+            TriggeringItemId = state.TriggeringItemId;
+            TriggeredItems = state.TriggeredItems != null ? new UInt32Collection(state.TriggeredItems) : null;
         }
 
         /// <inheritdoc/>
@@ -144,7 +146,9 @@ namespace Opc.Ua.Client
             state = new MonitoredItemState(State)
             {
                 ServerId = Status.Id,
-                ClientId = ClientHandle
+                ClientId = ClientHandle,
+                TriggeringItemId = TriggeringItemId,
+                TriggeredItems = TriggeredItems != null ? new UInt32Collection(TriggeredItems) : null
             };
         }
 
@@ -1070,6 +1074,18 @@ namespace Opc.Ua.Client
         private MonitoredItemEventCache? m_eventCache;
         private IEncodeable? m_lastNotification;
         private event MonitoredItemNotificationEventHandler? m_Notification;
+
+        /// <summary>
+        /// Server-side identifier of the triggering item if this monitored item
+        /// is triggered by another item. 0 indicates this item is not triggered.
+        /// </summary>
+        internal uint TriggeringItemId { get; set; }
+
+        /// <summary>
+        /// Collection of server-side identifiers of monitored items that are
+        /// triggered by this item. Null if this item does not trigger any other items.
+        /// </summary>
+        internal UInt32Collection? TriggeredItems { get; set; }
     }
 
     /// <summary>
