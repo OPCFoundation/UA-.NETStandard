@@ -705,7 +705,6 @@ namespace TestData
                 }
 
                 // release the continuation point.
-                HistoryReadResult result = new HistoryReadResult();
                 errors[handle.Index] = HistoryReadRaw(
                     context,
                     variable,
@@ -713,7 +712,7 @@ namespace TestData
                     TimestampsToReturn.Neither,
                     true,
                     nodesToRead[handle.Index],
-                    result);
+                    new HistoryReadResult());
             }
         }
 
