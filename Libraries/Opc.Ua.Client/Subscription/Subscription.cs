@@ -2772,7 +2772,6 @@ namespace Opc.Ua.Client
             {
                 MonitoredItemNotification notification = notifications.MonitoredItems[ii];
 
-                // lookup monitored item (lock-free with ConcurrentDictionary),
                 if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out var monitoredItem))
                 {
                     m_logger.LogWarning(

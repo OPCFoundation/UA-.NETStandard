@@ -591,7 +591,6 @@ namespace Opc.Ua.Client
                     m_eventCache.OnNotification(eventchange);
                 }
 
-                // Copy to local variable to avoid race condition if handler is removed between check and invoke
                 var handler = m_Notification;
                 if (handler != null)
                 {
