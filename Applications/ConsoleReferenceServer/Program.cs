@@ -174,9 +174,19 @@ namespace Quickstarts.ReferenceServer
                 // setup reverse connect if specified
                 if (!string.IsNullOrEmpty(reverseConnectUrlString))
                 {
-                    logger.LogInformation("Adding reverse connection to {Url}.", reverseConnectUrlString);
-                    var reverseConnectUrl = new Uri(reverseConnectUrlString);
-                    server.Server.AddReverseConnection(reverseConnectUrl);
+                    try
+                    {
+                        logger.LogInformation("Adding reverse connection to {Url}.", reverseConnectUrlString);
+                        var reverseConnectUrl = new Uri(reverseConnectUrlString);
+                        server.Server.AddReverseConnection(reverseConnectUrl);
+                    }
+                    catch (UriFormatException ex)
+                    {
+                        logger.LogError(ex, "Invalid reverse connect URL: {Url}", reverseConnectUrlString);
+                        throw new ErrorExitException(
+                            $"Invalid reverse connect URL: {reverseConnectUrlString}",
+                            ExitCode.ErrorInvalidCommandLine);
+                    }
                 }
 
                 // Apply custom settings for CTT testing
