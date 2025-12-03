@@ -16,6 +16,7 @@ UA Core stack related:
 Reference application related:
 * [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
 * [Reference Server](../Applications/README.md) documentation for running against CTT.
+* [Provisioning Mode](ProvisioningMode.md) for secure certificate provisioning and initial server configuration.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in Visual Studio 2026 and for local testing.
 
 Starting with version 1.5.375.XX the winforms reference client & winforms reference server were moved to the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository.
