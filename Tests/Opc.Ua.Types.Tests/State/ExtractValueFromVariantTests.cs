@@ -65,17 +65,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateExtractsValueFromExtensionObject()
         {
-            // Create a PropertyState for ArgumentCollection type (IEncodeable)
-            var propertyState = new PropertyState<ArgumentCollection>(null);
+            // Create a PropertyState for Argument type (IEncodeable)
+            var propertyState = new PropertyState<Argument>(null);
 
-            // Create an ArgumentCollection (IEncodeable type that can be in ExtensionObject)
-            var testArgs = new ArgumentCollection
-            {
-                new Argument("arg1", DataTypeIds.String, -1, "test description")
-            };
+            // Create an Argument (IEncodeable type that can be in ExtensionObject)
+            var testArg = new Argument("arg1", DataTypeIds.String, -1, "test description");
             
             // Wrap in ExtensionObject
-            var extensionObject = new ExtensionObject(testArgs);
+            var extensionObject = new ExtensionObject(testArg);
 
             // Set the value using the base Value property (object type)
             // This should trigger ExtractValueFromVariant to unwrap the ExtensionObject
@@ -83,9 +80,8 @@ namespace Opc.Ua.Types.Tests.State
 
             // The value should be extracted from the ExtensionObject
             Assert.IsNotNull(propertyState.Value);
-            Assert.IsInstanceOf<ArgumentCollection>(propertyState.Value);
-            Assert.AreEqual(1, propertyState.Value.Count);
-            Assert.AreEqual("arg1", propertyState.Value[0].Name);
+            Assert.AreEqual("arg1", propertyState.Value.Name);
+            Assert.AreEqual("test description", propertyState.Value.Description.Text);
         }
 
         /// <summary>
@@ -94,15 +90,20 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateExtractsComplexTypeFromExtensionObject()
         {
-            // Create a PropertyState for EUInformation type (IEncodeable)
-            var propertyState = new PropertyState<EUInformation>(null);
+            // Create a PropertyState for RelativePath type (IEncodeable)
+            var propertyState = new PropertyState<RelativePath>(null);
 
-            // Create an EUInformation (IEncodeable type)
-            var testValue = new EUInformation
+            // Create a RelativePath (IEncodeable type)
+            var testValue = new RelativePath
             {
-                NamespaceUri = "http://test.org",
-                DisplayName = new LocalizedText("en", "Test EU"),
-                UnitId = 123
+                Elements = new RelativePathElementCollection
+                {
+                    new RelativePathElement
+                    {
+                        TargetName = new QualifiedName("TestName"),
+                        IsInverse = false
+                    }
+                }
             };
             
             var extensionObject = new ExtensionObject(testValue);
@@ -112,8 +113,9 @@ namespace Opc.Ua.Types.Tests.State
 
             // The value should be extracted
             Assert.IsNotNull(propertyState.Value);
-            Assert.AreEqual("http://test.org", propertyState.Value.NamespaceUri);
-            Assert.AreEqual(123, propertyState.Value.UnitId);
+            Assert.IsNotNull(propertyState.Value.Elements);
+            Assert.AreEqual(1, propertyState.Value.Elements.Count);
+            Assert.AreEqual("TestName", propertyState.Value.Elements[0].TargetName.Name);
         }
 
         /// <summary>
