@@ -71,6 +71,7 @@ namespace Quickstarts.ReferenceServer
             bool cttMode = false;
             char[] password = null;
             int timeout = -1;
+            string reverseConnectUrlString = null;
 
             string usage = Utils.IsRunningOnMono()
                 ? $"Usage: mono {applicationName}.exe [OPTIONS]"
@@ -92,7 +93,12 @@ namespace Quickstarts.ReferenceServer
                     "use the sampling group mechanism in the Reference Node Manager",
                     sg => samplingGroups = sg != null
                 },
-                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null }
+                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
+                {
+                    "rc|reverseconnect=",
+                    "Connect to the specified client endpoint for reverse connect. (e.g. rc=opc.tcp://localhost:65300)",
+                    url => reverseConnectUrlString = url
+                }
             };
 
             using var telemetry = new ConsoleTelemetry();
@@ -164,6 +170,14 @@ namespace Quickstarts.ReferenceServer
                 // start the server
                 logger.LogInformation("Start the server.");
                 await server.StartAsync().ConfigureAwait(false);
+
+                // setup reverse connect if specified
+                if (!string.IsNullOrEmpty(reverseConnectUrlString))
+                {
+                    logger.LogInformation("Adding reverse connection to {Url}.", reverseConnectUrlString);
+                    var reverseConnectUrl = new Uri(reverseConnectUrlString);
+                    server.Server.AddReverseConnection(reverseConnectUrl);
+                }
 
                 // Apply custom settings for CTT testing
                 if (cttMode)
