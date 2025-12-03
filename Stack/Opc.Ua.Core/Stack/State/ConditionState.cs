@@ -706,6 +706,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Evaluates and updates the Retain state when the condition is enabled.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <remarks>
+        /// This method is called by UpdateStateAfterEnable to determine the Retain value.
+        /// The default implementation calls UpdateRetainState() which uses GetRetainState().
+        /// Derived classes can override this method to provide custom logic for determining
+        /// the Retain value when the condition is enabled.
+        /// </remarks>
+        protected virtual void EvaluateRetainStateOnEnable(ISystemContext context)
+        {
+            UpdateRetainState();
+        }
+
+        /// <summary>
         /// Updates the condition state after enabling.
         /// </summary>
         /// <param name="context">The system context.</param>
@@ -716,7 +731,6 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Enabled);
 
-            Retain.Value = true;
             EnabledState.Value = new LocalizedText(state);
             EnabledState.Id.Value = true;
 
@@ -724,6 +738,8 @@ namespace Opc.Ua
             {
                 EnabledState.TransitionTime.Value = DateTime.UtcNow;
             }
+
+            EvaluateRetainStateOnEnable(context);
 
             UpdateEffectiveState(context);
         }
