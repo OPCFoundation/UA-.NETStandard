@@ -238,14 +238,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.SetActiveState(m_systemContext, false);
             var initialTimestamp = alarm.ActiveState.Timestamp;
 
-            // Wait a bit to ensure timestamp changes
-            System.Threading.Thread.Sleep(10);
-
-            // Now activate the alarm
+            // Now activate the alarm - timestamp should be greater than or equal to the initial timestamp
+            // since both could be set to DateTime.UtcNow which has limited precision
+            var beforeActivation = DateTime.UtcNow;
             alarm.SetActiveState(m_systemContext, true);
+            var afterActivation = DateTime.UtcNow;
 
-            // Verify that the timestamp changed
-            Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThan(initialTimestamp));
+            // Verify that the timestamp is within the expected range
+            Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThanOrEqualTo(beforeActivation));
+            Assert.That(alarm.ActiveState.Timestamp, Is.LessThanOrEqualTo(afterActivation));
 
             // Verify that change masks were cleared (indicating subscribers were notified)
             Assert.That(alarm.ActiveState.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
