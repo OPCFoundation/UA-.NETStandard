@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Numerics;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -50,7 +51,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void BigIntegerToFloat()
         {
-            var bigInteger = BigInteger.Parse("164702320649031400000");
+            var bigInteger = BigInteger.Parse("164702320649031400000", CultureInfo.InvariantCulture);
             var result = TypeInfo.Cast(bigInteger, BuiltInType.Float);
             Assert.IsNotNull(result);
             Assert.IsInstanceOf<float>(result);
@@ -66,7 +67,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void BigIntegerToDouble()
         {
-            var bigInteger = BigInteger.Parse("164702320649031400000");
+            var bigInteger = BigInteger.Parse("164702320649031400000", CultureInfo.InvariantCulture);
             var result = TypeInfo.Cast(bigInteger, BuiltInType.Double);
             Assert.IsNotNull(result);
             Assert.IsInstanceOf<double>(result);
@@ -218,14 +219,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void BigIntegerToFloatPrecisionLoss()
         {
             // Very large BigInteger that will lose precision when converted to float
-            var bigInteger = BigInteger.Parse("123456789012345678901234567890");
+            var bigInteger = BigInteger.Parse("123456789012345678901234567890", CultureInfo.InvariantCulture);
             var result = TypeInfo.Cast(bigInteger, BuiltInType.Float);
             Assert.IsNotNull(result);
             Assert.IsInstanceOf<float>(result);
             
             // Just verify it returns a float value - precision loss is expected
             float floatValue = (float)result;
-            Assert.IsTrue(float.IsFinite(floatValue));
+            Assert.IsFalse(float.IsNaN(floatValue));
+            Assert.IsFalse(float.IsInfinity(floatValue));
         }
 
         /// <summary>

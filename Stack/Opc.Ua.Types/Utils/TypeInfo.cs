@@ -1959,8 +1959,15 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static object Cast(object source, TypeInfo sourceType, BuiltInType targetType)
         {
+            // handle BigInteger conversion before checking for null type
+            // BigInteger is not a recognized BuiltInType, so sourceType.BuiltInType will be Null
+            if (source is BigInteger)
+            {
+                // BigInteger conversions are handled in the individual To*() methods below
+                // Don't return null here, let it fall through to the switch statement
+            }
             // null always casts to null.
-            if (sourceType.BuiltInType == BuiltInType.Null)
+            else if (sourceType.BuiltInType == BuiltInType.Null)
             {
                 return null;
             }
