@@ -160,7 +160,9 @@ namespace Opc.Ua
                 ActiveState.TransitionTime.Value = DateTime.UtcNow;
             }
 
+            ActiveState.Timestamp = DateTime.UtcNow;
             UpdateEffectiveState(context);
+            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>
@@ -208,7 +210,9 @@ namespace Opc.Ua
                 SuppressedState.TransitionTime.Value = DateTime.UtcNow;
             }
 
+            SuppressedState.Timestamp = DateTime.UtcNow;
             UpdateEffectiveState(context);
+            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>
@@ -298,7 +302,13 @@ namespace Opc.Ua
                 ShelvingState.CauseProcessingCompleted(context, state);
             }
 
+            if (ShelvingState.UnshelveTime != null)
+            {
+                ShelvingState.UnshelveTime.Timestamp = DateTime.UtcNow;
+            }
+
             UpdateEffectiveState(context);
+            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>
