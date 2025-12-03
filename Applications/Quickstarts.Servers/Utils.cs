@@ -115,6 +115,15 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
+        /// Enable provisioning mode in the ReferenceServer.
+        /// </summary>
+        public static void EnableProvisioningMode(
+            ReferenceServer.ReferenceServer server)
+        {
+            server.ProvisioningMode = true;
+        }
+
+        /// <summary>
         /// The property with available node manager factories.
         /// </summary>
         public static ReadOnlyList<INodeManagerFactory> NodeManagerFactories
