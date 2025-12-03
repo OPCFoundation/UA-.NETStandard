@@ -3,6 +3,7 @@
 This project provides integration of Sharpfuzz with the UA.NET Standard library encoders with support for both afl-fuzz and libfuzzer.
 
 Fuzzers for the following decoders are located in the `Fuzzing` directory:
+
 - BinaryDecoder
 - JsonDecoder
 - XmlDecoder (planned)
@@ -23,7 +24,7 @@ Both fuzzers are supported on Linux. afl-fuzz can be compiled on any Linux syste
 ### Installation of required tools
 
 The full instructions for setting up sharpfuzz can be found at this [README](https://github.com/Metalnem/sharpfuzz/blob/master/README.md).
-The following steps are required to set up the environment: 
+The following steps are required to set up the environment:
 
 - Open a terminal and run the following commands to install the required packages to compile afl-fuzz:
 
@@ -39,8 +40,8 @@ sudo apt-get install -y build-essential cmake git
 sudo apt-get install -y dotnet-sdk-8.0
 ```
 
-The supplied scripts require powershell on Linux to be installed. 
-See [Powershell install on Linux](https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu?view=powershell-7.4).
+The supplied scripts require powershell on Linux to be installed.
+See [Powershell install on Linux](https://learn.microsoft.com/powershell/scripting/install/install-ubuntu?view=powershell-7.4).
 
 To compile and install afl-fuzz and to install sharpfuzz, run the following commands:
 
@@ -75,7 +76,7 @@ sharpfuzz
 
 ### Installation for libfuzzer on Windows
 
-Install the latest dotnet SDK and runtime from https://dotnet.microsoft.com/download/dotnet/.
+Install the [latest dotnet SDK and runtime](https://dotnet.microsoft.com/download/dotnet/).
 
 ```commandline
 # Install SharpFuzz.CommandLine global .NET tool
@@ -89,6 +90,7 @@ First download the latest libfuzzer-dotnet release for Ubuntu, Debian or Windows
 To run a fuzz target with libfuzzer on Windows, from your github cloned project root, execute the following commands:
 
 On Windows, execute the following commands in a Powershell window:
+
 ```powershell
 cd Fuzzing/Encoders
 ./libfuzz.bat
@@ -118,7 +120,7 @@ cd Fuzzing/Encoders
 
 A menu will show up to allow the selection of a fuzzer target function to execute.
 
-Now the fuzzer is started and runs until it is stopped manually by hitting Ctrl-C. The fuzzer will create a directory `findings` in the fuzzer directory, which contains the test cases that caused the fuzzer to crash. 
+Now the fuzzer is started and runs until it is stopped manually by hitting Ctrl-C. The fuzzer will create a directory `findings` in the fuzzer directory, which contains the test cases that caused the fuzzer to crash.
 
 ## Replay of crashes and timeouts with Visual Studio
 
