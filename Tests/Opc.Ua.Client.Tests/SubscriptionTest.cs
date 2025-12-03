@@ -1468,7 +1468,7 @@ namespace Opc.Ua.Client.Tests
         public async Task SetTriggeringTrackingAsync()
         {
             // Create a subscription
-            var subscription = new Subscription(Session.Telemetry)
+            var subscription = new Subscription(Session.DefaultSubscription)
             {
                 PublishingEnabled = true,
                 PublishingInterval = 1000,
@@ -1483,7 +1483,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(subscription.Created, Is.True);
 
             // Create monitored items
-            var triggeringItem = new MonitoredItem(Session.Telemetry)
+            var triggeringItem = new MonitoredItem(subscription.DefaultItem)
             {
                 StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
                 AttributeId = Attributes.Value,
@@ -1493,7 +1493,7 @@ namespace Opc.Ua.Client.Tests
                 DiscardOldest = true
             };
 
-            var triggeredItem1 = new MonitoredItem(Session.Telemetry)
+            var triggeredItem1 = new MonitoredItem(subscription.DefaultItem)
             {
                 StartNodeId = VariableIds.Server_ServerStatus_State,
                 AttributeId = Attributes.Value,
@@ -1503,7 +1503,7 @@ namespace Opc.Ua.Client.Tests
                 DiscardOldest = true
             };
 
-            var triggeredItem2 = new MonitoredItem(Session.Telemetry)
+            var triggeredItem2 = new MonitoredItem(subscription.DefaultItem)
             {
                 StartNodeId = VariableIds.Server_ServerStatus_BuildInfo,
                 AttributeId = Attributes.Value,
@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Client.Tests
             subscription.Snapshot(out SubscriptionState state);
 
             // Verify that the triggering relationships are persisted
-            MonitoredItemState? triggeringItemState = state.MonitoredItems
+            MonitoredItemState triggeringItemState = state.MonitoredItems
                 .FirstOrDefault(m => m.ClientId == triggeringItem.ClientHandle);
             Assert.That(triggeringItemState, Is.Not.Null);
             Assert.That(triggeringItemState.TriggeredItems, Is.Not.Null);
