@@ -43,10 +43,6 @@ namespace Opc.Ua.Client
     {
         private static readonly TimeSpan s_time_epsilon = TimeSpan.FromMilliseconds(500);
 
-        // ThreadLocal pool for MonitoredItemNotificationEventArgs to avoid allocations in hot path
-        private static readonly ThreadLocal<MonitoredItemNotificationEventArgs> s_reusableEventArgs =
-            new ThreadLocal<MonitoredItemNotificationEventArgs>(() => new MonitoredItemNotificationEventArgs());
-
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
         /// </summary>
@@ -595,15 +591,11 @@ namespace Opc.Ua.Client
                     m_eventCache.OnNotification(eventchange);
                 }
 
-                // Use pooled EventArgs to reduce allocations
                 // Copy to local variable to avoid race condition if handler is removed between check and invoke
                 var handler = m_Notification;
                 if (handler != null)
                 {
-                    var args = s_reusableEventArgs.Value!;
-                    args.NotificationValue = newValue;
-                    handler.Invoke(this, args);
-                    args.NotificationValue = null;  // Clear to avoid holding references
+                    handler.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
                 }
             }
         }
@@ -1099,16 +1091,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Parameterless constructor for pooling
-        /// </summary>
-        internal MonitoredItemNotificationEventArgs()
-        {
-        }
-
-        /// <summary>
         /// The new notification.
         /// </summary>
-        public IEncodeable? NotificationValue { get; internal set; }
+        public IEncodeable NotificationValue { get; }
     }
 
     /// <summary>
