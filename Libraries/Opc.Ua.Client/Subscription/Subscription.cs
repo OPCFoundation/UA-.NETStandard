@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -1549,7 +1550,7 @@ namespace Opc.Ua.Client
 
             lock (m_cache)
             {
-                if (!m_monitoredItems.Remove(monitoredItem.ClientHandle))
+                if (!m_monitoredItems.TryRemove(monitoredItem.ClientHandle, out _))
                 {
                     return;
                 }
@@ -1583,7 +1584,7 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in monitoredItems)
                 {
-                    if (m_monitoredItems.Remove(monitoredItem.ClientHandle))
+                    if (m_monitoredItems.TryRemove(monitoredItem.ClientHandle, out _))
                     {
                         monitoredItem.Subscription = null;
 
@@ -2680,7 +2681,7 @@ namespace Opc.Ua.Client
             {
                 int count = clientHandles.Count;
                 itemsToModify = new List<MonitoredItem>(count);
-                var updatedMonitoredItems = new Dictionary<uint, MonitoredItem>(count);
+                var updatedMonitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     int index = serverHandles.FindIndex(
@@ -2771,19 +2772,15 @@ namespace Opc.Ua.Client
             {
                 MonitoredItemNotification notification = notifications.MonitoredItems[ii];
 
-                // lookup monitored item,
-                MonitoredItem? monitoredItem;
-                lock (m_cache)
+                // lookup monitored item (lock-free with ConcurrentDictionary),
+                if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out var monitoredItem))
                 {
-                    if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out monitoredItem))
-                    {
-                        m_logger.LogWarning(
-                            "Publish response contains invalid MonitoredItem. " +
-                            "SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
-                            Id,
-                            notification.ClientHandle);
-                        continue;
-                    }
+                    m_logger.LogWarning(
+                        "Publish response contains invalid MonitoredItem. " +
+                        "SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
+                        Id,
+                        notification.ClientHandle);
+                    continue;
                 }
 
                 // save the message.
@@ -2927,7 +2924,7 @@ namespace Opc.Ua.Client
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private IList<uint>? m_availableSequenceNumbers;
-        private Dictionary<uint, MonitoredItem> m_monitoredItems = [];
+        private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
         private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();
         private CancellationTokenSource? m_messageWorkerCts;
         private Task? m_messageWorkerTask;

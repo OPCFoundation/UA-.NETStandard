@@ -43,6 +43,10 @@ namespace Opc.Ua.Client
     {
         private static readonly TimeSpan s_time_epsilon = TimeSpan.FromMilliseconds(500);
 
+        // ThreadLocal pool for MonitoredItemNotificationEventArgs to avoid allocations in hot path
+        private static readonly ThreadLocal<MonitoredItemNotificationEventArgs> s_reusableEventArgs =
+            new ThreadLocal<MonitoredItemNotificationEventArgs>(() => new MonitoredItemNotificationEventArgs());
+
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
         /// </summary>
@@ -591,7 +595,16 @@ namespace Opc.Ua.Client
                     m_eventCache.OnNotification(eventchange);
                 }
 
-                m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+                // Use pooled EventArgs to reduce allocations
+                // Copy to local variable to avoid race condition if handler is removed between check and invoke
+                var handler = m_Notification;
+                if (handler != null)
+                {
+                    var args = s_reusableEventArgs.Value!;
+                    args.NotificationValue = newValue;
+                    handler.Invoke(this, args);
+                    args.NotificationValue = null;  // Clear to avoid holding references
+                }
             }
         }
 
@@ -1086,9 +1099,16 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Parameterless constructor for pooling
+        /// </summary>
+        internal MonitoredItemNotificationEventArgs()
+        {
+        }
+
+        /// <summary>
         /// The new notification.
         /// </summary>
-        public IEncodeable NotificationValue { get; }
+        public IEncodeable? NotificationValue { get; internal set; }
     }
 
     /// <summary>
@@ -1166,15 +1186,18 @@ namespace Opc.Ua.Client
         public void OnNotification(MonitoredItemNotification notification)
         {
             LastValue = notification.Value;
-            CoreClientUtils.EventLog.Notification(
-                (int)notification.ClientHandle,
-                LastValue.WrappedValue);
 
-            m_logger.LogDebug(
-                "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                notification.ClientHandle,
-                notification.Value.WrappedValue,
-                notification.Value.SourceTimestamp);
+            // EventSource removed from hot path to reduce allocations (Variant.ToString() call)
+            // Users should rely on ILogger or custom telemetry for high-frequency notification tracking
+
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
+                    notification.ClientHandle,
+                    notification.Value.WrappedValue,
+                    notification.Value.SourceTimestamp);
+            }
 
             if (m_values != null)
             {
@@ -1185,11 +1208,14 @@ namespace Opc.Ua.Client
                     {
                         break;
                     }
-                    m_logger.LogInformation(
-                        "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                        notification.ClientHandle,
-                        dropped.WrappedValue,
-                        dropped.SourceTimestamp);
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.LogInformation(
+                            "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
+                            notification.ClientHandle,
+                            dropped.WrappedValue,
+                            dropped.SourceTimestamp);
+                    }
                 }
             }
         }

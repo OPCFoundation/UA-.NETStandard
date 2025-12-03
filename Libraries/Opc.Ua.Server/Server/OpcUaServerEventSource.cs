@@ -66,13 +66,13 @@ namespace Opc.Ua.Server
             Level = EventLevel.Informational)]
         public void ServerCall(RequestType requestType, uint requestId)
         {
-            string requestTypeString = Enum.GetName(
-#if !NET8_0_OR_GREATER
-                typeof(RequestType),
-#endif
-                requestType);
             if (IsEnabled())
             {
+                string requestTypeString = Enum.GetName(
+#if !NET8_0_OR_GREATER
+                    typeof(RequestType),
+#endif
+                    requestType);
                 WriteEvent(kServerCallId, requestTypeString, requestId);
             }
         }
@@ -91,13 +91,16 @@ namespace Opc.Ua.Server
             string secureChannelId,
             string identity)
         {
-            WriteEvent(
-                kSessionStateId,
-                context,
-                sessionId,
-                sessionName,
-                secureChannelId,
-                identity);
+            if (IsEnabled())
+            {
+                WriteEvent(
+                    kSessionStateId,
+                    context,
+                    sessionId,
+                    sessionName,
+                    secureChannelId,
+                    identity);
+            }
         }
 
         /// <summary>
@@ -109,7 +112,10 @@ namespace Opc.Ua.Server
             Level = EventLevel.Verbose)]
         public void MonitoredItemReady(uint id, string state)
         {
-            WriteEvent(kMonitoredItemReadyId, id, state);
+            if (IsEnabled())
+            {
+                WriteEvent(kMonitoredItemReadyId, id, state);
+            }
         }
     }
 }

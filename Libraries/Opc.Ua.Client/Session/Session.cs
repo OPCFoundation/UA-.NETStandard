@@ -3538,9 +3538,8 @@ namespace Opc.Ua.Client
                     "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}",
                     subscriptionId,
                     notificationMessage.SequenceNumber);
-                CoreClientUtils.EventLog.NotificationReceived(
-                    (int)subscriptionId,
-                    (int)notificationMessage.SequenceNumber);
+                // EventSource removed from hot path to reduce allocations
+                // Users should rely on ILogger or custom telemetry for high-frequency notification tracking
 
                 // process response.
                 ProcessPublishResponse(
