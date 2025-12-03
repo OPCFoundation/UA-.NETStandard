@@ -6,8 +6,6 @@
     <RootNamespace>Opc.Ua.Security.Certificates</RootNamespace>
     <Description>OPC UA Security X509 Certificates Class Library</Description>
     <IsPackable>true</IsPackable>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
