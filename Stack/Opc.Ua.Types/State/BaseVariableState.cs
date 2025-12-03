@@ -539,7 +539,21 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 0, IsRequired = false, EmitDefaultValue = false)]
         public Variant WrappedValue
         {
-            get => new(m_value);
+            get
+            {
+                // If we have a valid DataType and ValueRank, use them to construct the TypeInfo
+                // This is necessary to distinguish between byte[] (Byte array) and ByteString
+                if (m_value != null && m_dataType != null && !NodeId.IsNull(m_dataType))
+                {
+                    BuiltInType builtInType = TypeInfo.GetBuiltInType(m_dataType);
+                    if (builtInType != BuiltInType.Null)
+                    {
+                        TypeInfo typeInfo = TypeInfo.Create(builtInType, m_valueRank);
+                        return new Variant(m_value, typeInfo);
+                    }
+                }
+                return new Variant(m_value);
+            }
             set => Value = ExtractValueFromVariant(null, value.Value, false);
         }
 
