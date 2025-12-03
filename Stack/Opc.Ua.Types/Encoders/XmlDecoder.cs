@@ -957,7 +957,7 @@ namespace Opc.Ua
                     }
                     catch (FormatException fe)
                     {
-                        throw CreateBadDecodingError(fieldName, fe);
+                        throw CreateBadDecodingError(fieldName, fe, value: xml);
                     }
                 }
             }
@@ -985,7 +985,7 @@ namespace Opc.Ua
                 }
                 catch (FormatException fe)
                 {
-                    throw CreateBadDecodingError(fieldName, fe);
+                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
                 }
 
                 EndField(fieldName);
@@ -1092,11 +1092,11 @@ namespace Opc.Ua
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
                     .BadNodeIdInvalid)
                 {
-                    throw CreateBadDecodingError(fieldName, sre);
+                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw CreateBadDecodingError(fieldName, ae);
+                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
                 }
 
                 EndField(fieldName);
@@ -1132,11 +1132,11 @@ namespace Opc.Ua
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
                     .BadNodeIdInvalid)
                 {
-                    throw CreateBadDecodingError(fieldName, sre);
+                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw CreateBadDecodingError(fieldName, ae);
+                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
                 }
 
                 EndField(fieldName);
@@ -1531,7 +1531,7 @@ namespace Opc.Ua
                     }
                     catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
                     {
-                        throw CreateBadDecodingError(fieldName, ex);
+                        throw CreateBadDecodingError(fieldName, ex, value: xml);
                     }
                 }
 
@@ -3145,8 +3145,19 @@ namespace Opc.Ua
         private static ServiceResultException CreateBadDecodingError(
             string fieldName,
             Exception ex,
-            [CallerMemberName] string functionName = null)
+            [CallerMemberName] string functionName = null,
+            string value = null)
         {
+            if (!string.IsNullOrEmpty(value))
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unable to read field {0} in function {1}: {2}. Value: '{3}'",
+                    fieldName,
+                    functionName,
+                    ex.Message,
+                    value);
+            }
             return ServiceResultException.Create(
                 StatusCodes.BadDecodingError,
                 "Unable to read field {0} in function {1}: {2}",
@@ -3175,11 +3186,11 @@ namespace Opc.Ua
             }
             catch (OverflowException ove)
             {
-                throw CreateBadDecodingError(fieldName, ove, functionName);
+                throw CreateBadDecodingError(fieldName, ove, functionName, xml);
             }
             catch (FormatException fe)
             {
-                throw CreateBadDecodingError(fieldName, fe, functionName);
+                throw CreateBadDecodingError(fieldName, fe, functionName, xml);
             }
         }
 
