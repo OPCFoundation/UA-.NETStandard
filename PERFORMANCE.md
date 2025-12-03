@@ -324,17 +324,29 @@ if (handler != null)
 
 ### Change 4: EventSource Removal from Notification Hot Path
 
-**File**: `Libraries/Opc.Ua.Client/Subscription/MonitoredItem.cs:1189-1193`
+**Files**:
+- `Libraries/Opc.Ua.Client/Subscription/MonitoredItem.cs:1189-1193`
+- `Libraries/Opc.Ua.Client/Session/Session.cs:3541-3543`
 
-**Status**: ⚠️ **Attempted optimization - Minimal impact**
+**Status**: ⚠️ **BREAKING CHANGE - RECOMMEND REVERTING**
 
-**What**: Removed `CoreClientUtils.EventLog.Notification()` call from hot path
+**What**: Removed EventSource telemetry calls from notification hot paths:
+- `CoreClientUtils.EventLog.Notification()` in MonitoredItem.cs
+- `CoreClientUtils.EventLog.NotificationReceived()` in Session.cs
 
 **Why**: EventSource logging calls `Variant.ToString()` which allocates strings
 
-**Impact**: **Minimal - Included in baseline before optimization**
+**Impact**: **Unknown - Not independently benchmarked**
 
-**Before**:
+**Breaking Change Analysis**:
+- ❌ **Removes ETW/EventPipe telemetry events** that production users may rely on for monitoring
+- ❌ **No comparative benchmark** showing actual performance impact of EventSource
+- ⚠️ EventSource is a **public observability API** - removal affects external monitoring tools
+- ℹ️ EventSource events are **opt-in** (only fire when listeners are attached) - zero cost when disabled
+
+**Code Changes**:
+
+**MonitoredItem.cs - Before**:
 ```csharp
 if (CoreClientUtils.EventLog.IsEnabled())
 {
@@ -344,13 +356,52 @@ if (CoreClientUtils.EventLog.IsEnabled())
 }
 ```
 
-**After**:
+**MonitoredItem.cs - After**:
 ```csharp
 // EventSource removed from hot path to reduce allocations (Variant.ToString() call)
 // Users should rely on ILogger or custom telemetry for high-frequency notification tracking
 ```
 
-**Recommendation**: **CONSIDER REVERTING** if EventSource telemetry is required. The allocation impact was minimal compared to the LoggerFactory issue. Alternative: Implement allocation-free EventSource logging using `WriteEventCore()` with `EventData` pointers.
+**Session.cs - Before**:
+```csharp
+CoreClientUtils.EventLog.NotificationReceived(
+    (int)subscriptionId,
+    (int)notificationMessage.SequenceNumber);
+```
+
+**Session.cs - After**:
+```csharp
+// EventSource removed from hot path to reduce allocations
+// Users should rely on ILogger or custom telemetry for high-frequency notification tracking
+```
+
+**Recommendation**: **REVERT - Breaking change without measured benefit**
+
+**Rationale**:
+1. **No isolated benchmark** - EventSource removal was bundled with LoggerFactory fix (which provided the 23% improvement)
+2. **EventSource is opt-in** - When no ETW listeners are attached, `IsEnabled()` returns false immediately (no allocations)
+3. **Breaking observable behavior** - External monitoring tools relying on these ETW events will break
+4. **Better alternatives exist**:
+   - Implement allocation-free EventSource using `WriteEventCore()` with `EventData` pointers
+   - Keep EventSource but guard with `IsEnabled()` (already present in code)
+   - Document that EventSource has performance cost when ETW tracing is active
+
+**If performance is required**: Optimize EventSource implementation instead of removing:
+```csharp
+// Allocation-free EventSource pattern (example)
+[NonEvent]
+public unsafe void Notification(int clientHandle, Variant value)
+{
+    if (IsEnabled())
+    {
+        // Use EventData to avoid Variant.ToString() allocation
+        EventData* dataDesc = stackalloc EventData[2];
+        dataDesc[0] = new EventData { DataPointer = (IntPtr)(&clientHandle), Size = 4 };
+        // Serialize value without allocation...
+        WriteEventCore(NotificationId, 2, dataDesc);
+    }
+}
+```
 
 ---
 
@@ -408,10 +459,30 @@ A comprehensive search of the codebase using the Explore agent found **no other 
 
 ---
 
+## Final Recommendations Summary
+
+### ✅ **KEEP** (Performance improvements without breaking changes):
+1. **LoggerFactory Singleton Fix** (LoggerUtils.cs) - **Critical** - 23% allocation reduction
+2. **ConcurrentDictionary for MonitoredItems** (Subscription.cs) - Cleaner concurrency semantics, no downside
+3. **ThreadLocal EventArgs Pooling** (MonitoredItem.cs) - Minor improvement (~1 MB/s), no downside
+
+### ⚠️ **REVERT** (Breaking change without measured benefit):
+4. **EventSource Removal** (MonitoredItem.cs, Session.cs) - **Breaking observable behavior** for ETW/EventPipe monitoring without proven performance impact
+   - **Action Taken**: EventSource calls **RESTORED** in MonitoredItem.cs:1190 and Session.cs:3541
+   - **Rationale**: EventSource is opt-in (zero cost when no listeners attached), removing it breaks production telemetry without empirical evidence of benefit
+
+### 📊 **Performance Impact**:
+- **Total improvement**: 23% allocation reduction (client-side), 3.8% (server-side)
+- **No latency regression**: All latency percentiles unchanged
+- **Primary driver**: LoggerFactory singleton fix (other changes had minimal/zero impact)
+
+---
+
 ## Credits
 
 - **Issue Discovered**: Memory profiling during Namotion.Interceptor performance optimization
 - **Root Cause**: DI container construction on every GetLoggerFactory() call
-- **Primary Fix**: Lazy singleton pattern for TraceLoggerTelemetry (**-23% allocations**)
+- **Primary Fix**: Static readonly singleton for TraceLoggerTelemetry (**-23% allocations**)
 - **Secondary Optimizations**: ConcurrentDictionary (cleaner semantics), EventArgs pooling (~1 MB/s)
 - **Validation**: Bidirectional benchmark with 20k msg/s throughput
+- **Breaking Change Analysis**: EventSource removal identified as breaking without measured benefit

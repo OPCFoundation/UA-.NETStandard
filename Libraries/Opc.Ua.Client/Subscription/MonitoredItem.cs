@@ -1187,8 +1187,12 @@ namespace Opc.Ua.Client
         {
             LastValue = notification.Value;
 
-            // EventSource removed from hot path to reduce allocations (Variant.ToString() call)
-            // Users should rely on ILogger or custom telemetry for high-frequency notification tracking
+            if (CoreClientUtils.EventLog.IsEnabled())
+            {
+                CoreClientUtils.EventLog.Notification(
+                    (int)notification.ClientHandle,
+                    LastValue.WrappedValue);
+            }
 
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
