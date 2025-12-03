@@ -3186,11 +3186,11 @@ namespace Opc.Ua
             }
             catch (OverflowException ove)
             {
-                throw CreateBadDecodingError(fieldName, ove, functionName, xml);
+                throw CreateBadDecodingError(fieldName, ove, functionName, value: xml);
             }
             catch (FormatException fe)
             {
-                throw CreateBadDecodingError(fieldName, fe, functionName, xml);
+                throw CreateBadDecodingError(fieldName, fe, functionName, value: xml);
             }
         }
 
