@@ -2681,7 +2681,7 @@ namespace Opc.Ua.Client
             {
                 int count = clientHandles.Count;
                 itemsToModify = new List<MonitoredItem>(count);
-                var updatedMonitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
+                var updatedMonitoredItems = new ConcurrentDictionary<uint, MonitoredItem>(1, count);
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     int index = serverHandles.FindIndex(
