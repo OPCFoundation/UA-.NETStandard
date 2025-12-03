@@ -1,11 +1,11 @@
-# OPC Foundation UA .NET Standard Reference Client
+# OPC Foundation UA .NET Standard Reference Server
 
 ## Introduction
 
-The console reference client can be configured using several console parameters.
+The console reference server can be configured using several console parameters.
 Some of these parameters are explained in more detail below.
 
-To see all available parameters call console reference client with the parameter `-h`.
+To see all available parameters call console reference server with the parameter `-h`.
 
 ## Reverse Connect
 
@@ -16,12 +16,16 @@ The OPC UA reverse connect feature allows an OPC UA server to initiate the conne
 To enable reverse connect mode, specify the client endpoint URL using the `--rc` or `--reverseconnect` parameter:
 
 ```bash
-dotnet ConsoleReferenceClient.dll --rc=opc.tcp://localhost:65300 opc.tcp://localhost:62541/Quickstarts/ReferenceServer
+dotnet ConsoleReferenceServer.dll --rc=opc.tcp://localhost:65300
 ```
 
-The client will start a reverse connect listener on the specified endpoint (e.g., `opc.tcp://localhost:65300`) and wait for the server to connect to it.
+or
 
-### Example: Client and Server with Reverse Connect
+```bash
+dotnet ConsoleReferenceServer.dll --reverseconnect=opc.tcp://localhost:65300
+```
+
+### Example: Server and Client with Reverse Connect
 
 1. Start the client with reverse connect listener on port 65300:
    ```bash
@@ -35,15 +39,11 @@ The client will start a reverse connect listener on the specified endpoint (e.g.
 
 The server will establish a reverse connection to the client endpoint, and the client will use this connection to communicate with the server.
 
-### How to specify User Identity
-#### Username & Password
-Specify as console parameters:
-    `-un YourUsername`
-    `-up YourPassword`
+### Additional Options
 
-#### Certificate
-Place your user certificate in the TrustedUserCertificatesStore (the path can be found in the client configuration XML). Make sure to include an accessible private key with the certificate.
-Specify console parameters:
-    `-uc Thumbprint` (of the user certificate to select)
-    `-ucp Password` (of the user certificates private key (optional))
+- `-a` or `--autoaccept`: Auto accept untrusted certificates (for testing only)
+- `-c` or `--console`: Log to console
+- `-l` or `--log`: Log app output
+- `-t` or `--timeout`: Timeout in seconds to exit application
 
+For the complete list of options, use `--help`.
