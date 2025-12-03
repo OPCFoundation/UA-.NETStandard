@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Gets the list of publisher UDP clients.
         /// Returns a read-only list of active UDP clients used for publishing.
-        /// Can be used to configure socket settings when the connection is not running.
+        /// Can be used to configure socket settings such as ReceiveBuffer size.
         /// </summary>
         public IReadOnlyList<UdpClient> PublisherUdpClients
         {
@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Gets the list of subscriber UDP clients.
         /// Returns a read-only list of active UDP clients used for subscribing.
-        /// Can be used to configure socket settings when the connection is not running.
+        /// Can be used to configure socket settings such as ReceiveBuffer size.
         /// </summary>
         public IReadOnlyList<UdpClient> SubscriberUdpClients
         {
