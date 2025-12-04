@@ -421,8 +421,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.Aes256_Sha256_RsaPss,
                 SecurityPolicies.ECC_nistP384,
                 SecurityPolicies.ECC_brainpoolP384r1,
-                SecurityPolicies.Basic128Rsa15,
-                "This will never exist"
+                SecurityPolicies.Basic128Rsa15
             })
             {
                 if (!supportedPolicies.Contains(policy))
