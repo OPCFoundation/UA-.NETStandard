@@ -95,7 +95,10 @@ namespace Opc.Ua.Client
             Level = EventLevel.Verbose)]
         public void Notification(int clientHandle, Variant value)
         {
-            WriteEvent(NotificationId, clientHandle, value.ToString());
+            if (IsEnabled())
+            {
+                WriteEvent(NotificationId, clientHandle, value.ToString());
+            }
         }
 
         /// <summary>
@@ -107,7 +110,10 @@ namespace Opc.Ua.Client
             Level = EventLevel.Verbose)]
         public void NotificationReceived(int subscriptionId, int sequenceNumber)
         {
-            WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
+            if (IsEnabled())
+            {
+                WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
+            }
         }
 
         /// <summary>
@@ -119,7 +125,10 @@ namespace Opc.Ua.Client
             Level = EventLevel.Verbose)]
         public void PublishStart(int requestHandle)
         {
-            WriteEvent(PublishStartId, requestHandle);
+            if (IsEnabled())
+            {
+                WriteEvent(PublishStartId, requestHandle);
+            }
         }
 
         /// <summary>
@@ -131,7 +140,10 @@ namespace Opc.Ua.Client
             Level = EventLevel.Verbose)]
         public void PublishStop(int requestHandle)
         {
-            WriteEvent(PublishStopId, requestHandle);
+            if (IsEnabled())
+            {
+                WriteEvent(PublishStopId, requestHandle);
+            }
         }
     }
 }

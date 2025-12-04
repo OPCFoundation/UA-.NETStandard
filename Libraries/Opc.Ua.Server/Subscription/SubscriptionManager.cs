@@ -630,7 +630,10 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.LogTrace("Subscription ConditionRefresh started, Id={SubscriptionId}.", subscription.Id);
+                if (m_logger.IsEnabled(LogLevel.Trace))
+                {
+                    m_logger.LogTrace("Subscription ConditionRefresh started, Id={SubscriptionId}.", subscription.Id);
+                }
                 await subscription.ConditionRefreshAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -647,10 +650,13 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.LogTrace(
-                    "Subscription ConditionRefresh2 started, Id={SubscriptionId}, MonitoredItemId={MonitoredItemId}.",
-                    subscription.Id,
-                    monitoredItemId);
+                if (m_logger.IsEnabled(LogLevel.Trace))
+                {
+                    m_logger.LogTrace(
+                        "Subscription ConditionRefresh2 started, Id={SubscriptionId}, MonitoredItemId={MonitoredItemId}.",
+                        subscription.Id,
+                        monitoredItemId);
+                }
                 await subscription.ConditionRefresh2Async(monitoredItemId, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -1038,7 +1044,10 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
+                if (m_logger.IsEnabled(LogLevel.Trace))
+                {
+                    m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
+                }
 
                 // check for any pending status messages that need to be sent.
                 if (ReturnPendingStatusMessage(context, out NotificationMessage statusMessage, out uint statusSubscriptionId))
@@ -1115,9 +1124,12 @@ namespace Opc.Ua.Server
                         }
 
                         requeue = true;
-                        m_logger.LogTrace(
-                            "Publish False Alarm - Request #{ClientHandle} Requeued.",
-                            context.ClientHandle);
+                        if (m_logger.IsEnabled(LogLevel.Trace))
+                        {
+                            m_logger.LogTrace(
+                                "Publish False Alarm - Request #{ClientHandle} Requeued.",
+                                context.ClientHandle);
+                        }
                     }
                     finally
                     {

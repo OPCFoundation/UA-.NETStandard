@@ -591,7 +591,11 @@ namespace Opc.Ua.Client
                     m_eventCache.OnNotification(eventchange);
                 }
 
-                m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+                var handler = m_Notification;
+                if (handler != null)
+                {
+                    handler.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+                }
             }
         }
 
@@ -1166,15 +1170,22 @@ namespace Opc.Ua.Client
         public void OnNotification(MonitoredItemNotification notification)
         {
             LastValue = notification.Value;
-            CoreClientUtils.EventLog.Notification(
-                (int)notification.ClientHandle,
-                LastValue.WrappedValue);
 
-            m_logger.LogDebug(
-                "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                notification.ClientHandle,
-                notification.Value.WrappedValue,
-                notification.Value.SourceTimestamp);
+            if (CoreClientUtils.EventLog.IsEnabled())
+            {
+                CoreClientUtils.EventLog.Notification(
+                    (int)notification.ClientHandle,
+                    LastValue.WrappedValue);
+            }
+
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
+                    notification.ClientHandle,
+                    notification.Value.WrappedValue,
+                    notification.Value.SourceTimestamp);
+            }
 
             if (m_values != null)
             {
@@ -1185,11 +1196,14 @@ namespace Opc.Ua.Client
                     {
                         break;
                     }
-                    m_logger.LogInformation(
-                        "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                        notification.ClientHandle,
-                        dropped.WrappedValue,
-                        dropped.SourceTimestamp);
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.LogInformation(
+                            "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
+                            notification.ClientHandle,
+                            dropped.WrappedValue,
+                            dropped.SourceTimestamp);
+                    }
                 }
             }
         }
