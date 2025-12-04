@@ -1633,7 +1633,7 @@ namespace Opc.Ua.Server
                     DataValue value = values[ii] = new DataValue();
 
                     value.Value = null;
-                    value.ServerTimestamp = DateTime.UtcNow;
+                    value.ServerTimestamp = DateTime.MinValue; // Will be set after ReadAttribute
                     value.SourceTimestamp = DateTime.MinValue;
                     value.StatusCode = StatusCodes.Good;
 
@@ -1656,6 +1656,24 @@ namespace Opc.Ua.Server
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
                         value);
+
+                    // For Value attributes, ensure ServerTimestamp matches SourceTimestamp
+                    if (nodeToRead.AttributeId == Attributes.Value)
+                    {
+                        if (value.SourceTimestamp == DateTime.MinValue)
+                        {
+                            value.SourceTimestamp = DateTime.UtcNow;
+                        }
+                        value.ServerTimestamp = value.SourceTimestamp;
+                    }
+                    else
+                    {
+                        // For non-value attributes, set ServerTimestamp if not already set
+                        if (value.ServerTimestamp == DateTime.MinValue)
+                        {
+                            value.ServerTimestamp = DateTime.UtcNow;
+                        }
+                    }
 #if DEBUG
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
